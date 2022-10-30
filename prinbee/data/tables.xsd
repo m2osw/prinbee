@@ -1,0 +1,652 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+  <xs:annotation>
+    <xs:documentation>
+      <![CDATA[
+      Snap Websites Server == core database table setup
+      Copyright (c) 2012-2019  Made to Order Software Corp.  All Rights Reserved
+
+      This program is free software; you can redistribute it and/or modify
+      it under the terms of the GNU General Public License as published by
+      the Free Software Foundation; either version 2 of the License, or
+      (at your option) any later version.
+
+      This program is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      GNU General Public License for more details.
+
+      You should have received a copy of the GNU General Public License
+      along with this program; if not, write to the Free Software
+      Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+      This is the schema description of the *-tables.xml files.
+
+      Note that one XML file can represent several tables. In most cases,
+      you want to create a single XML file per plugin/part of the software
+      and declare all your tables in that one XML file.
+
+      There is the basic format:
+
+          <context dependencies="...">
+            <table name="..." model="..." row-key="..." drop="..." temporary="..." sparse="..." secure="...">
+              <block-size>...</block-size>
+              <description>...</description>
+              <schema>
+                <column name="..." type="..." limited="..." encrypt="..." required="..." blob="...">
+                  <description>...</description>
+                  <external>...</external>
+                  <default>...</default>
+                  <min-value>...</min-value>
+                  <max-value>...</max-value>
+                  <min-length>...</min-length>
+                  <max-length>...</max-length>
+                  <validation>...</validation>
+                </column>
+              </schema>
+              <secondary-index name="..." distributed="distributed">
+                <order>
+                  <column-name name="..." direction="asc|desc" not-null="not-null">filter</column-name>
+                  ...(additional column definitions)...
+                </order>
+                <filter>
+                  ...(code used to filter the data)...
+                </filter>
+              </secondary-index>
+            </table>
+            <table-extension name="..."> <!-- see SNAP-294 -->
+              <schema>
+                <column name="..." type="..." limited="..." ...>
+                  ...see <column> definition above...
+                </column>
+              </schema>
+            </table-extension>
+            <complex-type name="...">
+              <type name="...">type name</type>
+              ...
+            </complex-type>
+            ...
+          </context>
+
+      The <context> tag can be replaced with a <keyspace>. They are
+      considered equivalent. The current official tag, though, is
+      <context>.
+
+      The <table name="..."> attribute defines the table name. This name is
+      verified. It can only include letters 'a' to 'z', digits '0' to '9', and
+      the underscore '_' character. Also the name cannot start with a digit.
+      Uppercase letters are functional but require quoting the table name
+      each time it gets used so it is not recommended.
+
+      The <table model="..."> attribute defines how the table is to be used.
+      Internally, this means we use one or another set of parameters which
+      better fit that model.
+
+      The available models are:
+
+      * content == a standard content table, such tables are expected
+                   to be used to save data once and read it many times,
+                   also a content table is likely to have many updates too
+                   (i.e. branch table)
+      * data == a content table which is written once and read many times
+                and has nearly no updates (i.e. revision table)
+      * log == a table that is mainly used to write to in normal operation;
+               obviously we want to be able to read from those tables, but
+               they will be optimized for writing
+      * queue == the table is used in an anti-patterns, as far as Cassandra
+                 is concerned (at some point we will add capability to avoid
+                 Cassandra for these tables); this type of table has rows
+                 that are written once, read once, then dropped; these are
+                 used as work journals by plugins such as list and images
+      * sequential == I don't really know of such at this time, except maybe
+                      for journals, it would be a file where all the records
+                      have exactly the same size
+      * session == a table which is both written and read equally; also
+                   the rows are likely setup to timeout automatically;
+                   tables are not likely to grow forever, although they
+                   could still be really large
+      * tree == the table is specifically used to build a tree index to
+                data found in another table (TBD: I think it's still
+                possible to have a single table with the "tree", "content",
+                "branch", and "revision", all in one for our _special case_)
+
+      The <table row-key="..."> attribute defines the list of columns used
+      to build the primary key. You can use the <secondary-index> tag to
+      define other keys, which is useful to (1) filter data and (2) have
+      advanced sorting capabilities.
+
+      The <table drop="drop"> attribute is used to mark a table that needs to
+      be dropped. Whenever this attribute is defined, the named table gets
+      deleted if it still exists (note that just deleting a table definition
+      is not enough since the system will ignore directories it doesn't know
+      anything about).
+
+      The <table temporary="temporary"> attribute is not yet implemented.
+      We may offer support for temporary tables at some point. I'm just not
+      so sure it makes sense at this point but wanted to reserve a bit for
+      the potential feature.
+
+      The <table sparse="sparse"> attribute is used to ask for FREE blocks
+      to be allocated sparsely if possible (i.e. it works only if the size
+      of one block is larger than a system block). Keep in mind that a
+      sparse allocates disk space at the time it gets used. So the size
+      of your database grows as data is added and it may cause more I/O
+      issues if a write fails because your drive is full.
+
+      The <table secure="secure"> attribute marks the entire table as secure.
+      This means that any data that gets deleted will be overwritten with
+      zeroes. This very much reduces the chances that the data leaks once
+      not used by us anymore. In Snap! we use two tables of data, one is
+      marked as being secure so that way we can save data which we consider
+      as being secure in that other table. You can use lower granularity
+      with the encrypt attribute of the columns. However, the encrypt
+      prevents you 100% from using that column in a WHERE clause.
+
+      The <block-size> tag defines the size of one block in your file.
+      By default this is set to the system block size (in general, this
+      is 4Kb on Intel systems). The size is expected to be a multiple of
+      the system page size. If not, it will be increased to the next
+      multiple. Note that by increasing this size you gain the ability
+      to use sparse files. A size smaller than the system block size is
+      ignored and the system block size is used.
+
+      The <description> tag is saved as the table comment. It can be any
+      kind of sensible description of what the table is used for. This tag
+      is optional.
+
+      The <schema> tag defines the column names and types. This is useful
+      as a way to extract data from a table and displaying it to a client.
+      This is mainly for developers while they work on their tables to make
+      sure that the data is valid.
+
+      The <column> tag defines a column name and a corresponding type. The
+      current version does not yet allow for varying column names. However,
+      this is most often an artifact of the lack of indexes in Cassandra
+      and not something we should support long term.
+
+      The <column encrypt="..."> attribute is the name of a key used to
+      encrypt the data in this database. The key is saved in another file
+      in a different folder (we have a _key store_ in the context). This
+      way we can use different keys for different set of data: user data,
+      financial data, AI data, etc.
+
+      The <external> tag of a column defines a size which is used to limit
+      the data saved in the main table. If the user data is larger than this
+      amount, then the data is to be saved in a separate file instead of the
+      main table. (TBD: should that be a table or even context parameter
+      instead?)
+
+      The <complex-type> tag let you define a complex type based on a list
+      of types. These can be used to define a <column>
+      type. The name must be a user defined name (i.e. you cannot replace
+      a system type with a <complex-type> definition.) The order of the
+      <type> tags within a <complex-type> is important.
+
+      The <type> tag defines a field within a complex type. A type with
+      a variable size which is not specified, such as a plain string, can only
+      be found last in the list of types.
+      ]]>
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+  <xs:annotation>
+    <xs:documentation>
+      PART 1: type definitions
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:simpleType name="name">
+    <xs:annotation>
+      <xs:documentation>
+        A valid name composed of letters, digits and underscores.
+        It can't start with a digit.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-zA-Z_][a-zA-Z0-9_]*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="comma-separated-names">
+    <xs:annotation>
+      <xs:documentation>
+        A valid list of names composed of letters, digits, and underscores
+        and separated by commas.
+        Names can't start with a digit.
+        The number of spaces and commas between each name is not restricted,
+        but you must have at least one comma.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-zA-Z_][a-zA-Z0-9_]*( *,[ ,]*[a-zA-Z_][a-zA-Z0-9_]*)*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="column-type">
+    <xs:annotation>
+      <xs:documentation>
+        The name of a basic type we allow in our data.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <!-- text -->
+      <xs:enumeration value="string"/>  <!-- internally "string32" -->
+
+      <!-- blobs -->
+      <xs:enumeration value="binary"/>  <!-- internally "buffer32" -->
+
+      <!-- flags -->
+      <xs:enumeration value="bits8"/>
+      <xs:enumeration value="bits16"/>
+      <xs:enumeration value="bits32"/>
+      <xs:enumeration value="bits64"/>
+      <xs:enumeration value="bits128"/>
+      <xs:enumeration value="bits256"/>
+      <xs:enumeration value="bits512"/>
+
+      <!-- integers -->
+      <xs:enumeration value="int8"/>
+      <xs:enumeration value="uint8"/>
+      <xs:enumeration value="int16"/>
+      <xs:enumeration value="uint16"/>
+      <xs:enumeration value="int32"/>
+      <xs:enumeration value="uint32"/>
+      <xs:enumeration value="int64"/>
+      <xs:enumeration value="uint64"/>
+      <xs:enumeration value="int128"/>
+      <xs:enumeration value="uint128"/>
+      <xs:enumeration value="int256"/>
+      <xs:enumeration value="uint256"/>
+      <xs:enumeration value="int512"/>
+      <xs:enumeration value="uint512"/>
+
+      <xs:enumeration value="oid"/>
+
+      <!-- floating point -->
+      <xs:enumeration value="float32"/>
+      <xs:enumeration value="float64"/>
+      <xs:enumeration value="float128"/>
+
+      <!-- date/time -->
+      <xs:enumeration value="time_microseconds"/>
+      <xs:enumeration value="time_milliseconds"/>
+      <xs:enumeration value="time_seconds"/>
+
+      <!-- specialized TBD -->
+      <!-- xs:enumeration value="enumaration"/ -->
+
+      <!-- CT_secure_value == -1 (not checked), 0 (not secure), 1 (secure) -->
+      <!-- CT_status_value == 0 (unknown), 1 (create), 2 (normal), 3 (hidden), 4 (moved), 5 (deleted) -->
+      <!-- CT_rights_value == int64 + string -->
+
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="model">
+    <xs:annotation>
+      <xs:documentation>
+        The model of a table defines how the table is going to be used so
+        we can optimize its definition. The default is "content" if not
+        specified.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="content"/> <!-- this is the default -->
+      <xs:enumeration value="data"/>
+      <xs:enumeration value="log"/>
+      <xs:enumeration value="queue"/>
+      <xs:enumeration value="session"/>
+      <xs:enumeration value="sequential"/>
+      <xs:enumeration value="tree"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="distributed">
+    <xs:annotation>
+      <xs:documentation>
+        The distributed flag is used to determine how the secondary index
+        is to be distributed. Tables are otherwise automatically distributed.
+        The default is "distributed" since it makes the most sense.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="distributed"/>
+      <xs:enumeration value="one-instance"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="drop">
+    <xs:annotation>
+      <xs:documentation>
+        Mark a table as in need of being dropped. Such tables do not
+        get created. This is used when you used a table for a while
+        and then decided to stop using it. You should keep that declaration
+        for a while so people who have that table defined do get it dropped
+        after a while.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="drop"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="direction">
+    <xs:annotation>
+      <xs:documentation>
+        The sort direction of a column in a secondary index.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="asc"/>
+      <xs:enumeration value="ascending"/>
+      <xs:enumeration value="desc"/>
+      <xs:enumeration value="descending"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="not-null">
+    <xs:annotation>
+      <xs:documentation>
+        If the column is null, do not include it in this secondary index.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="not-null"/>
+      <xs:enumeration value="null"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="blob">
+    <xs:annotation>
+      <xs:documentation>
+        Whether that column is part of the blob. This means you can't do a
+        WHERE against this column because it's going to be (1) compressed
+        and (2) part of the blob (i.e. possibly separated from the main
+        row columns). In most cases, extension columns are all marked as
+        blobs.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="blob"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="limited">
+    <xs:annotation>
+      <xs:documentation>
+        Binary columns may be really large (i.e. a PNG image for example.)
+        The "limited" flag tells tools used to display such columns to limit
+        their output so it does not cover hundred of pages. This is only a
+        display flag.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="limited"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="required">
+    <xs:annotation>
+      <xs:documentation>
+        Columns marked with the "required" flag must be defined or the column
+        cannot be saved. A column with a default cannot be required.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="required"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="html" mixed="true">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element ref="a"/>
+      <xs:element ref="b"/>
+      <xs:element ref="code"/>
+      <xs:element ref="div"/>
+      <xs:element ref="em"/>
+      <xs:element ref="i"/>
+      <xs:element ref="p"/>
+      <xs:element ref="strong"/>
+      <xs:element ref="u"/>
+    </xs:choice>
+    <xs:attribute name="class" type="xs:string"/>
+    <xs:attribute name="id" type="xs:string"/>
+    <xs:attribute name="href" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:simpleType name="temporary">
+    <xs:annotation>
+      <xs:documentation>
+        Tables can be marked as temporary, which means that they get deleted
+        when you release the context.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="temporary"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="sparse">
+    <xs:annotation>
+      <xs:documentation>
+        A table can be marked as being sparse which means blocks with just
+        zeroes may not _physically_ exist on disk. So it saves space on your
+        hard drive. This may be treshenous too as you add more data you may
+        think you have enough space but you may not... At the same time, some
+        blocks will never be used 100% so having a sparse file ligitimately
+        saves you space for those blocks.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="sparse"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="secure">
+    <xs:annotation>
+      <xs:documentation>
+        Whether the table is considered to hold secure data. If so, a delete
+        on a row clears the column's data with all zeroes.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="secure"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+  <xs:annotation>
+    <xs:documentation>
+      PART 2: elements
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:annotation>
+    <xs:documentation>
+      PART 2.1: authorized HTML elements
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="a" type="html"/>
+  <xs:element name="b" type="html"/>
+  <xs:element name="code" type="html"/>
+  <xs:element name="div" type="html"/>
+  <xs:element name="em" type="html"/>
+  <xs:element name="i" type="html"/>
+  <xs:element name="p" type="html"/>
+  <xs:element name="strong" type="html"/>
+  <xs:element name="u" type="html"/>
+
+  <xs:annotation>
+    <xs:documentation>
+      PART 2.2: tables elements
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="block-size" type="xs:integer"/>
+  <xs:element name="description" type="html"/>
+  <xs:element name="external" type="xs:string"/> <!-- TODO: add support for float + unit -->
+  <xs:element name="default" type="xs:string"/>
+  <xs:element name="min-value" type="xs:string"/>
+  <xs:element name="max-value" type="xs:string"/>
+  <xs:element name="min-length" type="xs:integer"/>
+  <xs:element name="max-length" type="xs:integer"/>
+  <xs:element name="validation" type="xs:string"/>
+
+  <xs:element name="column">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="description" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="external" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="default" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="min-value" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="max-value" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="min-length" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="max-length" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="validation" minOccurs="0" maxOccurs="1"/> <!-- i.e. "isbn", "email", "domain", "/<regex>/", etc. -->
+      </xs:choice>
+      <xs:attribute name="name" type="name" use="required"/>
+      <xs:attribute name="type" type="column-type"/>
+      <xs:attribute name="limited" type="limited"/>
+      <xs:attribute name="encrypt" type="name"/> <!-- name of the key used to encrypt this column -->
+      <!-- the value can be set to null unless required="required" -->
+      <xs:attribute name="required" type="required"/> <!-- default is undefined (not a required value) -->
+      <xs:attribute name="blob" type="blob"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="schema">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="column" minOccurs="1" maxOccurs="unbounded"/>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="column-name">
+    <xs:annotation>
+      <xs:documentation>
+         The column name is defined as an attribute, the text inside
+         the tag is a script (optional) to transform the column to
+         a different value to be used in the ordering process
+         (i.e. instead of sorting by 'c', we sort by 'f(c)'; the cool
+         part here is that you the function has access to all the columns).
+
+         The length attribute is used to limit the size of the column
+         in the index. Pretty much all database systems limit the size
+         of a text column to around 1024 characters or less. Since we
+         accept buffers of any size, it is quite important that we also
+         have a limit. Our default is 256 because it's already way more
+         than required 99% of the time.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:string">
+          <xs:attribute name="name" type="name" use="required"/>
+          <xs:attribute name="direction" type="direction"/>
+          <xs:attribute name="not-null" type="not-null"/>
+          <xs:attribute name="length" type="xs:integer"/>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="filter" type="xs:string"/>
+
+  <xs:element name="order">
+    <xs:complexType>
+      <xs:choice minOccurs="1" maxOccurs="unbounded">
+        <xs:element ref="column-name"/>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="secondary-index">
+    <xs:complexType>
+      <xs:choice minOccurs="1" maxOccurs="unbounded">
+        <xs:element ref="filter" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="order" minOccurs="1" maxOccurs="1"/>
+      </xs:choice>
+      <xs:attribute name="name" type="name" use="required"/>
+      <xs:attribute name="distributed" type="distributed"/> <!-- default is "distributed" -->
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="table">
+    <xs:complexType>
+      <xs:choice minOccurs="1" maxOccurs="unbounded">
+        <xs:element ref="block-size"/>
+        <xs:element ref="description"/>
+        <xs:element ref="schema"/>
+        <xs:element ref="secondary-index"/>
+      </xs:choice>
+      <xs:attribute name="name" type="name" use="required"/>
+      <xs:attribute name="model" type="model"/> <!-- default is "data" -->
+      <xs:attribute name="row-key" type="comma-separated-names" use="required"/>
+      <xs:attribute name="drop" type="drop"/>
+      <xs:attribute name="temporary" type="temporary"/>
+      <xs:attribute name="sparse" type="sparse"/>
+      <xs:attribute name="secure" type="secure"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="table-extension">
+    <xs:complexType>
+      <xs:choice minOccurs="1" maxOccurs="unbounded">
+        <xs:element ref="schema"/>
+        <xs:element ref="secondary-index"/>
+      </xs:choice>
+      <xs:attribute name="name" type="name" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="type" type="xs:string"/>
+
+  <xs:element name="value">
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:string">
+          <xs:attribute name="name" type="name" use="required"/>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="enumeration">
+    <xs:complexType>
+      <xs:choice minOccurs="1" maxOccurs="unbounded">
+        <xs:element ref="type"/>
+        <xs:element ref="value"/>
+      </xs:choice>
+      <xs:attribute name="name" type="name" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="complex-type">
+    <xs:complexType>
+      <xs:choice minOccurs="1" maxOccurs="unbounded">
+        <xs:element ref="type"/>
+        <xs:element ref="enumeration"/>
+      </xs:choice>
+      <xs:attribute name="name" type="name" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="context">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="table" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="table-extension" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="complex-type" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
+<!--
+vim: ts=2 sw=2 et
+-->
