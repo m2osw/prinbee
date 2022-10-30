@@ -1,0 +1,9 @@
+Document: prinbee
+Title: prinbee tool
+Author: Alexis Wilke
+Abstract: This is the reference manual for the prinbee database manager.
+Section: net
+
+Format: HTML
+Index: /usr/share/doc/prinbee/html/index.html
+Files: /usr/share/doc/prinbee/html/*

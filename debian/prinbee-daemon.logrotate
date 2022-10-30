@@ -1,0 +1,18 @@
+# prinbeed -- see Prinbee Project
+
+/var/log/prinbee/prinbeed.log {
+    weekly
+    maxsize 10M
+    su prinbee prinbee
+    missingok
+    rotate 10
+    postrotate
+        if test -x /usr/bin/ed-signal; then /usr/bin/ed-signal prinbeed/LOG_ROTATE; fi
+    endscript
+    compress
+    delaycompress
+    notifempty
+    create 640 prinbee prinbee
+}
+
+# vim: ts=4 sw=4 et

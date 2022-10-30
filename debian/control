@@ -1,0 +1,79 @@
+Source: prinbee
+Section: net
+Priority: optional
+Maintainer: Alexis Wilke <alexis@m2osw.com>
+Build-Depends: cmake,
+    communicatord-dev (>= 2.0.0.0~bionic),
+    cppprocess-dev (>= 1.1.52.0~bionic),
+    cppthread-dev (>= 1.1.13.0~bionic),
+    debhelper,
+    dh-exec,
+    dh-sysuser,
+    doxygen,
+    eventdispatcher-dev (>= 1.1.51.0~bionic),
+    fluid-settings-dev (>= 1.0.0.0~bionic),
+    graphviz,
+    libaddr-dev (>= 1.0.8.215~bionic),
+    libadvgetopt-dev (>= 2.0.4.0~bionic),
+    libboost-dev,
+    libexcept-dev (>= 1.0.2.250~bionic),
+    libutf8-dev (>= 1.0.13.0~bionic),
+    snapcatch2 (>= 2.9.1.0~bionic),
+    snapcmakemodules (>= 1.0.35.3~bionic),
+    snapdev (>= 1.0.0.0~bionic),
+    snaplogger-dev (>= 1.0.0.0~bionic)
+Standards-Version: 3.9.4
+Homepage: https://snapwebsites.org/
+Vcs-Git: https://github.com/m2osw/snapcpp.git
+Vcs-Browser: https://github.com/m2osw/prinbee
+
+Package: prinbee
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Suggests: prinbee-doc
+Description: A library to handle the Prinbee database.
+ This library is most of the code of the Prinbee database. It manages the
+ data through a large set of classes and handles connections to send
+ the data from your client to the proxy, from the proxy to one or more
+ nodes, and between nodes (for replication).
+ .
+ The library also manages a memory cache, a local disk cache, the database
+ journals, and files (a.k.a. tables).
+
+Package: prinbee-doc
+Section: doc
+Architecture: all
+Depends: ${misc:Depends}
+Recommends: prinbee (= ${binary:Version})
+Description: Document the library and Prinbee database system.
+ The documentation of the Prinbee environment.
+
+Package: prinbee-dev
+Section: libdevel
+Architecture: all
+Depends: prinbee (= ${binary:Version}), ${misc:Depends}
+Suggests: prinbee-doc
+Description: The development environment of Prinbee.
+ The headers used to compile against the Prinbee library to access the
+ database cluster.
+
+Package: prinbee-daemon
+Section: utils
+Architecture: any
+Depends: prinbee (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Suggests: prinbee-doc
+Description: The Prinbee Daemon managing the database on a node.
+ The service running the Prinbee database on a computer. You install this
+ daemon on each node where you want to save your database.
+
+Package: prinbee-proxy
+Section: utils
+Architecture: any
+Depends: prinbee (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Suggests: prinbee-doc
+Description: The Prinbee Proxy to ease access to your database system.
+ This service runs along your client. It is used to manage the connections
+ to the backend Prinbee Daemon. The Prinbee Proxy is access via the
+ Prinbee library.
+

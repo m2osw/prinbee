@@ -1,0 +1,28 @@
+#!/bin/sh -e
+
+
+# In case the firewall was modified, we want to update it
+# (i.e. updates in iptables rules and similar)
+#
+# We MUST run this command before the deb helpers otherwise it
+# can remove the unwanted rules that ipload adds and thus we
+# would not have the correct firewall rules
+#
+if [ "$1" = "configure" ]
+then
+    /usr/sbin/ipload
+
+    # We add `01-iptables.conf`, make sure it is taken in account
+    #
+    invoke-rc.d rsyslog restart
+fi
+
+
+# At the moment there is nothing else to do
+#
+####DEBHELPER#
+###
+#### Source debconf library.
+###. /usr/share/debconf/confmodule
+
+# vim: ts=4 sw=4 et nocindent
