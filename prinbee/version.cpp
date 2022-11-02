@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,13 +13,12 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 /** \file
- * \brief The version of the snapdatabase library at compile time.
+ * \brief The version of the prinbee library at compile time.
  *
  * This file records the library version at compile time.
  *
@@ -30,7 +29,7 @@
 
 // self
 //
-#include    "snapdatabase/version.h"
+#include    "prinbee/version.h"
 
 
 // last include
@@ -39,7 +38,7 @@
 
 
 
-namespace snapdatabase
+namespace prinbee
 {
 
 
@@ -54,7 +53,7 @@ namespace snapdatabase
  */
 int get_major_version()
 {
-    return SNAPDATABASE_VERSION_MAJOR;
+    return PRINBEE_VERSION_MAJOR;
 }
 
 
@@ -67,7 +66,7 @@ int get_major_version()
  */
 int get_release_version()
 {
-    return SNAPDATABASE_VERSION_MINOR;
+    return PRINBEE_VERSION_MINOR;
 }
 
 
@@ -80,7 +79,7 @@ int get_release_version()
  */
 int get_patch_version()
 {
-    return SNAPDATABASE_VERSION_PATCH;
+    return PRINBEE_VERSION_PATCH;
 }
 
 
@@ -99,9 +98,9 @@ int get_patch_version()
  */
 char const * get_version_string()
 {
-    return SNAPDATABASE_VERSION_STRING;
+    return PRINBEE_VERSION_STRING;
 }
 
 
-} // namespace snapdatabase
+} // namespace prinbee
 // vim: ts=4 sw=4 et

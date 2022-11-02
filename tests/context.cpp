@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,23 +13,22 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // self
 //
 #include    "main.h"
 
 
-// snapdatabase lib
+// prinbee
 //
-#include    <snapdatabase/database/context.h>
-#include    <snapdatabase/database/row.h>
-//#include    <snapdatabase/database/context.h>
+#include    <prinbee/database/context.h>
+#include    <prinbee/database/row.h>
+//#include    <prinbee/database/context.h>
 
 
-// advgetopt lib
+// advgetopt
 //
 #include    <advgetopt/options.h>
 
@@ -148,7 +147,7 @@ CATCH_TEST_CASE("Context", "[centext]")
         char ** argv = const_cast<char **>(cargv);
 
         advgetopt::getopt::pointer_t opt(std::make_shared<advgetopt::getopt>(options_environment, argc, argv));
-        snapdatabase::context::pointer_t context(snapdatabase::context::create_context(opt));
+        prinbee::context::pointer_t context(prinbee::context::create_context(opt));
 
         // make sure to reset before creating a new version otherwise
         // we would have two contexts open simultaneously
@@ -158,9 +157,9 @@ CATCH_TEST_CASE("Context", "[centext]")
         // try again, this time we hit the schema compare functionality
         // (i.e. the file already exists)
         //
-        context = snapdatabase::context::create_context(opt);
+        context = prinbee::context::create_context(opt);
 
-        snapdatabase::table::pointer_t table(context->get_table("wrong_name"));
+        prinbee::table::pointer_t table(context->get_table("wrong_name"));
         CATCH_REQUIRE(table == nullptr);
 
         table = context->get_table("foo");
@@ -181,17 +180,17 @@ CATCH_TEST_CASE("Context", "[centext]")
         //for(int count(0); count < 31; ++count)
         {
 std::cerr << "+++ row count = " << count << "\n";
-            snapdatabase::row::pointer_t row(table->row_new());
+            prinbee::row::pointer_t row(table->row_new());
 
-            snapdatabase::cell::pointer_t c1(row->get_cell("c1", true));
+            prinbee::cell::pointer_t c1(row->get_cell("c1", true));
             std::uint16_t const c1_value(rand() & 0xFFFF);
             c1->set_uint16(c1_value);
 
-            snapdatabase::cell::pointer_t c2(row->get_cell("c2", true));
+            prinbee::cell::pointer_t c2(row->get_cell("c2", true));
             std::int16_t const c2_value(rand() & 0xFFFF);
             c2->set_int16(c2_value);
 
-            snapdatabase::cell::pointer_t c3(row->get_cell("c3", true));
+            prinbee::cell::pointer_t c3(row->get_cell("c3", true));
             std::uint64_t c3_value(static_cast<std::uint64_t>(rand()) ^ (static_cast<std::uint64_t>(rand()) << 32));
             c3_value &= -256;
             c3_value |= count + 1;
@@ -227,26 +226,26 @@ std::cerr << "---------------------- VERIFY " << row_data.size() << " ROWS\n";
             {
                 row_data_t & d(row_data[indexes[p]]);
 
-                snapdatabase::conditions cond;
+                prinbee::conditions cond;
                 cond.set_columns({"c1", "c2", "c3"});
-                snapdatabase::row::pointer_t key(table->row_new());
-                snapdatabase::cell::pointer_t c2_key(key->get_cell("c2", true));
+                prinbee::row::pointer_t key(table->row_new());
+                prinbee::cell::pointer_t c2_key(key->get_cell("c2", true));
                 c2_key->set_int16(d.f_c2);
-                snapdatabase::cell::pointer_t c1_key(key->get_cell("c1", true));
+                prinbee::cell::pointer_t c1_key(key->get_cell("c1", true));
                 c1_key->set_uint16(d.f_c1);
-                cond.set_key("primary", key, snapdatabase::row::pointer_t());
+                cond.set_key("primary", key, prinbee::row::pointer_t());
 
 std::cerr << "---------------------- READ ROW: " << d.f_c2 << ", " << d.f_c1 << "\n";
-                snapdatabase::cursor::pointer_t cursor(table->row_select(cond));
-                snapdatabase::row::pointer_t r(cursor->next_row());
+                prinbee::cursor::pointer_t cursor(table->row_select(cond));
+                prinbee::row::pointer_t r(cursor->next_row());
                 CATCH_REQUIRE(r != nullptr);
-                snapdatabase::cell::pointer_t c1_data(r->get_cell("c1", false));
+                prinbee::cell::pointer_t c1_data(r->get_cell("c1", false));
                 CATCH_REQUIRE(c1_data != nullptr);
                 CATCH_REQUIRE(c1_data->get_uint16() == d.f_c1);
-                snapdatabase::cell::pointer_t c2_data(r->get_cell("c2", false));
+                prinbee::cell::pointer_t c2_data(r->get_cell("c2", false));
                 CATCH_REQUIRE(c2_data != nullptr);
                 CATCH_REQUIRE(c2_data->get_int16() == d.f_c2);
-                snapdatabase::cell::pointer_t c3_data(r->get_cell("c3", false));
+                prinbee::cell::pointer_t c3_data(r->get_cell("c3", false));
                 CATCH_REQUIRE(c3_data != nullptr);
                 CATCH_REQUIRE(c3_data->get_uint64() == d.f_c3);
 

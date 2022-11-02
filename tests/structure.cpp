@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,23 +13,23 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // self
 //
 #include    "main.h"
 
 
-// snapdatabase lib
+// prinbee
 //
-#include    <snapdatabase/data/structure.h>
+#include    <prinbee/data/structure.h>
 
 
-// advgetopt lib
+// advgetopt
 //
 #include    <advgetopt/options.h>
+
 
 
 namespace
@@ -37,56 +37,56 @@ namespace
 
 
 
-constexpr snapdatabase::struct_description_t g_description1[] =
+constexpr prinbee::struct_description_t g_description1[] =
 {
-    snapdatabase::define_description(
-          snapdatabase::FieldName("magic")
-        , snapdatabase::FieldType(snapdatabase::struct_type_t::STRUCT_TYPE_UINT32)
+    prinbee::define_description(
+          prinbee::FieldName("magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
     ),
-    snapdatabase::define_description(
-          snapdatabase::FieldName("count")
-        , snapdatabase::FieldType(snapdatabase::struct_type_t::STRUCT_TYPE_UINT32)
+    prinbee::define_description(
+          prinbee::FieldName("count")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
     ),
-    snapdatabase::define_description(
-          snapdatabase::FieldName("size")
-        , snapdatabase::FieldType(snapdatabase::struct_type_t::STRUCT_TYPE_UINT32)
+    prinbee::define_description(
+          prinbee::FieldName("size")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
     ),
-    snapdatabase::define_description(
-          snapdatabase::FieldName("next")
-        , snapdatabase::FieldType(snapdatabase::struct_type_t::STRUCT_TYPE_REFERENCE)
+    prinbee::define_description(
+          prinbee::FieldName("next")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_REFERENCE)
     ),
-    snapdatabase::define_description(
-          snapdatabase::FieldName("previous")
-        , snapdatabase::FieldType(snapdatabase::struct_type_t::STRUCT_TYPE_REFERENCE)
+    prinbee::define_description(
+          prinbee::FieldName("previous")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_REFERENCE)
     ),
-    snapdatabase::end_descriptions()
+    prinbee::end_descriptions()
 };
 
 
 
-constexpr snapdatabase::struct_description_t g_description2[] =
+constexpr prinbee::struct_description_t g_description2[] =
 {
-    snapdatabase::define_description(
-          snapdatabase::FieldName("magic")
-        , snapdatabase::FieldType(snapdatabase::struct_type_t::STRUCT_TYPE_UINT32)
+    prinbee::define_description(
+          prinbee::FieldName("magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
     ),
-    snapdatabase::define_description(
-          snapdatabase::FieldName("flags")
-        , snapdatabase::FieldType(snapdatabase::struct_type_t::STRUCT_TYPE_UINT32)
+    prinbee::define_description(
+          prinbee::FieldName("flags")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
     ),
-    snapdatabase::define_description(
-          snapdatabase::FieldName("name")
-        , snapdatabase::FieldType(snapdatabase::struct_type_t::STRUCT_TYPE_P8STRING)
+    prinbee::define_description(
+          prinbee::FieldName("name")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
     ),
-    snapdatabase::define_description(
-          snapdatabase::FieldName("size")
-        , snapdatabase::FieldType(snapdatabase::struct_type_t::STRUCT_TYPE_UINT64)
+    prinbee::define_description(
+          prinbee::FieldName("size")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT64)
     ),
-    snapdatabase::define_description(
-          snapdatabase::FieldName("model")
-        , snapdatabase::FieldType(snapdatabase::struct_type_t::STRUCT_TYPE_UINT16)
+    prinbee::define_description(
+          prinbee::FieldName("model")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT16)
     ),
-    snapdatabase::end_descriptions()
+    prinbee::end_descriptions()
 };
 
 
@@ -107,12 +107,12 @@ CATCH_TEST_CASE("Structure Valid Version", "[structure] [version]")
 
             uint32_t const binary((major_version << 16) + minor_version);
 
-            snapdatabase::version_t v1(major_version, minor_version);
+            prinbee::version_t v1(major_version, minor_version);
             CATCH_REQUIRE(v1.get_major() == major_version);
             CATCH_REQUIRE(v1.get_minor() == minor_version);
             CATCH_REQUIRE(v1.to_binary() == binary);
 
-            snapdatabase::version_t v2;
+            prinbee::version_t v2;
             CATCH_REQUIRE(v2.get_major() == 0);
             CATCH_REQUIRE(v2.get_minor() == 0);
             CATCH_REQUIRE(v2.is_null());
@@ -155,7 +155,7 @@ CATCH_TEST_CASE("Structure Valid Version", "[structure] [version]")
             CATCH_REQUIRE(v2.to_binary() == binary);
             CATCH_REQUIRE(v2 == v1);
 
-            snapdatabase::version_t v3(v1);
+            prinbee::version_t v3(v1);
             CATCH_REQUIRE_FALSE(v3.is_null());
             CATCH_REQUIRE(v3.get_major() == major_version);
             CATCH_REQUIRE(v3.get_minor() == minor_version);
@@ -199,10 +199,10 @@ CATCH_TEST_CASE("Structure Overflown Version", "[structure] [version]")
                && minor_version < 65536);
 
             CATCH_REQUIRE_THROWS_MATCHES(
-                      snapdatabase::version_t(major_version, minor_version)
-                    , snapdatabase::invalid_parameter
+                      prinbee::version_t(major_version, minor_version)
+                    , prinbee::invalid_parameter
                     , Catch::Matchers::ExceptionMessage(
-                              "snapdatabase_error: major/minor version must be between 0 and 65535 inclusive, "
+                              "prinbee: major/minor version must be between 0 and 65535 inclusive, "
                             + std::to_string(major_version)
                             + "."
                             + std::to_string(minor_version)
@@ -226,8 +226,8 @@ CATCH_TEST_CASE("Structure Overflow Version", "[structure] [version]")
                 major_version2 = rand() & 0xFFFF;
             }
 
-            snapdatabase::version_t v1(major_version, minor_version);
-            snapdatabase::version_t v2(major_version2, minor_version);
+            prinbee::version_t v1(major_version, minor_version);
+            prinbee::version_t v2(major_version2, minor_version);
             if(major_version < major_version2)
             {
                 CATCH_REQUIRE_FALSE(v1 == v2);
@@ -256,11 +256,11 @@ CATCH_TEST_CASE("Structure", "[structure]")
 {
     CATCH_START_SECTION("simple structure")
     {
-        snapdatabase::structure::pointer_t description(std::make_shared<snapdatabase::structure>(g_description1));
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description1));
 
         description->init_buffer();
 
-        description->set_uinteger("magic", static_cast<uint32_t>(snapdatabase::dbtype_t::BLOCK_TYPE_BLOB));
+        description->set_uinteger("magic", static_cast<uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_BLOB));
 
         std::uint32_t count(123);
         description->set_uinteger("count", count);
@@ -268,13 +268,13 @@ CATCH_TEST_CASE("Structure", "[structure]")
         std::uint32_t size(900000);
         description->set_uinteger("size", size);
 
-        snapdatabase::reference_t next(0xff00ff00ff00);
+        prinbee::reference_t next(0xff00ff00ff00);
         description->set_uinteger("next", next);
 
-        snapdatabase::reference_t previous(0xff11ff11ff11);
+        prinbee::reference_t previous(0xff11ff11ff11);
         description->set_uinteger("previous", previous);
 
-        CATCH_REQUIRE(description->get_uinteger("magic") == static_cast<uint32_t>(snapdatabase::dbtype_t::BLOCK_TYPE_BLOB));
+        CATCH_REQUIRE(description->get_uinteger("magic") == static_cast<uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_BLOB));
         CATCH_REQUIRE(description->get_uinteger("count") == count);
         CATCH_REQUIRE(description->get_uinteger("size") == size);
         CATCH_REQUIRE(description->get_uinteger("next") == next);
@@ -284,11 +284,11 @@ CATCH_TEST_CASE("Structure", "[structure]")
 
     CATCH_START_SECTION("structure with a string")
     {
-        snapdatabase::structure::pointer_t description(std::make_shared<snapdatabase::structure>(g_description2));
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description2));
 
         description->init_buffer();
 
-        description->set_uinteger("magic", static_cast<uint32_t>(snapdatabase::dbtype_t::BLOCK_TYPE_DATA));
+        description->set_uinteger("magic", static_cast<uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_DATA));
 
         std::uint32_t flags(0x100105);
         description->set_uinteger("flags", flags);
@@ -302,7 +302,7 @@ CATCH_TEST_CASE("Structure", "[structure]")
         uint16_t model(33);
         description->set_uinteger("model", model);
 
-        CATCH_REQUIRE(description->get_uinteger("magic") == static_cast<uint32_t>(snapdatabase::dbtype_t::BLOCK_TYPE_DATA));
+        CATCH_REQUIRE(description->get_uinteger("magic") == static_cast<uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_DATA));
         CATCH_REQUIRE(description->get_uinteger("flags") == flags);
         CATCH_REQUIRE(description->get_string("name") == name);
         CATCH_REQUIRE(description->get_uinteger("size") == size);

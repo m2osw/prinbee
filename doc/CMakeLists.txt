@@ -20,6 +20,7 @@
 ##
 ## Documentation
 ##
+find_package(SnapDoxygen)
 AddDoxygenTarget(
     prinbee
     ${PRINBEE_VERSION_MAJOR}

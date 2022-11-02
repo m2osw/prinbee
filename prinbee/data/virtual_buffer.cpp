@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,9 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 /** \file
@@ -29,12 +28,12 @@
 
 // self
 //
-#include    "snapdatabase/data/virtual_buffer.h"
+#include    "prinbee/data/virtual_buffer.h"
 
-#include    "snapdatabase/exception.h"
+#include    "prinbee/exception.h"
 
 
-// C++ lib
+// C++
 //
 #include    <iomanip>
 #include    <iostream>
@@ -46,7 +45,7 @@
 
 
 
-namespace snapdatabase
+namespace prinbee
 {
 
 
@@ -520,7 +519,7 @@ std::ostream & operator << (std::ostream & out, virtual_buffer const & v)
     uint8_t buf[16];
     char const * newline("");
     std::uint64_t sz(v.size());
-    snapdatabase::reference_t p(0);
+    prinbee::reference_t p(0);
     for(; p < sz; ++p)
     {
         if(p % 16 == 0)
@@ -528,7 +527,7 @@ std::ostream & operator << (std::ostream & out, virtual_buffer const & v)
             if(*newline != '\0')
             {
                 ss << "  ";
-                for(snapdatabase::reference_t offset(0); offset < 16; ++offset)
+                for(prinbee::reference_t offset(0); offset < 16; ++offset)
                 {
                     if(buf[offset] >= ' ' && buf[offset] < 0x7F)
                     {
@@ -561,16 +560,16 @@ std::ostream & operator << (std::ostream & out, virtual_buffer const & v)
         ss << " " << std::setw(2) << static_cast<int>(c);
     }
 
-    snapdatabase::reference_t q(p % 16);
+    prinbee::reference_t q(p % 16);
     if(q != 0)
     {
-        for(snapdatabase::reference_t r(q); r < 16; ++r)
+        for(prinbee::reference_t r(q); r < 16; ++r)
         {
             ss << "   ";
         }
 
         ss << "  ";
-        for(snapdatabase::reference_t offset(0); offset < q; ++offset)
+        for(prinbee::reference_t offset(0); offset < q; ++offset)
         {
             if(buf[offset] >= ' ' && buf[offset] < 0x7F)
             {
@@ -589,5 +588,5 @@ std::ostream & operator << (std::ostream & out, virtual_buffer const & v)
 
 
 
-} // namespace snapdatabase
+} // namespace prinbee
 // vim: ts=4 sw=4 et

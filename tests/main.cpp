@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,9 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Tell catch we want it to add the runner code in this file.
 #define CATCH_CONFIG_RUNNER
@@ -25,32 +24,32 @@
 #include    "main.h"
 
 
-// snapdatabase lib
+// prinbee
 //
-#include    <snapdatabase/version.h>
+#include    <prinbee/version.h>
 
 
-// libexcept lib
+// libexcept
 //
 #include    <libexcept/exception.h>
 
 
-// snaplogger lib
+// snaplogger
 //
 #include    <snaplogger/logger.h>
 
 
-// snapdev lib
+// snapdev
 //
 #include    <snapdev/not_used.h>
 
 
-// C++ lib
+// C++
 //
 #include    <fstream>
 
 
-// C lib
+// C
 //
 #include    <sys/stat.h>
 #include    <sys/types.h>
@@ -125,7 +124,7 @@ std::string setup_context(std::string const & sub_path, std::vector<std::string>
         // the table.xsd must pass so we can make sure that our tests make
         // use of up to date XML code and that table.xsd is also up to date
         //
-        std::string const verify_table("xmllint --noout --nonet --schema snapdatabase/snapdatabase/data/tables.xsd " + filename);
+        std::string const verify_table("xmllint --noout --nonet --schema prinbee/prinbee/data/tables.xsd " + filename);
         std::cout << "running: " << verify_table << std::endl;
         int const r(system(verify_table.c_str()));
         CATCH_REQUIRE(r == 0);
@@ -164,8 +163,8 @@ int init_tests(Catch::Session & session)
 int main(int argc, char * argv[])
 {
     return SNAP_CATCH2_NAMESPACE::snap_catch2_main(
-              "snapdatabase"
-            , SNAPDATABASE_VERSION_STRING
+              "prinbee"
+            , PRINBEE_VERSION_STRING
             , argc
             , argv
             , SNAP_CATCH2_NAMESPACE::init_callback

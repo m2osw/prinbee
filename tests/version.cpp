@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,18 +13,17 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // self
 //
 #include    "main.h"
 
 
-// snaplogger lib
+// prinbee
 //
-#include    <snapdatabase/version.h>
+#include    <prinbee/version.h>
 
 
 
@@ -33,10 +32,10 @@ CATCH_TEST_CASE("Version", "[version]")
 {
     CATCH_START_SECTION("verify runtime vs compile time version numbers")
     {
-        CATCH_REQUIRE(snapdatabase::get_major_version()   == SNAPDATABASE_VERSION_MAJOR);
-        CATCH_REQUIRE(snapdatabase::get_release_version() == SNAPDATABASE_VERSION_MINOR);
-        CATCH_REQUIRE(snapdatabase::get_patch_version()   == SNAPDATABASE_VERSION_PATCH);
-        CATCH_REQUIRE(strcmp(snapdatabase::get_version_string(), SNAPDATABASE_VERSION_STRING) == 0);
+        CATCH_REQUIRE(prinbee::get_major_version()   == PRINBEE_VERSION_MAJOR);
+        CATCH_REQUIRE(prinbee::get_release_version() == PRINBEE_VERSION_MINOR);
+        CATCH_REQUIRE(prinbee::get_patch_version()   == PRINBEE_VERSION_PATCH);
+        CATCH_REQUIRE(strcmp(prinbee::get_version_string(), PRINBEE_VERSION_STRING) == 0);
     }
     CATCH_END_SECTION()
 }

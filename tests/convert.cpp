@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,27 +13,26 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // self
 //
 #include    "main.h"
 
 
-// snaplogger lib
+// prinbee
 //
-#include    <snapdatabase/exception.h>
-#include    <snapdatabase/data/convert.h>
+#include    <prinbee/exception.h>
+#include    <prinbee/data/convert.h>
 
 
-// C++ lib
+// C++
 //
 #include    <fstream>
 
 
-// C lib
+// C
 //
 #include    <sys/stat.h>
 #include    <sys/types.h>
@@ -52,31 +51,31 @@ CATCH_TEST_CASE("8 bit convert", "[convert]")
 
             snprintf(buf, sizeof(buf), "%d", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 8));
+                uint64_t const c(prinbee::convert_to_int(buf, 8));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "0x%X", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 8));
+                uint64_t const c(prinbee::convert_to_int(buf, 8));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "0X%X", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 8));
+                uint64_t const c(prinbee::convert_to_int(buf, 8));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "x'%X'", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 8));
+                uint64_t const c(prinbee::convert_to_int(buf, 8));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "X'%X'", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 8));
+                uint64_t const c(prinbee::convert_to_int(buf, 8));
                 CATCH_REQUIRE(c == i);
             }
 
@@ -90,13 +89,13 @@ CATCH_TEST_CASE("8 bit convert", "[convert]")
             std::reverse(r.begin(), r.end());
             r = "0b" + r;
             {
-                uint64_t const c(snapdatabase::convert_to_int(r, 8));
+                uint64_t const c(prinbee::convert_to_int(r, 8));
                 CATCH_REQUIRE(c == i);
             }
 
             r[1] &= 0x5F;
             {
-                uint64_t const c(snapdatabase::convert_to_int(r, 8));
+                uint64_t const c(prinbee::convert_to_int(r, 8));
                 CATCH_REQUIRE(c == i);
             }
         }
@@ -115,31 +114,31 @@ CATCH_TEST_CASE("16 bit convert", "[convert]")
 
             snprintf(buf, sizeof(buf), "%d", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 16));
+                uint64_t const c(prinbee::convert_to_int(buf, 16));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "0x%X", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 16));
+                uint64_t const c(prinbee::convert_to_int(buf, 16));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "0X%X", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 16));
+                uint64_t const c(prinbee::convert_to_int(buf, 16));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "x'%X'", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 16));
+                uint64_t const c(prinbee::convert_to_int(buf, 16));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "X'%X'", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 16));
+                uint64_t const c(prinbee::convert_to_int(buf, 16));
                 CATCH_REQUIRE(c == i);
             }
 
@@ -153,13 +152,13 @@ CATCH_TEST_CASE("16 bit convert", "[convert]")
             std::reverse(r.begin(), r.end());
             r = "0b" + r;
             {
-                uint64_t const c(snapdatabase::convert_to_int(r, 16));
+                uint64_t const c(prinbee::convert_to_int(r, 16));
                 CATCH_REQUIRE(c == i);
             }
 
             r[1] &= 0x5F;
             {
-                uint64_t const c(snapdatabase::convert_to_int(r, 16));
+                uint64_t const c(prinbee::convert_to_int(r, 16));
                 CATCH_REQUIRE(c == i);
             }
         }
@@ -178,31 +177,31 @@ CATCH_TEST_CASE("32 bit convert", "[convert]")
 
             snprintf(buf, sizeof(buf), "%ld", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 32));
+                uint64_t const c(prinbee::convert_to_int(buf, 32));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "0x%lX", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 32));
+                uint64_t const c(prinbee::convert_to_int(buf, 32));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "0X%lX", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 32));
+                uint64_t const c(prinbee::convert_to_int(buf, 32));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "x'%lX'", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 32));
+                uint64_t const c(prinbee::convert_to_int(buf, 32));
                 CATCH_REQUIRE(c == i);
             }
 
             snprintf(buf, sizeof(buf), "X'%lX'", i);
             {
-                uint64_t const c(snapdatabase::convert_to_int(buf, 32));
+                uint64_t const c(prinbee::convert_to_int(buf, 32));
                 CATCH_REQUIRE(c == i);
             }
 
@@ -216,13 +215,13 @@ CATCH_TEST_CASE("32 bit convert", "[convert]")
             std::reverse(r.begin(), r.end());
             r = "0b" + r;
             {
-                uint64_t const c(snapdatabase::convert_to_int(r, 32));
+                uint64_t const c(prinbee::convert_to_int(r, 32));
                 CATCH_REQUIRE(c == i);
             }
 
             r[1] &= 0x5F;
             {
-                uint64_t const c(snapdatabase::convert_to_int(r, 32));
+                uint64_t const c(prinbee::convert_to_int(r, 32));
                 CATCH_REQUIRE(c == i);
             }
         }

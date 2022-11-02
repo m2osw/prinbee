@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,27 +13,26 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // self
 //
 #include    "main.h"
 
 
-// snaplogger lib
+// prinbee
 //
-#include    <snapdatabase/exception.h>
-#include    <snapdatabase/data/xml.h>
+#include    <prinbee/exception.h>
+#include    <prinbee/data/xml.h>
 
 
-// C++ lib
+// C++
 //
 #include    <fstream>
 
 
-// C lib
+// C
 //
 #include    <sys/stat.h>
 #include    <sys/types.h>
@@ -82,10 +81,10 @@ CATCH_TEST_CASE("XML Basics", "[xml]")
         }
 
         CATCH_REQUIRE_THROWS_MATCHES(
-                  snapdatabase::xml(filename)
-                , snapdatabase::unexpected_token
+                  prinbee::xml(filename)
+                , prinbee::unexpected_token
                 , Catch::Matchers::ExceptionMessage(
-                          "snapdatabase_error: File \""
+                          "prinbee: File \""
                         + filename
                         + "\" cannot be empty or include anything other than a processor tag and comments before the root tag.", true));
     }
@@ -107,10 +106,10 @@ CATCH_TEST_CASE("XML Basics", "[xml]")
         }
 
         CATCH_REQUIRE_THROWS_MATCHES(
-                  snapdatabase::xml(filename)
-                , snapdatabase::unexpected_token
+                  prinbee::xml(filename)
+                , prinbee::unexpected_token
                 , Catch::Matchers::ExceptionMessage(
-                          "snapdatabase_error: File \""
+                          "prinbee: File \""
                         + filename
                         + "\" root tag cannot be an empty tag.", true));
     }
@@ -131,8 +130,8 @@ CATCH_TEST_CASE("XML Basics", "[xml]")
             f << "<empty></empty>";
         }
 
-        snapdatabase::xml x(filename);
-        snapdatabase::xml_node::pointer_t root(x.root());
+        prinbee::xml x(filename);
+        prinbee::xml_node::pointer_t root(x.root());
         CATCH_REQUIRE(root != nullptr);
         CATCH_REQUIRE(root->tag_name() == "empty");
         CATCH_REQUIRE(root->text().empty());
@@ -160,8 +159,8 @@ CATCH_TEST_CASE("XML Basics", "[xml]")
             f << "<?xml version=\"1.0\"?><still-empty></still-empty>";
         }
 
-        snapdatabase::xml x(filename);
-        snapdatabase::xml_node::pointer_t root(x.root());
+        prinbee::xml x(filename);
+        prinbee::xml_node::pointer_t root(x.root());
         CATCH_REQUIRE(root != nullptr);
         CATCH_REQUIRE(root->tag_name() == "still-empty");
         CATCH_REQUIRE(root->text().empty());
@@ -189,8 +188,8 @@ CATCH_TEST_CASE("XML Basics", "[xml]")
             f << "<!-- name='rotor' --><?xml version=\"1.0\"?><quite-empty></quite-empty>";
         }
 
-        snapdatabase::xml x(filename);
-        snapdatabase::xml_node::pointer_t root(x.root());
+        prinbee::xml x(filename);
+        prinbee::xml_node::pointer_t root(x.root());
         CATCH_REQUIRE(root != nullptr);
         CATCH_REQUIRE(root->tag_name() == "quite-empty");
         CATCH_REQUIRE(root->text().empty());
@@ -225,8 +224,8 @@ CATCH_TEST_CASE("XML Basics", "[xml]")
                  "</root-canal>";
         }
 
-        snapdatabase::xml x(filename);
-        snapdatabase::xml_node::pointer_t root(x.root());
+        prinbee::xml x(filename);
+        prinbee::xml_node::pointer_t root(x.root());
         CATCH_REQUIRE(root != nullptr);
         CATCH_REQUIRE(root->tag_name() == "root-canal");
         CATCH_REQUIRE(root->text() == " \t \t \t ");
@@ -264,8 +263,8 @@ CATCH_TEST_CASE("XML Basics", "[xml]")
                  "</entity-a-gogo>";
         }
 
-        snapdatabase::xml x(filename);
-        snapdatabase::xml_node::pointer_t root(x.root());
+        prinbee::xml x(filename);
+        prinbee::xml_node::pointer_t root(x.root());
         CATCH_REQUIRE(root != nullptr);
         CATCH_REQUIRE(root->tag_name() == "entity-a-gogo");
         CATCH_REQUIRE(root->all_attributes().size() == 4);
@@ -306,20 +305,20 @@ CATCH_TEST_CASE("XML Tree", "[xml]")
               << "</root>";
         }
 
-        snapdatabase::xml x(filename);
-        snapdatabase::xml_node::pointer_t root(x.root());
+        prinbee::xml x(filename);
+        prinbee::xml_node::pointer_t root(x.root());
         CATCH_REQUIRE(root != nullptr);
         CATCH_REQUIRE(root->parent() == nullptr);
-        snapdatabase::xml_node::pointer_t parent_node(root->first_child());
+        prinbee::xml_node::pointer_t parent_node(root->first_child());
         CATCH_REQUIRE(parent_node != nullptr);
         CATCH_REQUIRE(root->last_child() == parent_node);
         CATCH_REQUIRE(root->next() == nullptr);
         CATCH_REQUIRE(root->previous() == nullptr);
 
         CATCH_REQUIRE(parent_node->parent() == root);
-        snapdatabase::xml_node::pointer_t child1_node(parent_node->first_child());
-        snapdatabase::xml_node::pointer_t child2_node(child1_node->next());
-        snapdatabase::xml_node::pointer_t child3_node(child2_node->next());
+        prinbee::xml_node::pointer_t child1_node(parent_node->first_child());
+        prinbee::xml_node::pointer_t child2_node(child1_node->next());
+        prinbee::xml_node::pointer_t child3_node(child2_node->next());
         CATCH_REQUIRE(child1_node != nullptr);
         CATCH_REQUIRE(child2_node != nullptr);
         CATCH_REQUIRE(child3_node != nullptr);

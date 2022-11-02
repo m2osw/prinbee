@@ -2,7 +2,9 @@
 // the returned value is the carry of the last add operation
 //
 //    // corresponding C function declaration
+//    namespace prinbee {
 //    int add(uint64_t * a, uint64_t const * b, uint64_t const * c, uint64_t size);
+//    }
 //
 
     .text

@@ -67,7 +67,7 @@ add_library(${PROJECT_NAME} SHARED
     data/dbfile.cpp
     data/convert.cpp
     data/schema.cpp
-    data/script.cpp
+    #data/script.cpp
     data/structure.cpp
     data/virtual_buffer.cpp
     data/xml.cpp
@@ -154,7 +154,7 @@ install(
         data/dbtype.h
         data/convert.h
         data/schema.h
-        data/script.h
+        #data/script.h
         data/structure.h
         data/virtual_buffer.h
         data/xml.h

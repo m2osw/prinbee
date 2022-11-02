@@ -2,7 +2,9 @@
 // the returned value is the carry of the last add operation
 //
 //    // corresponding C function declaration
+//    namespace prinbee {
 //    void sub256(uint64_t * dst, uint64_t const * src);
+//    }
 //
 
     .macro sub_with_borrow offset

@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,9 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 /** \file
@@ -25,17 +24,17 @@
  * parameter is wrong or something goes wrong (can't open a file, can't
  * create a lock for the context, etc.)
  *
- * The snapdatabase also makes use of the snaplogger so it will emit
+ * The prinbee also makes use of the snaplogger so it will emit
  * a corresponding error to the log before throwing an exception.
  */
 
 
-// libexcept lib
+// libexcept
 //
 #include    <libexcept/exception.h>
 
 
-namespace snapdatabase
+namespace prinbee
 {
 
 
@@ -79,5 +78,5 @@ DECLARE_EXCEPTION(snapdatabase_error, out_of_bounds);
 
 
 
-} // namespace snaplogger
+} // namespace prinbee
 // vim: ts=4 sw=4 et

@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,9 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 /** \file
@@ -27,43 +26,39 @@
 
 // self
 //
-#include    "snapdatabase/database/table.h"
+#include    "prinbee/database/table.h"
 
-#include    "snapdatabase/database/context.h"
-#include    "snapdatabase/database/row.h"
+#include    "prinbee/database/context.h"
+#include    "prinbee/database/row.h"
 
 // all the blocks since we create them here
 //
-#include    "snapdatabase/block/block_blob.h"
-#include    "snapdatabase/block/block_data.h"
-#include    "snapdatabase/block/block_entry_index.h"
-#include    "snapdatabase/block/block_free_block.h"
-#include    "snapdatabase/block/block_free_space.h"
-#include    "snapdatabase/block/block_header.h"
-#include    "snapdatabase/block/block_index_pointers.h"
-#include    "snapdatabase/block/block_indirect_index.h"
-#include    "snapdatabase/block/block_primary_index.h"
-#include    "snapdatabase/block/block_secondary_index.h"
-#include    "snapdatabase/block/block_schema.h"
-#include    "snapdatabase/block/block_schema_list.h"
-#include    "snapdatabase/block/block_top_index.h"
-#include    "snapdatabase/block/block_top_indirect_index.h"
-#include    "snapdatabase/file/file_bloom_filter.h"
-#include    "snapdatabase/file/file_external_index.h"
-#include    "snapdatabase/file/file_snap_database_table.h"
+#include    "prinbee/block/block_blob.h"
+#include    "prinbee/block/block_data.h"
+#include    "prinbee/block/block_entry_index.h"
+#include    "prinbee/block/block_free_block.h"
+#include    "prinbee/block/block_free_space.h"
+#include    "prinbee/block/block_header.h"
+#include    "prinbee/block/block_index_pointers.h"
+#include    "prinbee/block/block_indirect_index.h"
+#include    "prinbee/block/block_primary_index.h"
+#include    "prinbee/block/block_secondary_index.h"
+#include    "prinbee/block/block_schema.h"
+#include    "prinbee/block/block_schema_list.h"
+#include    "prinbee/block/block_top_index.h"
+#include    "prinbee/block/block_top_indirect_index.h"
+#include    "prinbee/file/file_bloom_filter.h"
+#include    "prinbee/file/file_external_index.h"
+#include    "prinbee/file/file_snap_database_table.h"
 
 
-// snapwebsites lib
-//
-#include    <snapwebsites/snap_child.h>
-
-
-// snapdev lib
+// snapdev
 //
 #include    <snapdev/not_used.h>
+#include    <snapdev/timespec_ex.h>
 
 
-// C++ lib
+// C++
 //
 #include    <iostream>
 
@@ -74,7 +69,7 @@
 
 
 
-namespace snapdatabase
+namespace prinbee
 {
 
 
@@ -1661,7 +1656,7 @@ row::pointer_t table::row_new() const
     // save the date the row was created on
     //
     cell::pointer_t created_on(row->get_cell("_created_on", true));
-    std::int64_t const created_on_value(snap::snap_child::get_current_date());
+    snapdev::timespec_ex const created_on_value(snapdev::now());
     created_on->set_time_us(created_on_value);
 
     return row;
@@ -1729,5 +1724,5 @@ void table::read_rows(cursor::pointer_t cursor)
 
 
 
-} // namespace snapdatabase
+} // namespace prinbee
 // vim: ts=4 sw=4 et

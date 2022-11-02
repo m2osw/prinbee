@@ -1,7 +1,7 @@
 // add multiple uint64_t with carry
 //
 //    // corresponding C++ function declaration
-//    namespace snapdatabase {
+//    namespace prinbee {
 //    void add512(uint64_t * dst, uint64_t const * src);
 //    }
 //
@@ -14,9 +14,9 @@
 
     .text
     .p2align    4,,15
-    .globl      _ZN12snapdatabase6add512EPmPKm
-    .type       _ZN12snapdatabase6add512EPmPKm, @function
-_ZN12snapdatabase6add512EPmPKm:
+    .globl      _ZN7prinbee6add512EPmPKm
+    .type       _ZN7prinbee6add512EPmPKm, @function
+_ZN7prinbee6add512EPmPKm:
     mov         (%rsi), %rax
     add         %rax, (%rdi)
 

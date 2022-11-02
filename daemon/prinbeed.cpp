@@ -1,11 +1,11 @@
-// Copyright (c) 2019-2020  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,49 +13,48 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// snapdatabase lib
+// prinbee
 //
-#include    <snapdatabase/exception.h>
-#include    <snapdatabase/version.h>
+#include    <prinbee/exception.h>
+#include    <prinbee/version.h>
 
 
-// advgetopt lib
+// advgetopt
 //
 #include    <advgetopt/exception.h>
 #include    <advgetopt/options.h>
 #include    <advgetopt/utils.h>
 
 
-// snapdev lib
+// snapdev
 //
 #include    <snapdev/not_reached.h>
 #include    <snapdev/not_used.h>
 #include    <snapdev/raii_generic_deleter.h>
 
 
-// snaplogger lib
+// snaplogger
 //
 #include    <snaplogger/message.h>
 #include    <snaplogger/options.h>
 
 
-// boost lib
+// boost
 //
 #include    <boost/algorithm/string/join.hpp>
 #include    <boost/preprocessor/stringize.hpp>
 
 
-// C++ lib
+// C++
 //
 #include    <fstream>
 #include    <map>
 
 
-// C lib
+// C
 //
 #include    <glob.h>
 #include    <limits.h>
@@ -293,7 +292,7 @@ advgetopt::option const g_options[] =
 
 char const * g_configuration_directories[] =
 {
-    "/etc/snaplogger",
+    "/etc/prinbee",
     nullptr
 };
 
@@ -319,20 +318,21 @@ advgetopt::group_description const g_group_descriptions[] =
 #pragma GCC diagnostic ignored "-Wpedantic"
 advgetopt::options_environment const g_options_environment =
 {
-    .f_project_name = "snaplogger",
-    .f_group_name = nullptr,
+    .f_project_name = "prinbeed",
+    .f_group_name = "prinbee",
     .f_options = g_options,
     .f_options_files_directory = nullptr,
-    .f_environment_variable_name = "SNAPDATABASEDAEMON",
+    .f_environment_variable_name = "PRINBEED",
+    .f_environment_variable_intro = nullptr,
     .f_section_variables_name = nullptr,
     .f_configuration_files = nullptr,
-    .f_configuration_filename = "snapdatabasedaemon.conf",
+    .f_configuration_filename = "prinbeed.conf",
     .f_configuration_directories = g_configuration_directories,
     .f_environment_flags = advgetopt::GETOPT_ENVIRONMENT_FLAG_PROCESS_SYSTEM_PARAMETERS,
     .f_help_header = "Usage: %p [--<opt>] <config-name> ...\n"
                      "where --<opt> is one or more of:",
     .f_help_footer = "%c",
-    .f_version = SNAPDATABASE_VERSION_STRING,
+    .f_version = PRINBEE_VERSION_STRING,
     .f_license = "GNU GPL v2",
     .f_copyright = "Copyright (c) 2013-"
                    BOOST_PP_STRINGIZE(UTC_BUILD_YEAR)

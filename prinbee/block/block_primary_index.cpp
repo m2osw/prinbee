@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,9 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 /** \file
@@ -61,11 +60,11 @@
 
 // self
 //
-#include    "snapdatabase/block/block_primary_index.h"
+#include    "prinbee/block/block_primary_index.h"
 
-#include    "snapdatabase/block/block_header.h"
-#include    "snapdatabase/database/table.h"
-#include    "snapdatabase/file/file_snap_database_table.h"
+#include    "prinbee/block/block_header.h"
+#include    "prinbee/database/table.h"
+#include    "prinbee/file/file_snap_database_table.h"
 
 
 // snapdev lib
@@ -84,7 +83,7 @@
 
 
 
-namespace snapdatabase
+namespace prinbee
 {
 
 
@@ -213,5 +212,5 @@ void block_primary_index::set_top_index(buffer_t const & key, reference_t offset
 
 
 
-} // namespace snapdatabase
+} // namespace prinbee
 // vim: ts=4 sw=4 et

@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,9 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 /** \file
@@ -50,24 +49,24 @@
 
 // self
 //
-#include    "snapdatabase/data/schema.h"
+#include    "prinbee/data/schema.h"
 
-#include    "snapdatabase/data/convert.h"
-#include    "snapdatabase/data/script.h"
+#include    "prinbee/data/convert.h"
+#include    "prinbee/data/script.h"
 
 
-// snaplogger lib
+// snaplogger
 //
 #include    <snaplogger/message.h>
 
 
-// C++ lib
+// C++
 //
 #include    <iostream>
 #include    <type_traits>
 
 
-// boost lib
+// boost
 //
 #include    <boost/algorithm/string.hpp>
 
@@ -78,7 +77,7 @@
 
 
 
-namespace snapdatabase
+namespace prinbee
 {
 
 
@@ -671,7 +670,9 @@ schema_column::schema_column(schema_table::pointer_t table, xml_node::pointer_t 
             std::string const code(child->text());
             if(!code.empty())
             {
-                f_validation = compile_script(code);
+                // TODO: looks into implementating that with as2js
+                //f_validation = compile_script(code);
+                f_validation.clear();
             }
             else
             {
@@ -947,7 +948,9 @@ void schema_sort_column::from_xml(xml_node::pointer_t sc)
     std::string const code(sc->text());
     if(!code.empty())
     {
-        f_function = compile_script(code);
+        // TODO: looks into implementating that with as2js
+        //f_function = compile_script(code);
+        f_function.clear();
     }
     else
     {
@@ -1165,7 +1168,9 @@ void schema_secondary_index::from_xml(xml_node::pointer_t si)
             std::string const code(child->text());
             if(!code.empty())
             {
-                f_filter = compile_script(code);
+                // TODO: looks into implementating that with as2js
+                //f_filter = compile_script(code);
+                f_filter.clear();
             }
             else
             {
@@ -2436,5 +2441,5 @@ std::string const & expiration_date_column_name()
 }
 
 
-} // namespace snapdatabase
+} // namespace prinbee
 // vim: ts=4 sw=4 et

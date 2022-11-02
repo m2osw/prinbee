@@ -1,11 +1,11 @@
-// Copyright (c) 2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2019-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/snapdatabase
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,21 +13,20 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // self
 //
 #include    "main.h"
 
 
-// snapdatabase lib
+// prinbee
 //
-#include    <snapdatabase/data/virtual_buffer.h>
+#include    <prinbee/data/virtual_buffer.h>
 
 
-// advgetopt lib
+// advgetopt
 //
 #include    <advgetopt/options.h>
 
@@ -38,7 +37,7 @@ CATCH_TEST_CASE("VirtualBuffer", "[virtual-buffer]")
 {
     CATCH_START_SECTION("simple write + read")
     {
-        snapdatabase::virtual_buffer::pointer_t v(std::make_shared<snapdatabase::virtual_buffer>());
+        prinbee::virtual_buffer::pointer_t v(std::make_shared<prinbee::virtual_buffer>());
         CATCH_REQUIRE(v->size() == 0);
         CATCH_REQUIRE(v->count_buffers() == 0);
 
@@ -62,7 +61,7 @@ CATCH_TEST_CASE("VirtualBuffer", "[virtual-buffer]")
 
     CATCH_START_SECTION("write once + read many times")
     {
-        snapdatabase::virtual_buffer::pointer_t v(std::make_shared<snapdatabase::virtual_buffer>());
+        prinbee::virtual_buffer::pointer_t v(std::make_shared<prinbee::virtual_buffer>());
         CATCH_REQUIRE(v->size() == 0);
         CATCH_REQUIRE(v->count_buffers() == 0);
 
@@ -88,7 +87,7 @@ CATCH_TEST_CASE("VirtualBuffer", "[virtual-buffer]")
 
     CATCH_START_SECTION("short write + read several times")
     {
-        snapdatabase::virtual_buffer::pointer_t v(std::make_shared<snapdatabase::virtual_buffer>());
+        prinbee::virtual_buffer::pointer_t v(std::make_shared<prinbee::virtual_buffer>());
         CATCH_REQUIRE(v->size() == 0);
         CATCH_REQUIRE(v->count_buffers() == 0);
 
