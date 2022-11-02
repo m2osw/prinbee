@@ -43,7 +43,7 @@ include_directories(
 
 
 add_subdirectory(cmake)
-add_subdirectory(conf)
+#add_subdirectory(conf)
 add_subdirectory(prinbee)     # library first
 add_subdirectory(proxy)
 add_subdirectory(daemon)

@@ -28,31 +28,40 @@ before it gets sent to the cluster, making it really fast to do reads and
 writes (as long as it is not the entire database). The cache is in part
 in memory and in part on disk.
 
+Note that if the proxy is not available, the library is already capable of
+saving the data to a disk cache.
+
         +--------+
         |        |  <-- your application
-        | Client |
-        |        |
-        +--------+
-            ^
-            | Unix Socket
-    ========|============================================
-            |
-            v
-       +-------------+
+        | Client |                                link
+        |        +--------------------------------------+
+        +--------+                                      |
+            ^                                           |
+            |                                     +-----+-----------+
+            | Unix Socket                         |                 |
+    ========|=============================        | Prinbee Library |
+            |                                     |                 |
+            v                                     +-----+-----------+
+       +-------------+                                  |
        |             |  <-- service running on the same computer as "Client"
-       | Local Proxy |
-       |             |
-       +-------------+
-            ^     ^
-            |     +--------+
-    ========|==============|================================
-            |              |
-            v              v
-       +--------+       +--------+
+       | Local Proxy |                                  |
+       |             +----------------------------------+
+       +-------------+                            link  |
+            ^     ^                                     |
+            |     | TCP Sockets                         |
+            |     |                                     |
+            |     +--------+                            |
+    ========|==============|==============              |
+            |              |                            |
+            v              v                            |
+       +--------+       +--------+                      |
        |        |       |        |  <-- connect to any number of nodes "Server"
-       |  Node  |<----->|  Node  |
-       |        |       |        |
-       +--------+       +--------+
+       |  Node  |<----->|  Node  |                      |
+       |        |       |        +----------------------+
+       +------+-+       +--------+                link  |
+              |                                         |
+              +-----------------------------------------+
+                                                  link
 
 The graph shows the basic infrastructure.
 
@@ -149,6 +158,27 @@ All rows must have the following columns:
   In other words, if the new timestamp is smaller or equal to the
   existing row timestamp, we ignore the write request (data is already
   too old).
+
+### Large Data
+
+If you have a very large cell (i.e. a picture, a PDF, etc.), then it is
+strongly advised that you use a separate table to handle such data. Keep
+in mind that whenever you read a row the entire row gets loaded.
+
+So you can create a "files" table which has two columns "filename" and
+"data". The other tables can simply reference "filename" and if you need
+the file, read the corresponding row of your large data table.
+
+_Implementation detail: the "large" files get saved on disk on their own,
+not added to the database files themselves. This makes for a much faster
+system. This is true for any large cell._
+
+## No Cell Object
+
+The cell concept (data in a column), is not represented by a separate object.
+Instead the rows include named fields. That's the only way you have cells.
+Some systems allow for per cell Time of Death. This is very difficult to
+manage and fairly useless to our data so we do not support that at all.
 
 
 # Packages Organization

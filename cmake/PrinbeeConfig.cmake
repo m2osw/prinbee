@@ -1,11 +1,11 @@
-# Copyright (c) 2013-2019  Made to Order Software Corp.  All Rights Reserved
+# Copyright (c) 2013-2022  Made to Order Software Corp.  All Rights Reserved
 #
-# https://snapwebsites.org/project/snaplogger
+# https://snapwebsites.org/project/prinbee
 # contact@m2osw.com
 # 
-# This program is free software; you can redistribute it and/or modify
+# This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -14,52 +14,51 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-# - Try to find SnapLogger
+# - Try to find Prinbee
 #
 # Once done this will define
 #
-# SNAPLOGGER_FOUND        - System has SnapLogger
-# SNAPLOGGER_INCLUDE_DIRS - The SnapLogger include directories
-# SNAPLOGGER_LIBRARIES    - The libraries needed to use SnapLogger (none)
-# SNAPLOGGER_DEFINITIONS  - Compiler switches required for using SnapLogger (none)
+# PRINBEE_FOUND        - System has Prinbee
+# PRINBEE_INCLUDE_DIRS - The Prinbee include directories
+# PRINBEE_LIBRARIES    - The libraries needed to use Prinbee (none)
+# PRINBEE_DEFINITIONS  - Compiler switches required for using Prinbee (none)
 #
 
 find_path(
-    SNAPLOGGER_INCLUDE_DIR
-        snaplogger/logger.h
+    PRINBEE_INCLUDE_DIR
+        prinbee/prinbee.h
 
     PATHS
-        $ENV{SNAPLOGGER_INCLUDE_DIR}
+        $ENV{PRINBEE_INCLUDE_DIR}
 )
 
 find_library(
-    SNAPLOGGER_LIBRARY
-        snaplogger
+    PRINBEE_LIBRARY
+        prinbee
 
     PATHS
-        $ENV{SNAPLOGGER_LIBRARY}
+        $ENV{PRINBEE_LIBRARY}
 )
 
 mark_as_advanced(
-    SNAPLOGGER_INCLUDE_DIR
-    SNAPLOGGER_LIBRARY
+    PRINBEE_INCLUDE_DIR
+    PRINBEE_LIBRARY
 )
 
-set(SNAPLOGGER_INCLUDE_DIRS ${SNAPLOGGER_INCLUDE_DIR})
-set(SNAPLOGGER_LIBRARIES    ${SNAPLOGGER_LIBRARY}    )
+set(PRINBEE_INCLUDE_DIRS ${PRINBEE_INCLUDE_DIR})
+set(PRINBEE_LIBRARIES    ${PRINBEE_LIBRARY}    )
 
 include(FindPackageHandleStandardArgs)
 
 # handle the QUIETLY and REQUIRED arguments and set SNAPLOGGER_FOUND to TRUE
 # if all listed variables are TRUE
 find_package_handle_standard_args(
-    SnapLogger
+    Prinbee
     DEFAULT_MSG
-    SNAPLOGGER_INCLUDE_DIR
-    SNAPLOGGER_LIBRARY
+    PRINBEE_INCLUDE_DIR
+    PRINBEE_LIBRARY
 )
 
 # vim: ts=4 sw=4 et

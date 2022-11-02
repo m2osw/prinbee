@@ -1,11 +1,11 @@
-# Copyright (c) 2013-2019 Made to Order Software Corp.  All Rights Reserved
+# Copyright (c) 2013-2022 Made to Order Software Corp.  All Rights Reserved
 #
-# https://snapwebsites.org/project/snapdatabase
+# https://snapwebsites.org/project/prinbee
 # contact@m2osw.com
 #
-# This program is free software; you can redistribute it and/or modify
+# This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -14,14 +14,13 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 ##
-## snapdatabase library
+## prinbee library
 ##
-project(snapdatabase CXX ASM)
+project(prinbee CXX ASM)
 
 # Put the version in the header file
 configure_file(
@@ -77,50 +76,37 @@ add_library(${PROJECT_NAME} SHARED
     version.cpp
 )
 
-include_directories(
-    ${ADVGETOPT_INCLUDE_DIRS}
-    ${CPPTHREAD_INCLUDE_DIRS}
-    ${LIBEXCEPT_INCLUDE_DIRS}
-    ${LIBUFTF8_INCLUDE_DIRS}
-    ${MURMUR3_INCLUDE_DIRS}
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        ${ADVGETOPT_INCLUDE_DIRS}
+        #${COMMUNICATORD_INCLUDE_DIRS}
+        #${CPPPROCESS_INCLUDE_DIRS}
+        ${CPPTHREAD_INCLUDE_DIRS}
+        #${EVENTDISPATCHER_INCLUDE_DIRS}
+        #${FLUIDSETTINGS_INCLUDE_DIRS}
+        #${LIBADDR_INCLUDE_DIRS}
+        ${LIBEXCEPT_INCLUDE_DIRS}
+        ${LIBUFTF8_INCLUDE_DIRS}
+        ${MURMUR3_INCLUDE_DIRS}
+        ${SNAPLOGGER_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}
-    snapwebsites
-    libdbproxy
     ${ADVGETOPT_LIBRARIES}
     ${CPPTHREAD_LIBRARIES}
-    ${SNAPLOGGER_LIBRARIES}
     ${LIBEXCEPT_LIBRARIES}
     ${LIBUFTF8_LIBRARIES}
-    ${LOG4CPLUS_LIBRARIES}
     ${MURMUR3_LIBRARIES}
+    ${SNAPLOGGER_LIBRARIES}
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     VERSION
-        ${SNAPDATABASE_VERSION_MAJOR}.${SNAPDATABASE_VERSION_MINOR}
+        ${PRINBEE_VERSION_MAJOR}.${PRINBEE_VERSION_MINOR}
 
     SOVERSION
-        ${SNAPDATABASE_VERSION_MAJOR}
+        ${PRINBEE_VERSION_MAJOR}
 )
-
-
-set(QT_INCLUDE_PROPERTIES "")
-foreach(DIR ${Qt5Core_INCLUDE_DIRS})
-    set(QT_INCLUDE_PROPERTIES "${QT_INCLUDE_PROPERTIES} -isystem ${DIR}")
-endforeach()
-set_source_files_properties(script.cpp PROPERTIES
-    COMPILE_FLAGS
-        ${QT_INCLUDE_PROPERTIES}
-)
-
-#${Qt5Network_INCLUDE_DIRS}
-#${Qt5Script_INCLUDE_DIRS}
-#${Qt5Sql_INCLUDE_DIRS}
-#${Qt5Widgets_INCLUDE_DIRS}
-#${Qt5Xml_INCLUDE_DIRS}
-#${Qt5XmlPatterns_INCLUDE_DIRS}
 
 install(
     TARGETS
@@ -141,7 +127,7 @@ install(
         bigint/bigint.h
 
     DESTINATION
-        include/snapdatabase/bigint
+        include/prinbee/bigint
 )
 
 install(
@@ -159,7 +145,7 @@ install(
         block/block_top_index.h
 
     DESTINATION
-        include/snapdatabase/block
+        include/prinbee/block
 )
 
 install(
@@ -174,7 +160,7 @@ install(
         data/xml.h
 
     DESTINATION
-        include/snapdatabase/data
+        include/prinbee/data
 )
 
 install(
@@ -185,7 +171,7 @@ install(
         database/table.h
 
     DESTINATION
-        include/snapdatabase/database
+        include/prinbee/database
 )
 
 install(
@@ -196,7 +182,7 @@ install(
         file/hash.h
 
     DESTINATION
-        include/snapdatabase/file
+        include/prinbee/file
 )
 
 install(
@@ -204,7 +190,7 @@ install(
         network/consistency.h
 
     DESTINATION
-        include/snapdatabase/network
+        include/prinbee/network
 )
 
 install(
@@ -214,7 +200,7 @@ install(
         ${CMAKE_CURRENT_BINARY_DIR}/version.h
 
     DESTINATION
-        include/snapdatabase
+        include/prinbee
 )
 
 
