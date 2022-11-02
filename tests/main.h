@@ -17,12 +17,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-// catch2 lib
+// snapcatch2
 //
 #include <catch2/snapcatch2.hpp>
 
 
-// C++ lib
+// C++
 //
 #include <string>
 #include <cstring>
@@ -43,22 +43,15 @@ std::string setup_context(std::string const & path, std::vector<std::string> con
 
 inline char32_t rand_char(bool full_range = false)
 {
-    char32_t const max((full_range ? 0x0110000 : 0x0010000) - (0xE000 - 0xD800));
+    // -1 so we can avoid '\0' which in most cases is not useful
+    //
+    char32_t const max((full_range ? 0x0110000 : 0x0010000) - (0xE000 - 0xD800) - 1);
 
-    char32_t wc;
-    do
-    {
-        wc = ((rand() << 16) ^ rand()) % max;
-    }
-    while(wc == 0);
-    if(wc >= 0xD800)
-    {
-        // skip the surrogates
-        //
-        wc += 0xE000 - 0xD800;
-    }
+    char32_t const wc(((rand() << 16) ^ rand()) % max + 1);
 
-    return wc;
+    // skip the surrogates for the larger characters
+    //
+    return wc >= 0xD800 ?  wc + (0xE000 - 0xD800) : wc;
 }
 
 
