@@ -8,14 +8,15 @@
 
 if [ "$1" = "configure" ]
 then
-    PACKAGENAME=ipwall
-    USERNAME=iplock
-    GROUPNAME=iplock
+    PROJECTNAME=prinbee
+    PACKAGENAME=prinbee-proxy
+    USERNAME=prinbee
+    GROUPNAME=prinbee
 
-    # Create the logfile because the iplock user may have
+    # Create the logfile because the prinbee user may have
     # difficulties with it otherwise during logrotate.
     #
-    LOGDIR=/var/log/iplock
+    LOGDIR=/var/log/${PROJECTNAME}
     LOGFILE=${LOGDIR}/${PACKAGENAME}.log
     touch ${LOGFILE}
     chown ${USERNAME}:${GROUPNAME} ${LOGFILE}

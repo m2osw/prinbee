@@ -1,22 +1,7 @@
-usr/sbin/ipwall
+usr/sbin/prinbee-proxy
 
-usr/bin/count-unwanted
-usr/bin/unblock-all
-usr/bin/unblock-ip
+# TODO: add these
+#usr/share/communicatord
+#usr/share/fluid-settings
 
-usr/share/communicatord
-usr/share/fluid-settings
-usr/share/snaplogger
-
-conf/ipwall.conf                               etc/iplock/
-
-# snapmanager files (TBD)
-#debian/tmp/usr/lib/snapwebsites/tables/snapfirewall-tables.xml                    usr/lib/snapwebsites/tables/
-#debian/tmp/usr/lib/snapwebsites/manager_plugins/libfirewall.so                    usr/lib/snapwebsites/manager_plugins/
-
-# The following is being replaced by ipload
-#snapfirewall/conf/snapinitfirewall.service                                        lib/systemd/system/
-#snapfirewall/conf/firewall                                                        etc/network/
-#snapfirewall/conf/firewall.conf                                                   etc/network/
-#snapfirewall/conf/ip4tables.rules                                                 etc/network/
-#snapfirewall/conf/ip6tables.rules                                                 etc/network/
+conf/prinbee-proxy.conf                          etc/iplock/

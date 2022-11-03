@@ -1,6 +1,5 @@
 #!/bin/sh -e
 
-
 #DEBHELPER#
 
 # Source debconf library.
@@ -9,7 +8,19 @@
 
 if [ "$1" = "configure" ]
 then
-    echo "TODO"
+    PROJECTNAME=prinbee
+    PACKAGENAME=prinbeed
+    USERNAME=prinbee
+    GROUPNAME=prinbee
+
+    # Create the logfile because the prinbee user may have
+    # difficulties with it otherwise during logrotate.
+    #
+    LOGDIR=/var/log/${PROJECTNAME}
+    LOGFILE=${LOGDIR}/${PACKAGENAME}.log
+    touch ${LOGFILE}
+    chown ${USERNAME}:${GROUPNAME} ${LOGFILE}
+    chmod 640 ${LOGFILE}
 fi
 
 

@@ -1,21 +1,29 @@
 #!/bin/sh -e
 
-# Source debconf library.
+# Source debconf library
 . /usr/share/debconf/confmodule
-
-PACKAGENAME=ipwall
 
 if [ "$1" = "purge" ]
 then
+    PROJECTNAME=prinbee
+    PACKAGENAME=prinbee-proxy
+
     # delete the logs
     #
-    rm -f /var/log/iplock/${PACKAGENAME}.log*
+    rm -f /var/log/${PROJECTNAME}/${PACKAGENAME}.log*
+    if test -f /var/log/${PROJECTNAME}
+    then
+        rmdir --ignore-fail-on-non-empty /var/log/${PROJECTNAME}
+    fi
 
     # delete the admin configuration file
     #
-    rm -f /etc/iplock/iplock.d/50-${PACKAGENAME}.conf
-
-    # TBD: reset the firewall to empty? It does not seem wise to me.
+    rm -f /etc/${PROJECTNAME}/${PROJECTNAME}.d/50-${PACKAGENAME}.conf
+    for d in "/etc/${PROJECTNAME}/${PROJECTNAME}.d" \
+             "/etc/${PROJECTNAME}"
+    do
+        rmdir --ignore-fail-on-non-empty "${d}"
+    done
 fi
 
 #DEBHELPER#

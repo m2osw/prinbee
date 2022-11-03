@@ -33,6 +33,11 @@
 #include    <advgetopt/options.h>
 
 
+// C
+//
+#include    <grp.h>
+#include    <pwd.h>
+
 
 
 CATCH_TEST_CASE("Context", "[centext]")
@@ -103,6 +108,11 @@ CATCH_TEST_CASE("Context", "[centext]")
         std::string database_path(created + "/database");
         std::string tables_path(created + "/tables");
 
+        // for the tests the default user/group name is the running user
+        //
+        struct passwd const * user(getpwuid(getuid()));
+        struct group const * group(getgrgid(getgid()));
+
         advgetopt::option options[] =
         {
             advgetopt::define_option(
@@ -111,6 +121,20 @@ CATCH_TEST_CASE("Context", "[centext]")
                               advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
                 , advgetopt::Help("context is mandatory")
                 //, advgetopt::DefaultValue(database_path.c_str())
+            ),
+            advgetopt::define_option(
+                  advgetopt::Name("user")
+                , advgetopt::Flags(advgetopt::standalone_all_flags<
+                              advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+                , advgetopt::Help("user name for the database directory")
+                , advgetopt::DefaultValue(user->pw_name)
+            ),
+            advgetopt::define_option(
+                  advgetopt::Name("group")
+                , advgetopt::Flags(advgetopt::standalone_all_flags<
+                              advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+                , advgetopt::Help("group name for the database directory")
+                , advgetopt::DefaultValue(group->gr_name)
             ),
             advgetopt::define_option(
                   advgetopt::Name("table-schema-path")

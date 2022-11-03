@@ -115,6 +115,8 @@ context_impl::~context_impl()
 void context_impl::initialize()
 {
     f_path = f_opts->get_string("context");
+    std::string const user(f_opts->get_string("user"));
+    std::string const group(f_opts->get_string("group"));
 
     SNAP_LOG_NOTICE
         << "Initialize context \""
@@ -126,7 +128,8 @@ void context_impl::initialize()
     {
         f_path = "/var/lib/snapwebsites/database";
     }
-    if(snapdev::mkdir_p(f_path, false, 0700, "snapwebsites", "snapwebsites") != 0)
+std::cerr << "--- reading XML data from " << f_path << "\n";
+    if(snapdev::mkdir_p(f_path, false, 0700, user, group) != 0)
     {
         throw io_error(
               "Could not create or access the context directory \""
@@ -195,6 +198,7 @@ void context_impl::initialize()
 
         for(auto const & filename : list)
         {
+std::cerr << "--- reading table XML " << filename << "\n";
             xml::pointer_t x(std::make_shared<xml>(filename));
             xml_files[filename] = x;
 
@@ -258,6 +262,7 @@ void context_impl::initialize()
     {
         for(auto child(x.second->root()->first_child()); child != nullptr; child = child->next())
         {
+std::cerr << "--- child tag name " << child->tag_name() << "\n";
             if(child->tag_name() == "table")
             {
                 table::pointer_t t(std::make_shared<table>(f_context, child, f_complex_types));
