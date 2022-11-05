@@ -9,8 +9,9 @@ The files have to be named:
 
     # or
 
-    ??-prinbeed.conf
+    ??-prinbee-daemon.conf
+    ??-prinbee-proxy.conf
 
 Where `??` represents a number from 00 to 99. In general, the administrator
-should use `50-prinbeed.conf`. Other projects may use other numbers.
+should use `50-prinbee-daemon.conf`. Other projects may use other numbers.
 

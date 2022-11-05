@@ -4,7 +4,7 @@
 . /usr/share/debconf/confmodule
 
 PROJECTNAME=prinbee
-PACKAGENAME=prinbeed
+PACKAGENAME=prinbee-daemon
 
 if [ "$1" = "purge" ]
 then

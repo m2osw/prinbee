@@ -4,8 +4,6 @@ usr/lib/lib*.so.*
 
 # Configuration Files
 #
-conf/prinbee.conf                                  etc/prinbee/
 conf/README.md                                     etc/prinbee/
-conf/logger/prinbee.conf                           etc/prinbee/logger/
 conf/logger/README.md                              etc/prinbee/logger/
 

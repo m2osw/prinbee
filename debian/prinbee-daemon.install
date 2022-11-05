@@ -1,6 +1,4 @@
-usr/sbin/prinbeed
+usr/sbin/prinbee-daemon
 
-conf/prinbeed.conf                               etc/prinbee/
-conf/README.md                                   etc/prinbee/
-conf/logger/prinbee.conf                         etc/prinbee/logger/
-conf/logger/README.md                            etc/prinbee/logger/
+conf/prinbee-daemon.conf                               etc/prinbee/
+conf/logger/prinbee-daemon.conf                        etc/prinbee/logger/

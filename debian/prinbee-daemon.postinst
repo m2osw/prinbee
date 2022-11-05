@@ -9,7 +9,7 @@
 if [ "$1" = "configure" ]
 then
     PROJECTNAME=prinbee
-    PACKAGENAME=prinbeed
+    PACKAGENAME=prinbee-daemon
     USERNAME=prinbee
     GROUPNAME=prinbee
 

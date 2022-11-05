@@ -20,10 +20,10 @@
 ##
 ## build the backend daemon
 ##
-project(prinbeed)
+project(prinbee-daemon)
 
 add_executable(${PROJECT_NAME}
-    prinbeed.cpp
+    prinbee-daemon.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

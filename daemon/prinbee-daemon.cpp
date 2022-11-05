@@ -318,7 +318,7 @@ advgetopt::group_description const g_group_descriptions[] =
 #pragma GCC diagnostic ignored "-Wpedantic"
 advgetopt::options_environment const g_options_environment =
 {
-    .f_project_name = "prinbeed",
+    .f_project_name = "prinbee-daemon",
     .f_group_name = "prinbee",
     .f_options = g_options,
     .f_options_files_directory = nullptr,
@@ -326,7 +326,7 @@ advgetopt::options_environment const g_options_environment =
     .f_environment_variable_intro = nullptr,
     .f_section_variables_name = nullptr,
     .f_configuration_files = nullptr,
-    .f_configuration_filename = "prinbeed.conf",
+    .f_configuration_filename = "prinbee-daemon.conf",
     .f_configuration_directories = g_configuration_directories,
     .f_environment_flags = advgetopt::GETOPT_ENVIRONMENT_FLAG_PROCESS_SYSTEM_PARAMETERS,
     .f_help_header = "Usage: %p [--<opt>] <config-name> ...\n"

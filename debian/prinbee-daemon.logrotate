@@ -1,13 +1,13 @@
-# prinbeed -- see Prinbee Project
+# prinbee-daemon -- see Prinbee Project
 
-/var/log/prinbee/prinbeed.log {
+/var/log/prinbee/prinbee-daemon.log {
     weekly
     maxsize 10M
     su prinbee prinbee
     missingok
     rotate 10
     postrotate
-        if test -x /usr/bin/ed-signal; then /usr/bin/ed-signal prinbeed/LOG_ROTATE; fi
+        if test -x /usr/bin/ed-signal; then /usr/bin/ed-signal prinbee-daemon/LOG_ROTATE; fi
     endscript
     compress
     delaycompress
