@@ -118,17 +118,18 @@ void context_impl::initialize()
     std::string const user(f_opts->get_string("user"));
     std::string const group(f_opts->get_string("group"));
 
+    if(f_path.empty())
+    {
+        f_path = "/var/lib/snapwebsites/database";
+    }
+
     SNAP_LOG_NOTICE
         << "Initialize context \""
         << f_path
         << "\"."
         << SNAP_LOG_SEND;
-
-    if(f_path.empty())
-    {
-        f_path = "/var/lib/snapwebsites/database";
-    }
 std::cerr << "--- reading XML data from " << f_path << "\n";
+
     if(snapdev::mkdir_p(f_path, false, 0700, user, group) != 0)
     {
         throw io_error(
@@ -175,8 +176,7 @@ std::cerr << "--- reading XML data from " << f_path << "\n";
         //
         snapdev::glob_to_list<std::set<std::string>> list;
         if(!list.read_path<
-                  snapdev::glob_to_list_flag_t::GLOB_FLAG_ONLY_DIRECTORIES
-                , snapdev::glob_to_list_flag_t::GLOB_FLAG_TILDE>(path + "/*.xml"))
+                  snapdev::glob_to_list_flag_t::GLOB_FLAG_TILDE>(path + "/*.xml"))
         {
             SNAP_LOG_WARNING
                 << "Could not read directory \""
