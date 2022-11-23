@@ -448,7 +448,7 @@ schema_complex_type::schema_complex_type()
  * Once in a list of columns, a complex type becomes a
  * `STRUCT_TYPE_STRUCTURE`.
  */
-schema_complex_type::schema_complex_type(xml_node::pointer_t x)
+schema_complex_type::schema_complex_type(basic_xml::node::pointer_t x)
 {
     if(x->tag_name() != "complex-type")
     {
@@ -549,7 +549,7 @@ struct_type_t schema_complex_type::type(int idx) const
 
 
 
-schema_column::schema_column(schema_table::pointer_t table, xml_node::pointer_t x)
+schema_column::schema_column(schema_table::pointer_t table, basic_xml::node::pointer_t x)
     : f_schema_table(table)
 {
     if(x->tag_name() != "column")
@@ -916,7 +916,7 @@ buffer_t schema_column::validation() const
 
 
 
-void schema_sort_column::from_xml(xml_node::pointer_t sc)
+void schema_sort_column::from_xml(basic_xml::node::pointer_t sc)
 {
     f_column_name = sc->attribute("name");
     if(f_column_name.empty())
@@ -1084,7 +1084,7 @@ void schema_sort_column::set_function(buffer_t const & function)
 
 
 
-void schema_secondary_index::from_xml(xml_node::pointer_t si)
+void schema_secondary_index::from_xml(basic_xml::node::pointer_t si)
 {
     f_index_name = si->attribute("name");
 
@@ -1336,7 +1336,7 @@ void schema_table::set_complex_types(schema_complex_type::map_pointer_t complex_
 }
 
 
-void schema_table::from_xml(xml_node::pointer_t x)
+void schema_table::from_xml(basic_xml::node::pointer_t x)
 {
     if(x->tag_name() != "table")
     {
@@ -1408,8 +1408,8 @@ void schema_table::from_xml(xml_node::pointer_t x)
         }
     }
 
-    xml_node::deque_t schemata;
-    xml_node::deque_t secondary_indexes;
+    basic_xml::node::deque_t schemata;
+    basic_xml::node::deque_t secondary_indexes;
 
     f_model = name_to_model(x->attribute("model"));
 
@@ -1763,9 +1763,9 @@ void schema_table::from_xml(xml_node::pointer_t x)
 }
 
 
-void schema_table::load_extension(xml_node::pointer_t e)
+void schema_table::load_extension(basic_xml::node::pointer_t e)
 {
-    xml_node::deque_t secondary_indexes;
+    basic_xml::node::deque_t secondary_indexes;
 
     for(auto child(e->first_child()); child != nullptr; child = child->next())
     {
@@ -1793,7 +1793,7 @@ void schema_table::load_extension(xml_node::pointer_t e)
 }
 
 
-void schema_table::process_columns(xml_node::pointer_t column_definitions)
+void schema_table::process_columns(basic_xml::node::pointer_t column_definitions)
 {
     for(auto column(column_definitions->first_child());
         column != nullptr;
@@ -1816,7 +1816,7 @@ void schema_table::process_columns(xml_node::pointer_t column_definitions)
 }
 
 
-void schema_table::process_secondary_indexes(xml_node::deque_t secondary_indexes)
+void schema_table::process_secondary_indexes(basic_xml::node::deque_t secondary_indexes)
 {
     for(auto const & si : secondary_indexes)
     {

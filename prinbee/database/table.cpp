@@ -220,13 +220,13 @@ public:
                                                 table_impl(
                                                       context * c
                                                     , table * t
-                                                    , xml_node::pointer_t x
+                                                    , basic_xml::node::pointer_t x
                                                     , schema_complex_type::map_pointer_t complex_types);
                                                 table_impl(table_impl const & rhs) = delete;
 
     table_impl                                  operator = (table_impl const & rhs) = delete;
 
-    void                                        load_extension(xml_node::pointer_t e);
+    void                                        load_extension(basic_xml::node::pointer_t e);
 
     dbfile::pointer_t                           get_dbfile() const;
     version_t                                   schema_version() const;
@@ -278,7 +278,7 @@ private:
 table_impl::table_impl(
           context * c
         , table * t
-        , xml_node::pointer_t x
+        , basic_xml::node::pointer_t x
         , schema_complex_type::map_pointer_t complex_types)
     : f_context(c)
     , f_table(t)
@@ -291,7 +291,7 @@ table_impl::table_impl(
 }
 
 
-void table_impl::load_extension(xml_node::pointer_t e)
+void table_impl::load_extension(basic_xml::node::pointer_t e)
 {
     f_schema_table->load_extension(e);
 }
@@ -1516,7 +1516,7 @@ throw snapdatabase_not_yet_implemented("table: TODO implement read tree");
 
 table::table(
           context * c
-        , xml_node::pointer_t x
+        , basic_xml::node::pointer_t x
         , schema_complex_type::map_pointer_t complex_types)
     : f_impl(std::make_shared<detail::table_impl>(c, this, x, complex_types))
 {
@@ -1535,7 +1535,7 @@ table::pointer_t table::get_pointer()
 }
 
 
-void table::load_extension(xml_node::pointer_t e)
+void table::load_extension(basic_xml::node::pointer_t e)
 {
     f_impl->load_extension(e);
 }

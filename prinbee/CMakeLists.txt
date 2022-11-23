@@ -70,7 +70,6 @@ add_library(${PROJECT_NAME} SHARED
     #data/script.cpp
     data/structure.cpp
     data/virtual_buffer.cpp
-    data/xml.cpp
 
     error.cpp
     version.cpp
@@ -79,12 +78,8 @@ add_library(${PROJECT_NAME} SHARED
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         ${ADVGETOPT_INCLUDE_DIRS}
-        #${COMMUNICATORD_INCLUDE_DIRS}
-        #${CPPPROCESS_INCLUDE_DIRS}
+        ${BASIC_XML_DIRS}
         ${CPPTHREAD_INCLUDE_DIRS}
-        #${EVENTDISPATCHER_INCLUDE_DIRS}
-        #${FLUIDSETTINGS_INCLUDE_DIRS}
-        #${LIBADDR_INCLUDE_DIRS}
         ${LIBEXCEPT_INCLUDE_DIRS}
         ${LIBUFTF8_INCLUDE_DIRS}
         ${MURMUR3_INCLUDE_DIRS}
@@ -93,6 +88,7 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
     ${ADVGETOPT_LIBRARIES}
+    ${BASIC_XML_LIBRARIES}
     ${CPPTHREAD_LIBRARIES}
     ${LIBEXCEPT_LIBRARIES}
     ${LIBUFTF8_LIBRARIES}
@@ -157,7 +153,6 @@ install(
         #data/script.h
         data/structure.h
         data/virtual_buffer.h
-        data/xml.h
 
     DESTINATION
         include/prinbee/data

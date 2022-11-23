@@ -30,7 +30,11 @@
 // self
 //
 #include    "prinbee/data/structure.h"
-#include    "prinbee/data/xml.h"
+
+
+// basic-xml
+//
+#include    <basic-xml/xml.h>
 
 
 // advgetopt
@@ -146,7 +150,7 @@ public:
     typedef std::shared_ptr<map_t>          map_pointer_t;
 
                                             schema_complex_type();
-                                            schema_complex_type(xml_node::pointer_t x);
+                                            schema_complex_type(basic_xml::node::pointer_t x);
 
     std::string                             name() const;
     size_t                                  size() const;
@@ -180,7 +184,7 @@ public:
     typedef std::map<column_id_t, pointer_t>    map_by_id_t;
     typedef std::map<std::string, pointer_t>    map_by_name_t;
 
-                                            schema_column(schema_table_pointer_t table, xml_node::pointer_t x);
+                                            schema_column(schema_table_pointer_t table, basic_xml::node::pointer_t x);
                                             schema_column(schema_table_pointer_t table, structure::pointer_t s);
                                             schema_column(
                                                       schema_table_pointer_t table
@@ -237,7 +241,7 @@ public:
                                             pointer_t;
     typedef std::vector<pointer_t>          vector_t;
 
-    void                                    from_xml(xml_node::pointer_t sc);
+    void                                    from_xml(basic_xml::node::pointer_t sc);
 
     compare_t                               compare(schema_sort_column const & rhs) const;
 
@@ -270,7 +274,7 @@ public:
     typedef std::map<std::string, pointer_t>
                                             map_t;
 
-    void                                    from_xml(xml_node::pointer_t sc);
+    void                                    from_xml(basic_xml::node::pointer_t sc);
 
     compare_t                               compare(schema_secondary_index const & rhs) const;
 
@@ -312,8 +316,8 @@ public:
 
     void                                    set_complex_types(schema_complex_type::map_pointer_t complex_types);
 
-    void                                    from_xml(xml_node::pointer_t x);
-    void                                    load_extension(xml_node::pointer_t e);
+    void                                    from_xml(basic_xml::node::pointer_t x);
+    void                                    load_extension(basic_xml::node::pointer_t e);
     compare_t                               compare(schema_table const & rhs) const;
 
     void                                    from_binary(virtual_buffer::pointer_t b);
@@ -347,8 +351,8 @@ public:
     reference_t                             schema_offset() const;
 
 private:
-    void                                    process_columns(xml_node::pointer_t column_definitions);
-    void                                    process_secondary_indexes(xml_node::deque_t secondary_indexes);
+    void                                    process_columns(basic_xml::node::pointer_t column_definitions);
+    void                                    process_secondary_indexes(basic_xml::node::deque_t secondary_indexes);
 
     schema_complex_type::map_pointer_t      f_complex_types = schema_complex_type::map_pointer_t();
     version_t                               f_version = version_t();

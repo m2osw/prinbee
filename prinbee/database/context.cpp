@@ -138,7 +138,7 @@ std::cerr << "--- reading XML data from " << f_path << "\n";
             + "\".");
     }
 
-    xml_node::deque_t table_extensions;
+    basic_xml::node::deque_t table_extensions;
 
     size_t const max(f_opts->size("table_schema_path"));
 
@@ -152,7 +152,7 @@ std::cerr << "--- reading XML data from " << f_path << "\n";
     //       threads (and then the creation/loading of each table)
     //
 
-    xml::map_t xml_files;
+    basic_xml::xml::map_t xml_files;
 
     // the first loop goes through all the files
     // it reads the XML and parses the complex types
@@ -199,10 +199,10 @@ std::cerr << "--- reading XML data from " << f_path << "\n";
         for(auto const & filename : list)
         {
 std::cerr << "--- reading table XML " << filename << "\n";
-            xml::pointer_t x(std::make_shared<xml>(filename));
+            basic_xml::xml::pointer_t x(std::make_shared<basic_xml::xml>(filename));
             xml_files[filename] = x;
 
-            xml_node::pointer_t root(x->root());
+            basic_xml::node::pointer_t root(x->root());
             if(root == nullptr)
             {
                 SNAP_LOG_WARNING

@@ -38,8 +38,12 @@
 // self
 //
 #include    "prinbee/data/schema.h"
-#include    "prinbee/data/xml.h"
 #include    "prinbee/database/cursor.h"
+
+
+// basic-xml
+//
+#include    <basic-xml/xml.h>
 
 
 
@@ -75,7 +79,7 @@ public:
 
                                                 table(
                                                       context * c
-                                                    , xml_node::pointer_t x
+                                                    , basic_xml::node::pointer_t x
                                                     , schema_complex_type::map_pointer_t complex_types);
 
     pointer_t                                   get_pointer() const;
@@ -84,7 +88,7 @@ public:
 
     // schema management
     //
-    void                                        load_extension(xml_node::pointer_t e);
+    void                                        load_extension(basic_xml::node::pointer_t e);
     version_t                                   schema_version() const;
     std::string                                 name() const;
     model_t                                     model() const;

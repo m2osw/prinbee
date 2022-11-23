@@ -26,14 +26,13 @@ find_package(SnapCatch2)
 if(SnapCatch2_FOUND)
 
     add_executable(${PROJECT_NAME}
-        main.cpp
+        catch_main.cpp
 
-        context.cpp
-        convert.cpp
-        structure.cpp
-        version.cpp
-        virtual_buffer.cpp
-        xml.cpp
+        catch_context.cpp
+        catch_convert.cpp
+        catch_structure.cpp
+        catch_version.cpp
+        catch_virtual_buffer.cpp
     )
 
     target_include_directories(${PROJECT_NAME}

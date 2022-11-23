@@ -18,7 +18,7 @@
 
 // self
 //
-#include    "main.h"
+#include    "catch_main.h"
 
 
 // prinbee
@@ -199,9 +199,9 @@ CATCH_TEST_CASE("Context", "[centext]")
         };
         row_data_t::vector_t row_data;
 
-        for(int count(0); count < 580; ++count)
+        //for(int count(0); count < 580; ++count)
         //for(int count(0); count < 163; ++count)
-        //for(int count(0); count < 31; ++count)
+        for(int count(0); count < 31; ++count)
         {
 std::cerr << "+++ row count = " << count << "\n";
             prinbee::row::pointer_t row(table->row_new());

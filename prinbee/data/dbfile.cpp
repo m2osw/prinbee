@@ -36,18 +36,18 @@
 #include    "prinbee/database/table.h"
 
 
-// snapdev lib
+// snapdev
 //
 #include    <snapdev/not_used.h>
 
 
-// C lib
+// C
 //
 #include    <sys/mman.h>
 #include    <sys/stat.h>
 
 
-// C++ lib
+// C++
 //
 #include    <iostream>
 
@@ -377,9 +377,13 @@ void dbfile::sync(data_t data, bool immediate)
     intptr_t const data_ptr(reinterpret_cast<intptr_t>(data));
     intptr_t const page_ptr(data_ptr - data_ptr % sz);
 
+#if 1
     msync(reinterpret_cast<data_t>(page_ptr)
         , sz
         , (immediate ? MS_SYNC : MS_ASYNC) | MS_INVALIDATE);
+#else
+    snapdev::NOT_USED(page_ptr, immediate);
+#endif
 }
 
 
@@ -449,9 +453,11 @@ reference_t dbfile::append_free_block(reference_t const previous_block_offset)
             throw io_error(
                   "System could not properly truncate the file \""
                 + f_filename
-                + "\" "
+                + "\" ("
                 + std::to_string(e)
-                + ".");
+                + ", "
+                + strerror(e)
+                + ").");
         }
     }
 

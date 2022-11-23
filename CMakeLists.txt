@@ -22,6 +22,7 @@ cmake_minimum_required(VERSION 3.10.2)
 project(prinbee_project)
 
 find_package(AdvGetOpt        REQUIRED)
+find_package(BasicXml         REQUIRED)
 find_package(Boost            REQUIRED)
 find_package(Communicatord    REQUIRED)
 #find_package(CppProcess       REQUIRED)
