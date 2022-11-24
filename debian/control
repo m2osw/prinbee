@@ -2,7 +2,8 @@ Source: prinbee
 Section: net
 Priority: optional
 Maintainer: Alexis Wilke <alexis@m2osw.com>
-Build-Depends: cmake,
+Build-Depends: basic-xml (>= 1.0.0.0~bionic),
+    cmake,
     communicatord-dev (>= 2.0.0.0~bionic),
     cppprocess-dev (>= 1.1.52.0~bionic),
     cppthread-dev (>= 1.1.13.0~bionic),
