@@ -1,4 +1,4 @@
-// add multiple uint64_t with carry
+// add eight uint64_t with carry
 //
 //    // corresponding C++ function declaration
 //    namespace prinbee {
@@ -8,8 +8,7 @@
 
     .macro add_with_carry offset
         mov         \offset(%rsi), %rax
-        adc         \offset(%rdi), %rax
-        mov         %rax, \offset(%rdi)
+        adc         %rax, \offset(%rdi)
     .endm
 
     .text

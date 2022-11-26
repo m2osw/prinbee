@@ -1,8 +1,11 @@
 
+# bigint
 
-# Extract the XML reader in a libxmlight library separate project (SNAP-709)
+I may want to create a separate project for that one too, at some point,
+although right now I have no need outside of the database.
 
-We could then reuse that XML parser for our advgetopt project.
+However, the multiplication and division are both very slow and would need
+to be fixed (i.e. use the more complex but much faster algorithms available).
 
 # snaplogger / communicator / fluid-settings
 

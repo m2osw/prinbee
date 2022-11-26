@@ -157,7 +157,7 @@ reference_t block_indirect_index::get_reference(oid_t & id, bool must_exist) con
     {
         if(must_exist)
         {
-            throw snapdatabase_logic_error("somehow an Indirect Index position is out of bounds.");
+            throw logic_error("somehow an Indirect Index position is out of bounds.");
         }
         return MISSING_FILE_ADDR;
     }
@@ -189,7 +189,7 @@ void block_indirect_index::set_reference(oid_t & id, reference_t offset)
     std::uint64_t const position(get_position(id, refs));
     if(refs == nullptr)
     {
-        throw snapdatabase_logic_error("somehow an Indirect Index position is out of bounds.");
+        throw logic_error("somehow an Indirect Index position is out of bounds.");
     }
     const_cast<reference_t *>(refs)[position] = offset;
 }

@@ -29,9 +29,11 @@ configure_file(
 )
 
 add_library(${PROJECT_NAME} SHARED
+    bigint/add.s
     bigint/add128.s
     bigint/add256.s
     bigint/add512.s
+    bigint/sub.s
     bigint/sub128.s
     bigint/sub256.s
     bigint/sub512.s

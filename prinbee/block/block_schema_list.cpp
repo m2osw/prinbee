@@ -147,7 +147,7 @@ reference_t block_schema_list::get_schema(version_t const & version) const
     std::uint32_t const count(get_count());
     if(count < 2)
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "block_schema_list::get_schema() has a count of "
                 + std::to_string(count)
                 + ", which is too small (expected at least 2).");
@@ -222,7 +222,7 @@ void block_schema_list::add_schema(schema_table::pointer_t schema)
     //
     if(schema->schema_version() == version_t())
     {
-        throw snapdatabase_logic_error("the add_schema() can't be called with an unversioned schema.");
+        throw logic_error("the add_schema() can't be called with an unversioned schema.");
     }
 
     // make sure yet another schema can be added

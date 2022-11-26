@@ -169,7 +169,7 @@ void dbfile::set_page_size(size_t page_size)
 {
     if(f_page_size != 0)
     {
-        throw snapdatabase_logic_error("The size of a page in a dbfile can only be set once.");
+        throw logic_error("The size of a page in a dbfile can only be set once.");
     }
 
     // make sure it is at least one system page in size and a multiple of
@@ -192,7 +192,7 @@ size_t dbfile::get_page_size() const
 {
     if(f_page_size == 0)
     {
-        throw snapdatabase_logic_error("The dbfile page size is not yet defined.");
+        throw logic_error("The dbfile page size is not yet defined.");
     }
 
     return f_page_size;
@@ -215,11 +215,11 @@ void dbfile::set_type(dbtype_t type)
 {
     if(f_type != dbtype_t::DBTYPE_UNKNOWN)
     {
-        throw snapdatabase_logic_error("The dbfile type is already defined.");
+        throw logic_error("The dbfile type is already defined.");
     }
     if(type == dbtype_t::DBTYPE_UNKNOWN)
     {
-        throw snapdatabase_logic_error("The dbfile type cannot be set to dbtype_t::DBTYPE_UNKNOWN.");
+        throw logic_error("The dbfile type cannot be set to dbtype_t::DBTYPE_UNKNOWN.");
     }
 
     f_type = type;

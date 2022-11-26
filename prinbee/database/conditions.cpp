@@ -138,7 +138,7 @@ buffer_t const & conditions::get_murmur_key() const
 {
     if(f_min_key == nullptr)
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                     "the conditions::get_murmur_key() can only be used if"
                     " the minimum key is defined.");
     }

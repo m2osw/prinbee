@@ -225,7 +225,7 @@ void cursor::set_cache(bool cache)
         return;
     }
 
-    throw snapdatabase_logic_error("cursor::set_cache() called too late.");
+    throw logic_error("cursor::set_cache() called too late.");
 }
 
 

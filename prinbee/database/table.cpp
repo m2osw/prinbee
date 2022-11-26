@@ -312,7 +312,7 @@ schema_table::pointer_t table_impl::get_schema(version_t const & version)
     if(f_schema_table_by_version.empty()
     && version != version_t())
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                     "table_impl::get_schema() called with a version other"
                     " than 0.0 when the table is not properly setup yet.");
     }
@@ -569,7 +569,7 @@ block::pointer_t table_impl::allocate_block(dbtype_t type, reference_t offset)
         if(type != dbtype_t::BLOCK_TYPE_FREE_BLOCK
         && it->second->get_dbtype() != dbtype_t::BLOCK_TYPE_FREE_BLOCK)
         {
-            throw snapdatabase_logic_error(
+            throw logic_error(
                       "allocate_block() called a non-free block type trying to allocate a non-free block ("
                     + to_string(type)
                     + "). You can go from a free to non-free and non-free to free only.");
@@ -606,7 +606,7 @@ block::pointer_t table_impl::allocate_block(dbtype_t type, reference_t offset)
         break;
 
     case dbtype_t::BLOCK_TYPE_FREE_BLOCK:
-        //throw snapdatabase_logic_error("You can't allocate a Free Block with allocate_block()");
+        //throw logic_error("You can't allocate a Free Block with allocate_block()");
         b = std::make_shared<block_free_block>(f_dbfile, offset);
         break;
 
@@ -643,7 +643,7 @@ block::pointer_t table_impl::allocate_block(dbtype_t type, reference_t offset)
         break;
 
     default:
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "allocate_block() called with an unknown dbtype_t value ("
                 + to_string(type)
                 + ").");
@@ -756,7 +756,7 @@ block::pointer_t table_impl::get_block(reference_t offset)
     if(offset != 0
     && offset >= f_dbfile->get_size())
     {
-        throw snapdatabase_logic_error("Requested a block with an offset >= to the existing file size.");
+        throw logic_error("Requested a block with an offset >= to the existing file size.");
     }
 
     structure::pointer_t s(std::make_shared<structure>(g_block_header));
@@ -765,7 +765,7 @@ block::pointer_t table_impl::get_block(reference_t offset)
 #ifdef _DEBUG
     if(s->get_size() != BLOCK_HEADER_SIZE)
     {
-        throw snapdatabase_logic_error("sizeof(g_block_header) != BLOCK_HEADER_SIZE");
+        throw logic_error("sizeof(g_block_header) != BLOCK_HEADER_SIZE");
     }
 #endif
     header->pwrite(d, s->get_size(), 0, true);
@@ -792,7 +792,7 @@ block::pointer_t table_impl::allocate_new_block(dbtype_t type)
 {
     if(type == dbtype_t::BLOCK_TYPE_FREE_BLOCK)
     {
-        throw snapdatabase_logic_error("You can't allocate a Free Block with allocate_new_block().");
+        throw logic_error("You can't allocate a Free Block with allocate_new_block().");
     }
 
     reference_t offset(0);
@@ -806,7 +806,7 @@ block::pointer_t table_impl::allocate_new_block(dbtype_t type)
             break;
 
         default:
-            throw snapdatabase_logic_error(
+            throw logic_error(
                       "a new file can't be created with type \""
                     + to_string(type)
                     + "\".");
@@ -833,7 +833,7 @@ block::pointer_t table_impl::allocate_new_block(dbtype_t type)
         case dbtype_t::FILE_TYPE_SNAP_DATABASE_TABLE:
         case dbtype_t::FILE_TYPE_EXTERNAL_INDEX:
         case dbtype_t::FILE_TYPE_BLOOM_FILTER:
-            throw snapdatabase_logic_error(
+            throw logic_error(
                       "a file type such as \""
                     + to_string(type)
                     + "\" is only for when you create a file.");
@@ -987,7 +987,7 @@ std::cerr << "+++ GET INDIRECT INDEX: " << offset << " from " << oid << "\n";
         //
         if(oid != 1)
         {
-            throw snapdatabase_logic_error("the indirect index offset is null but the first OID is not 1.");
+            throw logic_error("the indirect index offset is null but the first OID is not 1.");
         }
         indr = std::static_pointer_cast<block_indirect_index>(
                         allocate_new_block(dbtype_t::BLOCK_TYPE_INDIRECT_INDEX));
@@ -1090,7 +1090,7 @@ std::cerr << "+++ GOT AN EXISTING INDIRECT INDEX BLOCK! " << position_oid << " v
                     std::uint8_t block_level(parent_tind->get_block_level());
                     if(block_level <= 1)
                     {
-                        throw snapdatabase_logic_error(
+                        throw logic_error(
                                   "parent_tind block level is "
                                 + std::to_string(static_cast<int>(parent_tind->get_block_level()))
                                 + " which is not valid here, it is expected to be at least 2.");
@@ -1200,7 +1200,7 @@ std::cerr << "set_top_index() -- " << static_cast<int>(key[14]) << " " << static
     }
     else
     {
-throw snapdatabase_not_yet_implemented("table: TODO implement insert close to existing entry");
+throw not_yet_implemented("table: TODO implement insert close to existing entry");
     }
 }
 
@@ -1275,7 +1275,7 @@ reference_t table_impl::get_indirect_reference(oid_t oid)
     reference_t offset(header->get_indirect_index());
     if(offset == NULL_FILE_ADDR)
     {
-        throw snapdatabase_logic_error("somehow the get_indirect_reference() was called when no row exists.");
+        throw logic_error("somehow the get_indirect_reference() was called when no row exists.");
     }
 
     block::pointer_t block;
@@ -1290,7 +1290,7 @@ reference_t table_impl::get_indirect_reference(oid_t oid)
         offset = tind->get_reference(oid, true);
         if(offset == NULL_FILE_ADDR)
         {
-            throw snapdatabase_logic_error("somehow the get_indirect_reference() was called with a still unused OID.");
+            throw logic_error("somehow the get_indirect_reference() was called with a still unused OID.");
         }
     }
 
@@ -1355,7 +1355,7 @@ void table_impl::read_rows(cursor_data & data)
         break;
 
     default:
-        throw snapdatabase_logic_error("unexpected index type in read_rows().");
+        throw logic_error("unexpected index type in read_rows().");
 
     }
 }
@@ -1365,7 +1365,7 @@ void table_impl::read_secondary(cursor_data & data)
 {
 snapdev::NOT_USED(data);
 std::cerr << "table: TODO implement read secondary...\n";
-throw snapdatabase_not_yet_implemented("table: TODO implement read secondary");
+throw not_yet_implemented("table: TODO implement read secondary");
 }
 
 
@@ -1383,7 +1383,7 @@ void table_impl::read_indirect(cursor_data & data)
 
 snapdev::NOT_USED(data);
 std::cerr << "table: TODO implement read indirect...\n";
-throw snapdatabase_not_yet_implemented("table: TODO implement read indirect");
+throw not_yet_implemented("table: TODO implement read indirect");
 }
 
 
@@ -1481,7 +1481,7 @@ std::cerr << "read_primary: reading row!?\n";
     data.f_rows.push_back(r);
 
 //std::cerr << "table: TODO implement read primary...\n";
-//throw snapdatabase_not_yet_implemented("table: TODO implement read primary");
+//throw not_yet_implemented("table: TODO implement read primary");
 }
 
 
@@ -1489,7 +1489,7 @@ void table_impl::read_expiration(cursor_data & data)
 {
 snapdev::NOT_USED(data);
 std::cerr << "table: TODO implement read expiration...\n";
-throw snapdatabase_not_yet_implemented("table: TODO implement read expiration");
+throw not_yet_implemented("table: TODO implement read expiration");
 }
 
 
@@ -1497,7 +1497,7 @@ void table_impl::read_tree(cursor_data & data)
 {
 snapdev::NOT_USED(data);
 std::cerr << "table: TODO implement read tree...\n";
-throw snapdatabase_not_yet_implemented("table: TODO implement read tree");
+throw not_yet_implemented("table: TODO implement read tree");
 }
 
 

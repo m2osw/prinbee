@@ -1,5 +1,4 @@
-// add multiple uint64_t with carry
-// the returned value is the carry of the last add operation
+// add four uint64_t with carry
 //
 //    // corresponding C function declaration
 //    namespace prinbee {
@@ -14,9 +13,9 @@
 
     .text
     .p2align    4,,15
-    .globl      add256
-    .type       add256, @function
-add256:
+    .globl      _ZN7prinbee6add256EPmPKm
+    .type       _ZN7prinbee6add256EPmPKm, @function
+_ZN7prinbee6add256EPmPKm:
     mov         (%rsi), %rax
     add         %rax, (%rdi)
 

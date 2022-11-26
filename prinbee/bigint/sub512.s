@@ -1,4 +1,4 @@
-// subtract multiple uint64_t with carry
+// subtract eight uint64_t with carry
 //
 //    // corresponding C++ function declaration
 //    namespace prinbee {

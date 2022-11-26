@@ -383,7 +383,7 @@ model_t name_to_model(std::string const & name)
         if(strcmp(g_model_and_name[idx - 1].f_name
                 , g_model_and_name[idx].f_name) >= 0)
         {
-            throw snapdatabase_logic_error(
+            throw logic_error(
                       "names in g_model_and_name are not in alphabetical order: "
                     + std::string(g_model_and_name[idx - 1].f_name)
                     + " >= "
@@ -517,7 +517,7 @@ std::string schema_complex_type::type_name(int idx) const
 {
     if(static_cast<std::size_t>(idx) >= f_fields.size())
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                 "index ("
                 + std::to_string(idx)
                 + ") is too large for this complex type list of fields (max: "
@@ -533,7 +533,7 @@ struct_type_t schema_complex_type::type(int idx) const
 {
     if(static_cast<std::size_t>(idx) >= f_fields.size())
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                 "index ("
                 + std::to_string(idx)
                 + ") is too large for this complex type list of fields (max: "
@@ -591,7 +591,7 @@ schema_column::schema_column(schema_table::pointer_t table, basic_xml::node::poi
         //       want to keep the data in a single column and use
         //       the complex type to read/write it)
         //
-        throw snapdatabase_not_yet_implemented(
+        throw not_yet_implemented(
                 "full support for complex types not yet implemented");
     }
 
@@ -748,7 +748,7 @@ compare_t schema_column::compare(schema_column const & rhs) const
 
     if(f_name != rhs.f_name)
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "the schema_column::compare() function can only be called"
                   " with two columns having the same name. You called it"
                   " with a column named \""
@@ -1187,7 +1187,7 @@ compare_t schema_secondary_index::compare(schema_secondary_index const & rhs) co
 
     if(f_index_name != rhs.f_index_name)
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "the schema_secondary_index::compare() function can only be"
                   " called with two secondary indexes having the same name."
                   " You called it with a column named \""
@@ -1284,7 +1284,7 @@ schema_sort_column::pointer_t schema_secondary_index::get_sort_column(int idx) c
 {
     if(static_cast<size_t>(idx) >= f_sort_columns.size())
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Index ("
                 + std::to_string(idx)
                 + ") is too large to pick a sort column from secondary index \""
@@ -2211,7 +2211,7 @@ void schema_table::assign_column_ids(schema_table::pointer_t existing_schema)
         {
             if(c.second->column_id() != 0)
             {
-                throw snapdatabase_logic_error(
+                throw logic_error(
                           "Column \""
                         + f_name
                         + "."
@@ -2282,7 +2282,7 @@ void schema_table::assign_column_ids(schema_table::pointer_t existing_schema)
         }
         if(c->column_id() == 0)
         {
-            throw snapdatabase_logic_error(
+            throw logic_error(
                       "Somehow column \""
                     + f_name
                     + "."
@@ -2315,7 +2315,7 @@ void schema_table::assign_column_ids(schema_table::pointer_t existing_schema)
             }
             if(c->column_id() == 0)
             {
-                throw snapdatabase_logic_error(
+                throw logic_error(
                           "Somehow column \""
                         + f_name
                         + "."

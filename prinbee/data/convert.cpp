@@ -131,7 +131,7 @@ uint512_t size_to_multiplicator(char const * s)
         if(strcmp(g_size_name_to_multiplicator[idx - 1].f_name
                 , g_size_name_to_multiplicator[idx].f_name) >= 0)
         {
-            throw snapdatabase_logic_error(
+            throw logic_error(
                       "names in g_name_to_struct_type area not in alphabetical order: "
                     + std::string(g_size_name_to_multiplicator[idx - 1].f_name)
                     + " >= "
@@ -380,7 +380,7 @@ buffer_t string_to_uinteger(std::string const & value, size_t max_size)
 
     if(max_size != 512 && n.bit_size() > max_size)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Number \""
                 + value
                 + "\" too large for an "
@@ -400,7 +400,7 @@ std::string uinteger_to_string(buffer_t value, int bytes_for_size, int base)
 {
     if(value.size() > static_cast<size_t>(bytes_for_size))
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Value too large ("
                 + std::to_string(value.size() * 8)
                 + ") for this field (max: "
@@ -482,7 +482,7 @@ buffer_t string_to_integer(std::string const & value, size_t max_size)
 
     if(max_size != 512 && n.bit_size() > max_size)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Number \""
                 + value
                 + "\" too large for a signed "
@@ -529,7 +529,7 @@ buffer_t string_to_float(std::string const & value, std::function<T(char const *
     T r(f(value.c_str(), &e));
     if(errno == ERANGE)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Floating point number \""
                 + value
                 + "\" out of range.");
@@ -564,7 +564,7 @@ std::string float_to_string(buffer_t value)
     // TBD: we may want to specify the format
     if(value.size() != sizeof(T))
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Value buffer has an unexpected size ("
                 + std::to_string(value.size())
                 + ") for this field (expected floating point size: "
@@ -583,7 +583,7 @@ buffer_t string_to_version(std::string const & value)
     std::string::size_type const pos(value.find('.'));
     if(pos == std::string::npos)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Version \""
                 + value
                 + "\" must include a period (.) between the major and minor numbers.");
@@ -610,7 +610,7 @@ buffer_t string_to_version(std::string const & value)
     if(a.bit_size() > 16
     || b.bit_size() > 16)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "One or both of the major or minor numbers from version \""
                 + value
                 + "\" are too large for a version number (max. is 65535).");
@@ -631,7 +631,7 @@ std::string version_to_string(buffer_t value)
 {
     if(value.size() != 4)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "A buffer representing a version must be exactly 4 bytes, not "
                 + std::to_string(value.size())
                 + ".");
@@ -658,13 +658,13 @@ std::string buffer_to_cstring(buffer_t const & value)
 {
     if(value.empty())
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "A C-String cannot be saved in an empty buffer ('\\0' missing).");
     }
 
     if(value[value.size() - 1] != '\0')
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "C-String last byte cannot be anything else than '\\0'.");
     }
 
@@ -681,7 +681,7 @@ buffer_t string_to_buffer(std::string const & value, size_t bytes_for_size)
 
     if(size >= max_size)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "String too long ("
                 + std::to_string(size)
                 + ") for this field (max: "
@@ -703,7 +703,7 @@ std::string buffer_to_string(buffer_t value, size_t bytes_for_size)
 {
     if(value.size() < bytes_for_size)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Buffer too small to incorporate the P-String size ("
                 + std::to_string(value.size())
                 + ", expected at least: "
@@ -716,7 +716,7 @@ std::string buffer_to_string(buffer_t value, size_t bytes_for_size)
 
     if(bytes_for_size + size > value.size())
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Buffer too small for the P-String characters (size: "
                 + std::to_string(size)
                 + ", character bytes in buffer: "
@@ -754,7 +754,7 @@ buffer_t string_to_unix_time(std::string value, int fraction)
         if(f < 0
         || f >= fraction)
         {
-            throw snapdatabase_out_of_range(
+            throw out_of_range(
                       "Time fraction is out of bounds in \""
                     + value
                     + "\".");
@@ -785,7 +785,7 @@ std::string unix_time_to_string(buffer_t value, int fraction)
     uint64_t time;
     if(value.size() != sizeof(time))
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Buffer size is invalid for a time value (size: "
                 + std::to_string(value.size())
                 + ", expected size: "
@@ -913,7 +913,7 @@ buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
     case struct_type_t::STRUCT_TYPE_BUFFER8:
     case struct_type_t::STRUCT_TYPE_BUFFER16:
     case struct_type_t::STRUCT_TYPE_BUFFER32:
-        throw snapdatabase_logic_error("Conversion not yet implemented...");
+        throw logic_error("Conversion not yet implemented...");
 
     default:
         //struct_type_t::STRUCT_TYPE_ARRAY8:
@@ -923,7 +923,7 @@ buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
         //struct_type_t::STRUCT_TYPE_END
         //struct_type_t::STRUCT_TYPE_VOID
         //struct_type_t::STRUCT_TYPE_RENAMED
-        throw snapdatabase_logic_error(
+        throw logic_error(
               "Unexpected structure type ("
             + std::to_string(static_cast<int>(type))
             + ") to convert a string to a buffer");
@@ -1020,7 +1020,7 @@ std::string typed_buffer_to_string(struct_type_t type, buffer_t value, int base)
     case struct_type_t::STRUCT_TYPE_BUFFER8:
     case struct_type_t::STRUCT_TYPE_BUFFER16:
     case struct_type_t::STRUCT_TYPE_BUFFER32:
-        throw snapdatabase_logic_error("Conversion not yet implemented...");
+        throw logic_error("Conversion not yet implemented...");
 
     default:
         //struct_type_t::STRUCT_TYPE_STRUCTURE:
@@ -1030,7 +1030,7 @@ std::string typed_buffer_to_string(struct_type_t type, buffer_t value, int base)
         //struct_type_t::STRUCT_TYPE_END
         //struct_type_t::STRUCT_TYPE_VOID
         //struct_type_t::STRUCT_TYPE_RENAMED
-        throw snapdatabase_logic_error(
+        throw logic_error(
               "Unexpected structure type ("
             + std::to_string(static_cast<int>(type))
             + ") to convert a string to a buffer");
@@ -1045,7 +1045,7 @@ int64_t convert_to_int(std::string const & value, size_t max_size, unit_t unit)
 
     if(n.bit_size() > max_size)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Number \""
                 + value
                 + "\" too large for a signed "
@@ -1063,7 +1063,7 @@ uint64_t convert_to_uint(std::string const & value, size_t max_size, unit_t unit
 
     if(n.bit_size() > max_size)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Number \""
                 + value
                 + "\" too large for a signed "

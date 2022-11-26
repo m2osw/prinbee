@@ -82,7 +82,7 @@ block::block(descriptions_by_version_t const * structure_descriptions, dbfile::p
         {
             if(p->f_version <= d->f_version)
             {
-                throw snapdatabase_logic_error(
+                throw logic_error(
                           "The versions in a structure definition array must be in order ("
                         + p->f_version.to_string()
                         + " <= "
@@ -94,7 +94,7 @@ block::block(descriptions_by_version_t const * structure_descriptions, dbfile::p
     }
     if(d == f_structure_descriptions)
     {
-        throw snapdatabase_logic_error("The array of structure descriptions cannot be empty.");
+        throw logic_error("The array of structure descriptions cannot be empty.");
     }
 #endif
 
@@ -184,7 +184,7 @@ structure::pointer_t block::get_structure(version_t version) const
         }
     }
 
-    throw snapdatabase_logic_error(
+    throw logic_error(
               "Block of type \""
             + to_string(get_dbtype())
             + "\" has no structure version "
@@ -199,7 +199,7 @@ void block::clear_block()
 #ifdef _DEBUG
     if(offset == 0)
     {
-        throw snapdatabase_logic_error("the structure of the block_free_block block cannot be dynamic.");
+        throw logic_error("the structure of the block_free_block block cannot be dynamic.");
     }
 #endif
     std::uint32_t const data_size(get_table()->get_page_size() - offset);
@@ -269,7 +269,7 @@ data_t block::data(reference_t offset)
     if(f_data == nullptr)
     {
         //f_data = get_table()->get_dbfile()->data(f_offset);
-        throw snapdatabase_logic_error("block::data() called before set_data().");
+        throw logic_error("block::data() called before set_data().");
     }
 
     return f_data + (offset % get_table()->get_page_size());
@@ -281,7 +281,7 @@ const_data_t block::data(reference_t offset) const
     if(f_data == nullptr)
     {
         //f_data = get_table()->get_dbfile()->data(f_offset);
-        throw snapdatabase_logic_error("block::data() called before set_data().");
+        throw logic_error("block::data() called before set_data().");
     }
 
     return f_data + (offset % get_table()->get_page_size());
@@ -304,7 +304,7 @@ void block::from_current_file_version()
         return;
     }
 
-    throw snapdatabase_logic_error("from_current_file_version() not fully implemented yet.");
+    throw logic_error("from_current_file_version() not fully implemented yet.");
 }
 
 

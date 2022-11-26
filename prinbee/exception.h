@@ -18,7 +18,7 @@
 #pragma once
 
 /** \file
- * \brief Snap! Database exceptions.
+ * \brief Prinbee Database exceptions.
  *
  * This files declares a few exceptions that the database uses when a
  * parameter is wrong or something goes wrong (can't open a file, can't
@@ -39,42 +39,42 @@ namespace prinbee
 
 
 
-DECLARE_LOGIC_ERROR(snapdatabase_logic_error);
-DECLARE_LOGIC_ERROR(snapdatabase_not_yet_implemented);
+DECLARE_LOGIC_ERROR(logic_error);
+DECLARE_LOGIC_ERROR(not_yet_implemented);
 
-DECLARE_OUT_OF_RANGE(snapdatabase_out_of_range);
+DECLARE_OUT_OF_RANGE(out_of_range);
 
 DECLARE_MAIN_EXCEPTION(fatal_error);
-DECLARE_MAIN_EXCEPTION(snapdatabase_error);
+DECLARE_MAIN_EXCEPTION(prinbee_exception);
 
 // uncomment as we use these
-DECLARE_EXCEPTION(snapdatabase_error, block_full);
-DECLARE_EXCEPTION(snapdatabase_error, block_not_found);
-DECLARE_EXCEPTION(snapdatabase_error, column_not_found);
-DECLARE_EXCEPTION(snapdatabase_error, conversion_unavailable);
-DECLARE_EXCEPTION(snapdatabase_error, field_not_found);
-DECLARE_EXCEPTION(snapdatabase_error, file_not_found);
-DECLARE_EXCEPTION(snapdatabase_error, file_not_opened);
-DECLARE_EXCEPTION(snapdatabase_error, id_already_assigned);
-DECLARE_EXCEPTION(snapdatabase_error, id_missing);
-DECLARE_EXCEPTION(snapdatabase_error, invalid_entity);
-DECLARE_EXCEPTION(snapdatabase_error, invalid_name);
-DECLARE_EXCEPTION(snapdatabase_error, invalid_number);
-DECLARE_EXCEPTION(snapdatabase_error, invalid_parameter);
-DECLARE_EXCEPTION(snapdatabase_error, invalid_size);
-DECLARE_EXCEPTION(snapdatabase_error, invalid_token);
-DECLARE_EXCEPTION(snapdatabase_error, invalid_xml);
-DECLARE_EXCEPTION(snapdatabase_error, io_error);
-DECLARE_EXCEPTION(snapdatabase_error, node_already_in_tree);
-DECLARE_EXCEPTION(snapdatabase_error, page_not_found);
-DECLARE_EXCEPTION(snapdatabase_error, row_already_exists);
-DECLARE_EXCEPTION(snapdatabase_error, row_not_found);
-DECLARE_EXCEPTION(snapdatabase_error, schema_not_found);
-DECLARE_EXCEPTION(snapdatabase_error, string_not_terminated);
-DECLARE_EXCEPTION(snapdatabase_error, type_mismatch);
-DECLARE_EXCEPTION(snapdatabase_error, unexpected_eof);
-DECLARE_EXCEPTION(snapdatabase_error, unexpected_token);
-DECLARE_EXCEPTION(snapdatabase_error, out_of_bounds);
+DECLARE_EXCEPTION(prinbee_exception, block_full);
+DECLARE_EXCEPTION(prinbee_exception, block_not_found);
+DECLARE_EXCEPTION(prinbee_exception, column_not_found);
+DECLARE_EXCEPTION(prinbee_exception, conversion_unavailable);
+DECLARE_EXCEPTION(prinbee_exception, field_not_found);
+DECLARE_EXCEPTION(prinbee_exception, file_not_found);
+DECLARE_EXCEPTION(prinbee_exception, file_not_opened);
+DECLARE_EXCEPTION(prinbee_exception, id_already_assigned);
+DECLARE_EXCEPTION(prinbee_exception, id_missing);
+DECLARE_EXCEPTION(prinbee_exception, invalid_entity);
+DECLARE_EXCEPTION(prinbee_exception, invalid_name);
+DECLARE_EXCEPTION(prinbee_exception, invalid_number);
+DECLARE_EXCEPTION(prinbee_exception, invalid_parameter);
+DECLARE_EXCEPTION(prinbee_exception, invalid_size);
+DECLARE_EXCEPTION(prinbee_exception, invalid_token);
+DECLARE_EXCEPTION(prinbee_exception, invalid_xml);
+DECLARE_EXCEPTION(prinbee_exception, io_error);
+DECLARE_EXCEPTION(prinbee_exception, node_already_in_tree);
+DECLARE_EXCEPTION(prinbee_exception, page_not_found);
+DECLARE_EXCEPTION(prinbee_exception, row_already_exists);
+DECLARE_EXCEPTION(prinbee_exception, row_not_found);
+DECLARE_EXCEPTION(prinbee_exception, schema_not_found);
+DECLARE_EXCEPTION(prinbee_exception, string_not_terminated);
+DECLARE_EXCEPTION(prinbee_exception, type_mismatch);
+DECLARE_EXCEPTION(prinbee_exception, unexpected_eof);
+DECLARE_EXCEPTION(prinbee_exception, unexpected_token);
+DECLARE_EXCEPTION(prinbee_exception, out_of_bounds);
 
 
 

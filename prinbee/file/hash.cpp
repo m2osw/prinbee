@@ -146,7 +146,7 @@ void hash::get_64bits(hash_t & v1, hash_t & v2)
         return;
     }
 
-    throw snapdatabase_logic_error("called get_64bits() when the input buffer is less than 64 bits");
+    throw logic_error("called get_64bits() when the input buffer is less than 64 bits");
 }
 
 
@@ -220,7 +220,7 @@ void hash::peek_64bits(hash_t & v1, hash_t & v2) const
         break;
 
     default:
-        throw snapdatabase_logic_error("called peek_64bits() when the input buffer is 64 bits or more");
+        throw logic_error("called peek_64bits() when the input buffer is 64 bits or more");
 
     }
 }

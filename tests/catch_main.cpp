@@ -148,9 +148,10 @@ int init_tests(Catch::Session & session)
     l->add_console_appender();
     l->set_severity(snaplogger::severity_t::SEVERITY_ALL);
 
-    SNAP_LOG_ERROR
-        << "This is an error through the logger..."
-        << SNAP_LOG_SEND;
+    // to test that the logger works as expected
+    //SNAP_LOG_ERROR
+    //    << "This is an error through the logger..."
+    //    << SNAP_LOG_SEND;
 
     return 0;
 }

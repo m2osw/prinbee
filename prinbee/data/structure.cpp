@@ -190,7 +190,7 @@ void verify_size(struct_type_t type, size_t size)
 {
     if(static_cast<size_t>(type) >= std::size(g_struct_type_sizes))
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "type out of range for converting it to a size ("
                 + to_string(type)
                 + ", max: "
@@ -200,7 +200,7 @@ void verify_size(struct_type_t type, size_t size)
 
     if(g_struct_type_sizes[static_cast<int>(type)].f_size != static_cast<ssize_t>(size))
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "value ("
                 + std::to_string(size)
                 + ") and type ("
@@ -248,7 +248,7 @@ struct_type_t name_to_struct_type(std::string const & type_name)
         if(strcmp(g_name_to_struct_type[idx - 1].f_name
                 , g_name_to_struct_type[idx].f_name) >= 0)
         {
-            throw snapdatabase_logic_error(
+            throw logic_error(
                       "names in g_name_to_struct_type area not in alphabetical order: "
                     + std::string(g_name_to_struct_type[idx - 1].f_name)
                     + " >= "
@@ -533,7 +533,7 @@ ssize_t field_t::type_field_size() const
 {
     if(static_cast<size_t>(f_description->f_type) >= std::size(g_struct_type_sizes))
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "type out of range for converting it to a field size ("
                 + to_string(f_description->f_type)
                 + ", max: "
@@ -555,14 +555,14 @@ std::string field_t::new_name() const
 {
     if(f_description->f_sub_description == nullptr)
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "Field \""
                 + field_name()
                 + "\" is marked as having a new name (RENAMED) but it has no f_sub_description to define the new name.");
     }
     if(f_description->f_sub_description->f_field_name == nullptr)
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "Field \""
                 + field_name()
                 + "\" is marked as having a new name (RENAMED) but it has no entries in its f_sub_description defining the new name.");
@@ -882,7 +882,7 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
 
     if(field_name.empty())
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "Called get_field() with an empty field name.");
     }
 
@@ -1787,7 +1787,7 @@ std::string structure::get_string(std::string const & field_name) const
     // in big endian we have to swap the bytes in length if field_size != 4
     if(length != f->size())
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "The size of this string field ("
                 + std::to_string(f->size())
                 + ") is different from the size found in the file ("
@@ -1971,7 +1971,7 @@ structure::pointer_t structure::new_array_item(std::string const & field_name)
     ++size;
     if(size >= max)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "The new_array_item() function cannot be used because the array is already full with "
                 + std::to_string(max)
                 + " items.");
@@ -2006,7 +2006,7 @@ structure::pointer_t structure::new_array_item(std::string const & field_name)
 #ifdef _DEBUG
     if(add != new_offset - offset)
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "Sub-structure says its size is "
                 + std::to_string(add)
                 + " but the offsets say it's "
@@ -2139,7 +2139,7 @@ void structure::set_buffer(std::string const & field_name, buffer_t const & valu
     uint64_t const size(value.size());
     if(size >= max)
     {
-        throw snapdatabase_out_of_range(
+        throw out_of_range(
                   "Size of input buffer ("
                 + std::to_string(size)
                 + ") too large to send it to the buffer; the maximum permitted by this field is "
@@ -2445,7 +2445,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
         {
             if(!has_sub_defs)
             {
-                throw snapdatabase_logic_error(
+                throw logic_error(
                           "Field \""
                         + field_name
                         + "\" has its \"f_sub_description\" field set to a pointer when its type doesn't allow it.");
@@ -2463,7 +2463,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
         }
         else if(has_sub_defs)
         {
-            throw snapdatabase_logic_error(
+            throw logic_error(
                       "Field \""
                     + field_name
                     + "\" is expected to have its \"f_sub_description\" field set to a pointer but it's nullptr right now.");
@@ -2633,7 +2633,7 @@ void structure::verify_buffer_size()
         for(s = shared_from_this(); s->parent() != nullptr; s = s->parent());
         if(f_buffer->size() != s->get_current_size())
         {
-            throw snapdatabase_logic_error(
+            throw logic_error(
                     "Buffer ("
                     + std::to_string(f_buffer->size())
                     + ") and current ("

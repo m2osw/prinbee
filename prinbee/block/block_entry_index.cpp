@@ -162,7 +162,7 @@ void block_entry_index::set_size(std::uint32_t size)
 {
     if(size < sizeof(std::uint8_t) + sizeof(oid_t) + 1)
     {
-        throw snapdatabase_logic_error("the size of a block_entry_index must be large enough to support a flag, an oid_t, and at the very least one byte from your key.");
+        throw logic_error("the size of a block_entry_index must be large enough to support a flag, an oid_t, and at the very least one byte from your key.");
     }
 
     f_structure->set_uinteger("size", size);
@@ -307,7 +307,7 @@ std::cerr << "add_entry() starting with count = " << count << "and OID=" << posi
 
     if(size < sizeof(std::uint8_t) + sizeof(oid_t) + 1)
     {
-        throw snapdatabase_logic_error("the size of this block_entry_index is not yet defined calling add_entry().");
+        throw logic_error("the size of this block_entry_index is not yet defined calling add_entry().");
     }
 
     if(close_position < 0)
@@ -346,7 +346,7 @@ std::cerr << "\n--- ptr = " << reinterpret_cast<void const *>(buffer)
                 // we have to convert to a PIDX if not already defined as
                 // such--
                 //
-throw snapdatabase_not_yet_implemented("block EIDX non-unique case");
+throw not_yet_implemented("block EIDX non-unique case");
                 break;
             }
         }
@@ -364,13 +364,13 @@ throw snapdatabase_not_yet_implemented("block EIDX non-unique case");
             // (the next block if enough room, otherwise add a new
             // block "in between")
             //
-throw snapdatabase_not_yet_implemented("block EIDX overflow case 1");
+throw not_yet_implemented("block EIDX overflow case 1");
         }
 
         // insert this new entry here, but last entry needs to be moved
         // to another EIDX
         //
-throw snapdatabase_not_yet_implemented("block EIDX overflow case 2");
+throw not_yet_implemented("block EIDX overflow case 2");
     }
 
     std::uint32_t entries_after(count - close_position);

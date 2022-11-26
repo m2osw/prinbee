@@ -222,7 +222,7 @@ reference_t * block_free_space_impl::get_free_space_pointer(std::uint32_t size)
 {
     if(size < FREE_SPACE_OFFSET)
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "You cannot call get_free_space_pointer() with a size less than "
                 + std::to_string(FREE_SPACE_OFFSET)
                 + ", so "
@@ -274,7 +274,7 @@ free_space_link_t * block_free_space_impl::get_link(reference_t r, block::pointe
 {
     if(r == NULL_FILE_ADDR)
     {
-        throw snapdatabase_logic_error("You cannot call get_link() with a reference of NULL_FILE_ADDR.");
+        throw logic_error("You cannot call get_link() with a reference of NULL_FILE_ADDR.");
     }
 
     remember_block = f_block.get_table()->get_block(r);
@@ -370,7 +370,7 @@ free_space_t block_free_space_impl::get_free_space(std::uint32_t minimum_size)
         // TODO: add support for `BLOB` blocks for rows that are larged
         //       than what can fit in a `DATA` block
         //
-        throw snapdatabase_not_yet_implemented(
+        throw not_yet_implemented(
                   "get_free_space() called with a minimum_size ("
                 + std::to_string(minimum_size)
                 + " > "
@@ -386,7 +386,7 @@ free_space_t block_free_space_impl::get_free_space(std::uint32_t minimum_size)
         // case a user somehow allows blocks larger than (1 << 24), which
         // is 16Mb--right now we limit such to 2Mb so we should be fine
         //
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "get_free_space() called with a minimum_size ("
                 + std::to_string(minimum_size)
                 + " > "
@@ -511,7 +511,7 @@ void block_free_space_impl::release_space(reference_t offset)
 {
     if(offset % sizeof(reference_t) != 0)
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                   "release_space() called with an invalid offset ("
                 + std::to_string(offset)
                 + "); it must be a multiple of "

@@ -137,7 +137,7 @@ virtual_buffer::pointer_t block_schema::get_schema() const
         s = std::static_pointer_cast<block_schema>(get_table()->get_block(next));
         if(s == nullptr)
         {
-            throw snapdatabase_logic_error("block_schema::get_schema() failed reading the list of blocks (bad pointer).");
+            throw logic_error("block_schema::get_schema() failed reading the list of blocks (bad pointer).");
         }
     }
 }
@@ -149,7 +149,7 @@ void block_schema::set_schema(virtual_buffer::pointer_t schema)
 #ifdef _DEBUG
     if(offset == 0)
     {
-        throw snapdatabase_logic_error("the structure of the block_schema block cannot be dynamic.");
+        throw logic_error("the structure of the block_schema block cannot be dynamic.");
     }
 #endif
     std::uint32_t const size_per_page(get_table()->get_page_size() - offset);
@@ -179,7 +179,7 @@ void block_schema::set_schema(virtual_buffer::pointer_t schema)
                 block_schema::pointer_t next_schema(std::static_pointer_cast<block_schema>(get_table()->get_block(next)));
                 if(next_schema == nullptr)
                 {
-                    throw snapdatabase_logic_error(
+                    throw logic_error(
                               "reading of the next schema block at "
                             + std::to_string(next)
                             + " failed.");
@@ -205,7 +205,7 @@ void block_schema::set_schema(virtual_buffer::pointer_t schema)
             block_schema::pointer_t next_schema(std::static_pointer_cast<block_schema>(get_table()->get_block(next)));
             if(next_schema == nullptr)
             {
-                throw snapdatabase_logic_error(
+                throw logic_error(
                           "reading of the next schema block at "
                         + std::to_string(next)
                         + " failed.");

@@ -79,7 +79,7 @@ void virtual_buffer::add_buffer(block::pointer_t b, std::uint64_t offset, std::u
 {
     if(f_modified)
     {
-        throw snapdatabase_logic_error(
+        throw logic_error(
                 "Virtual buffer was already modified, you can't add"
                 " another buffer until you commit this virtual buffer.");
     }
@@ -386,7 +386,7 @@ int virtual_buffer::pinsert(void const * buf, std::uint64_t size, std::uint64_t 
         return size;
     }
 
-    throw snapdatabase_logic_error(
+    throw logic_error(
               "Reached the end of the pinsert() function. Offset should be 0, it is "
             + std::to_string(offset)
             + " instead, which should never happen.");
