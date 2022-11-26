@@ -608,7 +608,7 @@ uint512_t uint512_t::operator ~ () const
     uint512_t bwnot;
     for(int idx(0); idx < 8; ++idx)
     {
-        bwnot.f_value[idx] = f_value[idx] ^ ~0;
+        bwnot.f_value[idx] = ~f_value[idx];
     }
     return bwnot;
 }
