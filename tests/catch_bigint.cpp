@@ -31,7 +31,7 @@
 
 // advgetopt
 //
-#include    <advgetopt/options.h>
+//#include    <advgetopt/options.h>
 
 
 
@@ -246,7 +246,14 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
                 for(std::size_t i(0); i < 8; ++i)
                 {
                     a.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                    b.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
+                    if(i == 7)
+                    {
+                        b.f_high_value = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
+                    }
+                    else
+                    {
+                        b.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
+                    }
                 }
 
                 prinbee::uint512_t a1(a);

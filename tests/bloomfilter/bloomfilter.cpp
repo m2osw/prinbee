@@ -86,7 +86,7 @@ hash_t hash(uint8_t const * v, std::size_t size, hash_t hash)
             hash ^= (~((hash << 11) + (i ^ (hash >> 5))));
         }
         ++loop;
-        //size -= 2; -- not necessary
+        size -= 2;
         v += 2;
     }
 

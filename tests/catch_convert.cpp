@@ -41,7 +41,7 @@
 
 
 
-CATCH_TEST_CASE("8 bit convert", "[convert]")
+CATCH_TEST_CASE("convert_8bit", "[convert] [valid]")
 {
     CATCH_START_SECTION("uint8_t")
     {
@@ -104,7 +104,7 @@ CATCH_TEST_CASE("8 bit convert", "[convert]")
 }
 
 
-CATCH_TEST_CASE("16 bit convert", "[convert]")
+CATCH_TEST_CASE("convert_16bit", "[convert] [valid]")
 {
     CATCH_START_SECTION("uint16_t")
     {
@@ -167,7 +167,7 @@ CATCH_TEST_CASE("16 bit convert", "[convert]")
 }
 
 
-CATCH_TEST_CASE("32 bit convert", "[convert]")
+CATCH_TEST_CASE("convert_32bit", "[convert] [valid]")
 {
     CATCH_START_SECTION("uint32_t")
     {

@@ -53,19 +53,22 @@ public:
 
     void                            add(std::uint8_t const * v, std::size_t size);
     hash_t                          get() const;
+    std::size_t                     size() const;
 
 private:
-    hash_t                          get_byte() const;
+    hash_t                          get_byte();
     hash_t                          peek_byte(int pos) const;
-    std::size_t                     size() const;
+    std::size_t                     buffer_size() const;
     void                            get_64bits(hash_t & v1, hash_t & v2);
     void                            peek_64bits(hash_t & v1, hash_t & v2) const;
+    void                            process_buffer();
 
     hash_t                          f_hash = 0;
-    mutable std::uint8_t const *    f_buffer = nullptr;
-    mutable std::size_t             f_size = 0;
+    std::size_t                     f_total_size = 0;
+    std::uint8_t const *            f_buffer = nullptr;
+    std::size_t                     f_size = 0;
     std::uint8_t                    f_temp[8] = { 0 };
-    mutable std::size_t             f_temp_size = 0;
+    std::size_t                     f_temp_size = 0;
 };
 
 
