@@ -28,6 +28,7 @@
 //
 #include    "prinbee/block/block_indirect_index.h"
 
+#include    "prinbee/bigint/utils.h"
 #include    "prinbee/block/block_header.h"
 #include    "prinbee/block/block_top_indirect_index.h"
 #include    "prinbee/database/table.h"

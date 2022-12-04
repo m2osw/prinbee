@@ -30,7 +30,7 @@
 
 // self
 //
-#include    "prinbee/bigint/bigint.h"
+#include    "prinbee/bigint/uint512.h"
 #include    "prinbee/data/schema.h"
 
 

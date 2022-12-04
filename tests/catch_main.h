@@ -24,7 +24,7 @@
 
 // prinbee
 //
-#include    <prinbee/bigint/bigint.h>
+#include    <prinbee/bigint/uint512.h>
 
 
 // C++

@@ -37,7 +37,9 @@ add_library(${PROJECT_NAME} SHARED
     bigint/sub128.s
     bigint/sub256.s
     bigint/sub512.s
-    bigint/bigint.cpp
+
+    bigint/int512.cpp
+    bigint/uint512.cpp
 
     block/block_blob.cpp
     block/block.cpp
@@ -122,7 +124,10 @@ install(
 
 install(
     FILES
-        bigint/bigint.h
+        bigint/add_sub.h
+        bigint/int512.h
+        bigint/uint512.h
+        bigint/utils.h
 
     DESTINATION
         include/prinbee/bigint

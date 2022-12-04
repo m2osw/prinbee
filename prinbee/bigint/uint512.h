@@ -33,82 +33,20 @@
  * a user table. Here we define structures and later tables.
  */
 
+// self
+//
+#include    <prinbee/bigint/int512.h>
+
 // C++
 //
-#include    <cstdint>
-#include    <initializer_list>
+//#include    <cstdint>
+//#include    <initializer_list>
 
 
 
 namespace prinbee
 {
 
-
-
-constexpr std::uint64_t round_down(std::uint64_t value, std::uint64_t multiple)
-{
-    return value - value % multiple;
-}
-
-
-constexpr std::uint64_t round_up(std::uint64_t value, std::uint64_t multiple)
-{
-    std::uint64_t const adjusted(value + multiple - 1);
-    return round_down(adjusted, multiple);
-}
-
-
-constexpr std::uint64_t divide_rounded_up(std::uint64_t value, std::uint64_t multiple)
-{
-    return (value + multiple - 1) / multiple;
-}
-
-
-int                 add(std::uint64_t * dst, std::uint64_t const * src1, std::uint64_t const * src2, std::uint64_t count);
-void                add128(std::uint64_t * dst, std::uint64_t const * src);
-void                add256(std::uint64_t * dst, std::uint64_t const * src);
-void                add512(std::uint64_t * dst, std::uint64_t const * src);
-
-int                 sub(std::uint64_t * dst, std::uint64_t const * src1, std::uint64_t const * src2, std::uint64_t count);
-void                sub128(std::uint64_t * dst, std::uint64_t const * src);
-void                sub256(std::uint64_t * dst, std::uint64_t const * src);
-void                sub512(std::uint64_t * dst, std::uint64_t const * src);
-
-
-struct uint512_t;
-
-struct int512_t
-{
-                                    int512_t();
-                                    int512_t(int512_t const & rhs);
-                                    int512_t(uint512_t const & rhs);
-                                    int512_t(std::initializer_list<std::uint64_t> rhs);
-
-    int512_t &                      operator = (int512_t const & rhs) = default;
-
-    bool                            is_positive() const { return f_high_value >= 0; }
-    bool                            is_negative() const { return f_high_value < 0; }
-    int512_t                        abs() const { if(f_high_value < 0) return -*this; else return *this; }
-    int                             compare(int512_t const & rhs) const;
-
-    std::size_t                     bit_size() const;
-
-    int512_t                        operator - () const;
-    int512_t &                      operator += (int512_t const & rhs);
-    int512_t &                      operator -= (int512_t const & rhs);
-
-    bool                            operator == (int512_t const & rhs) const;
-    bool                            operator == (int64_t rhs) const;
-    bool                            operator != (int512_t const & rhs) const;
-    bool                            operator != (int64_t rhs) const;
-    bool                            operator < (int512_t const & rhs) const;
-    bool                            operator <= (int512_t const & rhs) const;
-    bool                            operator > (int512_t const & rhs) const;
-    bool                            operator >= (int512_t const & rhs) const;
-
-    std::uint64_t                   f_value[7] = { 0 };
-    std::int64_t                    f_high_value = 0;
-};
 
 
 struct uint512_t
@@ -154,7 +92,6 @@ struct uint512_t
 
     std::uint64_t                   f_value[8] = { 0 };
 };
-
 
 
 

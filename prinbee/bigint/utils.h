@@ -19,15 +19,15 @@
 
 
 /** \file
- * \brief Block representing actual data.
+ * \brief Utility math functions.
  *
- * This block is where we save the actual data.
+ * A few utility math functions that are using within prinbee.
  */
 
-// self
+// C++
 //
-#include    "prinbee/bigint/utils.h"
-#include    "prinbee/data/schema.h"
+#include    <cstdint>
+//#include    <initializer_list>
 
 
 
@@ -36,24 +36,23 @@ namespace prinbee
 
 
 
-
-class block_data
-    : public block
+constexpr std::uint64_t round_down(std::uint64_t value, std::uint64_t multiple)
 {
-public:
-    typedef std::shared_ptr<block_data>       pointer_t;
+    return value - value % multiple;
+}
 
-    static constexpr std::uint32_t
-                                HEADER_SIZE = round_up(sizeof(std::uint32_t) + sizeof(version_t), sizeof(reference_t));
 
-                                block_data(dbfile::pointer_t f, reference_t offset);
+constexpr std::uint64_t round_up(std::uint64_t value, std::uint64_t multiple)
+{
+    std::uint64_t const adjusted(value + multiple - 1);
+    return round_down(adjusted, multiple);
+}
 
-    std::uint8_t *              data_start();
-    static std::uint32_t        block_total_space(table_pointer_t t);
 
-private:
-    schema_table::pointer_t     f_schema = schema_table::pointer_t();
-};
+constexpr std::uint64_t divide_rounded_up(std::uint64_t value, std::uint64_t multiple)
+{
+    return (value + multiple - 1) / multiple;
+}
 
 
 

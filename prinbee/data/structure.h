@@ -37,7 +37,7 @@
 //
 #include    "prinbee/exception.h"
 #include    "prinbee/data/virtual_buffer.h"
-#include    "prinbee/bigint/bigint.h"
+#include    "prinbee/bigint/uint512.h"
 
 
 // snapdev
