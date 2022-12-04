@@ -29,11 +29,6 @@
 #include    <prinbee/exception.h>
 
 
-// advgetopt
-//
-//#include    <advgetopt/options.h>
-
-
 
 namespace
 {
@@ -55,10 +50,7 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
             prinbee::uint512_t a;
             for(int n(0); n < 10; ++n)
             {
-                for(std::size_t i(0); i < 8; ++i)
-                {
-                    a.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                }
+                SNAP_CATCH2_NAMESPACE::rand512(a);
                 CATCH_REQUIRE(a.zero().is_zero());
             }
         }
@@ -73,11 +65,12 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
             prinbee::uint512_t b;
             for(int n(0); n < 10; ++n)
             {
+                SNAP_CATCH2_NAMESPACE::rand512(a);
                 for(std::size_t i(0); i < 8; ++i)
                 {
-                    a.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
                     b.f_value[i] = 0;
                 }
+                CATCH_REQUIRE(b.is_zero());
 
                 prinbee::uint512_t copy(a);
                 copy.lsr(0);
@@ -220,11 +213,8 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
         prinbee::uint512_t b;
         for(int n(512); n < 520; ++n)
         {
-            for(std::size_t i(0); i < 8; ++i)
-            {
-                a.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                b.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-            }
+            SNAP_CATCH2_NAMESPACE::rand512(a);
+            SNAP_CATCH2_NAMESPACE::rand512(b);
 
             a.lsr(n);
             CATCH_REQUIRE(a.is_zero());
@@ -243,18 +233,8 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
             prinbee::int512_t b;
             for(int n(0); n < 10; ++n)
             {
-                for(std::size_t i(0); i < 8; ++i)
-                {
-                    a.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                    if(i == 7)
-                    {
-                        b.f_high_value = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                    }
-                    else
-                    {
-                        b.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                    }
-                }
+                SNAP_CATCH2_NAMESPACE::rand512(a);
+                SNAP_CATCH2_NAMESPACE::rand512(b);
 
                 prinbee::uint512_t a1(a);
                 CATCH_REQUIRE(a.f_value[0] == a1.f_value[0]);
@@ -455,8 +435,8 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
                 int carry(0);
                 for(std::size_t i(0); i < size; ++i)
                 {
-                    a[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                    b[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
+                    a[i] = SNAP_CATCH2_NAMESPACE::rand64();
+                    b[i] = SNAP_CATCH2_NAMESPACE::rand64();
 
                     // "manually" compute the sum
                     c[i] = a[i] + b[i] + carry;
@@ -589,8 +569,8 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
                 int borrow(0);
                 for(std::size_t i(0); i < size; ++i)
                 {
-                    a[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                    b[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
+                    a[i] = SNAP_CATCH2_NAMESPACE::rand64();
+                    b[i] = SNAP_CATCH2_NAMESPACE::rand64();
 
                     // "manually" compute the difference
                     c[i] = a[i] - b[i] - borrow;
@@ -733,13 +713,13 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
         for(int n(0); n < 10; ++n)
         {
             prinbee::uint512_t a;
+            SNAP_CATCH2_NAMESPACE::rand512(a);
+
             std::vector<std::uint64_t> not_a(8);
             std::vector<std::uint64_t> neg_a(8);
             int carry(1);
             for(std::size_t i(0); i < 8; ++i)
             {
-                a.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-
                 not_a[i] = ~a.f_value[i];
                 neg_a[i] = not_a[i] + carry;
                 carry = neg_a[i] == 0 ? 1 : 0;
@@ -782,11 +762,8 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
 
             for(int n(0); n < 10; ++n)
             {
-                for(std::size_t i(0); i < 8; ++i)
-                {
-                    a.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                    b.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                }
+                SNAP_CATCH2_NAMESPACE::rand512(a);
+                SNAP_CATCH2_NAMESPACE::rand512(b);
 
                 c = a;
                 c *= b;
@@ -822,11 +799,8 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
 
             for(int n(0); n < 10; ++n)
             {
-                for(std::size_t i(0); i < 8; ++i)
-                {
-                    a.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                    b.f_value[i] = (static_cast<std::uint64_t>(rand()) << 48) ^ (static_cast<std::uint64_t>(rand()) << 16) ^ static_cast<std::uint64_t>(rand());
-                }
+                SNAP_CATCH2_NAMESPACE::rand512(a);
+                SNAP_CATCH2_NAMESPACE::rand512(b);
 
                 prinbee::uint512_t const one(a / a);
                 CATCH_REQUIRE(one.f_value[0] == 1);

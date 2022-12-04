@@ -19,22 +19,25 @@
 
 // snapcatch2
 //
-#include <catch2/snapcatch2.hpp>
+#include    <catch2/snapcatch2.hpp>
+
+
+// prinbee
+//
+#include    <prinbee/bigint/bigint.h>
 
 
 // C++
 //
-#include <string>
-#include <cstring>
-#include <cstdlib>
-#include <iostream>
+#include    <string>
+#include    <cstring>
+#include    <cstdlib>
+#include    <iostream>
 
 
 
 namespace SNAP_CATCH2_NAMESPACE
 {
-
-
 
 
 
@@ -52,6 +55,59 @@ inline char32_t rand_char(bool full_range = false)
     // skip the surrogates for the larger characters
     //
     return wc >= 0xD800 ?  wc + (0xE000 - 0xD800) : wc;
+}
+
+
+inline std::uint32_t rand32()
+{
+    return rand() ^ rand() << 16;
+}
+
+
+inline std::uint64_t rand64()
+{
+    std::uint64_t const a(rand());
+    std::uint64_t const b(rand());
+    std::uint64_t const c(rand());
+    std::uint64_t const d(rand());
+    return a ^ (b << 16) ^ (c << 32) ^ (d << 48);
+}
+
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+inline unsigned __int128 rand128()
+{
+    unsigned __int128 const a(rand());
+    unsigned __int128 const b(rand());
+    unsigned __int128 const c(rand());
+    unsigned __int128 const d(rand());
+    unsigned __int128 const e(rand());
+    unsigned __int128 const f(rand());
+    unsigned __int128 const g(rand());
+    unsigned __int128 const h(rand());
+    return (a <<  0) ^ (b << 16) ^ (c << 32) ^ (d <<  48)
+         ^ (e << 64) ^ (f << 80) ^ (g << 96) ^ (h << 112);
+}
+#pragma GCC diagnostic pop
+
+
+inline void rand512(prinbee::uint512_t & a)
+{
+    for(std::size_t i(0); i < 8; ++i)
+    {
+        a.f_value[i] = SNAP_CATCH2_NAMESPACE::rand64();
+    }
+}
+
+
+inline void rand512(prinbee::int512_t & a)
+{
+    for(std::size_t i(0); i < 7; ++i)
+    {
+        a.f_value[i] = SNAP_CATCH2_NAMESPACE::rand64();
+    }
+    a.f_high_value = SNAP_CATCH2_NAMESPACE::rand64();
 }
 
 

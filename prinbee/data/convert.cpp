@@ -33,9 +33,10 @@
 #include    "prinbee/data/convert.h"
 
 
-// boost
+// snapdev
 //
-#include    <boost/algorithm/string.hpp>
+#include    <snapdev/to_upper.h>
+#include    <snapdev/trim_string.h>
 
 
 // C++
@@ -79,17 +80,14 @@ name_to_size_multiplicator_t const g_size_name_to_multiplicator[] =
 {
     // WARNING: Keep in alphabetical order
     //
-    NAME_TO_SIZE_MULTIPLICATOR("BB",        0x9FD0803CE8000000ULL,  0x00000000033B2E3C  ),  // 1000^9
-    NAME_TO_SIZE_MULTIPLICATOR("BRBI",      0,                      0x0000000004000000  ),  // 2^90 = 1024^9
-    NAME_TO_SIZE_MULTIPLICATOR("BRBIB",     0,                      0x0000000004000000  ),  // 2^90 = 1024^9
-    NAME_TO_SIZE_MULTIPLICATOR("BRONTO",    0x9FD0803CE8000000ULL,  0x00000000033B2E3C  ),  // 1000^9
+    // TODO: I remove the word "BYTE[S]" before testing these, but many of
+    //       these include a "B" which already means byte(s), i.e. KB / KIB
+    //
     NAME_TO_SIZE_MULTIPLICATOR("EB",        1000000000000000000ULL, 0                   ),  // 1000^6
     NAME_TO_SIZE_MULTIPLICATOR("EIB",       0x1000000000000000ULL,  0                   ),  // 2^60 = 1024^6
     NAME_TO_SIZE_MULTIPLICATOR("EXA",       1000000000000000000ULL, 0                   ),  // 1000^6
     NAME_TO_SIZE_MULTIPLICATOR("EXBI",      0x1000000000000000ULL,  0                   ),  // 2^60 = 1024^6
-    NAME_TO_SIZE_MULTIPLICATOR("GB",        1000000000ULL,          0                   ),  // 1000^3
-    NAME_TO_SIZE_MULTIPLICATOR("GEBI",      0,                      0x0000001000000000  ),  // 2^100 = 1024^10
-    NAME_TO_SIZE_MULTIPLICATOR("GEOP",      0x4674EDEA40000000,     0x0000000C9F2C9CD0  ),  // 1000^10
+    NAME_TO_SIZE_MULTIPLICATOR("GB",        1'000'000'000ULL,       0                   ),  // 1000^3
     NAME_TO_SIZE_MULTIPLICATOR("GIB",       0x0000000040000000ULL,  0                   ),  // 2^30 = 1024^3
     NAME_TO_SIZE_MULTIPLICATOR("GIBI",      0x0000000040000000ULL,  0                   ),  // 2^30 = 1024^3
     NAME_TO_SIZE_MULTIPLICATOR("GIGA",      1000000000ULL,          0                   ),  // 1000^3
@@ -105,6 +103,10 @@ name_to_size_multiplicator_t const g_size_name_to_multiplicator[] =
     NAME_TO_SIZE_MULTIPLICATOR("PEBI",      0x0004000000000000ULL,  0                   ),  // 2^50 = 1024^5
     NAME_TO_SIZE_MULTIPLICATOR("PETA",      1000000000000000ULL,    0                   ),  // 1000^5
     NAME_TO_SIZE_MULTIPLICATOR("PIB",       0x0004000000000000ULL,  0                   ),  // 2^50 = 1024^5
+    NAME_TO_SIZE_MULTIPLICATOR("QUETTA",    0x4674EDEA40000000,     0x0000000C9F2C9CD0  ),  // 1000^10
+    NAME_TO_SIZE_MULTIPLICATOR("QUETTAI",   0,                      0x0000001000000000  ),  // 2^100 = 1024^10
+    NAME_TO_SIZE_MULTIPLICATOR("RONNAB",    0x9FD0803CE8000000ULL,  0x00000000033B2E3C  ),  // 1000^9
+    NAME_TO_SIZE_MULTIPLICATOR("RONNAIB",   0,                      0x0000000004000000  ),  // 2^90 = 1024^9
     NAME_TO_SIZE_MULTIPLICATOR("TB",        1000000000000ULL,       0                   ),  // 1000^4
     NAME_TO_SIZE_MULTIPLICATOR("TEBI",      0x0000010000000000ULL,  0                   ),  // 2^40 = 1024^4
     NAME_TO_SIZE_MULTIPLICATOR("TERA",      1000000000000ULL,       0                   ),  // 1000^4
@@ -131,6 +133,7 @@ uint512_t size_to_multiplicator(char const * s)
         if(strcmp(g_size_name_to_multiplicator[idx - 1].f_name
                 , g_size_name_to_multiplicator[idx].f_name) >= 0)
         {
+            // LCOV_EXCL_START
             throw logic_error(
                       "names in g_name_to_struct_type area not in alphabetical order: "
                     + std::string(g_size_name_to_multiplicator[idx - 1].f_name)
@@ -139,30 +142,26 @@ uint512_t size_to_multiplicator(char const * s)
                     + " (position: "
                     + std::to_string(idx)
                     + ").");
+            // LCOV_EXCL_STOP
         }
     }
 #endif
 
     std::string size(s);
-    boost::algorithm::trim(size);
-
-    // keep case of first character only
-    //
-    boost::algorithm::to_upper(size);
+    size = snapdev::to_upper(snapdev::trim_string(size));
 
     // remove the word "byte[s]" if present
     //
     if(size.length() >= 5
     && size.compare(size.length() - 5, 5, "BYTES") == 0)
     {
-        size = size.substr(0, size.length() - 5);
+        size = snapdev::trim_string(size.substr(0, size.length() - 5));
     }
     else if(size.length() >= 4
          && size.compare(size.length() - 4, 4, "BYTE") == 0)
     {
-        size = size.substr(0, size.length() - 4);
+        size = snapdev::trim_string(size.substr(0, size.length() - 4));
     }
-    boost::algorithm::trim(size);
 
     if(!size.empty())
     {
@@ -210,7 +209,7 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
         if(!accept_negative_values)
         {
             throw invalid_number(
-                      "Negative values are not accepted, \""
+                      "negative values are not accepted, \""
                     + number
                     + "\" is not valid.");
         }
@@ -260,7 +259,7 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
             uint512_t digit;
             digit.f_value[0] = *n - '0';
 
-            // do result * 2 with one add
+            // do `result * 2` with one add
             result += result;       // x2
 
             result += digit;
@@ -274,7 +273,7 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
             uint512_t digit;
             digit.f_value[0] = *n - '0';
 
-            // do result * 8 with a few adds
+            // do `result * 8` with a few adds
             result += result;       // x2
             result += result;       // x4
             result += result;       // x8
@@ -290,7 +289,7 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
             uint512_t digit;
             digit.f_value[0] = *n - '0';
 
-            // do result * 10 with a few adds
+            // do `result * 10` with a few adds
             result += result;       // x2
             uint512_t eight(result);
             eight += eight;         // x4
@@ -319,7 +318,7 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
                 break;
             }
 
-            // do result * 16 with a few adds
+            // do `result * 16` with a few adds
             result += result;       // x2
             result += result;       // x4
             result += result;       // x8
@@ -337,7 +336,7 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
         if(*n != '\'')
         {
             throw invalid_number(
-                      "Closing quote missing in \""
+                      "closing quote missing in \""
                     + number
                     + "\".");
         }
@@ -356,9 +355,9 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
         {
         case unit_t::UNIT_NONE:
             throw invalid_number(
-                      "Could not convert number \""
+                      "could not convert number \""
                     + number
-                    + "\" to a valid uint512_t value.");
+                    + "\" to a valid uint512_t value (spurious data found after number).");
 
         case unit_t::UNIT_SIZE:
             multiplicator = size_to_multiplicator(n);
@@ -381,7 +380,7 @@ buffer_t string_to_uinteger(std::string const & value, size_t max_size)
     if(max_size != 512 && n.bit_size() > max_size)
     {
         throw out_of_range(
-                  "Number \""
+                  "number \""
                 + value
                 + "\" too large for an "
                 + std::to_string(max_size)
@@ -396,78 +395,170 @@ buffer_t string_to_uinteger(std::string const & value, size_t max_size)
 }
 
 
-std::string uinteger_to_string(buffer_t value, int bytes_for_size, int base)
+std::string uinteger_to_string(buffer_t const & value, int bytes_for_size, int base)
 {
     if(value.size() > static_cast<size_t>(bytes_for_size))
     {
         throw out_of_range(
-                  "Value too large ("
+                  "value too large ("
                 + std::to_string(value.size() * 8)
                 + ") for this field (max: "
                 + std::to_string(bytes_for_size * 8)
                 + ").");
     }
 
-    uint512_t v;
-    std::memcpy(reinterpret_cast<uint8_t *>(v.f_value), reinterpret_cast<uint8_t *>(value.data()), value.size());
-
-    if(v.is_zero())
+    std::size_t p(value.size());
+    while(p > 0)
     {
-        return std::string("0");
+        --p;
+        if(value[p] != 0)
+        {
+            ++p;
+            break;
+        }
     }
 
     char const * intro("");
     std::string result;
-    switch(base)
+    if(p <= 8)
     {
-    case 2:
-        while(!v.is_zero())
-        {
-            result += (v.f_value[0] & 1) + '0';
-            v.lsr(1);
-        }
-        intro = "0b";
-        break;
+        // it first in a 64 bit value (most likely 99% of the time) so use
+        // a simpler convertion (much less costly than the uint512 version)
+        //
+        std::uint64_t v;
+        std::memcpy(
+              reinterpret_cast<std::uint8_t *>(&v)
+            , reinterpret_cast<std::uint8_t const *>(value.data())
+            , sizeof(v));
 
-    case 8:
-        while(!v.is_zero())
+        if(v == 0)
         {
-            result += (v.f_value[0] & 7) + '0';
-            v.lsr(3);
+            return std::string("0");
         }
-        intro = "0";
-        break;
 
-    case 10:
+        switch(base)
         {
-            uint512_t remainder;
-            uint512_t ten;
-            ten.f_value[0] = 10;
+        case 2:
+            while(v != 0)
+            {
+                result += (v & 1) + '0';
+                v >>= 1;
+            }
+            intro = "0b";
+            break;
+
+        case 8:
+            while(v != 0)
+            {
+                result += (v & 7) + '0';
+                v >>= 3;
+            }
+            intro = "0";
+            break;
+
+        case 10:
+            while(v != 0)
+            {
+                result += (v % 10) + '0';
+                v /= 10;
+            }
+            break;
+
+        case 16:
+            while(v != 0)
+            {
+                int const digit(v & 0xf);
+                if(digit >= 10)
+                {
+                    result += digit + ('A' - 10);
+                }
+                else
+                {
+                    result += digit + '0';
+                }
+                v >>= 4;
+            }
+            intro = "0x";
+            break;
+
+        default:
+            throw conversion_unavailable(
+                  "base "
+                + std::to_string(base)
+                + " not supported.");
+
+        }
+    }
+    else
+    {
+        uint512_t v;
+        std::memcpy(
+              reinterpret_cast<std::uint8_t *>(v.f_value)
+            , reinterpret_cast<std::uint8_t const *>(value.data())
+            , value.size());
+
+        if(v.is_zero())
+        {
+            return std::string("0");
+        }
+
+        switch(base)
+        {
+        case 2:
             while(!v.is_zero())
             {
-                v.div(ten, remainder);
-                result += remainder.f_value[0] + '0';
+                result += (v.f_value[0] & 1) + '0';
+                v.lsr(1);
             }
-        }
-        break;
+            intro = "0b";
+            break;
 
-    case 16:
-        while(!v.is_zero())
-        {
-            int const digit(v.f_value[0]);
-            if(digit >= 10)
+        case 8:
+            while(!v.is_zero())
             {
-                result += digit + 'A';
+                result += (v.f_value[0] & 7) + '0';
+                v.lsr(3);
             }
-            else
-            {
-                result += digit + '0';
-            }
-            v.lsr(4);
-        }
-        intro = "0x";
-        break;
+            intro = "0";
+            break;
 
+        case 10:
+            {
+                uint512_t remainder;
+                uint512_t ten;
+                ten.f_value[0] = 10;
+                while(!v.is_zero())
+                {
+                    v.div(ten, remainder);
+                    result += remainder.f_value[0] + '0';
+                }
+            }
+            break;
+
+        case 16:
+            while(!v.is_zero())
+            {
+                int const digit(v.f_value[0] & 0xf);
+                if(digit >= 10)
+                {
+                    result += digit + ('A' - 10);
+                }
+                else
+                {
+                    result += digit + '0';
+                }
+                v.lsr(4);
+            }
+            intro = "0x";
+            break;
+
+        default:
+            throw conversion_unavailable(
+                  "base "
+                + std::to_string(base)
+                + " not supported.");
+
+        }
     }
 
     std::reverse(result.begin(), result.end());
@@ -483,7 +574,7 @@ buffer_t string_to_integer(std::string const & value, size_t max_size)
     if(max_size != 512 && n.bit_size() > max_size)
     {
         throw out_of_range(
-                  "Number \""
+                  "number \""
                 + value
                 + "\" too large for a signed "
                 + std::to_string(max_size)
@@ -498,7 +589,7 @@ buffer_t string_to_integer(std::string const & value, size_t max_size)
 }
 
 
-std::string integer_to_string(buffer_t value, int bytes_for_size, int base)
+std::string integer_to_string(buffer_t const & value, int bytes_for_size, int base)
 {
     // WARNING: this first test is only working on little endian computers
     //
@@ -509,7 +600,7 @@ std::string integer_to_string(buffer_t value, int bytes_for_size, int base)
         int512_t v;
         std::memcpy(v.f_value, value.data(), value.size());
         v = -v;
-        buffer_t neg(reinterpret_cast<uint8_t const *>(v.f_value), reinterpret_cast<uint8_t const *>(v.f_value + 8));
+        buffer_t const neg(reinterpret_cast<uint8_t const *>(v.f_value), reinterpret_cast<uint8_t const *>(v.f_value + 8));
         return "-" + uinteger_to_string(neg, bytes_for_size, base);
     }
     else
@@ -530,7 +621,7 @@ buffer_t string_to_float(std::string const & value, std::function<T(char const *
     if(errno == ERANGE)
     {
         throw out_of_range(
-                  "Floating point number \""
+                  "floating point number \""
                 + value
                 + "\" out of range.");
     }
@@ -545,7 +636,7 @@ buffer_t string_to_float(std::string const & value, std::function<T(char const *
     if(*e != '\0')
     {
         throw invalid_number(
-                  "Floating point number \""
+                  "floating point number \""
                 + value
                 + "\" includes invalid numbers.");
     }
@@ -559,32 +650,31 @@ buffer_t string_to_float(std::string const & value, std::function<T(char const *
 
 
 template<typename T>
-std::string float_to_string(buffer_t value)
+std::string float_to_string(buffer_t const & value)
 {
     // TBD: we may want to specify the format
     if(value.size() != sizeof(T))
     {
         throw out_of_range(
-                  "Value buffer has an unexpected size ("
+                  "value buffer has an unexpected size ("
                 + std::to_string(value.size())
                 + ") for this field (expected floating point size: "
                   BOOST_PP_STRINGIZE(sizeof(T))
                   ").");
     }
     std::ostringstream ss;
-    ss << *reinterpret_cast<T *>(value.data());
+    ss << *reinterpret_cast<T const *>(value.data());
     return ss.str();
 }
 
 
 buffer_t string_to_version(std::string const & value)
 {
-    buffer_t result;
     std::string::size_type const pos(value.find('.'));
     if(pos == std::string::npos)
     {
         throw out_of_range(
-                  "Version \""
+                  "version \""
                 + value
                 + "\" must include a period (.) between the major and minor numbers.");
     }
@@ -611,14 +701,15 @@ buffer_t string_to_version(std::string const & value)
     || b.bit_size() > 16)
     {
         throw out_of_range(
-                  "One or both of the major or minor numbers from version \""
+                  "one or both of the major or minor numbers from version \""
                 + value
                 + "\" are too large for a version number (max. is 65535).");
     }
 
     version_t const v(a.f_value[0], b.f_value[0]);
-    uint32_t const binary(v.to_binary());
+    std::uint32_t const binary(v.to_binary());
 
+    buffer_t result;
     result.insert(result.end()
                 , reinterpret_cast<uint8_t const *>(&binary)
                 , reinterpret_cast<uint8_t const *>(&binary) + sizeof(binary));
@@ -627,16 +718,18 @@ buffer_t string_to_version(std::string const & value)
 }
 
 
-std::string version_to_string(buffer_t value)
+std::string version_to_string(buffer_t const & value)
 {
-    if(value.size() != 4)
+    if(value.size() != sizeof(version_t))
     {
         throw out_of_range(
-                  "A buffer representing a version must be exactly 4 bytes, not "
+                  "a buffer representing a version must be exactly "
+                + std::to_string(sizeof(version_t))
+                + " bytes, not "
                 + std::to_string(value.size())
                 + ".");
     }
-    version_t v(*reinterpret_cast<uint32_t *>(value.data()));
+    version_t v(*reinterpret_cast<std::uint32_t const *>(value.data()));
     return v.to_string();
 }
 
@@ -659,7 +752,7 @@ std::string buffer_to_cstring(buffer_t const & value)
     if(value.empty())
     {
         throw out_of_range(
-                  "A C-String cannot be saved in an empty buffer ('\\0' missing).");
+                  "a C-String cannot be saved in an empty buffer ('\\0' missing).");
     }
 
     if(value[value.size() - 1] != '\0')
@@ -682,7 +775,7 @@ buffer_t string_to_buffer(std::string const & value, size_t bytes_for_size)
     if(size >= max_size)
     {
         throw out_of_range(
-                  "String too long ("
+                  "string too long ("
                 + std::to_string(size)
                 + ") for this field (max: "
                 + std::to_string(max_size)
@@ -699,12 +792,12 @@ buffer_t string_to_buffer(std::string const & value, size_t bytes_for_size)
 }
 
 
-std::string buffer_to_string(buffer_t value, size_t bytes_for_size)
+std::string buffer_to_string(buffer_t const & value, size_t bytes_for_size)
 {
     if(value.size() < bytes_for_size)
     {
         throw out_of_range(
-                  "Buffer too small to incorporate the P-String size ("
+                  "buffer too small to incorporate the P-String size ("
                 + std::to_string(value.size())
                 + ", expected at least: "
                 + std::to_string(bytes_for_size)
@@ -717,7 +810,7 @@ std::string buffer_to_string(buffer_t value, size_t bytes_for_size)
     if(bytes_for_size + size > value.size())
     {
         throw out_of_range(
-                  "Buffer too small for the P-String characters (size: "
+                  "buffer too small for the P-String characters (size: "
                 + std::to_string(size)
                 + ", character bytes in buffer: "
                 + std::to_string(value.size() - bytes_for_size)
@@ -755,7 +848,7 @@ buffer_t string_to_unix_time(std::string value, int fraction)
         || f >= fraction)
         {
             throw out_of_range(
-                      "Time fraction is out of bounds in \""
+                      "time fraction is out of bounds in \""
                     + value
                     + "\".");
         }
@@ -780,13 +873,13 @@ buffer_t string_to_unix_time(std::string value, int fraction)
 }
 
 
-std::string unix_time_to_string(buffer_t value, int fraction)
+std::string unix_time_to_string(buffer_t const & value, int fraction)
 {
     uint64_t time;
     if(value.size() != sizeof(time))
     {
         throw out_of_range(
-                  "Buffer size is invalid for a time value (size: "
+                  "buffer size is invalid for a time value (size: "
                 + std::to_string(value.size())
                 + ", expected size: "
                 + std::to_string(sizeof(time))
@@ -913,7 +1006,7 @@ buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
     case struct_type_t::STRUCT_TYPE_BUFFER8:
     case struct_type_t::STRUCT_TYPE_BUFFER16:
     case struct_type_t::STRUCT_TYPE_BUFFER32:
-        throw logic_error("Conversion not yet implemented...");
+        throw logic_error("conversion not yet implemented...");
 
     default:
         //struct_type_t::STRUCT_TYPE_ARRAY8:
@@ -924,7 +1017,7 @@ buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
         //struct_type_t::STRUCT_TYPE_VOID
         //struct_type_t::STRUCT_TYPE_RENAMED
         throw logic_error(
-              "Unexpected structure type ("
+              "unexpected structure type ("
             + std::to_string(static_cast<int>(type))
             + ") to convert a string to a buffer");
 
@@ -932,60 +1025,60 @@ buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
 }
 
 
-std::string typed_buffer_to_string(struct_type_t type, buffer_t value, int base)
+std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, int base)
 {
     switch(type)
     {
     case struct_type_t::STRUCT_TYPE_BITS8:
     case struct_type_t::STRUCT_TYPE_UINT8:
-        return uinteger_to_string(value, 8, base);
+        return uinteger_to_string(value, 1, base);
 
     case struct_type_t::STRUCT_TYPE_BITS16:
     case struct_type_t::STRUCT_TYPE_UINT16:
-        return uinteger_to_string(value, 16, base);
+        return uinteger_to_string(value, 2, base);
 
     case struct_type_t::STRUCT_TYPE_BITS32:
     case struct_type_t::STRUCT_TYPE_UINT32:
-        return uinteger_to_string(value, 32, base);
+        return uinteger_to_string(value, 4, base);
 
     case struct_type_t::STRUCT_TYPE_BITS64:
     case struct_type_t::STRUCT_TYPE_UINT64:
     case struct_type_t::STRUCT_TYPE_REFERENCE:
     case struct_type_t::STRUCT_TYPE_OID:
-        return uinteger_to_string(value, 64, base);
+        return uinteger_to_string(value, 8, base);
 
     case struct_type_t::STRUCT_TYPE_BITS128:
     case struct_type_t::STRUCT_TYPE_UINT128:
-        return uinteger_to_string(value, 128, base);
+        return uinteger_to_string(value, 16, base);
 
     case struct_type_t::STRUCT_TYPE_BITS256:
     case struct_type_t::STRUCT_TYPE_UINT256:
-        return uinteger_to_string(value, 256, base);
+        return uinteger_to_string(value, 32, base);
 
     case struct_type_t::STRUCT_TYPE_BITS512:
     case struct_type_t::STRUCT_TYPE_UINT512:
-        return uinteger_to_string(value, 512, base);
+        return uinteger_to_string(value, 64, base);
 
     case struct_type_t::STRUCT_TYPE_INT8:
-        return integer_to_string(value, 8, base);
+        return integer_to_string(value, 1, base);
 
     case struct_type_t::STRUCT_TYPE_INT16:
-        return integer_to_string(value, 16, base);
+        return integer_to_string(value, 2, base);
 
     case struct_type_t::STRUCT_TYPE_INT32:
-        return integer_to_string(value, 32, base);
+        return integer_to_string(value, 4, base);
 
     case struct_type_t::STRUCT_TYPE_INT64:
-        return integer_to_string(value, 64, base);
+        return integer_to_string(value, 8, base);
 
     case struct_type_t::STRUCT_TYPE_INT128:
-        return integer_to_string(value, 128, base);
+        return integer_to_string(value, 16, base);
 
     case struct_type_t::STRUCT_TYPE_INT256:
-        return integer_to_string(value, 256, base);
+        return integer_to_string(value, 32, base);
 
     case struct_type_t::STRUCT_TYPE_INT512:
-        return integer_to_string(value, 512, base);
+        return integer_to_string(value, 64, base);
 
     case struct_type_t::STRUCT_TYPE_FLOAT32:
         return float_to_string<float>(value);
@@ -1020,7 +1113,7 @@ std::string typed_buffer_to_string(struct_type_t type, buffer_t value, int base)
     case struct_type_t::STRUCT_TYPE_BUFFER8:
     case struct_type_t::STRUCT_TYPE_BUFFER16:
     case struct_type_t::STRUCT_TYPE_BUFFER32:
-        throw logic_error("Conversion not yet implemented...");
+        throw logic_error("conversion not yet implemented...");
 
     default:
         //struct_type_t::STRUCT_TYPE_STRUCTURE:
@@ -1031,7 +1124,7 @@ std::string typed_buffer_to_string(struct_type_t type, buffer_t value, int base)
         //struct_type_t::STRUCT_TYPE_VOID
         //struct_type_t::STRUCT_TYPE_RENAMED
         throw logic_error(
-              "Unexpected structure type ("
+              "unexpected structure type ("
             + std::to_string(static_cast<int>(type))
             + ") to convert a string to a buffer");
 
@@ -1046,7 +1139,7 @@ int64_t convert_to_int(std::string const & value, size_t max_size, unit_t unit)
     if(n.bit_size() > max_size)
     {
         throw out_of_range(
-                  "Number \""
+                  "number \""
                 + value
                 + "\" too large for a signed "
                 + std::to_string(max_size)
@@ -1064,7 +1157,7 @@ uint64_t convert_to_uint(std::string const & value, size_t max_size, unit_t unit
     if(n.bit_size() > max_size)
     {
         throw out_of_range(
-                  "Number \""
+                  "number \""
                 + value
                 + "\" too large for a signed "
                 + std::to_string(max_size)
