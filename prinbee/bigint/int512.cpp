@@ -285,6 +285,25 @@ bool int512_t::operator >= (int512_t const & rhs) const
 }
 
 
+std::string int512_t::to_string(int base, bool introducer, bool uppercase) const
+{
+    uint512_t v(*this);
+    std::string result;
+    if(is_negative())
+    {
+        result += '-';
+    }
+    result += v.to_string(base, introducer, uppercase);
+    return result;
+}
+
+
+std::string to_string(int512_t const & v)
+{
+    return v.to_string();
+}
+
+
 
 } // namespace prinbee
 // vim: ts=4 sw=4 et

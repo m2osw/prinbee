@@ -35,6 +35,7 @@
 
 // C++
 //
+#include    <algorithm>
 #include    <cstring>
 #include    <iomanip>
 #include    <iostream>
@@ -469,6 +470,71 @@ uint512_t & uint512_t::operator %= (uint512_t const & rhs)
 }
 
 
+uint512_t & uint512_t::operator <<= (int shift)
+{
+    lsl(shift);
+    return *this;
+}
+
+
+uint512_t & uint512_t::operator >>= (int shift)
+{
+    lsr(shift);
+    return *this;
+}
+
+
+uint512_t uint512_t::operator & (uint512_t const & rhs) const
+{
+    uint512_t r(*this);
+    return r &= rhs;
+}
+
+
+uint512_t & uint512_t::operator &= (uint512_t const & rhs)
+{
+    for(int i(0); i < 8; ++i)
+    {
+        f_value[i] &= rhs.f_value[i];
+    }
+    return *this;
+}
+
+
+uint512_t uint512_t::operator | (uint512_t const & rhs) const
+{
+    uint512_t r(*this);
+    return r |= rhs;
+}
+
+
+uint512_t & uint512_t::operator |= (uint512_t const & rhs)
+{
+    for(int i(0); i < 8; ++i)
+    {
+        f_value[i] |= rhs.f_value[i];
+    }
+    return *this;
+}
+
+
+uint512_t uint512_t::operator ^ (uint512_t const & rhs) const
+{
+    uint512_t r(*this);
+    return r ^= rhs;
+}
+
+
+uint512_t & uint512_t::operator ^= (uint512_t const & rhs)
+{
+    for(int i(0); i < 8; ++i)
+    {
+        f_value[i] ^= rhs.f_value[i];
+    }
+    return *this;
+}
+
+
 bool uint512_t::operator == (uint512_t const & rhs) const
 {
     return f_value[0] == rhs.f_value[0]
@@ -542,6 +608,123 @@ bool uint512_t::operator > (uint512_t const & rhs) const
 bool uint512_t::operator >= (uint512_t const & rhs) const
 {
     return compare(rhs) >= 0;
+}
+
+
+std::string uint512_t::to_string(int base, bool introducer, bool uppercase) const
+{
+    if(f_value[1] == 0
+    && f_value[2] == 0
+    && f_value[3] == 0
+    && f_value[4] == 0
+    && f_value[5] == 0
+    && f_value[6] == 0
+    && f_value[7] == 0
+    && (base == 8 || base == 10 || base == 16))
+    {
+        // this is a 64 bit value, we can display it with a simple
+        // stringstream if the base is supported
+        //
+        std::stringstream ss;
+        if(introducer)
+        {
+            ss << std::showbase;
+        }
+        ss << std::setbase(base) << f_value[0];
+        return ss.str();
+    }
+
+    uint512_t v(*this);
+
+    char const * intro("");
+    std::string result;
+    switch(base)
+    {
+    case 2:
+        while(!v.is_zero())
+        {
+            result += (v.f_value[0] & 1) + '0';
+            v.lsr(1);
+        }
+        intro = uppercase ? "0B" : "0b";
+        break;
+
+    case 8:
+        while(!v.is_zero())
+        {
+            result += (v.f_value[0] & 7) + '0';
+            v.lsr(3);
+        }
+        intro = "0";
+        break;
+
+    case 16:
+        {
+            int const letter(uppercase ? 'A' : 'a');
+            while(!v.is_zero())
+            {
+                int const digit(v.f_value[0] & 0xf);
+                if(digit >= 10)
+                {
+                    result += digit + (letter - 10);
+                }
+                else
+                {
+                    result += digit + '0';
+                }
+                v.lsr(4);
+            }
+        }
+        intro = uppercase ? "0X" : "0x";
+        break;
+
+    default: // any other base from 2 to 36
+        if(base < 2 || base > 36)
+        {
+            throw conversion_unavailable(
+                  "base "
+                + std::to_string(base)
+                + " not supported.");
+        }
+        else
+        {
+            uint512_t remainder;
+            uint512_t divisor;
+            divisor.f_value[0] = base;
+            int const letter(uppercase ? 'A' : 'a');
+            while(!v.is_zero())
+            {
+                v.div(divisor, remainder);
+                if(remainder.f_value[0] >= 10)
+                {
+                    result += remainder.f_value[0] + (letter - 10);
+                }
+                else
+                {
+                    result += remainder.f_value[0] + '0';
+                }
+            }
+        }
+        break;
+
+    }
+
+    std::reverse(result.begin(), result.end());
+
+    if(introducer)
+    {
+        return intro + result;
+    }
+    else
+    {
+        return result;
+    }
+}
+
+
+std::string to_string(uint512_t const & v)
+{
+    return v.to_string();
 }
 
 

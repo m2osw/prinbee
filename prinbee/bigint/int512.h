@@ -37,6 +37,8 @@
 //
 #include    <cstdint>
 #include    <initializer_list>
+#include    <ostream>
+#include    <string>
 
 
 
@@ -62,6 +64,7 @@ struct int512_t
     int                             compare(int512_t const & rhs) const;
 
     std::size_t                     bit_size() const;
+    std::string                     to_string(int base = 10, bool introducer = false, bool uppercase = false) const;
 
     int512_t                        operator - () const;
     int512_t &                      operator += (int512_t const & rhs);
@@ -79,6 +82,36 @@ struct int512_t
     std::uint64_t                   f_value[7] = { 0 };
     std::int64_t                    f_high_value = 0;
 };
+
+
+extern std::string to_string(int512_t const & v);
+
+
+inline std::ostream & operator << (std::ostream & os, int512_t v)
+{
+    switch(os.flags() & std::ios_base::basefield)
+    {
+    case std::ios_base::oct:
+        return os << v.to_string(
+              8
+            , (os.flags() & std::ios_base::showbase) != 0);
+
+    case std::ios_base::hex:
+        return os << v.to_string(
+              16
+            , (os.flags() & std::ios_base::showbase) != 0
+            , (os.flags() & std::ios_base::uppercase) != 0);
+
+    default:
+        if(v.is_positive()
+        && (os.flags() & std::ios_base::showpos) != 0)
+        {
+            os << '+';
+        }
+        return os << v.to_string(10);
+
+    }
+}
 
 
 

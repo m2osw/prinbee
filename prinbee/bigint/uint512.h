@@ -37,11 +37,6 @@
 //
 #include    <prinbee/bigint/int512.h>
 
-// C++
-//
-//#include    <cstdint>
-//#include    <initializer_list>
-
 
 
 namespace prinbee
@@ -69,6 +64,7 @@ struct uint512_t
     bool                            is_zero() const;
     int                             compare(uint512_t const & rhs) const;
     uint512_t &                     div(uint512_t const & rhs, uint512_t & remainder);
+    std::string                     to_string(int base = 10, bool introducer = false, bool uppercase = false) const;
 
     uint512_t                       operator ~ () const;
     uint512_t                       operator - () const;
@@ -80,6 +76,14 @@ struct uint512_t
     uint512_t                       operator / (uint512_t const & rhs) const;
     uint512_t &                     operator /= (uint512_t const & rhs);
     uint512_t &                     operator %= (uint512_t const & rhs);
+    uint512_t &                     operator <<= (int shift);
+    uint512_t &                     operator >>= (int shift);
+    uint512_t                       operator & (uint512_t const & rhs) const;
+    uint512_t &                     operator &= (uint512_t const & rhs);
+    uint512_t                       operator | (uint512_t const & rhs) const;
+    uint512_t &                     operator |= (uint512_t const & rhs);
+    uint512_t                       operator ^ (uint512_t const & rhs) const;
+    uint512_t &                     operator ^= (uint512_t const & rhs);
 
     bool                            operator == (uint512_t const & rhs) const;
     bool                            operator == (uint64_t rhs) const;
@@ -92,6 +96,35 @@ struct uint512_t
 
     std::uint64_t                   f_value[8] = { 0 };
 };
+
+
+std::string to_string(uint512_t const & v);
+
+
+inline std::ostream & operator << (std::ostream & os, uint512_t v)
+{
+    switch(os.flags() & std::ios_base::basefield)
+    {
+    case std::ios_base::oct:
+        return os << v.to_string(
+              8
+            , (os.flags() & std::ios_base::showbase) != 0);
+
+    case std::ios_base::hex:
+        return os << v.to_string(
+              16
+            , (os.flags() & std::ios_base::showbase) != 0
+            , (os.flags() & std::ios_base::uppercase) != 0);
+
+    default:
+        if((os.flags() & std::ios_base::showpos) != 0)
+        {
+            os << '+';
+        }
+        return os << v.to_string(10);
+
+    }
+}
 
 
 

@@ -382,7 +382,8 @@ buffer_t string_to_uinteger(std::string const & value, size_t max_size)
         throw out_of_range(
                   "number \""
                 + value
-                + "\" too large for an "
+                + "\" too large for "
+                + (max_size == 8 ? "an " : "a ")
                 + std::to_string(max_size)
                 + " bit value.");
     }
@@ -408,12 +409,10 @@ std::string uinteger_to_string(buffer_t const & value, int bytes_for_size, int b
     }
 
     std::size_t p(value.size());
-    while(p > 0)
+    for(; p > 0; --p)
     {
-        --p;
-        if(value[p] != 0)
+        if(value[p - 1] != 0)
         {
-            ++p;
             break;
         }
     }
@@ -425,11 +424,11 @@ std::string uinteger_to_string(buffer_t const & value, int bytes_for_size, int b
         // it first in a 64 bit value (most likely 99% of the time) so use
         // a simpler convertion (much less costly than the uint512 version)
         //
-        std::uint64_t v;
+        std::uint64_t v(0);
         std::memcpy(
               reinterpret_cast<std::uint8_t *>(&v)
             , reinterpret_cast<std::uint8_t const *>(value.data())
-            , sizeof(v));
+            , std::min(p, sizeof(v)));
 
         if(v == 0)
         {
