@@ -619,19 +619,25 @@ std::string uint512_t::to_string(int base, bool introducer, bool uppercase) cons
     && f_value[4] == 0
     && f_value[5] == 0
     && f_value[6] == 0
-    && f_value[7] == 0
-    && (base == 8 || base == 10 || base == 16))
+    && f_value[7] == 0)
     {
-        // this is a 64 bit value, we can display it with a simple
-        // stringstream if the base is supported
-        //
-        std::stringstream ss;
-        if(introducer)
+        if(f_value[0] == 0)
         {
-            ss << std::showbase;
+            return std::string("0");
         }
-        ss << std::setbase(base) << f_value[0];
-        return ss.str();
+        if(base == 8 || base == 10 || base == 16)
+        {
+            // this is a 64 bit value, we can display it with a simple
+            // stringstream if the base is supported
+            //
+            std::stringstream ss;
+            if(introducer)
+            {
+                ss << std::showbase;
+            }
+            ss << std::uppercase << std::setbase(base) << f_value[0];
+            return ss.str();
+        }
     }
 
     uint512_t v(*this);
@@ -709,7 +715,14 @@ std::string uint512_t::to_string(int base, bool introducer, bool uppercase) cons
 
     }
 
-    std::reverse(result.begin(), result.end());
+    if(result.empty())
+    {
+        result = "0";
+    }
+    else
+    {
+        std::reverse(result.begin(), result.end());
+    }
 
     if(introducer)
     {

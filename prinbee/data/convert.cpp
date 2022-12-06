@@ -408,160 +408,16 @@ std::string uinteger_to_string(buffer_t const & value, int bytes_for_size, int b
                 + ").");
     }
 
-    std::size_t p(value.size());
-    for(; p > 0; --p)
-    {
-        if(value[p - 1] != 0)
-        {
-            break;
-        }
-    }
+    // the uint512::to_string() is optimized so the only penaty here is
+    // the memcpy()
+    //
+    uint512_t v;
+    std::memcpy(
+          reinterpret_cast<std::uint8_t *>(v.f_value)
+        , reinterpret_cast<std::uint8_t const *>(value.data())
+        , value.size());
 
-    char const * intro("");
-    std::string result;
-    if(p <= 8)
-    {
-        // it first in a 64 bit value (most likely 99% of the time) so use
-        // a simpler convertion (much less costly than the uint512 version)
-        //
-        std::uint64_t v(0);
-        std::memcpy(
-              reinterpret_cast<std::uint8_t *>(&v)
-            , reinterpret_cast<std::uint8_t const *>(value.data())
-            , std::min(p, sizeof(v)));
-
-        if(v == 0)
-        {
-            return std::string("0");
-        }
-
-        switch(base)
-        {
-        case 2:
-            while(v != 0)
-            {
-                result += (v & 1) + '0';
-                v >>= 1;
-            }
-            intro = "0b";
-            break;
-
-        case 8:
-            while(v != 0)
-            {
-                result += (v & 7) + '0';
-                v >>= 3;
-            }
-            intro = "0";
-            break;
-
-        case 10:
-            while(v != 0)
-            {
-                result += (v % 10) + '0';
-                v /= 10;
-            }
-            break;
-
-        case 16:
-            while(v != 0)
-            {
-                int const digit(v & 0xf);
-                if(digit >= 10)
-                {
-                    result += digit + ('A' - 10);
-                }
-                else
-                {
-                    result += digit + '0';
-                }
-                v >>= 4;
-            }
-            intro = "0x";
-            break;
-
-        default:
-            throw conversion_unavailable(
-                  "base "
-                + std::to_string(base)
-                + " not supported.");
-
-        }
-    }
-    else
-    {
-        uint512_t v;
-        std::memcpy(
-              reinterpret_cast<std::uint8_t *>(v.f_value)
-            , reinterpret_cast<std::uint8_t const *>(value.data())
-            , value.size());
-
-        if(v.is_zero())
-        {
-            return std::string("0");
-        }
-
-        switch(base)
-        {
-        case 2:
-            while(!v.is_zero())
-            {
-                result += (v.f_value[0] & 1) + '0';
-                v.lsr(1);
-            }
-            intro = "0b";
-            break;
-
-        case 8:
-            while(!v.is_zero())
-            {
-                result += (v.f_value[0] & 7) + '0';
-                v.lsr(3);
-            }
-            intro = "0";
-            break;
-
-        case 10:
-            {
-                uint512_t remainder;
-                uint512_t ten;
-                ten.f_value[0] = 10;
-                while(!v.is_zero())
-                {
-                    v.div(ten, remainder);
-                    result += remainder.f_value[0] + '0';
-                }
-            }
-            break;
-
-        case 16:
-            while(!v.is_zero())
-            {
-                int const digit(v.f_value[0] & 0xf);
-                if(digit >= 10)
-                {
-                    result += digit + ('A' - 10);
-                }
-                else
-                {
-                    result += digit + '0';
-                }
-                v.lsr(4);
-            }
-            intro = "0x";
-            break;
-
-        default:
-            throw conversion_unavailable(
-                  "base "
-                + std::to_string(base)
-                + " not supported.");
-
-        }
-    }
-
-    std::reverse(result.begin(), result.end());
-    return intro + result;
+    return v.to_string(base, true, true);
 }
 
 
