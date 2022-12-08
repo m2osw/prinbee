@@ -61,6 +61,8 @@ struct int512_t
     bool                            is_positive() const { return f_high_value >= 0; }
     bool                            is_negative() const { return f_high_value < 0; }
     int512_t                        abs() const { if(f_high_value < 0) return -*this; else return *this; }
+    int512_t &                      zero();
+    bool                            is_zero() const;
     int                             compare(int512_t const & rhs) const;
 
     std::size_t                     bit_size() const;
@@ -75,6 +77,7 @@ struct int512_t
     bool                            operator != (int512_t const & rhs) const;
     bool                            operator != (int64_t rhs) const;
     bool                            operator < (int512_t const & rhs) const;
+    bool                            operator < (std::int64_t rhs) const;
     bool                            operator <= (int512_t const & rhs) const;
     bool                            operator > (int512_t const & rhs) const;
     bool                            operator >= (int512_t const & rhs) const;

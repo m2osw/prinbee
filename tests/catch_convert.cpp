@@ -90,6 +90,10 @@ std::string to_binary(T const n)
 template<>
 std::string to_binary(prinbee::uint512_t const n)
 {
+    if(n.is_zero())
+    {
+        return "0";
+    }
     prinbee::uint512_t b;
     b.f_value[7] = 0x8000000000000000ULL;
     for(;; b >>= 1)
@@ -99,14 +103,45 @@ std::string to_binary(prinbee::uint512_t const n)
             break;
         }
     }
-    if(b.is_zero())
-    {
-        return "0";
-    }
     std::string result;
     while(!b.is_zero())
     {
         result += (n & b) != 0 ? '1' : '0';
+        b >>= 1;
+    }
+    return result;
+}
+
+
+template<>
+std::string to_binary(prinbee::int512_t const n)
+{
+    if(n.is_zero())
+    {
+        return "0";
+    }
+    prinbee::uint512_t a;
+    if(n < 0)
+    {
+        a = -n;
+    }
+    else
+    {
+        a = n;
+    }
+    prinbee::uint512_t b;
+    b.f_value[7] = 0x8000000000000000ULL;
+    for(;; b >>= 1)
+    {
+        if((a & b) != 0)
+        {
+            break;
+        }
+    }
+    std::string result;
+    while(!b.is_zero())
+    {
+        result += (a & b) != 0 ? '1' : '0';
         b >>= 1;
     }
     return result;
@@ -970,6 +1005,79 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
     }
     CATCH_END_SECTION()
 
+    CATCH_START_SECTION("convert_buffer: string -> int8")
+    {
+        for(int i(-128); i < 127; ++i)
+        {
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << "0";
+                }
+                else if(i > 0)
+                {
+                    ss << "0B" << to_binary(i);
+                }
+                else
+                {
+                    ss << "-0B" << to_binary(-i);
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT8, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT8, buffer, 2));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << "0";
+                }
+                else if(i > 0)
+                {
+                    ss << std::oct << std::showbase << i;
+                }
+                else
+                {
+                    ss << std::oct << std::showbase << '-' << -i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT8, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT8, buffer, 8));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::dec << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT8, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT8, buffer, 10));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << "0";
+                }
+                else if(i > 0)
+                {
+                    ss << std::showbase << std::hex << std::uppercase << i;
+                }
+                else
+                {
+                    ss << std::showbase << std::hex << std::uppercase << '-' << -i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT8, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT8, buffer, 16));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("convert_buffer: string -> bits16")
     {
         for(int j(0); j < 100; ++j)
@@ -1032,7 +1140,14 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
             std::uint16_t const i(rand());
             {
                 std::stringstream ss;
-                ss << "0B" << to_binary(i);
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
                 prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_UINT16, ss.str()));
                 std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT16, buffer, 2));
 
@@ -1080,11 +1195,85 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
     }
     CATCH_END_SECTION()
 
+    CATCH_START_SECTION("convert_buffer: string -> int16")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            std::int16_t const i(rand());
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i > 0)
+                {
+                    ss << "0B" << to_binary(i);
+                }
+                else
+                {
+                    ss << "-0B" << to_binary(-i);
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT16, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT16, buffer, 2));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << '-' << std::showbase << std::oct << -i;
+                }
+                else
+                {
+                    ss << std::showbase << std::oct << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT16, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT16, buffer, 8));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::dec << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT16, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT16, buffer, 10));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << '-' << std::showbase << std::hex << std::uppercase << -i;
+                }
+                else
+                {
+                    ss << std::showbase << std::hex << std::uppercase << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT16, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT16, buffer, 16));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("convert_buffer: string -> bits32")
     {
         for(int j(0); j < 100; ++j)
         {
-            std::uint32_t const i(rand() ^ (rand() << 16));
+            std::uint32_t const i(SNAP_CATCH2_NAMESPACE::rand32());
             {
                 std::stringstream ss;
                 ss << "0B" << to_binary(i);
@@ -1139,7 +1328,7 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
     {
         for(int j(0); j < 100; ++j)
         {
-            std::uint32_t const i(rand() ^ (rand() << 16));
+            std::uint32_t const i(SNAP_CATCH2_NAMESPACE::rand32());
             {
                 std::stringstream ss;
                 ss << "0B" << to_binary(i);
@@ -1183,6 +1372,76 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
                 }
                 prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_UINT32, ss.str()));
                 std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT32, buffer, 16));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> int32")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            std::int32_t const i(SNAP_CATCH2_NAMESPACE::rand32());
+            {
+                std::stringstream ss;
+                if(i < 0)
+                {
+                    ss << "-0B" << to_binary(-i);
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT32, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT32, buffer, 2));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << '-' << std::showbase << std::oct << -i;
+                }
+                else
+                {
+                    ss << std::showbase << std::oct << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT32, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT32, buffer, 8));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::dec << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT32, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT32, buffer, 10));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << "0";
+                }
+                else if(i < 0)
+                {
+                    ss << '-' << std::hex << std::uppercase << "0X" << -i;
+                }
+                else
+                {
+                    ss << std::hex << std::uppercase << "0X" << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT32, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT32, buffer, 16));
 
                 CATCH_REQUIRE(ss.str() == back);
             }
@@ -1300,14 +1559,95 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
     }
     CATCH_END_SECTION()
 
+    CATCH_START_SECTION("convert_buffer: string -> int64")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            std::int64_t const i(j == 0 ? 0 : SNAP_CATCH2_NAMESPACE::rand64());
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << "-0B" << to_binary(-i);
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT64, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT64, buffer, 2));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << '-' << std::showbase << std::oct << -i;
+                }
+                else
+                {
+                    ss << std::showbase << std::oct << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT64, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT64, buffer, 8));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::dec << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT64, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT64, buffer, 10));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << '-' << std::showbase << std::hex << std::uppercase << -i;
+                }
+                else
+                {
+                    ss << std::showbase << std::hex << std::uppercase << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT64, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT64, buffer, 16));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("convert_buffer: string -> oid")
     {
         for(int j(0); j < 100; ++j)
         {
-            std::uint64_t const i(SNAP_CATCH2_NAMESPACE::rand64());
+            std::uint64_t const i(j == 0 ? 0 : SNAP_CATCH2_NAMESPACE::rand64());
             {
                 std::stringstream ss;
-                ss << "0B" << to_binary(i);
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
                 prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_OID, ss.str()));
                 std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_OID, buffer, 2));
 
@@ -1359,10 +1699,17 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
     {
         for(int j(0); j < 100; ++j)
         {
-            std::uint64_t const i(SNAP_CATCH2_NAMESPACE::rand64());
+            std::uint64_t const i(j == 0 ? 0 : SNAP_CATCH2_NAMESPACE::rand64());
             {
                 std::stringstream ss;
-                ss << "0B" << to_binary(i);
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
                 prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_REFERENCE, ss.str()));
                 std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_REFERENCE, buffer, 2));
 
@@ -1395,7 +1742,7 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
                 std::stringstream ss;
                 if(i == 0)
                 {
-                    ss << "0";
+                    ss << '0';
                 }
                 else
                 {
@@ -1416,15 +1763,7 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
 #pragma GCC diagnostic ignored "-Wpedantic"
         for(int j(0); j < 100; ++j)
         {
-            unsigned __int128 const i(SNAP_CATCH2_NAMESPACE::rand128());
-            {
-                std::stringstream ss;
-                ss << "0B" << to_binary(i);
-                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BITS128, ss.str()));
-                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS128, buffer, 2));
-
-                CATCH_REQUIRE(ss.str() == back);
-            }
+            unsigned __int128 const i(j == 0 ? 0 : SNAP_CATCH2_NAMESPACE::rand128());
             {
                 std::stringstream ss;
                 if(i == 0)
@@ -1433,8 +1772,16 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
                 }
                 else
                 {
-                    ss << std::oct << '0' << i;
+                    ss << "0B" << to_binary(i);
                 }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BITS128, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS128, buffer, 2));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::showbase << std::oct << i;
                 prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BITS128, ss.str()));
                 std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS128, buffer, 8));
 
@@ -1474,10 +1821,17 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
 #pragma GCC diagnostic ignored "-Wpedantic"
         for(int j(0); j < 100; ++j)
         {
-            unsigned __int128 const i(SNAP_CATCH2_NAMESPACE::rand128());
+            unsigned __int128 const i(j == 0 ? 0 : SNAP_CATCH2_NAMESPACE::rand128());
             {
                 std::stringstream ss;
-                ss << "0B" << to_binary(i);
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
                 prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_UINT128, ss.str()));
                 std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT128, buffer, 2));
 
@@ -1526,19 +1880,102 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
     }
     CATCH_END_SECTION()
 
+    CATCH_START_SECTION("convert_buffer: string -> int128")
+    {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+        for(int j(0); j < 100; ++j)
+        {
+            __int128 const i(j == 0 ? 0 : SNAP_CATCH2_NAMESPACE::rand128());
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << "-0B" << to_binary(-i);
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT128, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT128, buffer, 2));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << '-' << std::showbase << std::oct << -i;
+                }
+                else
+                {
+                    ss << std::showbase << std::oct << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT128, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT128, buffer, 8));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::dec << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT128, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT128, buffer, 10));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i < 0)
+                {
+                    ss << '-' << std::showbase << std::hex << std::uppercase << -i;
+                }
+                else
+                {
+                    ss << std::showbase << std::hex << std::uppercase << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT128, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT128, buffer, 16));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+        }
+#pragma GCC diagnostic pop
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("convert_buffer: string -> bits256")
     {
         for(int j(0); j < 100; ++j)
         {
             prinbee::uint512_t i;
-            SNAP_CATCH2_NAMESPACE::rand512(i);
-            i.f_value[4] = 0;
-            i.f_value[5] = 0;
-            i.f_value[6] = 0;
-            i.f_value[7] = 0;
+            if(j != 0)
+            {
+                SNAP_CATCH2_NAMESPACE::rand512(i);
+                i.f_value[4] = 0;
+                i.f_value[5] = 0;
+                i.f_value[6] = 0;
+                i.f_value[7] = 0;
+            }
             {
                 std::stringstream ss;
-                ss << "0B" << to_binary(i);
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
                 prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BITS256, ss.str()));
                 std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS256, buffer, 2));
 
@@ -1591,14 +2028,24 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
         for(int j(0); j < 100; ++j)
         {
             prinbee::uint512_t i;
-            SNAP_CATCH2_NAMESPACE::rand512(i);
-            i.f_value[4] = 0;
-            i.f_value[5] = 0;
-            i.f_value[6] = 0;
-            i.f_value[7] = 0;
+            if(j != 0)
+            {
+                SNAP_CATCH2_NAMESPACE::rand512(i);
+                i.f_value[4] = 0;
+                i.f_value[5] = 0;
+                i.f_value[6] = 0;
+                i.f_value[7] = 0;
+            }
             {
                 std::stringstream ss;
-                ss << "0B" << to_binary(i);
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
                 prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_UINT256, ss.str()));
                 std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT256, buffer, 2));
 
@@ -1639,17 +2086,259 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
     }
     CATCH_END_SECTION()
 
-// struct_type_t::STRUCT_TYPE_BITS256:
-// struct_type_t::STRUCT_TYPE_UINT256:
-// struct_type_t::STRUCT_TYPE_BITS512:
-// struct_type_t::STRUCT_TYPE_UINT512:
-// struct_type_t::STRUCT_TYPE_INT8:
-// struct_type_t::STRUCT_TYPE_INT16:
-// struct_type_t::STRUCT_TYPE_INT32:
-// struct_type_t::STRUCT_TYPE_INT64:
-// struct_type_t::STRUCT_TYPE_INT128:
-// struct_type_t::STRUCT_TYPE_INT256:
-// struct_type_t::STRUCT_TYPE_INT512:
+    CATCH_START_SECTION("convert_buffer: string -> int256")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            prinbee::int512_t i;
+            if(j != 0)
+            {
+                SNAP_CATCH2_NAMESPACE::rand512(i);
+                if(i.f_value[3] & 0x8000000000000000UL)
+                {
+                    i.f_value[4] = 0xFFFFFFFFFFFFFFFF;
+                    i.f_value[5] = 0xFFFFFFFFFFFFFFFF;
+                    i.f_value[6] = 0xFFFFFFFFFFFFFFFF;
+                    i.f_value[7] = 0xFFFFFFFFFFFFFFFF;
+                }
+                else
+                {
+                    i.f_value[4] = 0;
+                    i.f_value[5] = 0;
+                    i.f_value[6] = 0;
+                    i.f_value[7] = 0;
+                }
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << "-0B" << to_binary(-i);
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT256, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT256, buffer, 2));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << '-' << std::showbase << std::oct << -i;
+                }
+                else
+                {
+                    ss << std::showbase << std::oct << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT256, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT256, buffer, 8));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::dec << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT256, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT256, buffer, 10));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::showbase << std::hex << std::uppercase << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT256, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT256, buffer, 16));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> bits512")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            prinbee::uint512_t i;
+            SNAP_CATCH2_NAMESPACE::rand512(i);
+            {
+                std::stringstream ss;
+                ss << "0B" << to_binary(i);
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BITS512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS512, buffer, 2));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else
+                {
+                    ss << std::oct << '0' << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BITS512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS512, buffer, 8));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::dec << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BITS512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS512, buffer, 10));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << "0";
+                }
+                else
+                {
+                    ss << std::hex << std::uppercase << "0X" << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BITS512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS512, buffer, 16));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> uint512")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            prinbee::uint512_t i;
+            SNAP_CATCH2_NAMESPACE::rand512(i);
+            {
+                std::stringstream ss;
+                ss << "0B" << to_binary(i);
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_UINT512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT512, buffer, 2));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else
+                {
+                    ss << std::oct << '0' << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_UINT512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT512, buffer, 8));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::dec << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_UINT512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT512, buffer, 10));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::showbase << std::hex << std::uppercase << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_UINT512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT512, buffer, 16));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> int512")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            prinbee::int512_t i;
+            if(j != 0)
+            {
+                SNAP_CATCH2_NAMESPACE::rand512(i);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << "-0B" << to_binary(-i);
+                }
+                else
+                {
+                    ss << "0B" << to_binary(i);
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT512, buffer, 2));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                if(i == 0)
+                {
+                    ss << '0';
+                }
+                else if(i < 0)
+                {
+                    ss << '-' << std::oct << std::showbase << -i;
+                }
+                else
+                {
+                    ss << std::oct << std::showbase << i;
+                }
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT512, buffer, 8));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::dec << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT512, buffer, 10));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+            {
+                std::stringstream ss;
+                ss << std::showbase << std::hex << std::uppercase << i;
+                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT512, ss.str()));
+                std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT512, buffer, 16));
+
+                CATCH_REQUIRE(ss.str() == back);
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
 // struct_type_t::STRUCT_TYPE_FLOAT32:
 // struct_type_t::STRUCT_TYPE_FLOAT64:
 // struct_type_t::STRUCT_TYPE_FLOAT128:
@@ -1746,7 +2435,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
         CATCH_REQUIRE_THROWS_MATCHES(
                   prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS8, buffer, 10)
                 , prinbee::out_of_range
-                , Catch::Matchers::ExceptionMessage("out_of_range: value too large (16) for this field (max: 8)."));
+                , Catch::Matchers::ExceptionMessage("out_of_range: value too large (16 bits) for this field (max: 8 bits)."));
     }
     CATCH_END_SECTION()
 }

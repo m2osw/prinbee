@@ -192,6 +192,29 @@ uint512_t size_to_multiplicator(char const * s)
 }
 
 
+std::size_t value_byte_size(buffer_t const & value, bool is_signed)
+{
+    std::size_t size(value.size());
+    if(size > 0)
+    {
+        std::uint8_t const expected(
+                   is_signed
+                && static_cast<std::int8_t>(value[size - 1]) < 0
+                                ? 0xFF
+                                : 0x00);
+        for(; size > 0; --size)
+        {
+            if(value[size - 1] != expected)
+            {
+                break;
+            }
+        }
+    }
+
+    return size;
+}
+
+
 uint512_t string_to_int(std::string const & number, bool accept_negative_values, unit_t unit)
 {
     bool negative(false);
@@ -398,14 +421,15 @@ buffer_t string_to_uinteger(std::string const & value, size_t max_size)
 
 std::string uinteger_to_string(buffer_t const & value, int bytes_for_size, int base)
 {
-    if(value.size() > static_cast<size_t>(bytes_for_size))
+    std::size_t const size(value_byte_size(value, false));
+    if(size > static_cast<size_t>(bytes_for_size))
     {
         throw out_of_range(
                   "value too large ("
                 + std::to_string(value.size() * 8)
-                + ") for this field (max: "
+                + " bits) for this field (max: "
                 + std::to_string(bytes_for_size * 8)
-                + ").");
+                + " bits).");
     }
 
     // the uint512::to_string() is optimized so the only penaty here is
@@ -454,6 +478,25 @@ std::string integer_to_string(buffer_t const & value, int bytes_for_size, int ba
         //
         int512_t v;
         std::memcpy(v.f_value, value.data(), value.size());
+        if(value.size() < sizeof(v.f_value))
+        {
+            std::memset(
+                      reinterpret_cast<std::uint8_t *>(v.f_value) + value.size()
+                    , 255
+                    , sizeof(v.f_value) - value.size());
+            v.f_high_value = -1;
+        }
+        else
+        {
+            std::size_t const clear(value.size() - sizeof(v.f_value));
+            if(clear < sizeof(v.f_high_value))
+            {
+                std::memset(
+                          reinterpret_cast<std::uint8_t *>(&v.f_high_value) + value.size()
+                        , 255
+                        , sizeof(v.f_high_value) - value.size());
+            }
+        }
         v = -v;
         buffer_t const neg(reinterpret_cast<uint8_t const *>(v.f_value), reinterpret_cast<uint8_t const *>(v.f_value + 8));
         return "-" + uinteger_to_string(neg, bytes_for_size, base);
@@ -659,7 +702,7 @@ std::string buffer_to_string(buffer_t const & value, size_t bytes_for_size)
                 + ").");
     }
 
-    uint32_t size(0);
+    std::uint32_t size(0);
     memcpy(&size, value.data(), bytes_for_size);
 
     if(bytes_for_size + size > value.size())

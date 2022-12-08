@@ -105,6 +105,33 @@ int512_t::int512_t(std::initializer_list<std::uint64_t> rhs)
 }
 
 
+int512_t & int512_t::zero()
+{
+    f_value[0] = 0;
+    f_value[1] = 0;
+    f_value[2] = 0;
+    f_value[3] = 0;
+    f_value[4] = 0;
+    f_value[5] = 0;
+    f_value[6] = 0;
+    f_value[7] = 0;
+    return *this;
+}
+
+
+bool int512_t::is_zero() const
+{
+    return f_value[0] == 0
+        && f_value[1] == 0
+        && f_value[2] == 0
+        && f_value[3] == 0
+        && f_value[4] == 0
+        && f_value[5] == 0
+        && f_value[6] == 0
+        && f_value[7] == 0;
+}
+
+
 int int512_t::compare(int512_t const & rhs) const
 {
     if(f_high_value != rhs.f_high_value)
@@ -267,6 +294,48 @@ bool int512_t::operator < (int512_t const & rhs) const
 }
 
 
+bool int512_t::operator < (std::int64_t rhs) const
+{
+    if(rhs < 0)
+    {
+        if(is_positive())
+        {
+            return false;
+        }
+        if(f_value[1] != 0xFFFFFFFFFFFFFFFFULL
+        || f_value[2] != 0xFFFFFFFFFFFFFFFFULL
+        || f_value[3] != 0xFFFFFFFFFFFFFFFFULL
+        || f_value[4] != 0xFFFFFFFFFFFFFFFFULL
+        || f_value[5] != 0xFFFFFFFFFFFFFFFFULL
+        || f_value[6] != 0xFFFFFFFFFFFFFFFFULL
+        || f_high_value != -1)
+        {
+            return true;
+        }
+        return f_value[0] < static_cast<std::uint64_t>(rhs);
+    }
+    else
+    {
+        if(is_negative())
+        {
+            return true;
+        }
+
+        if(f_value[1] != 0
+        || f_value[2] != 0
+        || f_value[3] != 0
+        || f_value[4] != 0
+        || f_value[5] != 0
+        || f_value[6] != 0
+        || f_high_value != 0)
+        {
+            return false;
+        }
+        return f_value[0] < static_cast<std::uint64_t>(rhs);
+    }
+}
+
+
 bool int512_t::operator <= (int512_t const & rhs) const
 {
     return compare(rhs) <= 0;
@@ -292,6 +361,7 @@ std::string int512_t::to_string(int base, bool introducer, bool uppercase) const
     if(is_negative())
     {
         result += '-';
+        v = -v;
     }
     result += v.to_string(base, introducer, uppercase);
     return result;
