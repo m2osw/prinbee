@@ -35,7 +35,9 @@
 
 // snapdev
 //
+#include    <snapdev/math.h>
 #include    <snapdev/to_upper.h>
+#include    <snapdev/timestamp.h>
 #include    <snapdev/trim_string.h>
 
 
@@ -577,7 +579,7 @@ buffer_t string_to_version(std::string const & value)
                 + "\" must include a period (.) between the major and minor numbers.");
     }
 
-    // allow a 'v' or 'V' introducer as in 'v1.3'
+    // allow spaces and a 'v' or 'V' introducer as in '  v1.3'
     //
     std::string::size_type skip(0);
     while(skip < value.length() && std::isspace(value[skip]))
@@ -665,6 +667,20 @@ std::string buffer_to_cstring(buffer_t const & value)
 
 buffer_t string_to_buffer(std::string const & value, size_t bytes_for_size)
 {
+#ifdef _DEBUG
+    switch(bytes_for_size)
+    {
+    case 1:
+    case 2:
+    case 4:
+        break;
+
+    default:
+        throw logic_error("string_to_buffer(): bytes_for_size must be one of 1, 2, or 4");
+
+    }
+#endif
+
     buffer_t result;
     uint32_t size(value.length());
 
@@ -720,17 +736,16 @@ std::string buffer_to_string(buffer_t const & value, size_t bytes_for_size)
 
 
 // TODO: add support for getdate()
-buffer_t string_to_unix_time(std::string value, int fraction)
+buffer_t string_to_unix_time(std::string const & value, std::uint32_t fraction_exp)
 {
-    struct tm t;
-    memset(&t, 0, sizeof(t));
+    struct tm t = {};
     std::string format("%Y-%m-%dT%T");
     std::string::size_type const pos(value.find('.'));
     int f(0);
     if(pos != std::string::npos)
     {
         std::string date_time(value.substr(0, pos));
-        std::string::size_type zone(value.find_first_of("+-"));
+        std::string::size_type zone(value.find_first_of("+-", pos));
         if(zone == std::string::npos)
         {
             zone = value.size();
@@ -741,21 +756,29 @@ buffer_t string_to_unix_time(std::string value, int fraction)
             date_time += value.substr(zone);
         }
         std::string frac(value.substr(pos, zone - pos));
-        f = std::atoi(frac.c_str());
-        if(f < 0
-        || f >= fraction)
+        while(frac.length() > fraction_exp && frac[frac.length() - 1] == '0')
+        {
+            frac.resize(frac.length() - 1);
+        }
+        int const l(fraction_exp - frac.length());
+        if(l < 0)
         {
             throw out_of_range(
                       "time fraction is out of bounds in \""
                     + value
                     + "\".");
         }
+        if(l > 0)
+        {
+            frac += std::string(l, '0');
+        }
+        f = std::atoi(frac.c_str());
 
         strptime(date_time.c_str(), format.c_str(), &t);
     }
     else
     {
-        std::string::size_type zone(value.find_first_of("+-"));
+        std::string::size_type const zone(value.find_first_of("+-"));
         if(zone != std::string::npos)
         {
             format += "%z";
@@ -764,8 +787,19 @@ buffer_t string_to_unix_time(std::string value, int fraction)
         strptime(value.c_str(), format.c_str(), &t);
     }
 
-    time_t v(mktime(&t));
-    uint64_t with_fraction(v * fraction + f);
+    // the mktime() function takes the input as local time, we want UTC
+    // so instead we use timegm()
+    //
+    // you can use this one instead if you do not have timegm()
+    //time_t const v(snapdev::unix_timestamp(
+    //          t.tm_year + 1900
+    //        , t.tm_mon + 1
+    //        , t.tm_mday
+    //        , t.tm_hour
+    //        , t.tm_min
+    //        , t.tm_sec));
+    time_t const v(timegm(&t));
+    std::uint64_t const with_fraction(v * snapdev::pow(10, fraction_exp) + f);
 
     return buffer_t(reinterpret_cast<uint8_t const *>(&with_fraction), reinterpret_cast<uint8_t const *>(&with_fraction + 1));
 }
@@ -884,13 +918,13 @@ buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
         return string_to_version(value);
 
     case struct_type_t::STRUCT_TYPE_TIME:
-        return string_to_unix_time(value, 1);
+        return string_to_unix_time(value, 0);
 
     case struct_type_t::STRUCT_TYPE_MSTIME:
-        return string_to_unix_time(value, 1000);
+        return string_to_unix_time(value, 3);
 
     case struct_type_t::STRUCT_TYPE_USTIME:
-        return string_to_unix_time(value, 1000000);
+        return string_to_unix_time(value, 6);
 
     case struct_type_t::STRUCT_TYPE_P8STRING:
         return string_to_buffer(value, 1);

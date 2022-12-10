@@ -2339,10 +2339,110 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
     }
     CATCH_END_SECTION()
 
-// struct_type_t::STRUCT_TYPE_FLOAT32:
-// struct_type_t::STRUCT_TYPE_FLOAT64:
-// struct_type_t::STRUCT_TYPE_FLOAT128:
-// struct_type_t::STRUCT_TYPE_VERSION:
+    CATCH_START_SECTION("convert_buffer: string -> float32")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            float const i(SNAP_CATCH2_NAMESPACE::rand32() / (SNAP_CATCH2_NAMESPACE::rand32() | 1));
+
+            std::stringstream ss;
+            ss << i;
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT32, ss.str()));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_FLOAT32, buffer, 2));
+
+            CATCH_REQUIRE(ss.str() == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> float64")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            double const i(SNAP_CATCH2_NAMESPACE::rand64() / (SNAP_CATCH2_NAMESPACE::rand64() | 1));
+
+            std::stringstream ss;
+            ss << i;
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT64, ss.str()));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_FLOAT64, buffer, 2));
+
+            CATCH_REQUIRE(ss.str() == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> float128")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            long double const i(SNAP_CATCH2_NAMESPACE::rand128() / (SNAP_CATCH2_NAMESPACE::rand128() | 1));
+
+            std::stringstream ss;
+            ss << i;
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT128, ss.str()));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_FLOAT128, buffer, 2));
+
+            CATCH_REQUIRE(ss.str() == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> version")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            std::uint16_t vmajor(rand());
+            std::uint16_t vminor(rand());
+
+            std::stringstream ss;
+            ss << vmajor << '.' << vminor;
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_VERSION, ss.str()));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_VERSION, buffer, 2));
+
+            CATCH_REQUIRE(ss.str() == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> time")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            // negative numbers are not that useful to us at the moment
+            // and very negative are not representing valid dates
+            //
+            // note: the 3,000 years is very approximative since I use 365
+            //       days per year (to simplify); it still takes use close
+            //       enough I think
+            //
+            constexpr time_t const three_thousand_years(3'000LL * 365LL * 86'400LL);
+            time_t const d((SNAP_CATCH2_NAMESPACE::rand64() >> 1) % three_thousand_years);
+
+            // we only output back to UTC so use UTC here
+            //
+            std::string cmd("date -u +%Y-%m-%dT%T%z -d @");
+            cmd += std::to_string(d);
+            FILE * p(popen(cmd.c_str(), "r"));
+            CATCH_REQUIRE(p != nullptr);
+            char buf[256] = {};
+            std::size_t sz(fread(buf, 1, sizeof(buf), p));
+            CATCH_REQUIRE(sz >= 1);
+            CATCH_REQUIRE(sz < sizeof(buf));
+            if(buf[sz - 1] == '\n')
+            {
+                --sz;
+            }
+            buf[sz] = '\0';
+            CATCH_REQUIRE(pclose(p) == 0);
+
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_TIME, buf));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_TIME, buffer, 2));
+
+            CATCH_REQUIRE(buf == back);
+        }
+    }
+    CATCH_END_SECTION()
+
 // struct_type_t::STRUCT_TYPE_TIME:
 // struct_type_t::STRUCT_TYPE_MSTIME:
 // struct_type_t::STRUCT_TYPE_USTIME:
