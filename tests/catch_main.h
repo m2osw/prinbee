@@ -58,6 +58,17 @@ inline char32_t rand_char(bool full_range = false)
 }
 
 
+inline std::string rand_string(int len = rand() % 200 + 10)
+{
+    std::string result;
+    for(int i(0); i < len; ++i)
+    {
+        result += rand() % 26 + 'a';
+    }
+    return result;
+}
+
+
 inline std::uint32_t rand32()
 {
     return rand() ^ rand() << 16;

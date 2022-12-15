@@ -43,11 +43,11 @@ enum class unit_t
 };
 
 
-int64_t convert_to_int(std::string const & value, size_t max_size, unit_t unit = unit_t::UNIT_NONE);
-uint64_t convert_to_uint(std::string const & value, size_t max_size, unit_t unit = unit_t::UNIT_NONE);
+std::int64_t convert_to_int(std::string const & value, size_t max_size, unit_t unit = unit_t::UNIT_NONE);
+std::uint64_t convert_to_uint(std::string const & value, size_t max_size, unit_t unit = unit_t::UNIT_NONE);
 
 buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value);
-std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, int base);
+std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, int base = 10);
 
 
 

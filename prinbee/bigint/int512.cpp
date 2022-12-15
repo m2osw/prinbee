@@ -114,7 +114,7 @@ int512_t & int512_t::zero()
     f_value[4] = 0;
     f_value[5] = 0;
     f_value[6] = 0;
-    f_value[7] = 0;
+    f_high_value = 0;
     return *this;
 }
 
@@ -128,7 +128,7 @@ bool int512_t::is_zero() const
         && f_value[4] == 0
         && f_value[5] == 0
         && f_value[6] == 0
-        && f_value[7] == 0;
+        && f_high_value == 0;
 }
 
 

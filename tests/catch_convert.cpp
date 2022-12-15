@@ -36,6 +36,7 @@
 // C++
 //
 #include    <fstream>
+#include    <iomanip>
 
 
 // C
@@ -895,8 +896,6 @@ CATCH_TEST_CASE("convert_size", "[convert] [size] [valid]")
 
 CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
 {
-//buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value);
-//std::string typed_buffer_to_string(struct_type_t type, buffer_t value, int base);
     CATCH_START_SECTION("convert_buffer: string -> bits8")
     {
         for(int i(0); i < 256; ++i)
@@ -2295,10 +2294,65 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
                 {
                     ss << "0B" << to_binary(i);
                 }
-                prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT512, ss.str()));
+                prinbee::buffer_t buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT512, ss.str()));
                 std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT512, buffer, 2));
 
                 CATCH_REQUIRE(ss.str() == back);
+
+                // the buffer can be shorten in this case which hits a specific
+                // case when the value is negative; the following loop is used
+                // to test all 63 bytes
+                //
+                if(i < 0)
+                {
+                    for(int pos(63); pos > 0; --pos)
+                    {
+                        buffer[pos] = 0xFF;
+                        buffer[pos - 1] |= 0x80;
+
+                        // the output of a negative number in binary actually
+                        // outputs the positive version of the number with a
+                        // '-' sign in front of it (since we deal primarily
+                        // with small numbers, this means we often will have
+                        // very small output in number of characters)
+                        // so here I create a copy of buffer and compute
+                        // the additive inverse
+                        //
+                        prinbee::buffer_t binary(buffer);
+                        int carry(1);
+                        for(int neg(0); neg < 64; ++neg) // WARNING: this assumes little endian
+                        {
+                            binary[neg] = ~binary[neg] + carry;
+                            carry = binary[neg] == 0 && carry == 1 ? 1 : 0;
+                        }
+                        std::stringstream sn;
+                        sn << "-0B";
+                        bool found(false);
+                        for(int byte(63); byte >= 0; --byte)
+                        {
+                            int bit(8);
+                            while(bit > 0)
+                            {
+                                --bit;
+                                if((binary[byte] & (1 << bit)) != 0)
+                                {
+                                    sn << '1';
+                                    found = true;
+                                }
+                                else if(found)
+                                {
+                                    sn << '0';
+                                }
+                            }
+                        }
+                        if(!found) // if input is 0
+                        {
+                            sn << '0';
+                        }
+                        std::string const small(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT512, buffer, 2));
+                        CATCH_REQUIRE(sn.str() == small);
+                    }
+                }
             }
             {
                 std::stringstream ss;
@@ -2347,7 +2401,7 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
 
             std::stringstream ss;
             ss << i;
-            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT32, ss.str()));
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT32, std::string(rand() % 10, ' ') + ss.str() + std::string(rand() % 10, ' ')));
             std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_FLOAT32, buffer, 2));
 
             CATCH_REQUIRE(ss.str() == back);
@@ -2363,7 +2417,7 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
 
             std::stringstream ss;
             ss << i;
-            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT64, ss.str()));
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT64, std::string(rand() % 10, ' ') + ss.str() + std::string(rand() % 10, ' ')));
             std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_FLOAT64, buffer, 2));
 
             CATCH_REQUIRE(ss.str() == back);
@@ -2379,7 +2433,7 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
 
             std::stringstream ss;
             ss << i;
-            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT128, ss.str()));
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT128, std::string(rand() % 10, ' ') + ss.str() + std::string(rand() % 10, ' ')));
             std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_FLOAT128, buffer, 2));
 
             CATCH_REQUIRE(ss.str() == back);
@@ -2395,18 +2449,73 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
             std::uint16_t vminor(rand());
 
             std::stringstream ss;
+            for(int i(rand() % 10 - 5); i > 0; --i)
+            {
+                ss << ' ';
+            }
+            if(rand() % 5 == 0)
+            {
+                ss << 'v';
+            }
             ss << vmajor << '.' << vminor;
+            for(int i(rand() % 10 - 5); i > 0; --i)
+            {
+                ss << ' ';
+            }
             prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_VERSION, ss.str()));
             std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_VERSION, buffer, 2));
 
-            CATCH_REQUIRE(ss.str() == back);
+            std::stringstream expect;
+            expect << vmajor << '.' << vminor;
+            CATCH_REQUIRE(expect.str() == back);
         }
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: string -> time")
+    CATCH_START_SECTION("convert_buffer: string -> time (seconds)")
     {
-        for(int j(0); j < 100; ++j)
+        for(int j(0); j < 25; ++j)
+        {
+            // negative numbers are not that useful to us at the moment
+            // and very negative are not representing valid dates
+            //
+            // note: the 3,000 years is very approximative since I use 365
+            //       days per year (to simplify); it still takes use close
+            //       enough I think
+            //
+            constexpr time_t const three_thousand_years(3'000LL * 365LL * 86'400LL);
+            time_t const d((SNAP_CATCH2_NAMESPACE::rand64() >> 1) % three_thousand_years);
+
+            // we only output back to UTC so use UTC here
+            //
+            std::string cmd("date -u +%Y-%m-%dT%T -d @");
+            cmd += std::to_string(d);
+            FILE * p(popen(cmd.c_str(), "r"));
+            CATCH_REQUIRE(p != nullptr);
+            char buf[256] = {};
+            std::size_t sz(fread(buf, 1, sizeof(buf), p));
+            CATCH_REQUIRE(sz >= 1);
+            CATCH_REQUIRE(sz < sizeof(buf));
+            if(buf[sz - 1] == '\n')
+            {
+                --sz;
+            }
+            buf[sz] = '\0';
+            CATCH_REQUIRE(pclose(p) == 0);
+
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_TIME, buf));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_TIME, buffer, 2));
+
+            // the prinbee always includes the timezone (+0000)
+            //
+            CATCH_REQUIRE(std::string(buf) + "+0000" == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> time (seconds + timezone)")
+    {
+        for(int j(0); j < 25; ++j)
         {
             // negative numbers are not that useful to us at the moment
             // and very negative are not representing valid dates
@@ -2443,9 +2552,277 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
     }
     CATCH_END_SECTION()
 
-// struct_type_t::STRUCT_TYPE_TIME:
-// struct_type_t::STRUCT_TYPE_MSTIME:
-// struct_type_t::STRUCT_TYPE_USTIME:
+    CATCH_START_SECTION("convert_buffer: string -> time (milliseconds + timezone)")
+    {
+        for(int j(0); j < 10; ++j)
+        {
+            // negative numbers are not that useful to us at the moment
+            // and very negative are not representing valid dates
+            //
+            // note: the 3,000 years is very approximative since I use 365
+            //       days per year (to simplify); it still takes use close
+            //       enough I think
+            //
+            constexpr time_t const three_thousand_years(3'000LL * 365LL * 86'400LL);
+            time_t const d((SNAP_CATCH2_NAMESPACE::rand64() >> 1) % three_thousand_years);
+            std::uint32_t const ms(rand() % 10); // 0 to 9
+
+            // we only output back to UTC so use UTC here
+            //
+            std::string cmd("date -u +%Y-%m-%dT%T.");
+            cmd += std::to_string(ms);
+            cmd += "%z -d @";
+            cmd += std::to_string(d);
+            FILE * p(popen(cmd.c_str(), "r"));
+            CATCH_REQUIRE(p != nullptr);
+            char buf[256] = {};
+            std::size_t sz(fread(buf, 1, sizeof(buf), p));
+            CATCH_REQUIRE(sz >= 1);
+            CATCH_REQUIRE(sz < sizeof(buf));
+            if(buf[sz - 1] == '\n')
+            {
+                --sz;
+            }
+            buf[sz] = '\0';
+            CATCH_REQUIRE(pclose(p) == 0);
+
+            std::string mstime(buf);
+            std::string::size_type const pos(mstime.find('+'));
+            CATCH_REQUIRE(pos != std::string::npos);
+            mstime =
+                  mstime.substr(0, pos)
+                + "00"
+                + mstime.substr(pos);
+
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_MSTIME, buf));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_MSTIME, buffer, 2));
+
+            CATCH_REQUIRE(mstime == back);
+        }
+        for(int j(0); j < 10; ++j)
+        {
+            // negative numbers are not that useful to us at the moment
+            // and very negative are not representing valid dates
+            //
+            // note: the 3,000 years is very approximative since I use 365
+            //       days per year (to simplify); it still takes use close
+            //       enough I think
+            //
+            constexpr time_t const three_thousand_years(3'000LL * 365LL * 86'400LL);
+            time_t const d((SNAP_CATCH2_NAMESPACE::rand64() >> 1) % three_thousand_years);
+            std::uint32_t const ms(rand() % (100 - 10) + 10); // 10 to 99
+
+            // we only output back to UTC so use UTC here
+            //
+            std::string cmd("date -u +%Y-%m-%dT%T.");
+            cmd += std::to_string(ms);
+            cmd += "%z -d @";
+            cmd += std::to_string(d);
+            FILE * p(popen(cmd.c_str(), "r"));
+            CATCH_REQUIRE(p != nullptr);
+            char buf[256] = {};
+            std::size_t sz(fread(buf, 1, sizeof(buf), p));
+            CATCH_REQUIRE(sz >= 1);
+            CATCH_REQUIRE(sz < sizeof(buf));
+            if(buf[sz - 1] == '\n')
+            {
+                --sz;
+            }
+            buf[sz] = '\0';
+            CATCH_REQUIRE(pclose(p) == 0);
+
+            std::string mstime(buf);
+            std::string::size_type const pos(mstime.find('+'));
+            CATCH_REQUIRE(pos != std::string::npos);
+            mstime =
+                  mstime.substr(0, pos)
+                + "0"
+                + mstime.substr(pos);
+
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_MSTIME, buf));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_MSTIME, buffer, 2));
+
+            CATCH_REQUIRE(mstime == back);
+        }
+        for(int j(0); j < 10; ++j)
+        {
+            // negative numbers are not that useful to us at the moment
+            // and very negative are not representing valid dates
+            //
+            // note: the 3,000 years is very approximative since I use 365
+            //       days per year (to simplify); it still takes use close
+            //       enough I think
+            //
+            constexpr time_t const three_thousand_years(3'000LL * 365LL * 86'400LL);
+            time_t const d((SNAP_CATCH2_NAMESPACE::rand64() >> 1) % three_thousand_years);
+            std::uint32_t const ms(rand() % 1'000);
+
+            // we only output back to UTC so use UTC here
+            //
+            std::string cmd("date -u +%Y-%m-%dT%T.");
+            if(ms < 10)
+            {
+                cmd += '0';
+            }
+            if(ms < 100)
+            {
+                cmd += '0';
+            }
+            cmd += std::to_string(ms);
+            cmd += "%z -d @";
+            cmd += std::to_string(d);
+            FILE * p(popen(cmd.c_str(), "r"));
+            CATCH_REQUIRE(p != nullptr);
+            char buf[256] = {};
+            std::size_t sz(fread(buf, 1, sizeof(buf), p));
+            CATCH_REQUIRE(sz >= 1);
+            CATCH_REQUIRE(sz < sizeof(buf));
+            if(buf[sz - 1] == '\n')
+            {
+                --sz;
+            }
+            buf[sz] = '\0';
+            CATCH_REQUIRE(pclose(p) == 0);
+
+            std::string mstime(buf);
+            int const extra_zeroes(rand() % 4);
+            if(extra_zeroes > 0)
+            {
+                std::string::size_type const pos(mstime.find('+'));
+                if(pos != std::string::npos)
+                {
+                    mstime =
+                          mstime.substr(0, pos)
+                        + std::string(extra_zeroes, '0')
+                        + mstime.substr(pos + 1);
+                }
+            }
+
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_MSTIME, mstime));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_MSTIME, buffer, 2));
+
+            CATCH_REQUIRE(buf == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> time (microseconds + timezone)")
+    {
+        for(int j(0); j < 25; ++j)
+        {
+            // negative numbers are not that useful to us at the moment
+            // and very negative are not representing valid dates
+            //
+            // note: the 3,000 years is very approximative since I use 365
+            //       days per year (to simplify); it still takes use close
+            //       enough I think
+            //
+            constexpr time_t const three_thousand_years(3'000LL * 365LL * 86'400LL);
+            time_t const d((SNAP_CATCH2_NAMESPACE::rand64() >> 1) % three_thousand_years);
+            std::uint32_t const us(SNAP_CATCH2_NAMESPACE::rand32() % 1'000'000LL);
+
+            // we only output back to UTC so use UTC here
+            //
+            std::string cmd("date -u +%Y-%m-%dT%T.");
+            if(us < 10)
+            {
+                cmd += '0';
+            }
+            if(us < 100)
+            {
+                cmd += '0';
+            }
+            if(us < 1'000)
+            {
+                cmd += '0';
+            }
+            if(us < 10'000)
+            {
+                cmd += '0';
+            }
+            if(us < 100'000)
+            {
+                cmd += '0';
+            }
+            cmd += std::to_string(us);
+            cmd += "%z -d @";
+            cmd += std::to_string(d);
+            FILE * p(popen(cmd.c_str(), "r"));
+            CATCH_REQUIRE(p != nullptr);
+            char buf[256] = {};
+            std::size_t sz(fread(buf, 1, sizeof(buf), p));
+            CATCH_REQUIRE(sz >= 1);
+            CATCH_REQUIRE(sz < sizeof(buf));
+            if(buf[sz - 1] == '\n')
+            {
+                --sz;
+            }
+            buf[sz] = '\0';
+            CATCH_REQUIRE(pclose(p) == 0);
+
+            std::string ustime(buf);
+            int const extra_zeroes(rand() % 4);
+            if(extra_zeroes > 0)
+            {
+                std::string::size_type const pos(ustime.find('+'));
+                if(pos != std::string::npos)
+                {
+                    ustime =
+                          ustime.substr(0, pos)
+                        + std::string(extra_zeroes, '0')
+                        + ustime.substr(pos + 1);
+                }
+            }
+
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_USTIME, ustime));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_USTIME, buffer, 2));
+
+            CATCH_REQUIRE(buf == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> p8string")
+    {
+        for(int j(0); j < 256; ++j)
+        {
+            std::string const str(SNAP_CATCH2_NAMESPACE::rand_string(j));
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_P8STRING, str));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P8STRING, buffer, rand()));
+
+            CATCH_REQUIRE(str == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> p16string")
+    {
+        for(int j(0); j < 10; ++j)
+        {
+            int const len(j == 0 ? 0 : (j == 1 ? 65'535 : rand() % 1'000));
+            std::string const str(SNAP_CATCH2_NAMESPACE::rand_string(len));
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_P16STRING, str));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P16STRING, buffer, rand()));
+
+            CATCH_REQUIRE(str == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> p32string")
+    {
+        for(int j(0); j < 10; ++j)
+        {
+            int const len(j == 0 ? 0 : (j == 1 ? 100'000 : rand() % 2'500));
+            std::string const str(SNAP_CATCH2_NAMESPACE::rand_string(len));
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_P32STRING, str));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P32STRING, buffer, rand()));
+
+            CATCH_REQUIRE(str == back);
+        }
+    }
+    CATCH_END_SECTION()
+
 // struct_type_t::STRUCT_TYPE_P8STRING:
 // struct_type_t::STRUCT_TYPE_P16STRING:
 // struct_type_t::STRUCT_TYPE_P32STRING:
@@ -2510,12 +2887,91 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_errors: number too large for type")
+    CATCH_START_SECTION("convert_errors: number too large for bits8 type")
     {
         CATCH_REQUIRE_THROWS_MATCHES(
                   prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BITS8, "256")
                 , prinbee::out_of_range
                 , Catch::Matchers::ExceptionMessage("out_of_range: number \"256\" too large for an 8 bit value."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_errors: number too large for uint8 type")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_UINT8, "256")
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: number \"256\" too large for an 8 bit value."));
+
+        prinbee::buffer_t buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_UINT512, "256"));
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT8, buffer, 10)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: value too large (512 bits) for this field (max: 8 bits)."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_errors: number too large for int8 type")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT8, "256")
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: number \"256\" too large for a signed 8 bit value."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT8, "128")
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: number \"128\" too large for a signed 8 bit value."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT8, "-129")
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: number \"-129\" too large for a signed 8 bit value."));
+
+        {
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT8, "-127"));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT8, buffer, 10));
+            CATCH_REQUIRE("-127" == back);
+        }
+
+        // I have this one here because -(-128) = -128 in an 8 bit number
+        // (and larger) and this could look like an overflow if not
+        // properly handled
+        {
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT8, "-128"));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT8, buffer, 10));
+            CATCH_REQUIRE("-128" == back);
+        }
+        {
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT16, "-32768"));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT16, buffer, 10));
+            CATCH_REQUIRE("-32768" == back);
+        }
+        {
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT32, "-2147483648"));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT32, buffer, 10));
+            CATCH_REQUIRE("-2147483648" == back);
+        }
+        {
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT64, "-9223372036854775808"));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT64, buffer, 10));
+            CATCH_REQUIRE("-9223372036854775808" == back);
+        }
+        {
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT128, "-170141183460469231731687303715884105728"));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT128, buffer, 10));
+            CATCH_REQUIRE("-170141183460469231731687303715884105728" == back);
+        }
+        {
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT256, "-57896044618658097711785492504343953926634992332820282019728792003956564819968"));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT256, buffer, 10));
+            CATCH_REQUIRE("-57896044618658097711785492504343953926634992332820282019728792003956564819968" == back);
+        }
+        {
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT512, "-6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042048"));
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT512, buffer, 10));
+            CATCH_REQUIRE("-6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042048" == back);
+        }
     }
     CATCH_END_SECTION()
 
@@ -2536,6 +2992,116 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
                   prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS8, buffer, 10)
                 , prinbee::out_of_range
                 , Catch::Matchers::ExceptionMessage("out_of_range: value too large (16 bits) for this field (max: 8 bits)."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_errors: version missing '.'")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_VERSION, "v3")
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage("prinbee_exception: version \"v3\" must include a period (.) between the major and minor numbers."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_errors: floats out of range")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT32, "3.40282346638528859811704183485E+39")
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: floating point number \"3.40282346638528859811704183485E+39\" out of range."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT64, "1.79769313486231570814527423732E+309")
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: floating point number \"1.79769313486231570814527423732E+309\" out of range."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT128, "5.5E+16389")
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: floating point number \"5.5E+16389\" out of range."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_errors: floats followed by spurious data")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT32, "3.14159k")
+                , prinbee::invalid_number
+                , Catch::Matchers::ExceptionMessage("prinbee_exception: floating point number \"3.14159k\" includes invalid characters."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT64, "3.14159k")
+                , prinbee::invalid_number
+                , Catch::Matchers::ExceptionMessage("prinbee_exception: floating point number \"3.14159k\" includes invalid characters."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT128, "3.14159k")
+                , prinbee::invalid_number
+                , Catch::Matchers::ExceptionMessage("prinbee_exception: floating point number \"3.14159k\" includes invalid characters."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_errors: not floats")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT32, "bad float")
+                , prinbee::invalid_number
+                , Catch::Matchers::ExceptionMessage("prinbee_exception: floating point number \"bad float\" includes invalid characters."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT64, "another bad float")
+                , prinbee::invalid_number
+                , Catch::Matchers::ExceptionMessage("prinbee_exception: floating point number \"another bad float\" includes invalid characters."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_FLOAT128, "still a bad float")
+                , prinbee::invalid_number
+                , Catch::Matchers::ExceptionMessage("prinbee_exception: floating point number \"still a bad float\" includes invalid characters."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_errors: float size mismatch")
+    {
+        for(std::size_t size(0); size < 20; ++size)
+        {
+            if(size != sizeof(float))
+            {
+                prinbee::buffer_t buffer(size);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_FLOAT32, buffer)
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage("out_of_range: value buffer has an unexpected size ("
+                                + std::to_string(size)
+                                + ") for this field (expected floating point size: "
+                                + std::to_string(sizeof(float))
+                                + ")."));
+            }
+            if(size != sizeof(double))
+            {
+                prinbee::buffer_t buffer(size);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_FLOAT64, buffer)
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage("out_of_range: value buffer has an unexpected size ("
+                                + std::to_string(size)
+                                + ") for this field (expected floating point size: "
+                                + std::to_string(sizeof(double))
+                                + ")."));
+            }
+            if(size != sizeof(long double))
+            {
+                prinbee::buffer_t buffer(size);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_FLOAT128, buffer)
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage("out_of_range: value buffer has an unexpected size ("
+                                + std::to_string(size)
+                                + ") for this field (expected floating point size: "
+                                + std::to_string(sizeof(long double))
+                                + ")."));
+            }
+        }
     }
     CATCH_END_SECTION()
 }

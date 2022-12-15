@@ -452,14 +452,81 @@ buffer_t string_to_integer(std::string const & value, size_t max_size)
     buffer_t result;
     int512_t const n(string_to_int(value, true, unit_t::UNIT_NONE));
 
-    if(max_size != 512 && n.bit_size() > max_size)
+    std::size_t const bit_size(n.bit_size());
+    if(max_size != 512 && bit_size > max_size - 1)
     {
-        throw out_of_range(
-                  "number \""
-                + value
-                + "\" too large for a signed "
-                + std::to_string(max_size)
-                + " bit value.");
+        bool is_zero(false);
+        if(bit_size == max_size)
+        {
+            // this is a special case where we may have 0x800..000
+            //
+            int512_t z(n);
+            switch(max_size)
+            {
+#if 0
+// this is not required since we do not enter the if block when max_size != 512
+// 512 bit overflows are detected when we call string_to_int()
+            case 512:
+                z.f_high_value ^= 1LL << 63;
+                is_zero = z.f_high_value == 0
+                       && z.f_value[0] == 0
+                       && z.f_value[1] == 0
+                       && z.f_value[2] == 0
+                       && z.f_value[3] == 0
+                       && z.f_value[4] == 0
+                       && z.f_value[5] == 0
+                       && z.f_value[6] == 0;
+                break;
+#endif
+
+            case 256:
+                z.f_value[3] ^= 1ULL << 63;
+                is_zero = z.f_value[0] == 0
+                       && z.f_value[1] == 0
+                       && z.f_value[2] == 0
+                       && z.f_value[3] == 0;
+                break;
+
+            case 128:
+                z.f_value[1] ^= 1ULL << 63;
+                is_zero = z.f_value[0] == 0
+                       && z.f_value[1] == 0;
+                break;
+
+            case 64:
+                z.f_value[0] ^= 1ULL << 63;
+                is_zero = z.f_value[0] == 0;
+                break;
+
+            case 32:
+                z.f_value[0] ^= ~((1ULL << 31) - 1);
+                is_zero = z.f_value[0] == 0;
+                break;
+
+            case 16:
+                z.f_value[0] ^= ~((1ULL << 15) - 1);
+                is_zero = z.f_value[0] == 0;
+                break;
+
+            case 8:
+                z.f_value[0] ^= ~((1ULL << 7) - 1);
+                is_zero = z.f_value[0] == 0;
+                break;
+
+            default:                                        // LCOV_EXCL_LINE
+                throw logic_error("unexpected bit size");   // LCOV_EXCL_LINE
+
+            }
+        }
+        if(!is_zero)
+        {
+            throw out_of_range(
+                      "number \""
+                    + value
+                    + "\" too large for a signed "
+                    + std::to_string(max_size)
+                    + " bit value.");
+        }
     }
 
     result.insert(result.end()
@@ -476,27 +543,38 @@ std::string integer_to_string(buffer_t const & value, int bytes_for_size, int ba
     //
     if(static_cast<int8_t>(value.data()[value.size() - 1]) < 0)
     {
+        std::size_t const size(value_byte_size(value, true));
+        if(size > static_cast<size_t>(bytes_for_size))
+        {
+            throw out_of_range(
+                      "value too large ("
+                    + std::to_string(value.size() * 8)
+                    + " bits) for this field (max: "
+                    + std::to_string(bytes_for_size * 8)
+                    + " bits).");
+        }
+
         // TODO: this is a tad bit ugly... (i.e. triple memcpy()!!!)
         //
         int512_t v;
-        std::memcpy(v.f_value, value.data(), value.size());
-        if(value.size() < sizeof(v.f_value))
+        std::memcpy(v.f_value, value.data(), size);
+        if(size < sizeof(v.f_value))
         {
             std::memset(
-                      reinterpret_cast<std::uint8_t *>(v.f_value) + value.size()
+                      reinterpret_cast<std::uint8_t *>(v.f_value) + size
                     , 255
-                    , sizeof(v.f_value) - value.size());
+                    , sizeof(v.f_value) - size);
             v.f_high_value = -1;
         }
         else
         {
-            std::size_t const clear(value.size() - sizeof(v.f_value));
+            std::size_t const clear(size - sizeof(v.f_value));
             if(clear < sizeof(v.f_high_value))
             {
                 std::memset(
-                          reinterpret_cast<std::uint8_t *>(&v.f_high_value) + value.size()
+                          reinterpret_cast<std::uint8_t *>(&v.f_high_value) + clear
                         , 255
-                        , sizeof(v.f_high_value) - value.size());
+                        , sizeof(v.f_high_value) - clear);
             }
         }
         v = -v;
@@ -538,7 +616,7 @@ buffer_t string_to_float(std::string const & value, std::function<T(char const *
         throw invalid_number(
                   "floating point number \""
                 + value
-                + "\" includes invalid numbers.");
+                + "\" includes invalid characters.");
     }
 
     result.insert(result.end()
@@ -559,8 +637,8 @@ std::string float_to_string(buffer_t const & value)
                   "value buffer has an unexpected size ("
                 + std::to_string(value.size())
                 + ") for this field (expected floating point size: "
-                  BOOST_PP_STRINGIZE(sizeof(T))
-                  ").");
+                + std::to_string(sizeof(T))
+                + ").");
     }
     std::ostringstream ss;
     ss << *reinterpret_cast<T const *>(value.data());
@@ -573,7 +651,7 @@ buffer_t string_to_version(std::string const & value)
     std::string::size_type const pos(value.find('.'));
     if(pos == std::string::npos)
     {
-        throw out_of_range(
+        throw invalid_parameter(
                   "version \""
                 + value
                 + "\" must include a period (.) between the major and minor numbers.");
@@ -591,7 +669,7 @@ buffer_t string_to_version(std::string const & value)
         ++skip;
     }
 
-    std::string const version_major(value.substr(skip, pos));
+    std::string const version_major(value.substr(skip, pos - skip));
     std::string const version_minor(value.substr(pos + 1));
 
     uint512_t const a(string_to_int(version_major, false, unit_t::UNIT_NONE));
@@ -634,38 +712,39 @@ std::string version_to_string(buffer_t const & value)
 }
 
 
-buffer_t cstring_to_buffer(std::string const & value)
-{
-    buffer_t result;
-    result.insert(result.end(), value.begin(), value.end());
+// At this time I don't think I'd want a c-string anywhere
+//buffer_t cstring_to_buffer(std::string const & value)
+//{
+//    buffer_t result;
+//    result.insert(result.end(), value.begin(), value.end());
+//
+//    // null terminated
+//    char zero(0);
+//    result.insert(result.end(), reinterpret_cast<uint8_t *>(&zero),  reinterpret_cast<uint8_t *>(&zero) + sizeof(zero));
+//
+//    return result;
+//}
+//
+//
+//std::string buffer_to_cstring(buffer_t const & value)
+//{
+//    if(value.empty())
+//    {
+//        throw out_of_range(
+//                  "a C-String cannot be saved in an empty buffer ('\\0' missing).");
+//    }
+//
+//    if(value[value.size() - 1] != '\0')
+//    {
+//        throw out_of_range(
+//                  "C-String last byte cannot be anything else than '\\0'.");
+//    }
+//
+//    return std::string(value.data(), value.data() + value.size() - 1);
+//}
 
-    // null terminated
-    char zero(0);
-    result.insert(result.end(), reinterpret_cast<uint8_t *>(&zero),  reinterpret_cast<uint8_t *>(&zero) + sizeof(zero));
 
-    return result;
-}
-
-
-std::string buffer_to_cstring(buffer_t const & value)
-{
-    if(value.empty())
-    {
-        throw out_of_range(
-                  "a C-String cannot be saved in an empty buffer ('\\0' missing).");
-    }
-
-    if(value[value.size() - 1] != '\0')
-    {
-        throw out_of_range(
-                  "C-String last byte cannot be anything else than '\\0'.");
-    }
-
-    return std::string(value.data(), value.data() + value.size() - 1);
-}
-
-
-buffer_t string_to_buffer(std::string const & value, size_t bytes_for_size)
+buffer_t string_to_buffer(std::string const & value, std::size_t bytes_for_size)
 {
 #ifdef _DEBUG
     switch(bytes_for_size)
@@ -675,16 +754,16 @@ buffer_t string_to_buffer(std::string const & value, size_t bytes_for_size)
     case 4:
         break;
 
-    default:
-        throw logic_error("string_to_buffer(): bytes_for_size must be one of 1, 2, or 4");
+    default:                                                                                    // LCOV_EXCL_LINE
+        throw logic_error("string_to_buffer(): bytes_for_size must be one of 1, 2, or 4");      // LCOV_EXCL_LINE
 
     }
 #endif
 
     buffer_t result;
-    uint32_t size(value.length());
+    std::uint32_t size(value.length());
 
-    uint64_t max_size(1ULL << bytes_for_size * 8);
+    std::uint64_t max_size(1ULL << bytes_for_size * 8);
 
     if(size >= max_size)
     {
@@ -698,7 +777,10 @@ buffer_t string_to_buffer(std::string const & value, size_t bytes_for_size)
 
     // WARNING: this copy works in Little Endian only
     //
-    result.insert(result.end(), reinterpret_cast<uint8_t *>(&size),  reinterpret_cast<uint8_t *>(&size) + bytes_for_size);
+    result.insert(
+              result.end()
+            , reinterpret_cast<uint8_t *>(&size)
+            , reinterpret_cast<uint8_t *>(&size) + bytes_for_size);
 
     result.insert(result.end(), value.begin(), value.end());
 
@@ -706,7 +788,7 @@ buffer_t string_to_buffer(std::string const & value, size_t bytes_for_size)
 }
 
 
-std::string buffer_to_string(buffer_t const & value, size_t bytes_for_size)
+std::string buffer_to_string(buffer_t const & value, std::size_t bytes_for_size)
 {
     if(value.size() < bytes_for_size)
     {
@@ -731,7 +813,9 @@ std::string buffer_to_string(buffer_t const & value, size_t bytes_for_size)
                 + ").");
     }
 
-    return std::string(value.data() + bytes_for_size, value.data() + bytes_for_size + size);
+    return std::string(
+                  value.data() + bytes_for_size
+                , value.data() + bytes_for_size + size);
 }
 
 
@@ -755,7 +839,7 @@ buffer_t string_to_unix_time(std::string const & value, std::uint32_t fraction_e
             format += "%z";
             date_time += value.substr(zone);
         }
-        std::string frac(value.substr(pos, zone - pos));
+        std::string frac(value.substr(pos + 1, zone - pos - 1));
         while(frac.length() > fraction_exp && frac[frac.length() - 1] == '0')
         {
             frac.resize(frac.length() - 1);
@@ -766,7 +850,11 @@ buffer_t string_to_unix_time(std::string const & value, std::uint32_t fraction_e
             throw out_of_range(
                       "time fraction is out of bounds in \""
                     + value
-                    + "\".");
+                    + "\" (expected "
+                    + std::to_string(fraction_exp)
+                    + " digits, found "
+                    + std::to_string(frac.length())
+                    + ").");
         }
         if(l > 0)
         {

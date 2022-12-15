@@ -515,7 +515,7 @@ void block_free_space_impl::release_space(reference_t offset)
                   "release_space() called with an invalid offset ("
                 + std::to_string(offset)
                 + "); it must be a multiple of "
-                + BOOST_PP_STRINGIZE(sizeof(reference_t))
+                + std::to_string(sizeof(reference_t))
                 + ".");
     }
 
