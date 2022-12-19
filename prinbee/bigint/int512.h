@@ -55,6 +55,7 @@ struct int512_t
                                     int512_t(int512_t const & rhs);
                                     int512_t(uint512_t const & rhs);
                                     int512_t(std::initializer_list<std::uint64_t> rhs);
+                                    int512_t(std::int64_t rhs);
 
     int512_t &                      operator = (int512_t const & rhs) = default;
 
@@ -70,7 +71,12 @@ struct int512_t
 
     int512_t                        operator - () const;
     int512_t &                      operator += (int512_t const & rhs);
+    int512_t &                      operator += (int64_t rhs);
     int512_t &                      operator -= (int512_t const & rhs);
+    int512_t &                      operator -= (int64_t rhs);
+
+    int512_t &                      operator ++ ();
+    int512_t &                      operator -- ();
 
     bool                            operator == (int512_t const & rhs) const;
     bool                            operator == (int64_t rhs) const;

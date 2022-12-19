@@ -31,6 +31,11 @@
 #include    <prinbee/exception.h>
 
 
+// snapdev
+//
+#include    <snapdev/hexadecimal_string.h>
+
+
 
 namespace
 {
@@ -45,21 +50,236 @@ namespace
 
 CATCH_TEST_CASE("bigint", "[bigint] [valid]")
 {
-    CATCH_START_SECTION("bigint zero()")
+    CATCH_START_SECTION("bigint: zero()")
     {
         for(int count(0); count < 10; ++count)
         {
             prinbee::uint512_t a;
+            prinbee::int512_t b;
             for(int n(0); n < 10; ++n)
             {
                 SNAP_CATCH2_NAMESPACE::rand512(a);
                 CATCH_REQUIRE(a.zero().is_zero());
+
+                SNAP_CATCH2_NAMESPACE::rand512(b);
+                CATCH_REQUIRE(b.zero().is_zero());
             }
         }
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint bit_size & lsr")
+    CATCH_START_SECTION("bigint: comparison operators")
+    {
+        prinbee::int512_t a;
+
+        CATCH_REQUIRE(a == 0);
+        CATCH_REQUIRE_FALSE(a != 0);
+        //CATCH_REQUIRE(a <= 0);    -- TODO: implement
+        CATCH_REQUIRE_FALSE(a < 0);
+        //CATCH_REQUIRE(a >= 0);
+        //CATCH_REQUIRE_FALSE(a > 0);
+
+        CATCH_REQUIRE_FALSE(a == 1);
+        CATCH_REQUIRE(a != 1);
+        //CATCH_REQUIRE(a <= 1);
+        CATCH_REQUIRE(a < 1);
+        //CATCH_REQUIRE_FALSE(a >= 1);
+        //CATCH_REQUIRE_FALSE(a > 1);
+
+        CATCH_REQUIRE_FALSE(a == -1);
+        CATCH_REQUIRE(a != -1);
+        //CATCH_REQUIRE_FALSE(a <= -1);
+        CATCH_REQUIRE_FALSE(a < -1);
+        //CATCH_REQUIRE(a >= -1);
+        //CATCH_REQUIRE(a > -1);
+
+        // set 'a' to -1
+        //
+        --a;
+
+        CATCH_REQUIRE_FALSE(a == 0);
+        CATCH_REQUIRE(a != 0);
+        //CATCH_REQUIRE(a <= 0);    -- TODO: implement
+        CATCH_REQUIRE(a < 0);
+        //CATCH_REQUIRE(a >= 0);
+        //CATCH_REQUIRE_FALSE(a > 0);
+
+        CATCH_REQUIRE_FALSE(a == 1);
+        CATCH_REQUIRE(a != 1);
+        //CATCH_REQUIRE(a <= 1);
+        CATCH_REQUIRE(a < 1);
+        //CATCH_REQUIRE_FALSE(a >= 1);
+        //CATCH_REQUIRE_FALSE(a > 1);
+
+        CATCH_REQUIRE(a == -1);
+        CATCH_REQUIRE_FALSE(a != -1);
+        //CATCH_REQUIRE_FALSE(a <= -1);
+        CATCH_REQUIRE_FALSE(a < -1);
+        //CATCH_REQUIRE(a >= -1);
+        //CATCH_REQUIRE(a > -1);
+
+        // set 'a' to -2
+        //
+        --a;
+
+        CATCH_REQUIRE_FALSE(a == 0);
+        CATCH_REQUIRE(a != 0);
+        //CATCH_REQUIRE(a <= 0);    -- TODO: implement
+        CATCH_REQUIRE(a < 0);
+        //CATCH_REQUIRE(a >= 0);
+        //CATCH_REQUIRE_FALSE(a > 0);
+
+        CATCH_REQUIRE_FALSE(a == 1);
+        CATCH_REQUIRE(a != 1);
+        //CATCH_REQUIRE(a <= 1);
+        CATCH_REQUIRE(a < 1);
+        //CATCH_REQUIRE_FALSE(a >= 1);
+        //CATCH_REQUIRE_FALSE(a > 1);
+
+        CATCH_REQUIRE_FALSE(a == -1);
+        CATCH_REQUIRE(a != -1);
+        //CATCH_REQUIRE_FALSE(a <= -1);
+        CATCH_REQUIRE(a < -1);
+        //CATCH_REQUIRE(a >= -1);
+        //CATCH_REQUIRE(a > -1);
+
+        // set 'a' to +1
+        //
+        a += 3;
+
+        CATCH_REQUIRE_FALSE(a == 0);
+        CATCH_REQUIRE(a != 0);
+        //CATCH_REQUIRE(a <= 0);    -- TODO: implement
+        CATCH_REQUIRE_FALSE(a < 0);
+        //CATCH_REQUIRE(a >= 0);
+        //CATCH_REQUIRE_FALSE(a > 0);
+
+        CATCH_REQUIRE(a == 1);
+        CATCH_REQUIRE_FALSE(a != 1);
+        //CATCH_REQUIRE(a <= 1);
+        CATCH_REQUIRE_FALSE(a < 1);
+        //CATCH_REQUIRE_FALSE(a >= 1);
+        //CATCH_REQUIRE_FALSE(a > 1);
+
+        CATCH_REQUIRE_FALSE(a == -1);
+        CATCH_REQUIRE(a != -1);
+        //CATCH_REQUIRE_FALSE(a <= -1);
+        CATCH_REQUIRE_FALSE(a < -1);
+        //CATCH_REQUIRE(a >= -1);
+        //CATCH_REQUIRE(a > -1);
+
+        // set 'a' to +2
+        //
+        ++a;
+
+        CATCH_REQUIRE_FALSE(a == 0);
+        CATCH_REQUIRE(a != 0);
+        //CATCH_REQUIRE(a <= 0);    -- TODO: implement
+        CATCH_REQUIRE_FALSE(a < 0);
+        //CATCH_REQUIRE(a >= 0);
+        //CATCH_REQUIRE_FALSE(a > 0);
+
+        CATCH_REQUIRE_FALSE(a == 1);
+        CATCH_REQUIRE(a != 1);
+        //CATCH_REQUIRE(a <= 1);
+        CATCH_REQUIRE_FALSE(a < 1);
+        //CATCH_REQUIRE_FALSE(a >= 1);
+        //CATCH_REQUIRE_FALSE(a > 1);
+
+        CATCH_REQUIRE_FALSE(a == -1);
+        CATCH_REQUIRE(a != -1);
+        //CATCH_REQUIRE_FALSE(a <= -1);
+        CATCH_REQUIRE_FALSE(a < -1);
+        //CATCH_REQUIRE(a >= -1);
+        //CATCH_REQUIRE(a > -1);
+
+        // generate a negative number which is far from -1
+        //
+        for(;;)
+        {
+            SNAP_CATCH2_NAMESPACE::rand512(a);
+            a.f_high_value |= 0x8000000000000000LL;
+
+            // make sure it's not "a small value" (fits in 64 bits)
+            if(a.f_value[1] != 0xFFFFFFFFFFFFFFFFULL
+            || a.f_value[2] != 0xFFFFFFFFFFFFFFFFULL
+            || a.f_value[3] != 0xFFFFFFFFFFFFFFFFULL
+            || a.f_value[4] != 0xFFFFFFFFFFFFFFFFULL
+            || a.f_value[5] != 0xFFFFFFFFFFFFFFFFULL
+            || a.f_value[6] != 0xFFFFFFFFFFFFFFFFULL
+            || a.f_value[7] != 0xFFFFFFFFFFFFFFFFULL
+            || a.f_high_value != -1LL)
+            {
+                break;
+            }
+        }
+
+        CATCH_REQUIRE_FALSE(a == 0);
+        CATCH_REQUIRE(a != 0);
+        //CATCH_REQUIRE(a <= 0);    -- TODO: implement
+        CATCH_REQUIRE(a < 0);
+        //CATCH_REQUIRE(a >= 0);
+        //CATCH_REQUIRE_FALSE(a > 0);
+
+        CATCH_REQUIRE_FALSE(a == 1);
+        CATCH_REQUIRE(a != 1);
+        //CATCH_REQUIRE(a <= 1);
+        CATCH_REQUIRE(a < 1);
+        //CATCH_REQUIRE_FALSE(a >= 1);
+        //CATCH_REQUIRE_FALSE(a > 1);
+
+        CATCH_REQUIRE_FALSE(a == -1);
+        CATCH_REQUIRE(a != -1);
+        //CATCH_REQUIRE_FALSE(a <= -1);
+        CATCH_REQUIRE(a < -1);
+        //CATCH_REQUIRE(a >= -1);
+        //CATCH_REQUIRE(a > -1);
+
+        // generate a positive number which is far from +1
+        //
+        for(;;)
+        {
+            SNAP_CATCH2_NAMESPACE::rand512(a);
+            a.f_high_value &= 0x7FFFFFFFFFFFFFFFLL;
+
+            // make sure it's not "a small value" (fits in 64 bits)
+            if(a.f_value[1] != 0ULL
+            || a.f_value[2] != 0ULL
+            || a.f_value[3] != 0ULL
+            || a.f_value[4] != 0ULL
+            || a.f_value[5] != 0ULL
+            || a.f_value[6] != 0ULL
+            || a.f_value[7] != 0ULL
+            || a.f_high_value != 0LL)
+            {
+                break;
+            }
+        }
+
+        CATCH_REQUIRE_FALSE(a == 0);
+        CATCH_REQUIRE(a != 0);
+        //CATCH_REQUIRE(a <= 0);    -- TODO: implement
+        CATCH_REQUIRE_FALSE(a < 0);
+        //CATCH_REQUIRE(a >= 0);
+        //CATCH_REQUIRE_FALSE(a > 0);
+
+        CATCH_REQUIRE_FALSE(a == 1);
+        CATCH_REQUIRE(a != 1);
+        //CATCH_REQUIRE(a <= 1);
+        CATCH_REQUIRE_FALSE(a < 1);
+        //CATCH_REQUIRE_FALSE(a >= 1);
+        //CATCH_REQUIRE_FALSE(a > 1);
+
+        CATCH_REQUIRE_FALSE(a == -1);
+        CATCH_REQUIRE(a != -1);
+        //CATCH_REQUIRE_FALSE(a <= -1);
+        CATCH_REQUIRE_FALSE(a < -1);
+        //CATCH_REQUIRE(a >= -1);
+        //CATCH_REQUIRE(a > -1);
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("bigint: bit_size & lsr")
     {
         for(int count(0); count < 10; ++count)
         {
@@ -68,6 +288,8 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
             for(int n(0); n < 10; ++n)
             {
                 SNAP_CATCH2_NAMESPACE::rand512(a);
+                CATCH_REQUIRE(a.is_positive());
+                CATCH_REQUIRE_FALSE(a.is_negative());
                 for(std::size_t i(0); i < 8; ++i)
                 {
                     b.f_value[i] = 0;
@@ -209,7 +431,7 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint large shifts")
+    CATCH_START_SECTION("bigint: large shifts")
     {
         prinbee::uint512_t a;
         prinbee::uint512_t b;
@@ -227,7 +449,7 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint copying")
+    CATCH_START_SECTION("bigint: copying")
     {
         for(int count(0); count < 10; ++count)
         {
@@ -339,6 +561,13 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
                 CATCH_REQUIRE(b.f_value[6] == b2.f_value[6]);
                 CATCH_REQUIRE(b.f_high_value == b2.f_high_value);
 
+                CATCH_REQUIRE(b == b2);
+                CATCH_REQUIRE_FALSE(b != b2);
+                CATCH_REQUIRE(b <= b2);
+                CATCH_REQUIRE_FALSE(b < b2);
+                CATCH_REQUIRE(b >= b2);
+                CATCH_REQUIRE_FALSE(b > b2);
+
                 prinbee::uint512_t b3({
                         b.f_value[0],
                         b.f_value[1],
@@ -422,7 +651,7 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint additions")
+    CATCH_START_SECTION("bigint: additions")
     {
         for(int count(0); count < 10; ++count)
         {
@@ -556,7 +785,7 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint substractions")
+    CATCH_START_SECTION("bigint: substractions")
     {
         for(int count(0); count < 10; ++count)
         {
@@ -710,7 +939,7 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint not/neg")
+    CATCH_START_SECTION("bigint: not/neg")
     {
         for(int n(0); n < 10; ++n)
         {
@@ -754,7 +983,7 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint multiplication")
+    CATCH_START_SECTION("bigint: multiplication")
     {
         for(int count(0); count < 10; ++count)
         {
@@ -790,7 +1019,7 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint division")
+    CATCH_START_SECTION("bigint: division")
     {
         for(int count(0); count < 10; ++count)
         {
@@ -857,9 +1086,316 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
 }
 
 
+CATCH_TEST_CASE("bigint_string", "[bigint] [valid]")
+{
+    CATCH_START_SECTION("bigint: to_string()")
+    {
+        // first try some small numbers
+        //
+        for(int number(-10); number <= 10; ++number)
+        {
+            std::string const expected(std::to_string(number));
+            if(number >= 0)
+            {
+                prinbee::uint512_t const a(number);
+                std::string const as(prinbee::to_string(a));
+                CATCH_REQUIRE(expected == as);
+
+                {
+                    std::stringstream ss;
+                    ss << a;
+                    CATCH_REQUIRE(expected == ss.str());
+                }
+
+                {
+                    std::stringstream ss;
+                    ss << std::showpos << a;
+                    CATCH_REQUIRE('+' + expected == ss.str());
+                }
+
+                {
+                    std::stringstream ss, e;
+                    ss << std::hex << a;
+                    e << std::hex << number;
+                    CATCH_REQUIRE(e.str() == ss.str());
+                }
+
+                {
+                    std::stringstream ss, e;
+                    ss << std::uppercase << std::hex << a;
+                    e << std::uppercase << std::hex << number;
+                    CATCH_REQUIRE(e.str() == ss.str());
+                }
+
+                {
+                    std::stringstream ss, e;
+                    ss << std::showbase << std::hex << a;
+                    e << std::showbase << std::hex << number;
+                    CATCH_REQUIRE(e.str() == ss.str());
+                }
+
+                {
+                    std::stringstream ss, e;
+                    ss << std::oct << a;
+                    e << std::oct << number;
+                    CATCH_REQUIRE(e.str() == ss.str());
+                }
+
+                {
+                    std::stringstream ss, e;
+                    ss << std::showbase << std::oct << a;
+                    e << std::showbase << std::oct << number;
+                    CATCH_REQUIRE(e.str() == ss.str());
+                }
+            }
+
+            {
+                prinbee::int512_t const b(number);
+                std::string const bs(prinbee::to_string(b));
+                CATCH_REQUIRE(expected == bs);
+
+                std::stringstream ss;
+                ss << b;
+                CATCH_REQUIRE(expected == ss.str());
+            }
+        }
+
+        // now try with random numbers
+        //
+        for(int count(0); count < 100; ++count)
+        {
+            prinbee::uint512_t a;
+            prinbee::int512_t b;
+
+            do
+            {
+                SNAP_CATCH2_NAMESPACE::rand512(a);
+            }
+            while(a.is_zero());
+
+            do
+            {
+                SNAP_CATCH2_NAMESPACE::rand512(b);
+            }
+            while(b.is_zero());
+
+            std::string const as(prinbee::to_string(a));
+            std::string const bs(prinbee::to_string(b));
+
+            // use bc to convert hex to decimal to verify that our code
+            // works as expected
+            //
+            {
+                std::string cmd("echo \"ibase=16;");
+
+                // bin_to_hex expects a string in big endian
+                //
+                std::string bin;
+                for(int idx(0); idx < 8; ++idx)
+                {
+                    for(int j(0); j < 8; ++j)
+                    {
+                        bin.append(1, a.f_value[7 - idx] >> ((7 - j) * 8));
+                    }
+                }
+                std::string hex(snapdev::bin_to_hex(bin, true));
+                while(hex.length() > 0 && hex[0] == '0')
+                {
+                    hex = hex.substr(1);
+                }
+
+                cmd += hex;
+                cmd += "\"|BC_LINE_LENGTH=0 bc";
+                FILE * p(popen(cmd.c_str(), "r"));
+                CATCH_REQUIRE(p != nullptr);
+                char buf[256] = {};
+                std::size_t sz(fread(buf, 1, sizeof(buf), p));
+                CATCH_REQUIRE(sz >= 1);
+                CATCH_REQUIRE(sz < sizeof(buf));
+                if(buf[sz - 1] == '\n')
+                {
+                    --sz;
+                }
+                buf[sz] = '\0';
+                std::string const expected(buf);
+                CATCH_REQUIRE(pclose(p) == 0);
+                CATCH_REQUIRE(expected == as);
+
+                {
+                    std::stringstream ss;
+                    ss << a;
+                    CATCH_REQUIRE(expected == ss.str());
+                }
+                {
+                    std::stringstream ss;
+                    ss << std::showpos << a;
+                    CATCH_REQUIRE('+' + expected == ss.str());
+                }
+                {
+                    std::stringstream ss;
+                    ss << std::uppercase << std::hex << a;
+                    CATCH_REQUIRE(hex == ss.str());
+
+                    std::stringstream sb;
+                    sb << std::uppercase << std::hex << std::showbase << a;
+                    CATCH_REQUIRE("0X" + hex == sb.str());
+                }
+                {
+                    std::string lower(hex);
+                    for(auto & c : lower)
+                    {
+                        if(c >= 'A' && c <= 'F')
+                        {
+                            c |= 0x20;
+                        }
+                    }
+                    std::stringstream ss;
+                    ss << std::showbase << std::hex << a;
+                    CATCH_REQUIRE("0x" + lower == ss.str());
+                }
+                {
+                    std::string oct;
+                    bool found(false);
+                    int bit(513);
+                    while(bit > 0)
+                    {
+                        bit -= 3;
+                        prinbee::uint512_t n(a);
+                        n >>= bit;
+                        if(found || n != 0)
+                        {
+                            found = true;
+                            oct += (n.f_value[0] & 7) + '0';
+                        }
+                    }
+
+                    std::stringstream ss;
+                    ss << std::oct << a;
+                    CATCH_REQUIRE(oct == ss.str());
+
+                    std::stringstream sb;
+                    sb << std::showbase << std::oct << a;
+                    CATCH_REQUIRE("0" + oct == sb.str());
+                }
+            }
+            {
+                std::string cmd("echo \"ibase=16;");
+
+                // bin_to_hex expects a string in big endian
+                //
+                prinbee::int512_t c(b);
+                if(c < 0)
+                {
+                    c = -c;
+                }
+                std::string bin;
+                for(int idx(0); idx < 8; ++idx)
+                {
+                    for(int j(0); j < 8; ++j)
+                    {
+                        // WARNING: this works because f_high_value is
+                        //          right after the f_value[] array
+                        //
+                        bin.append(1, c.f_value[7 - idx] >> ((7 - j) * 8));
+                    }
+                }
+                std::string hex(snapdev::bin_to_hex(bin, true));
+                while(hex.length() > 0 && hex[0] == '0')
+                {
+                    hex = hex.substr(1);
+                }
+
+                cmd += hex;
+                cmd += "\"|BC_LINE_LENGTH=0 bc";
+                FILE * p(popen(cmd.c_str(), "r"));
+                CATCH_REQUIRE(p != nullptr);
+                char buf[256] = {};
+                if(b < 0)
+                {
+                    buf[0] = '-';
+                }
+                std::size_t sz(fread(buf + (b < 0 ? 1 : 0), 1, sizeof(buf) - 1, p));
+                CATCH_REQUIRE(sz >= 1);
+                CATCH_REQUIRE(sz < sizeof(buf) - 1);
+                if(buf[sz - 1] == '\n')
+                {
+                    --sz;
+                }
+                buf[sz] = '\0';
+                std::string const expected(buf);
+                CATCH_REQUIRE(pclose(p) == 0);
+                CATCH_REQUIRE(expected == bs);
+
+                {
+                    std::stringstream ss;
+                    if(b < 0)
+                    {
+                        ss << '-';
+                    }
+                    ss << c;
+                    CATCH_REQUIRE(expected == ss.str());
+                }
+                {
+                    std::stringstream ss;
+                    ss << std::showpos << b;
+                    CATCH_REQUIRE((b >= 0 ? "+" : "") + expected == ss.str());
+                }
+                {
+                    std::stringstream ss;
+                    ss << std::uppercase << std::hex << b;
+                    CATCH_REQUIRE((b < 0 ? "-" : "") + hex == ss.str());
+
+                    std::stringstream sb;
+                    sb << std::uppercase << std::hex << std::showbase << b;
+                    CATCH_REQUIRE((b < 0 ? "-0X" : "0X") + hex == sb.str());
+                }
+                {
+                    std::string lower(hex);
+                    for(auto & h : lower)
+                    {
+                        if(h >= 'A' && h <= 'F')
+                        {
+                            h |= 0x20;
+                        }
+                    }
+                    std::stringstream ss;
+                    ss << std::showbase << std::hex << b;
+                    CATCH_REQUIRE((b < 0 ? "-0x" : "0x") + lower == ss.str());
+                }
+                {
+                    std::string oct;
+                    bool found(false);
+                    int bit(513);
+                    while(bit > 0)
+                    {
+                        bit -= 3;
+                        prinbee::uint512_t n(c);
+                        n = (n >> bit) & 7;
+                        if(found || n != 0)
+                        {
+                            found = true;
+                            oct += n.f_value[0] + '0';
+                        }
+                    }
+
+                    std::stringstream ss;
+                    ss << std::oct << b;
+                    CATCH_REQUIRE((b < 0 ? "-" : "") + oct == ss.str());
+
+                    std::stringstream sb;
+                    sb << std::showbase << std::oct << b;
+                    CATCH_REQUIRE((b < 0 ? "-0" : "0") + oct == sb.str());
+                }
+            }
+        }
+    }
+    CATCH_END_SECTION()
+}
+
+
 CATCH_TEST_CASE("rounding", "[round] [valid]")
 {
-    CATCH_START_SECTION("round down")
+    CATCH_START_SECTION("rounding: round down")
     {
         std::uint64_t const multiple(rand() % 512 + 512);
         std::uint64_t const max(multiple * 5 + multiple / 2);
@@ -875,7 +1411,7 @@ CATCH_TEST_CASE("rounding", "[round] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("round up")
+    CATCH_START_SECTION("rounding: round up")
     {
         std::uint64_t const multiple(rand() % 512 + 512);
         std::uint64_t const max(multiple * 5 + multiple / 2);
@@ -891,7 +1427,7 @@ CATCH_TEST_CASE("rounding", "[round] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("divide round up")
+    CATCH_START_SECTION("rounding: divide round up")
     {
         std::uint64_t const multiple(rand() % 512 + 512);
         std::uint64_t const max(multiple * 5 + multiple / 2);
@@ -911,7 +1447,7 @@ CATCH_TEST_CASE("rounding", "[round] [valid]")
 
 CATCH_TEST_CASE("bigint_invalid", "[bigint] [invalid]")
 {
-    CATCH_START_SECTION("bigint input too large")
+    CATCH_START_SECTION("bigint: input too large")
     {
         CATCH_REQUIRE_THROWS_MATCHES(
                   prinbee::int512_t({1, 2, 3, 4, 5, 6, 7, 8, 9})
@@ -925,7 +1461,7 @@ CATCH_TEST_CASE("bigint_invalid", "[bigint] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint negative shift")
+    CATCH_START_SECTION("bigint: negative shift")
     {
         prinbee::uint512_t a({1, 2, 3, 4, 5, 6, 7, 8});
         for(int i(-10); i < 0; ++i)
@@ -949,7 +1485,7 @@ CATCH_TEST_CASE("bigint_invalid", "[bigint] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint divide by zero")
+    CATCH_START_SECTION("bigint: divide by zero")
     {
         prinbee::uint512_t a({1, 2, 3, 4, 5, 6, 7, 8});
         prinbee::uint512_t b;

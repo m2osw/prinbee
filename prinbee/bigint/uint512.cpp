@@ -477,6 +477,14 @@ uint512_t & uint512_t::operator <<= (int shift)
 }
 
 
+uint512_t uint512_t::operator << (int shift) const
+{
+    uint512_t n(*this);
+    n.lsl(shift);
+    return n;
+}
+
+
 uint512_t & uint512_t::operator >>= (int shift)
 {
     lsr(shift);
@@ -484,10 +492,26 @@ uint512_t & uint512_t::operator >>= (int shift)
 }
 
 
+uint512_t uint512_t::operator >> (int shift) const
+{
+    uint512_t n(*this);
+    n.lsr(shift);
+    return n;
+}
+
+
 uint512_t uint512_t::operator & (uint512_t const & rhs) const
 {
     uint512_t r(*this);
     return r &= rhs;
+}
+
+
+uint512_t uint512_t::operator & (std::uint64_t rhs) const
+{
+    uint512_t n;
+    n.f_value[0] = f_value[0] & rhs;
+    return n;
 }
 
 
@@ -508,6 +532,14 @@ uint512_t uint512_t::operator | (uint512_t const & rhs) const
 }
 
 
+uint512_t uint512_t::operator | (std::uint64_t rhs) const
+{
+    uint512_t n(*this);
+    n.f_value[0] |= rhs;
+    return n;
+}
+
+
 uint512_t & uint512_t::operator |= (uint512_t const & rhs)
 {
     for(int i(0); i < 8; ++i)
@@ -522,6 +554,14 @@ uint512_t uint512_t::operator ^ (uint512_t const & rhs) const
 {
     uint512_t r(*this);
     return r ^= rhs;
+}
+
+
+uint512_t uint512_t::operator ^ (std::uint64_t rhs) const
+{
+    uint512_t n(*this);
+    n.f_value[0] ^= rhs;
+    return n;
 }
 
 
@@ -635,7 +675,11 @@ std::string uint512_t::to_string(int base, bool introducer, bool uppercase) cons
             {
                 ss << std::showbase;
             }
-            ss << std::uppercase << std::setbase(base) << f_value[0];
+            if(uppercase)
+            {
+                ss << std::uppercase;
+            }
+            ss << std::setbase(base) << f_value[0];
             return ss.str();
         }
     }

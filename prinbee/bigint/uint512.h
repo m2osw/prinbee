@@ -77,12 +77,17 @@ struct uint512_t
     uint512_t &                     operator /= (uint512_t const & rhs);
     uint512_t &                     operator %= (uint512_t const & rhs);
     uint512_t &                     operator <<= (int shift);
+    uint512_t                       operator << (int shift) const;
     uint512_t &                     operator >>= (int shift);
+    uint512_t                       operator >> (int shift) const;
     uint512_t                       operator & (uint512_t const & rhs) const;
+    uint512_t                       operator & (std::uint64_t rhs) const;
     uint512_t &                     operator &= (uint512_t const & rhs);
     uint512_t                       operator | (uint512_t const & rhs) const;
+    uint512_t                       operator | (std::uint64_t rhs) const;
     uint512_t &                     operator |= (uint512_t const & rhs);
     uint512_t                       operator ^ (uint512_t const & rhs) const;
+    uint512_t                       operator ^ (std::uint64_t rhs) const;
     uint512_t &                     operator ^= (uint512_t const & rhs);
 
     bool                            operator == (uint512_t const & rhs) const;

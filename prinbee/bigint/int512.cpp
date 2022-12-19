@@ -105,6 +105,23 @@ int512_t::int512_t(std::initializer_list<std::uint64_t> rhs)
 }
 
 
+int512_t::int512_t(std::int64_t rhs)
+{
+    f_value[0] = static_cast<std::uint64_t>(rhs);
+
+    // sign extend rhs to the other entries
+    //
+    f_value[1] =
+    f_value[2] =
+    f_value[3] =
+    f_value[4] =
+    f_value[5] =
+    f_value[6] =
+    f_value[7] =
+    f_high_value = rhs < 0 ? 0xFFFFFFFFFFFFFFFFULL : 0ULL;
+}
+
+
 int512_t & int512_t::zero()
 {
     f_value[0] = 0;
@@ -201,10 +218,36 @@ int512_t & int512_t::operator += (int512_t const & rhs)
 }
 
 
+int512_t & int512_t::operator += (std::int64_t rhs)
+{
+    int512_t const b(rhs);
+    return *this += b;
+}
+
+
 int512_t & int512_t::operator -= (int512_t const & rhs)
 {
     sub512(f_value, rhs.f_value);       // the sub includes the high value
     return *this;
+}
+
+
+int512_t & int512_t::operator -= (std::int64_t rhs)
+{
+    int512_t const b(rhs);
+    return *this -= b;
+}
+
+
+int512_t & int512_t::operator ++ ()
+{
+    return *this += 1;
+}
+
+
+int512_t & int512_t::operator -- ()
+{
+    return *this -= 1;
 }
 
 

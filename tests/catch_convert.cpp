@@ -29,6 +29,7 @@
 
 // snapdev
 //
+#include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/math.h>
 #include    <snapdev/ostream_int128.h>
 
@@ -2823,9 +2824,87 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
     }
     CATCH_END_SECTION()
 
-// struct_type_t::STRUCT_TYPE_P8STRING:
-// struct_type_t::STRUCT_TYPE_P16STRING:
-// struct_type_t::STRUCT_TYPE_P32STRING:
+    CATCH_START_SECTION("convert_buffer: string -> buffer8")
+    {
+        for(int j(0); j < 256; ++j)
+        {
+            prinbee::buffer_t buffer(j + 1);
+            std::string str;
+            buffer[0] = j;
+            for(int i(1); i <= j; ++i)
+            {
+                buffer[i] = rand();
+                str += snapdev::to_hex(buffer[i] >> 4);
+                str += snapdev::to_hex(buffer[i] & 15);
+            }
+
+            prinbee::buffer_t const pbuffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BUFFER8, str));
+            CATCH_REQUIRE(buffer == pbuffer);
+
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER8, pbuffer, rand()));
+            CATCH_REQUIRE(str == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> buffer16")
+    {
+        for(int j(0); j < 100; ++j)
+        {
+            std::size_t const size(
+                    j == 0
+                        ? 0
+                        : j == 1
+                            ? 65535
+                            : rand() & 0xFFFF);
+
+            prinbee::buffer_t buffer(size + 2);
+            std::string str;
+            buffer[0] = size;          // Little Endian specific
+            buffer[1] = size >> 8;
+            for(std::size_t i(2); i < size + 2; ++i)
+            {
+                buffer[i] = rand();
+                str += snapdev::to_hex(buffer[i] >> 4);
+                str += snapdev::to_hex(buffer[i] & 15);
+            }
+
+            prinbee::buffer_t const pbuffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BUFFER16, str));
+            CATCH_REQUIRE(buffer == pbuffer);
+
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER16, pbuffer, rand()));
+            CATCH_REQUIRE(str == back);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: string -> buffer32")
+    {
+        for(int j(0); j < 10; ++j)
+        {
+            std::size_t const size(j == 0 ? 0 : SNAP_CATCH2_NAMESPACE::rand32() % 100'000);
+
+            prinbee::buffer_t buffer(size + 4);
+            std::string str;
+            buffer[0] = size;          // Little Endian specific
+            buffer[1] = size >> 8;
+            buffer[2] = size >> 16;
+            buffer[3] = size >> 24;
+            for(std::size_t i(4); i < size + 4; ++i)
+            {
+                buffer[i] = rand();
+                str += snapdev::to_hex(buffer[i] >> 4);
+                str += snapdev::to_hex(buffer[i] & 15);
+            }
+
+            prinbee::buffer_t const pbuffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BUFFER32, str));
+            CATCH_REQUIRE(buffer == pbuffer);
+
+            std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER32, pbuffer, rand()));
+            CATCH_REQUIRE(str == back);
+        }
+    }
+    CATCH_END_SECTION()
 }
 
 
@@ -2929,6 +3008,15 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
                 , Catch::Matchers::ExceptionMessage("out_of_range: number \"-129\" too large for a signed 8 bit value."));
 
         {
+            prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT16, "-129"));
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT8, buffer, 10)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: value too large (16 bits) for this field (max: 8 bits)."));
+        }
+
+        // simple negative
+        {
             prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_INT8, "-127"));
             std::string const back(prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_INT8, buffer, 10));
             CATCH_REQUIRE("-127" == back);
@@ -3001,6 +3089,38 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
                   prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_VERSION, "v3")
                 , prinbee::invalid_parameter
                 , Catch::Matchers::ExceptionMessage("prinbee_exception: version \"v3\" must include a period (.) between the major and minor numbers."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_errors: version out of range")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_VERSION, "v300000.45")
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: one or both of the major or minor numbers from version \"v300000.45\" are too large for a version number (max. is 65535)."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_VERSION, "v300.450009")
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: one or both of the major or minor numbers from version \"v300.450009\" are too large for a version number (max. is 65535)."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_errors: buffer does not match version")
+    {
+        prinbee::buffer_t buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_VERSION, "v3.5"));
+        buffer.push_back(1);
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_VERSION, buffer, 10)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: a buffer representing a version must be exactly 4 bytes, not 5."));
+
+        buffer = prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_VERSION, "v5.6");
+        buffer.pop_back();
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_VERSION, buffer, 10)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage("out_of_range: a buffer representing a version must be exactly 4 bytes, not 3."));
     }
     CATCH_END_SECTION()
 
@@ -3101,6 +3221,430 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
                                 + std::to_string(sizeof(long double))
                                 + ")."));
             }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: p8string too large")
+    {
+        for(int j(256); j < 300; ++j)
+        {
+            std::string const str(SNAP_CATCH2_NAMESPACE::rand_string(j));
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_P8STRING, str)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                      "out_of_range: string too long ("
+                    + std::to_string(j)
+                    + ") for this field (max: 255)."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: p16string too large")
+    {
+        for(int j(65536); j <= 65536 + 300; ++j)
+        {
+            std::string const str(SNAP_CATCH2_NAMESPACE::rand_string(j));
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_P16STRING, str)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                      "out_of_range: string too long ("
+                    + std::to_string(j)
+                    + ") for this field (max: 65535)."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: buffer8 too large")
+    {
+        for(int j(256); j < 300; ++j)
+        {
+            std::string str;
+            str.reserve(j * 2);
+            for(int i(0); i < j; ++i)
+            {
+                int const v(rand() & 0x0FF);
+                str += snapdev::to_hex(v >> 4);
+                str += snapdev::to_hex(v & 15);
+            }
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BUFFER8, str)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                      "out_of_range: number of bytes in value is too large ("
+                    + std::to_string(j)
+                    + ") for a buffer8."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: buffer16 too large")
+    {
+        for(int j(65536); j <= 65536 + 300; ++j)
+        {
+            std::string str;
+            str.reserve(j * 2);
+            for(int i(0); i < j; ++i)
+            {
+                int const v(rand() & 0xFF);
+                str += snapdev::to_hex(v >> 4);
+                str += snapdev::to_hex(v & 15);
+            }
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BUFFER16, str)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                      "out_of_range: number of bytes in value is too large ("
+                    + std::to_string(j)
+                    + ") for a buffer16."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: input too small for buffer size")
+    {
+        prinbee::buffer_t buffer;
+
+        // empty
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER8, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-Buffer size (0, expected at least: 1)."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER16, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-Buffer size (0, expected at least: 2)."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER32, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-Buffer size (0, expected at least: 4)."));
+
+        // size 1
+        buffer.push_back(1);
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER16, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-Buffer size (1, expected at least: 2)."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER32, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-Buffer size (1, expected at least: 4)."));
+
+        // size 2
+        buffer.push_back(1);
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER32, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-Buffer size (2, expected at least: 4)."));
+
+        // size 3
+        buffer.push_back(1);
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER32, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-Buffer size (3, expected at least: 4)."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: input too small for P-Buffer data")
+    {
+        prinbee::buffer_t buffer;
+
+        // buffer8
+        //
+        buffer.push_back(5);
+        buffer.push_back('1');
+        buffer.push_back('2');
+        buffer.push_back('3');
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER8, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer (size: 4 including 1 bytes for the size) too small for the requested number of bytes (6)."));
+
+        // buffer16
+        //
+        buffer.clear();
+        buffer.push_back(0);    // size 256 (little endian)
+        buffer.push_back(1);
+        buffer.push_back('1');
+        buffer.push_back('2');
+        buffer.push_back('3');
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER16, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer (size: 5 including 2 bytes for the size) too small for the requested number of bytes (258)."));
+
+        // buffer32
+        //
+        buffer.clear();
+        buffer.push_back(44);
+        buffer.push_back(0);
+        buffer.push_back(0);
+        buffer.push_back(0);
+        buffer.push_back('1');
+        buffer.push_back('2');
+        buffer.push_back('3');
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BUFFER32, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer (size: 7 including 4 bytes for the size) too small for the requested number of bytes (48)."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: buffer too small for P-String size")
+    {
+        prinbee::buffer_t buffer;
+
+        // empty
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P8STRING, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-String size (0, expected at least: 1)."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P16STRING, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-String size (0, expected at least: 2)."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P32STRING, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-String size (0, expected at least: 4)."));
+
+        // size 1
+        buffer.push_back(1);
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P16STRING, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-String size (1, expected at least: 2)."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P32STRING, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-String size (1, expected at least: 4)."));
+
+        // size 2
+        buffer.push_back(1);
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P32STRING, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-String size (2, expected at least: 4)."));
+
+        // size 3
+        buffer.push_back(1);
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P32STRING, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small to incorporate the P-String size (3, expected at least: 4)."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: buffer too small for P-String data")
+    {
+        prinbee::buffer_t buffer;
+
+        // P8 string
+        //
+        buffer.push_back(5);
+        buffer.push_back('1');
+        buffer.push_back('2');
+        buffer.push_back('3');
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P8STRING, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small for the P-String characters (size: 5, character bytes in buffer: 3)."));
+
+        // P16 string
+        //
+        buffer.clear();
+        buffer.push_back(0);    // size 256 (little endian)
+        buffer.push_back(1);
+        buffer.push_back('1');
+        buffer.push_back('2');
+        buffer.push_back('3');
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P16STRING, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small for the P-String characters (size: 256, character bytes in buffer: 3)."));
+
+        // P32 string
+        //
+        buffer.clear();
+        buffer.push_back(44);
+        buffer.push_back(0);
+        buffer.push_back(0);
+        buffer.push_back(0);
+        buffer.push_back('1');
+        buffer.push_back('2');
+        buffer.push_back('3');
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_P32STRING, buffer)
+            , prinbee::out_of_range
+            , Catch::Matchers::ExceptionMessage(
+                  "out_of_range: buffer too small for the P-String characters (size: 44, character bytes in buffer: 3)."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: time with too many decimal")
+    {
+        for(int i(4); i <= 10; ++i)
+        {
+            constexpr time_t const three_thousand_years(3'000LL * 365LL * 86'400LL);
+            time_t const d((SNAP_CATCH2_NAMESPACE::rand64() >> 1) % three_thousand_years);
+
+            // we only output back to UTC so use UTC here
+            //
+            std::string cmd("date -u +%Y-%m-%dT%T.");
+            for(int j(1); j < i; ++j)
+            {
+                cmd += std::to_string(rand() % 10);
+            }
+            cmd += std::to_string(rand() % 9 + 1);
+            cmd += "%z -d @";
+            cmd += std::to_string(d);
+            FILE * p(popen(cmd.c_str(), "r"));
+            CATCH_REQUIRE(p != nullptr);
+            char buf[256] = {};
+            std::size_t sz(fread(buf, 1, sizeof(buf), p));
+            CATCH_REQUIRE(sz >= 1);
+            CATCH_REQUIRE(sz < sizeof(buf));
+            if(buf[sz - 1] == '\n')
+            {
+                --sz;
+            }
+            buf[sz] = '\0';
+            CATCH_REQUIRE(pclose(p) == 0);
+
+            std::string mstime(buf);
+            std::string::size_type const pos(mstime.find('+'));
+            CATCH_REQUIRE(pos != std::string::npos);
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_MSTIME, buf)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                      "out_of_range: time fraction is out of bounds in \""
+                    + std::string(buf)
+                    + "\" (expected 3 digits, found "
+                    + std::to_string(i)
+                    + ")."));
+
+            if(i > 6)
+            {
+                CATCH_REQUIRE_THROWS_MATCHES(
+                      prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_USTIME, buf)
+                    , prinbee::out_of_range
+                    , Catch::Matchers::ExceptionMessage(
+                          "out_of_range: time fraction is out of bounds in \""
+                        + std::string(buf)
+                        + "\" (expected 6 digits, found "
+                        + std::to_string(i)
+                        + ")."));
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: wrong buffer size for time")
+    {
+        prinbee::buffer_t buffer;
+        for(int i(0); i < 10; ++i)
+        {
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_TIME, buffer)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                      "out_of_range: buffer size is invalid for a time value (size: "
+                    + std::to_string(buffer.size())
+                    + ", expected size: 8)."));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_MSTIME, buffer)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                      "out_of_range: buffer size is invalid for a time value (size: "
+                    + std::to_string(buffer.size())
+                    + ", expected size: 8)."));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_USTIME, buffer)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                      "out_of_range: buffer size is invalid for a time value (size: "
+                    + std::to_string(buffer.size())
+                    + ", expected size: 8)."));
+
+            buffer.push_back(rand());
+            if(buffer.size() == sizeof(std::uint64_t))
+            {
+                buffer.push_back(rand());
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("convert_buffer: unexpected structure type")
+    {
+        std::vector<prinbee::struct_type_t> unsupported_types{
+            prinbee::struct_type_t::STRUCT_TYPE_ARRAY8,
+            prinbee::struct_type_t::STRUCT_TYPE_ARRAY16,
+            prinbee::struct_type_t::STRUCT_TYPE_ARRAY32,
+            prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE,
+            prinbee::struct_type_t::STRUCT_TYPE_END,
+            prinbee::struct_type_t::STRUCT_TYPE_VOID,
+            prinbee::struct_type_t::STRUCT_TYPE_RENAMED,
+        };
+
+        for(auto const t : unsupported_types)
+        {
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::string_to_typed_buffer(t, "ignored")
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage(
+                      "logic_error: unexpected structure type ("
+                    + std::to_string(static_cast<int>(t))
+                    + ") to convert a string to a buffer"));
+
+            prinbee::buffer_t ignored;
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::typed_buffer_to_string(t, ignored)
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage(
+                      "logic_error: unexpected structure type ("
+                    + std::to_string(static_cast<int>(t))
+                    + ") to convert a string to a buffer"));
         }
     }
     CATCH_END_SECTION()

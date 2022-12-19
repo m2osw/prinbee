@@ -35,6 +35,7 @@
 
 // snapdev
 //
+#include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/math.h>
 #include    <snapdev/to_upper.h>
 #include    <snapdev/timestamp.h>
@@ -208,6 +209,17 @@ std::size_t value_byte_size(buffer_t const & value, bool is_signed)
         {
             if(value[size - 1] != expected)
             {
+                if(expected == 0xFF
+                && static_cast<std::int8_t>(value[size - 1]) >= 0)
+                {
+                    // that last byte is not negative so we need one 0xFF
+                    // to keep the correct number
+                    //
+                    if(size != value.size())
+                    {
+                        ++size;
+                    }
+                }
                 break;
             }
         }
@@ -763,7 +775,7 @@ buffer_t string_to_buffer(std::string const & value, std::size_t bytes_for_size)
     buffer_t result;
     std::uint32_t size(value.length());
 
-    std::uint64_t max_size(1ULL << bytes_for_size * 8);
+    std::uint64_t const max_size(1ULL << bytes_for_size * 8);
 
     if(size >= max_size)
     {
@@ -771,7 +783,7 @@ buffer_t string_to_buffer(std::string const & value, std::size_t bytes_for_size)
                   "string too long ("
                 + std::to_string(size)
                 + ") for this field (max: "
-                + std::to_string(max_size)
+                + std::to_string(max_size - 1)
                 + ").");
     }
 
@@ -895,7 +907,7 @@ buffer_t string_to_unix_time(std::string const & value, std::uint32_t fraction_e
 
 std::string unix_time_to_string(buffer_t const & value, int fraction)
 {
-    uint64_t time;
+    std::uint64_t time;
     if(value.size() != sizeof(time))
     {
         throw out_of_range(
@@ -920,15 +932,62 @@ std::string unix_time_to_string(buffer_t const & value, int fraction)
     {
         result += ".";
         std::string frac(std::to_string(time % fraction));
-        size_t sz(fraction == 1000 ? 3 : 6);
-        while(frac.size() < sz)
-        {
-            frac = '0' + frac;
-        }
+        std::size_t const sz(fraction == 1'000 ? 3 : 6);
+        result += std::string(sz - frac.size(), '0');
         result += frac;
     }
 
     return result + "+0000";
+}
+
+
+buffer_t string_to_pbuffer(std::string const & value, std::uint32_t bytes_for_size)
+{
+    std::string const bin(snapdev::hex_to_bin(value));
+    std::size_t const size(bin.size());
+    if(size >= (1ULL << bytes_for_size * 8))
+    {
+        throw out_of_range(
+                  "number of bytes in value is too large ("
+                + std::to_string(size)
+                + ") for a buffer"
+                + std::to_string(bytes_for_size * 8)
+                + ".");
+    }
+    buffer_t result(bytes_for_size + size);
+    memcpy(result.data(), &size, bytes_for_size);
+    memcpy(result.data() + bytes_for_size, bin.data(), size);
+    return result;
+}
+
+
+std::string pbuffer_to_string(buffer_t const & value, std::size_t bytes_for_size)
+{
+    if(value.size() < bytes_for_size)
+    {
+        throw out_of_range(
+                  "buffer too small to incorporate the P-Buffer size ("
+                + std::to_string(value.size())
+                + ", expected at least: "
+                + std::to_string(bytes_for_size)
+                + ").");
+    }
+
+    std::uint32_t size(0);
+    memcpy(&size, value.data(), bytes_for_size);
+    if(bytes_for_size + size > value.size())
+    {
+        throw out_of_range(
+                  "buffer (size: "
+                + std::to_string(value.size())
+                + " including "
+                + std::to_string(bytes_for_size)
+                + " bytes for the size) too small for the requested number of bytes ("
+                + std::to_string(bytes_for_size + size)
+                + ").");
+    }
+
+    return snapdev::bin_to_hex(std::string(value.begin() + bytes_for_size, value.begin() + bytes_for_size + size));
 }
 
 
@@ -1024,9 +1083,13 @@ buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
         return string_to_buffer(value, 4);
 
     case struct_type_t::STRUCT_TYPE_BUFFER8:
+        return string_to_pbuffer(value, 1);
+
     case struct_type_t::STRUCT_TYPE_BUFFER16:
+        return string_to_pbuffer(value, 2);
+
     case struct_type_t::STRUCT_TYPE_BUFFER32:
-        throw logic_error("conversion not yet implemented...");
+        return string_to_pbuffer(value, 4);
 
     default:
         //struct_type_t::STRUCT_TYPE_ARRAY8:
@@ -1116,10 +1179,10 @@ std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, i
         return unix_time_to_string(value, 1);
 
     case struct_type_t::STRUCT_TYPE_MSTIME:
-        return unix_time_to_string(value, 1000);
+        return unix_time_to_string(value, 1'000);
 
     case struct_type_t::STRUCT_TYPE_USTIME:
-        return unix_time_to_string(value, 1000000);
+        return unix_time_to_string(value, 1'000'000);
 
     case struct_type_t::STRUCT_TYPE_P8STRING:
         return buffer_to_string(value, 1);
@@ -1131,9 +1194,13 @@ std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, i
         return buffer_to_string(value, 4);
 
     case struct_type_t::STRUCT_TYPE_BUFFER8:
+        return pbuffer_to_string(value, 1);
+
     case struct_type_t::STRUCT_TYPE_BUFFER16:
+        return pbuffer_to_string(value, 2);
+
     case struct_type_t::STRUCT_TYPE_BUFFER32:
-        throw logic_error("conversion not yet implemented...");
+        return pbuffer_to_string(value, 4);
 
     default:
         //struct_type_t::STRUCT_TYPE_STRUCTURE:
