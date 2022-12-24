@@ -28,8 +28,9 @@
 //
 #include    "prinbee/data/structure.h"
 
-#include    "prinbee/data/convert.h"
 #include    "prinbee/arch_support.h"
+#include    "prinbee/data/convert.h"
+#include    "prinbee/utils.h"
 
 
 // advgetopt
@@ -40,6 +41,11 @@
 // snaplogger
 //
 #include    <snaplogger/message.h>
+
+
+// snapdev
+//
+#include    <snapdev/hexadecimal_string.h>
 
 
 // boost
@@ -93,6 +99,7 @@ name_to_struct_type_t g_name_to_struct_type[] =
     NAME_TO_STRUCT_TYPE(BUFFER32),
     NAME_TO_STRUCT_TYPE(BUFFER8),
     NAME_TO_STRUCT_TYPE(END),       // to end a list
+    NAME_TO_STRUCT_TYPE(FLOAT128),
     NAME_TO_STRUCT_TYPE(FLOAT32),
     NAME_TO_STRUCT_TYPE(FLOAT64),
     NAME_TO_STRUCT_TYPE(INT128),
@@ -139,49 +146,49 @@ struct field_sizes_t
 #pragma GCC diagnostic ignored "-Wpedantic"
 constexpr field_sizes_t const g_struct_type_sizes[] =
 {
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_END)]          = { INVALID_SIZE,           0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_VOID)]         = { 0,                      0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS8)]        = { sizeof(uint8_t),        0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS16)]       = { sizeof(uint16_t),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS32)]       = { sizeof(uint32_t),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS64)]       = { sizeof(uint64_t),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS128)]      = { sizeof(uint64_t) * 2,   0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS256)]      = { sizeof(uint64_t) * 4,   0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS512)]      = { sizeof(uint64_t) * 8,   0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT8)]         = { sizeof(int8_t),         0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT8)]        = { sizeof(uint8_t),        0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT16)]        = { sizeof(int16_t),        0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT16)]       = { sizeof(uint16_t),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT32)]        = { sizeof(int32_t),        0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT32)]       = { sizeof(uint32_t),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT64)]        = { sizeof(int64_t),        0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT64)]       = { sizeof(uint64_t),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT128)]       = { sizeof(int64_t) * 2,    0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT128)]      = { sizeof(uint64_t) * 2,   0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT256)]       = { sizeof(int64_t) * 4,    0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT256)]      = { sizeof(uint64_t) * 4,   0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT512)]       = { sizeof(int64_t) * 8,    0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT512)]      = { sizeof(uint64_t) * 8,   0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT32)]      = { sizeof(float),          0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT64)]      = { sizeof(double),         0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT128)]     = { sizeof(long double),    0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_VERSION)]      = { sizeof(uint32_t),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_TIME)]         = { sizeof(time_t),         0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_MSTIME)]       = { sizeof(int64_t),        0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_USTIME)]       = { sizeof(int64_t),        0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_P8STRING)]     = { VARIABLE_SIZE,          1 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_P16STRING)]    = { VARIABLE_SIZE,          2 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_P32STRING)]    = { VARIABLE_SIZE,          4 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_STRUCTURE)]    = { VARIABLE_SIZE,          0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY8)]       = { VARIABLE_SIZE,          1 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY16)]      = { VARIABLE_SIZE,          2 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY32)]      = { VARIABLE_SIZE,          4 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER8)]      = { VARIABLE_SIZE,          1 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER16)]     = { VARIABLE_SIZE,          2 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER32)]     = { VARIABLE_SIZE,          4 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_REFERENCE)]    = { sizeof(uint64_t),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_OID)]          = { sizeof(uint64_t),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_RENAMED)]      = { INVALID_SIZE,           0 }
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_END)]          = { INVALID_SIZE,              0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_VOID)]         = { 0,                         0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS8)]        = { sizeof(std::uint8_t),      0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS16)]       = { sizeof(std::uint16_t),     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS32)]       = { sizeof(std::uint32_t),     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS64)]       = { sizeof(std::uint64_t),     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS128)]      = { sizeof(std::uint64_t) * 2, 0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS256)]      = { sizeof(std::uint64_t) * 4, 0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS512)]      = { sizeof(std::uint64_t) * 8, 0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT8)]         = { sizeof(std::int8_t),       0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT8)]        = { sizeof(std::uint8_t),      0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT16)]        = { sizeof(std::int16_t),      0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT16)]       = { sizeof(std::uint16_t),     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT32)]        = { sizeof(std::int32_t),      0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT32)]       = { sizeof(std::uint32_t),     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT64)]        = { sizeof(std::int64_t),      0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT64)]       = { sizeof(std::uint64_t),     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT128)]       = { sizeof(std::int64_t) * 2,  0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT128)]      = { sizeof(std::uint64_t) * 2, 0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT256)]       = { sizeof(std::int64_t) * 4,  0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT256)]      = { sizeof(std::uint64_t) * 4, 0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT512)]       = { sizeof(std::int64_t) * 8,  0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT512)]      = { sizeof(std::uint64_t) * 8, 0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT32)]      = { sizeof(float),             0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT64)]      = { sizeof(double),            0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT128)]     = { sizeof(long double),       0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_VERSION)]      = { sizeof(std::uint32_t),     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_TIME)]         = { sizeof(time_t),            0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_MSTIME)]       = { sizeof(std::int64_t),      0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_USTIME)]       = { sizeof(std::int64_t),      0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_P8STRING)]     = { VARIABLE_SIZE,             1 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_P16STRING)]    = { VARIABLE_SIZE,             2 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_P32STRING)]    = { VARIABLE_SIZE,             4 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_STRUCTURE)]    = { VARIABLE_SIZE,             0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY8)]       = { VARIABLE_SIZE,             1 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY16)]      = { VARIABLE_SIZE,             2 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY32)]      = { VARIABLE_SIZE,             4 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER8)]      = { VARIABLE_SIZE,             1 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER16)]     = { VARIABLE_SIZE,             2 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER32)]     = { VARIABLE_SIZE,             4 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_REFERENCE)]    = { sizeof(std::uint64_t),     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_OID)]          = { sizeof(std::uint64_t),     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_RENAMED)]      = { INVALID_SIZE,              0 }
 };
 #pragma GCC diagnostic pop
 
@@ -248,6 +255,7 @@ struct_type_t name_to_struct_type(std::string const & type_name)
         if(strcmp(g_name_to_struct_type[idx - 1].f_name
                 , g_name_to_struct_type[idx].f_name) >= 0)
         {
+            // LCOV_EXCL_START
             throw logic_error(
                       "names in g_name_to_struct_type area not in alphabetical order: "
                     + std::string(g_name_to_struct_type[idx - 1].f_name)
@@ -256,6 +264,7 @@ struct_type_t name_to_struct_type(std::string const & type_name)
                     + " (position: "
                     + std::to_string(idx)
                     + ").");
+            // LCOV_EXCL_STOP
         }
     }
 #endif
@@ -347,35 +356,36 @@ bool type_with_fixed_size(struct_type_t type)
 
 
 
-flag_definition::flag_definition()
-{
-}
-
-
 flag_definition::flag_definition(
           std::string const & field_name
         , std::string const & flag_name
-        , size_t pos
-        , size_t size)
+        , std::size_t pos
+        , std::size_t size)
     : f_field_name(field_name)
     , f_flag_name(flag_name)
     , f_pos(pos)
     , f_size(size)
-    , f_mask(((1 << size) - 1) << pos)  // fails if size == 64...
+    , f_mask(((1ULL << size) - 1ULL) << pos)  // fails if size == 64...
 {
-    if(size == 0)
+    if(field_name.empty()
+    || flag_name.empty())
+    {
+        throw invalid_parameter("the flag definition must have a non-empty field name and flag name.");
+    }
+
+    if(size == 0ULL)
     {
         throw invalid_parameter(
-                  "Bit field named \""
+                  "bit field named \""
                 + field_name
                 + "."
                 + flag_name
                 + "\" can't have a size of 0.");
     }
-    if(size >= 64)
+    if(size >= 64ULL)
     {
         throw invalid_parameter(
-                  "Bit field named \""
+                  "bit field named \""
                 + field_name
                 + "."
                 + flag_name
@@ -383,10 +393,10 @@ flag_definition::flag_definition(
                 + std::to_string(size)
                 + " >= 64).");
     }
-    if(pos + size > 64)
+    if(pos >= 64ULL || pos + size > 64ULL)
     {
         throw invalid_parameter(
-                  "The mask of the bit field named \""
+                  "the mask of the bit field named \""
                 + field_name
                 + "."
                 + flag_name
@@ -434,9 +444,49 @@ flags_t flag_definition::mask() const
 
 
 
+
+/** \brief Create a field.
+ *
+ * This function initialize a field. The description doesn't get parsed
+ * right away, however, the name is checked for validity when in debug
+ * mode.
+ *
+ * A field name must match the following pattern:
+ *
+ * \code
+ *     [A-Za-z_][A-Za-z0-9_]*
+ * \endcode
+ *
+ * This will allow us to create languages where those field names can
+ * easily be used (as in a language such as C++).
+ *
+ * \param[in] description  The field description. This pointer data is not
+ * expected to ever change.
+ */
 field_t::field_t(struct_description_t const * description)
     : f_description(description)
 {
+#ifdef _DEBUG
+    // field names are defined statically so we don't really need to
+    // verify them in a runtime environment; but do that in debug mode
+    //
+    if(f_description->f_field_name == nullptr)
+    {
+        throw logic_error("a field must have a name, `nullptr` is not valid.");
+    }
+    if(*f_description->f_field_name == '\0')
+    {
+        throw logic_error("a field must have a name, an empty string (\"\") is not valid.");
+    }
+    std::string const name(f_description->f_field_name);
+    if(!validate_name(name))
+    {
+        throw logic_error(
+              "field name \""
+            + name
+            + "\" is not valid (unsupported characters).");
+    }
+#endif
 }
 
 
@@ -529,12 +579,28 @@ struct_type_t field_t::type() const
 }
 
 
+ssize_t field_t::field_size() const
+{
+    if(static_cast<std::size_t>(f_description->f_type) >= std::size(g_struct_type_sizes))
+    {
+        throw out_of_range(
+                  "type out of range for converting it to a field size ("
+                + to_string(f_description->f_type)
+                + ", max: "
+                + std::to_string(std::size(g_struct_type_sizes))
+                + ").");
+    }
+
+    return g_struct_type_sizes[static_cast<int>(f_description->f_type)].f_size;
+}
+
+
 ssize_t field_t::type_field_size() const
 {
     if(static_cast<size_t>(f_description->f_type) >= std::size(g_struct_type_sizes))
     {
         throw out_of_range(
-                  "type out of range for converting it to a field size ("
+                  "type out of range for converting it to a type field size ("
                 + to_string(f_description->f_type)
                 + ", max: "
                 + std::to_string(std::size(g_struct_type_sizes))
@@ -553,17 +619,25 @@ std::string field_t::field_name() const
 
 std::string field_t::new_name() const
 {
+    if(type() != struct_type_t::STRUCT_TYPE_RENAMED)
+    {
+        throw type_mismatch(
+                  "field \""
+                + field_name()
+                + "\" is not a RENAMED field, it has no new name.");
+    }
+
     if(f_description->f_sub_description == nullptr)
     {
         throw logic_error(
-                  "Field \""
+                  "field \""
                 + field_name()
                 + "\" is marked as having a new name (RENAMED) but it has no f_sub_description to define the new name.");
     }
     if(f_description->f_sub_description->f_field_name == nullptr)
     {
         throw logic_error(
-                  "Field \""
+                  "field \""
                 + field_name()
                 + "\" is marked as having a new name (RENAMED) but it has no entries in its f_sub_description defining the new name.");
     }
@@ -572,6 +646,19 @@ std::string field_t::new_name() const
 }
 
 
+/** \brief Return the size of this field in bytes.
+ *
+ * This function returns the size of this field as defined by the set_size()
+ * function.
+ *
+ * \warning
+ * The size of a field_t is set by the structure parser. If you create
+ * a field on your own, this is zero until you call set_size().
+ *
+ * \return The size of this field.
+ *
+ * \sa set_size()
+ */
 std::uint32_t field_t::size() const
 {
     return f_size;
@@ -584,31 +671,31 @@ void field_t::set_size(std::uint32_t size)
 }
 
 
-bool field_t::has_flags(std::uint32_t flags) const
+bool field_t::has_flags(field_flags_t flags) const
 {
     return (f_flags & flags) != 0;
 }
 
 
-std::uint32_t field_t::flags() const
+field_t::field_flags_t field_t::flags() const
 {
     return f_flags;
 }
 
 
-void field_t::set_flags(std::uint32_t flags)
+void field_t::set_flags(field_flags_t flags)
 {
     f_flags = flags;
 }
 
 
-void field_t::add_flags(std::uint32_t flags)
+void field_t::add_flags(field_flags_t flags)
 {
     f_flags |= flags;
 }
 
 
-void field_t::clear_flags(std::uint32_t flags)
+void field_t::clear_flags(field_flags_t flags)
 {
     f_flags &= ~flags;
 }
@@ -620,18 +707,18 @@ flag_definition::pointer_t field_t::find_flag_definition(std::string const & nam
     if(flag == f_flag_definitions.end())
     {
         throw field_not_found(
-                  "Flag named \""
+                  "flag named \""
                 + name
-                + "\", not found.");
+                + "\" not found.");
     }
 
     return flag->second;
 }
 
 
-void field_t::add_flag_definition(std::string const & name, flag_definition::pointer_t bits)
+void field_t::add_flag_definition(flag_definition::pointer_t bits)
 {
-    f_flag_definitions[name] = bits;
+    f_flag_definitions[bits->flag_name()] = bits;
 }
 
 
@@ -669,18 +756,25 @@ structure::pointer_t field_t::operator [] (int idx) const
 {
     if(static_cast<uint32_t>(idx) >= f_sub_structures.size())
     {
+        if(f_sub_structures.empty())
+        {
+            throw out_of_bounds(
+                  "index ("
+                + std::to_string(idx)
+                + ") is out of bounds since there are no sub-structures.");
+        }
         throw out_of_bounds(
               "index ("
             + std::to_string(idx)
             + ") is out of bounds (0.."
-            + std::to_string(f_size - 1)
+            + std::to_string(f_sub_structures.size() - 1)
             + ")");
     }
     return f_sub_structures[idx];
 }
 
 
-void field_t::set_sub_structures(structure_vector_t const & v)
+void field_t::set_sub_structures(structure::vector_t const & v)
 {
     f_sub_structures = v;
 }
@@ -752,9 +846,9 @@ virtual_buffer::pointer_t structure::get_virtual_buffer(reference_t & start_offs
  *
  * \return The size of the structure or 0 if the structure size is variable.
  */
-size_t structure::get_size() const
+std::size_t structure::get_size() const
 {
-    size_t result(0);
+    std::size_t result(0);
 
     parse();
 
@@ -781,7 +875,7 @@ size_t structure::get_size() const
 
         for(auto const & s : f.second->sub_structures())
         {
-            size_t const size(s->get_size());
+            std::size_t const size(s->get_size());
             if(size == 0)
             {
                 return 0;
@@ -794,9 +888,9 @@ size_t structure::get_size() const
 }
 
 
-size_t structure::get_current_size() const
+std::size_t structure::get_current_size() const
 {
-    size_t result(0);
+    std::size_t result(0);
 
     if(!f_fields_by_name.empty())
     {
@@ -876,17 +970,17 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
     if(f_buffer == nullptr)
     {
         throw field_not_found(
-                  "Trying to access a structure field when the f_buffer"
+                  "trying to access a structure field when the f_buffer"
                   " pointer is still null.");
     }
 
     if(field_name.empty())
     {
         throw logic_error(
-                  "Called get_field() with an empty field name.");
+                  "called get_field() with an empty field name.");
     }
 
-    // make sure we've parsed the descriptions
+    // make sure we parsed the descriptions
     //
     parse();
 
@@ -909,8 +1003,8 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
         if(f == nullptr)
         {
             throw field_not_found(
-                      "This description does not include field named \""
-                    + field_name
+                      "this description does not include field named \""
+                    + field_name.substr(0, e - field_name.c_str())
                     + "\".");
         }
         if(*e == '\0')
@@ -919,7 +1013,7 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
             && f->type() != type)
             {
                 throw type_mismatch(
-                          "This field type is \""
+                          "this field type is \""
                         + to_string(f->type())
                         + "\" but we expected \""
                         + to_string(type)
@@ -932,7 +1026,7 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
         if(f->description()->f_type != struct_type_t::STRUCT_TYPE_STRUCTURE)
         {
             throw type_mismatch(
-                      "Field \""
+                      "field \""
                     + sub_field_name
                     + "\" is not of type structure so you can't get a"
                       " sub-field (i.e. have a period in the name).");
@@ -941,7 +1035,7 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
         if(f->sub_structures().size() != 1)
         {
             throw invalid_size(
-                      "A structure requires a sub_structure vector of size 1 (got "
+                      "a structure requires a sub_structure vector of size 1 (got "
                     + std::to_string(f->sub_structures().size())
                     + " instead).");
         }
@@ -1908,7 +2002,14 @@ void structure::set_structure(std::string const & field_name, structure::pointer
                 + " instead).");
     }
 
-    f->sub_structures()[0] = value;
+    if(f->sub_structures().size())
+    {
+        f->sub_structures().push_back(value);
+    }
+    else
+    {
+        f->sub_structures()[0] = value;
+    }
 }
 
 
@@ -2425,9 +2526,9 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             has_sub_defs = true;
             break;
 
-        case struct_type_t::STRUCT_TYPE_END:
+        case struct_type_t::STRUCT_TYPE_END: // <- this one cannot happen here, it helps with the switch() warnings, though
         case struct_type_t::STRUCT_TYPE_RENAMED:
-            throw invalid_size("This field does not offer a size which can be queried.");
+            throw invalid_size("this field does not offer a size which can be queried.");
 
         }
 
@@ -2436,7 +2537,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
         && offset > f_buffer->size())
         {
             throw invalid_size(
-                      "Field \""
+                      "field \""
                     + field_name
                     + "\" is too large for the specified data buffer.");
         }
@@ -2446,7 +2547,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             if(!has_sub_defs)
             {
                 throw logic_error(
-                          "Field \""
+                          "field \""
                         + field_name
                         + "\" has its \"f_sub_description\" field set to a pointer when its type doesn't allow it.");
             }
@@ -2560,7 +2661,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
                         }
                     }
                     flag_definition::pointer_t bits(std::make_shared<flag_definition>(field_name, flag_name, bit_pos, size));
-                    f->add_flag_definition(flag_name, bits);
+                    f->add_flag_definition(bits);
 
                     bit_pos += size;
                 }

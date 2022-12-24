@@ -28,11 +28,8 @@
 //
 #include    "prinbee/data/dbfile.h"
 
-#include    "prinbee/block/block_free_block.h"
-#include    "prinbee/data/dbtype.h"
 #include    "prinbee/exception.h"
 #include    "prinbee/file/file_snap_database_table.h"
-#include    "prinbee/data/structure.h"
 #include    "prinbee/database/table.h"
 
 

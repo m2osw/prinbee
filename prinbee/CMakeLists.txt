@@ -76,6 +76,7 @@ add_library(${PROJECT_NAME} SHARED
     data/virtual_buffer.cpp
 
     error.cpp
+    utils.cpp
     version.cpp
 )
 
@@ -127,7 +128,6 @@ install(
         bigint/add_sub.h
         bigint/int512.h
         bigint/uint512.h
-        bigint/utils.h
 
     DESTINATION
         include/prinbee/bigint
@@ -199,6 +199,7 @@ install(
     FILES
         exception.h
         error.h
+        utils.h
         ${CMAKE_CURRENT_BINARY_DIR}/version.h
 
     DESTINATION

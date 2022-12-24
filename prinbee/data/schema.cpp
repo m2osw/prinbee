@@ -53,6 +53,7 @@
 
 #include    "prinbee/data/convert.h"
 #include    "prinbee/data/script.h"
+#include    "prinbee/utils.h"
 
 
 // snaplogger
@@ -242,44 +243,6 @@ struct_description_t g_table_description[] =
     end_descriptions()
 };
 
-
-
-
-
-bool validate_name(std::string const & name, size_t max_length = 255)
-{
-    if(name.empty())
-    {
-        return false;
-    }
-    if(name.length() > max_length)
-    {
-        return false;
-    }
-
-    char c(name[0]);
-    if((c < 'a' || c > 'z')
-    && (c < 'A' || c > 'Z')
-    && c != '_')
-    {
-        return false;
-    }
-
-    auto const max(name.length());
-    for(std::remove_const<decltype(max)>::type idx(0); idx < max; ++idx)
-    {
-        c = name[idx];
-        if((c < 'a' || c > 'z')
-        && (c < 'A' || c > 'Z')
-        && (c < '0' || c > '9')
-        && c != '_')
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
 
 
 }
@@ -2439,6 +2402,7 @@ std::string const & expiration_date_column_name()
 {
     return g_expiration_date;
 }
+
 
 
 } // namespace prinbee

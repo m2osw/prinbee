@@ -52,7 +52,7 @@ namespace prinbee
 
 
 
-typedef std::vector<uint8_t>            buffer_t;
+typedef std::vector<std::uint8_t>       buffer_t;
 
 
 class virtual_buffer

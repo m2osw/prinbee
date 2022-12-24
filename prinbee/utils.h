@@ -19,15 +19,15 @@
 
 
 /** \file
- * \brief Utility math functions.
+ * \brief Utility functions.
  *
- * A few utility math functions that are using within prinbee.
+ * A few utility functions used within prinbee.
  */
 
 // C++
 //
 #include    <cstdint>
-//#include    <initializer_list>
+#include    <string>
 
 
 
@@ -54,6 +54,8 @@ constexpr std::uint64_t divide_rounded_up(std::uint64_t value, std::uint64_t mul
     return (value + multiple - 1) / multiple;
 }
 
+
+bool        validate_name(std::string const & name, size_t const max_length = 255);
 
 
 } // namespace prinbee

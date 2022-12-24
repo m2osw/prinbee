@@ -64,19 +64,10 @@ typedef std::uint64_t                       flags_t;
 
 
 
-
-
-
-
-
-
-
 class version_t
 {
 public:
     constexpr       version_t()
-                        : f_major(0)
-                        , f_minor(0)
                     {
                     }
 
@@ -622,25 +613,24 @@ public:
     typedef std::shared_ptr<flag_definition>    pointer_t;
     typedef std::map<std::string, pointer_t>    map_t;
 
-                            flag_definition();
                             flag_definition(
                                       std::string const & field_name
                                     , std::string const & flag_name
-                                    , size_t pos
-                                    , size_t size = 1);
+                                    , std::size_t pos
+                                    , std::size_t size = 1);
 
     std::string             full_name() const;
     std::string             field_name() const;
     std::string             flag_name() const;
-    size_t                  pos() const;
-    size_t                  size() const;
+    std::size_t             pos() const;
+    std::size_t             size() const;
     flags_t                 mask() const;
 
 private:
     std::string             f_field_name = std::string();
     std::string             f_flag_name = std::string();
-    size_t                  f_pos = 0;
-    size_t                  f_size = 0;
+    std::size_t             f_pos = 0;
+    std::size_t             f_size = 0;
     flags_t                 f_mask = 0;
 };
 
@@ -656,10 +646,12 @@ class field_t
 {
 public:
     typedef std::shared_ptr<field_t>        pointer_t;
+    typedef std::shared_ptr<field_t const>  const_pointer_t;
     typedef std::weak_ptr<field_t>          weak_pointer_t;
     typedef std::map<std::string, pointer_t> map_t;
+    typedef std::uint32_t                   field_flags_t;
 
-    static constexpr std::uint32_t          FIELD_FLAG_VARIABLE_SIZE    = 0x0001;
+    static constexpr field_flags_t          FIELD_FLAG_VARIABLE_SIZE    = 0x0001;
 
                                             field_t(struct_description_t const * description);
                                             field_t(field_t const & rhs) = delete;
@@ -675,18 +667,19 @@ public:
     pointer_t                               first() const;
     pointer_t                               last() const;
     struct_type_t                           type() const;
+    ssize_t                                 field_size() const;
     ssize_t                                 type_field_size() const;
     std::string                             field_name() const;
     std::string                             new_name() const; // for RENAMED fields
     std::uint32_t                           size() const;
     void                                    set_size(std::uint32_t size);
-    bool                                    has_flags(std::uint32_t flags) const;
-    std::uint32_t                           flags() const;
-    void                                    set_flags(std::uint32_t flags);
-    void                                    add_flags(std::uint32_t flags);
-    void                                    clear_flags(std::uint32_t flags);
+    bool                                    has_flags(field_flags_t flags) const;
+    field_flags_t                           flags() const;
+    void                                    set_flags(field_flags_t flags);
+    void                                    add_flags(field_flags_t flags);
+    void                                    clear_flags(field_flags_t flags);
     flag_definition::pointer_t              find_flag_definition(std::string const & name) const;
-    void                                    add_flag_definition(std::string const & name, flag_definition::pointer_t bits);
+    void                                    add_flag_definition(flag_definition::pointer_t bits);
     std::uint64_t                           offset() const;
     void                                    set_offset(std::uint64_t offset);
     void                                    adjust_offset(std::int64_t adjust);
@@ -700,7 +693,7 @@ private:
     weak_pointer_t                          f_previous = weak_pointer_t();
     struct_description_t const *            f_description = nullptr;
     std::uint32_t                           f_size = 0;
-    std::uint32_t                           f_flags = 0;
+    field_flags_t                           f_flags = 0;
     std::uint64_t                           f_offset = 0;
     structure_vector_t                      f_sub_structures = structure_vector_t();    // for ARRAY# and STRUCTURE
     flag_definition::map_t                  f_flag_definitions = flag_definition::map_t(); // for BIT representing flags

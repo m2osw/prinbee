@@ -31,6 +31,7 @@ if(SnapCatch2_FOUND)
         catch_bigint.cpp
         catch_context.cpp
         catch_convert.cpp
+        catch_dbfile.cpp
         catch_hash.cpp
         catch_structure.cpp
         catch_version.cpp

@@ -29,7 +29,7 @@
 #include    "prinbee/data/script.h"
 
 
-// snapwebsites lib (TODO: remove dependency--especially because we do not want Qt in prinbee!)
+// snapwebsites lib (TODO: use as2js instead--especially because we do not want Qt in prinbee!)
 //
 //#include    <snapwebsites/snap_expr.h>
 

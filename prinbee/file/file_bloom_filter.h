@@ -30,8 +30,6 @@
  * 1Kb are used to define the table and the rest is the actual
  * Bloom Filter. In most case, we will lazily load the file using
  * mmap() against the entire file.
- *
- * A Bloom Filter
  */
 
 // self

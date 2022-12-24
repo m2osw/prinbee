@@ -19,15 +19,17 @@
 
 
 /** \file
- * \brief Database file header.
+ * \brief Define the error class.
  *
- * The block base class handles the loading of the block in memory using
- * mmap() and gives information such as its type and location.
+ * Some data errors are reported using an error object. This allows the
+ * library to give you an error code to check that error in your program
+ * and a description of the error which can be displayed to the end user.
  */
 
-// self
+// C++
 //
-#include    "prinbee/database/context.h"
+#include    <memory>
+#include    <string>
 
 
 

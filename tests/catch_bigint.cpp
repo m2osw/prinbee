@@ -320,10 +320,14 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
                     l_shifted[size - 1].lsl(512 - size + 1);
                 }
 
+                prinbee::uint512_t a_op(a);
+                prinbee::uint512_t b_op(b);
                 for(int size(512); size > 0; --size)
                 {
                     CATCH_REQUIRE(a.bit_size() == static_cast<std::size_t>(size));
                     CATCH_REQUIRE(b.bit_size() == static_cast<std::size_t>(512 - size + 1));
+                    CATCH_REQUIRE(a_op.bit_size() == static_cast<std::size_t>(size));
+                    CATCH_REQUIRE(b_op.bit_size() == static_cast<std::size_t>(512 - size + 1));
 
                     if(size == 512)
                     {
@@ -409,11 +413,23 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
                         }
                     }
 
+                    prinbee::uint512_t a_op2(a >> 1);
+                    prinbee::uint512_t b_op2(b << 1);
+
+                    CATCH_REQUIRE(a_op2 == r_shifted[size - 1]);
+                    CATCH_REQUIRE(b_op2 == l_shifted[size - 1]);
+
                     a.lsr(1);
                     b.lsl(1);
 
                     CATCH_REQUIRE(a == r_shifted[size - 1]);
                     CATCH_REQUIRE(b == l_shifted[size - 1]);
+
+                    a_op >>= 1;
+                    b_op <<= 1;
+
+                    CATCH_REQUIRE(a_op == r_shifted[size - 1]);
+                    CATCH_REQUIRE(b_op == l_shifted[size - 1]);
                 }
 
                 CATCH_REQUIRE(a.is_zero());
@@ -445,6 +461,126 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
 
             b.lsl(n);
             CATCH_REQUIRE(b.is_zero());
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("bigint: logical operators")
+    {
+        prinbee::uint512_t a;
+        prinbee::uint512_t b;
+        for(int n(0); n < 100; ++n)
+        {
+            // AND
+            {
+                SNAP_CATCH2_NAMESPACE::rand512(a);
+                SNAP_CATCH2_NAMESPACE::rand512(b);
+
+                std::uint64_t expected[8];
+                for(int i(0); i < 8; ++i)
+                {
+                    expected[i] = a.f_value[i] & b.f_value[i];
+                }
+
+                std::uint64_t const e(SNAP_CATCH2_NAMESPACE::rand64());
+                prinbee::uint512_t const d(a & e);
+                std::uint64_t const expected_uint64(a.f_value[0] & e);
+                CATCH_REQUIRE(expected_uint64 == d.f_value[0]);
+                CATCH_REQUIRE(0 == d.f_value[1]);
+                CATCH_REQUIRE(0 == d.f_value[2]);
+                CATCH_REQUIRE(0 == d.f_value[3]);
+                CATCH_REQUIRE(0 == d.f_value[4]);
+                CATCH_REQUIRE(0 == d.f_value[5]);
+                CATCH_REQUIRE(0 == d.f_value[6]);
+                CATCH_REQUIRE(0 == d.f_value[7]);
+
+                prinbee::uint512_t l;
+                l = a & b;
+                for(int i(0); i < 8; ++i)
+                {
+                    CATCH_REQUIRE(expected[i] == l.f_value[i]);
+                }
+
+                a &= b;
+                for(int i(0); i < 8; ++i)
+                {
+                    CATCH_REQUIRE(expected[i] == a.f_value[i]);
+                }
+            }
+
+            // OR
+            {
+                SNAP_CATCH2_NAMESPACE::rand512(a);
+                SNAP_CATCH2_NAMESPACE::rand512(b);
+
+                std::uint64_t expected[8];
+                for(int i(0); i < 8; ++i)
+                {
+                    expected[i] = a.f_value[i] | b.f_value[i];
+                }
+
+                std::uint64_t const e(SNAP_CATCH2_NAMESPACE::rand64());
+                prinbee::uint512_t const d(a | e);
+                std::uint64_t const expected_uint64(a.f_value[0] | e);
+                CATCH_REQUIRE(expected_uint64 == d.f_value[0]);
+                CATCH_REQUIRE(a.f_value[1] == d.f_value[1]);
+                CATCH_REQUIRE(a.f_value[2] == d.f_value[2]);
+                CATCH_REQUIRE(a.f_value[3] == d.f_value[3]);
+                CATCH_REQUIRE(a.f_value[4] == d.f_value[4]);
+                CATCH_REQUIRE(a.f_value[5] == d.f_value[5]);
+                CATCH_REQUIRE(a.f_value[6] == d.f_value[6]);
+                CATCH_REQUIRE(a.f_value[7] == d.f_value[7]);
+
+                prinbee::uint512_t l;
+                l = a | b;
+                for(int i(0); i < 8; ++i)
+                {
+                    CATCH_REQUIRE(expected[i] == l.f_value[i]);
+                }
+
+                a |= b;
+                for(int i(0); i < 8; ++i)
+                {
+                    CATCH_REQUIRE(expected[i] == a.f_value[i]);
+                }
+            }
+
+            // XOR
+            {
+                SNAP_CATCH2_NAMESPACE::rand512(a);
+                SNAP_CATCH2_NAMESPACE::rand512(b);
+
+                std::uint64_t expected[8];
+                for(int i(0); i < 8; ++i)
+                {
+                    expected[i] = a.f_value[i] ^ b.f_value[i];
+                }
+
+                std::uint64_t const e(SNAP_CATCH2_NAMESPACE::rand64());
+                prinbee::uint512_t const d(a ^ e);
+                std::uint64_t const expected_uint64(a.f_value[0] ^ e);
+                CATCH_REQUIRE(expected_uint64 == d.f_value[0]);
+                CATCH_REQUIRE(a.f_value[1] == d.f_value[1]);
+                CATCH_REQUIRE(a.f_value[2] == d.f_value[2]);
+                CATCH_REQUIRE(a.f_value[3] == d.f_value[3]);
+                CATCH_REQUIRE(a.f_value[4] == d.f_value[4]);
+                CATCH_REQUIRE(a.f_value[5] == d.f_value[5]);
+                CATCH_REQUIRE(a.f_value[6] == d.f_value[6]);
+                CATCH_REQUIRE(a.f_value[7] == d.f_value[7]);
+
+                prinbee::uint512_t l;
+                l = a ^ b;
+                for(int i(0); i < 8; ++i)
+                {
+                    CATCH_REQUIRE(expected[i] == l.f_value[i]);
+                }
+
+                a ^= b;
+                for(int i(0); i < 8; ++i)
+                {
+                    CATCH_REQUIRE(expected[i] == a.f_value[i]);
+                }
+            }
         }
     }
     CATCH_END_SECTION()
@@ -1147,6 +1283,58 @@ CATCH_TEST_CASE("bigint_string", "[bigint] [valid]")
                     e << std::showbase << std::oct << number;
                     CATCH_REQUIRE(e.str() == ss.str());
                 }
+
+                {
+                    std::stringstream ss, e;
+                    int n(number);
+                    if(n < 0)
+                    {
+                        e << '-';
+                        n = -n;
+                    }
+                    if(n == 0)
+                    {
+                        e << '0';
+                    }
+                    else
+                    {
+                        char buf[520];
+                        int p(519);
+                        buf[p] = '\0';
+                        while(n != 0)
+                        {
+                            --p;
+                            if((n & 1) != 0)
+                            {
+                                buf[p] = '1';
+                            }
+                            else
+                            {
+                                buf[p] = '0';
+                            }
+                            n >>= 1;
+                        }
+                        e << buf + p;
+                    }
+
+                    std::string const s1(a.to_string(2, false, false));
+                    std::string const s2(a.to_string(2, false, true));
+                    CATCH_REQUIRE(e.str() == s1);
+                    CATCH_REQUIRE(e.str() == s2);
+
+                    std::string const s3(a.to_string(2, true, false));
+                    std::string const s4(a.to_string(2, true, true));
+                    if(number == 0)
+                    {
+                        CATCH_REQUIRE(e.str() == s3);
+                        CATCH_REQUIRE(e.str() == s4);
+                    }
+                    else
+                    {
+                        CATCH_REQUIRE("0b" + e.str() == s3);
+                        CATCH_REQUIRE("0B" + e.str() == s4);
+                    }
+                }
             }
 
             {
@@ -1277,6 +1465,64 @@ CATCH_TEST_CASE("bigint_string", "[bigint] [valid]")
                     sb << std::showbase << std::oct << a;
                     CATCH_REQUIRE("0" + oct == sb.str());
                 }
+                for(int base(3); base <= 36; ++base)
+                {
+                    // base == 2
+                    if(base == 8
+                    || base == 10
+                    || base == 16)
+                    {
+                        continue;
+                    }
+
+                    std::string cmd_base("echo \"obase=");
+                    cmd_base += std::to_string(base);
+                    cmd_base += ";ibase=16;";
+                    cmd_base += hex;
+                    cmd_base += "\"|BC_LINE_LENGTH=0 bc";
+                    FILE * pb(popen(cmd_base.c_str(), "r"));
+                    CATCH_REQUIRE(pb != nullptr);
+                    char buf_base[520] = {};
+                    sz = fread(buf_base, 1, sizeof(buf_base), pb);
+                    CATCH_REQUIRE(sz >= 1);
+                    CATCH_REQUIRE(sz < sizeof(buf_base));
+                    if(buf_base[sz - 1] == '\n')
+                    {
+                        --sz;
+                    }
+                    buf_base[sz] = '\0';
+                    std::string expected_base;
+                    if(base <= 16)
+                    {
+                        expected_base = buf_base;
+                    }
+                    else
+                    {
+                        // bc converts numbers with a base over 16 to a string
+                        // of decimal numbers separated by a space which the
+                        // strtol() handles on its own
+                        //
+                        char const * s(buf_base);
+                        while(s != nullptr && *s != '\0')
+                        {
+                            char * e(nullptr);
+                            int const v(strtol(s, &e, 10));
+                            if(v < 10)
+                            {
+                                expected_base += v + '0';
+                            }
+                            else
+                            {
+                                expected_base += v + ('A' - 10);
+                            }
+                            s = e;
+                        }
+                    }
+                    CATCH_REQUIRE(pclose(pb) == 0);
+
+                    std::string const any_base(a.to_string(base, false, true));
+                    CATCH_REQUIRE(expected_base == any_base);
+                }
             }
             {
                 std::string cmd("echo \"ibase=16;");
@@ -1293,8 +1539,8 @@ CATCH_TEST_CASE("bigint_string", "[bigint] [valid]")
                 {
                     for(int j(0); j < 8; ++j)
                     {
-                        // WARNING: this works because f_high_value is
-                        //          right after the f_value[] array
+                        // WARNING: this works in little endian because
+                        //          f_high_value is right after f_value[]
                         //
                         bin.append(1, c.f_value[7 - idx] >> ((7 - j) * 8));
                     }
@@ -1309,7 +1555,7 @@ CATCH_TEST_CASE("bigint_string", "[bigint] [valid]")
                 cmd += "\"|BC_LINE_LENGTH=0 bc";
                 FILE * p(popen(cmd.c_str(), "r"));
                 CATCH_REQUIRE(p != nullptr);
-                char buf[256] = {};
+                char buf[520] = {};
                 if(b < 0)
                 {
                     buf[0] = '-';
@@ -1385,6 +1631,73 @@ CATCH_TEST_CASE("bigint_string", "[bigint] [valid]")
                     std::stringstream sb;
                     sb << std::showbase << std::oct << b;
                     CATCH_REQUIRE((b < 0 ? "-0" : "0") + oct == sb.str());
+                }
+                for(int base(3); base <= 36; ++base)
+                {
+                    // base == 2
+                    if(base == 8
+                    || base == 10
+                    || base == 16)
+                    {
+                        continue;
+                    }
+
+                    std::string cmd_base("echo \"obase=");
+                    cmd_base += std::to_string(base);
+                    cmd_base += ";ibase=16;";
+                    cmd_base += hex;
+                    cmd_base += "\"|BC_LINE_LENGTH=0 bc";
+                    FILE * pb(popen(cmd_base.c_str(), "r"));
+                    CATCH_REQUIRE(pb != nullptr);
+                    char buf_base[520] = {};
+                    if(b < 0)
+                    {
+                        buf_base[0] = '-';
+                    }
+                    sz = fread(buf_base + (b < 0 ? 1 : 0), 1, sizeof(buf) - 1, pb);
+                    CATCH_REQUIRE(sz >= 1);
+                    CATCH_REQUIRE(sz < sizeof(buf_base) - 1);
+                    if(buf_base[sz - 1] == '\n')
+                    {
+                        --sz;
+                    }
+                    buf_base[sz] = '\0';
+                    std::string expected_base;
+                    if(base <= 16)
+                    {
+                        expected_base = buf_base;
+                    }
+                    else
+                    {
+                        // bc converts numbers with a base over 16 to a string
+                        // of decimal numbers separated by a space which the
+                        // strtol() handles on its own
+                        //
+                        char const * s(buf_base);
+                        if(*s == '-')
+                        {
+                            expected_base += '-';
+                            ++s;
+                        }
+                        while(s != nullptr && *s != '\0')
+                        {
+                            char * e(nullptr);
+                            int const v(strtol(s, &e, 10));
+                            if(v < 10)
+                            {
+                                expected_base += v + '0';
+                            }
+                            else
+                            {
+                                expected_base += v + ('A' - 10);
+                            }
+                            s = e;
+                        }
+                    }
+                    CATCH_REQUIRE(pclose(pb) == 0);
+
+                    std::string const any_base(b.to_string(base, false, true));
+                    CATCH_REQUIRE(expected_base == any_base);
                 }
             }
         }
@@ -1500,6 +1813,30 @@ CATCH_TEST_CASE("bigint_invalid", "[bigint] [invalid]")
                 , prinbee::logic_error
                 , Catch::Matchers::ExceptionMessage(
                       "logic_error: uint512_t: division by zero not allowed."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("bigint: invalid base")
+    {
+        for(int i(-10); i < 50; ++i)
+        {
+            if(i < 2 || i > 36)
+            {
+                prinbee::uint512_t a;
+                do
+                {
+                    SNAP_CATCH2_NAMESPACE::rand512(a);
+                }
+                while(a == 0);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          a.to_string(i)
+                        , prinbee::conversion_unavailable
+                        , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: base "
+                            + std::to_string(i)
+                            + " not supported."));
+            }
+        }
     }
     CATCH_END_SECTION()
 }

@@ -71,7 +71,7 @@ inline std::string rand_string(int len = rand() % 200 + 10)
 
 inline std::uint32_t rand32()
 {
-    return rand() ^ rand() << 16;
+    return rand() ^ (rand() << 16);
 }
 
 

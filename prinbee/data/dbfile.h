@@ -67,8 +67,8 @@ class dbfile
 {
 public:
     typedef std::shared_ptr<dbfile>             pointer_t;
-    //typedef std::map<reference_t, data_t>   page_map_t;
-    typedef boost::bimap<reference_t, data_t>  page_bimap_t;
+    //typedef std::map<reference_t, data_t>       page_map_t;
+    typedef boost::bimap<reference_t, data_t>   page_bimap_t;
 
                             dbfile(std::string const & path, std::string const & table_name, std::string const & filename);
                             dbfile(dbfile const & rhs) = delete;

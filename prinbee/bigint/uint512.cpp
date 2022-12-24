@@ -741,13 +741,13 @@ std::string uint512_t::to_string(int base, bool introducer, bool uppercase) cons
             uint512_t remainder;
             uint512_t divisor;
             divisor.f_value[0] = base;
-            int const letter(uppercase ? 'A' : 'a');
+            int const letter((uppercase ? 'A' : 'a') - 10);
             while(!v.is_zero())
             {
                 v.div(divisor, remainder);
                 if(remainder.f_value[0] >= 10)
                 {
-                    result += remainder.f_value[0] + (letter - 10);
+                    result += remainder.f_value[0] + letter;
                 }
                 else
                 {
@@ -759,14 +759,16 @@ std::string uint512_t::to_string(int base, bool introducer, bool uppercase) cons
 
     }
 
-    if(result.empty())
+#ifdef _DEBUG
+    if(result.empty())  // LCOV_EXCL_LINE
     {
-        result = "0";
+        throw logic_error("uint512_t has a special case at the top handling \"0\" so here `result` cannot be empty.");  // LCOV_EXCL_LINE
     }
-    else
-    {
-        std::reverse(result.begin(), result.end());
-    }
+#endif
+    // TODO: remove the need for a reverse() by allocating a buffer large
+    //       enough on the stack and filling it in reverse
+    //
+    std::reverse(result.begin(), result.end());
 
     if(introducer)
     {

@@ -582,7 +582,7 @@ std::ostream & operator << (std::ostream & out, virtual_buffer const & v)
         }
     }
 
-    ss << std::endl;
+    ss << '\n';
     return out << ss.str();
 }
 

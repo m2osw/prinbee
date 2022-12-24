@@ -753,7 +753,9 @@ The header defines where and how to find the other blocks and files.
     The number of rows that have been deleted in this file so far.
     This is useful to know whether the Bloom Filter should be
     regenerated and since it's a very expensive process, we do not
-    want to do it too often.
+    want to do it too often. We also need to count the false positive
+    that hit those 255 counters. That way we don't have to regenerate
+    if those are very rarely hit.
 
     Note only that, this process needs to be incremental because really
     large tables are not likely to be done quickly enough for the new

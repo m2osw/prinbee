@@ -82,6 +82,10 @@ Important parts of Cassandra that we are using:
    * Presence of data is checked using a Bloom filter; which is to keep a
      set of bits representing the result of a set of hash calculations.
 
+     WARNING: the number of entries in a bloom filter has to be much larger
+              than the number of rows otherwise all counters are non-zero
+              and the filter is totally useless
+
      https://en.wikipedia.org/wiki/Bloom_filter
 
      https://hur.st/bloomfilter/
@@ -176,22 +180,22 @@ Important parts of Cassandra that we are using:
         sort could use a hashed value which could better distribute the
         data between blocks within our index files.)
 
- * Consistency: the use of various types of consistencies (ONE, QUORUM,
-   ALL are those we use. We should also look into supporting LOCAL_...
+ * Consistency: the use of various types of consistencies (`ONE`, `QUORUM`,
+   `ALL` are those we use. We should also look into supporting `LOCAL_...`
    once for the local DC opposed to remote DCs) This means we have to
-   read/write the data in at least ONE, at least QUORUM, or ALL replication
+   read/write the data in at least ONE, at least QUORUM, or `ALL` replication
    nodes. This means communication between nodes to make sure we have the
    latest data (i.e. a write may have happened on node 3 and that means
    a read from node 7 needs the data on node 3 since node 7 was not yet
    updated.)
 
-   (i.e. If your replication factor is 3 and you have 12 nodes, ALL means
+   (i.e. If your replication factor is 3 and you have 12 nodes, `ALL` means
    the data will be saved on 3 nodes before the database says it is done
    with it. It will never copy the data on the 12 nodes.)
 
-   An interesting read in resolving consistency in the real world:
-   https://en.wikipedia.org/wiki/Paxos_(computer_science)
-   However, for us, we probably want computers running the snapdatabase
+   An interesting read in resolving [consistency in the real world]
+   (https://en.wikipedia.org/wiki/Paxos_(computer_science))
+   However, for us, we probably want computers running the prinbee database
    library/driver to assign the timestamp whenever it receives an order
    and not let the destination computers choose such (it is very important
    if we want to make sure we keep orders serialized. The C++ driver to

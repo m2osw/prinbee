@@ -15,3 +15,14 @@ https://gmplib.org/
 These need to be installed properly using the corresponding variables
 (see the iplock project for example on how to do this).
 
+# coverage tests
+
+* bigint/bigint -- done (`bigint`/`[u]int512[_t]`)
+* bigint/round -- done
+* data/convert -- done
+* data/script -- 
+* database/table -- 
+* `file/file_snap_database_table` -- 
+* block/... -- in progress
+* data/structure -- in progress (fields are done, structure requires blocks & virtual blocks)
+
