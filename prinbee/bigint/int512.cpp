@@ -116,9 +116,8 @@ int512_t::int512_t(std::int64_t rhs)
     f_value[3] =
     f_value[4] =
     f_value[5] =
-    f_value[6] =
-    f_value[7] =
-    f_high_value = rhs < 0 ? 0xFFFFFFFFFFFFFFFFULL : 0ULL;
+    f_value[6] = rhs < 0 ? 0xFFFFFFFFFFFFFFFFULL : 0ULL;
+    f_high_value = rhs < 0 ? -1LL : 0LL;
 }
 
 
