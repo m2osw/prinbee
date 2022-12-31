@@ -27,8 +27,8 @@
 //
 #include    <prinbee/bigint/add_sub.h>
 #include    <prinbee/bigint/uint512.h>
-#include    <prinbee/bigint/utils.h>
 #include    <prinbee/exception.h>
+#include    <prinbee/utils.h>
 
 
 // snapdev

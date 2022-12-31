@@ -62,10 +62,10 @@
 //
 #include    "prinbee/block/block_primary_index.h"
 
-#include    "prinbee/bigint/utils.h"
 #include    "prinbee/block/block_header.h"
 #include    "prinbee/database/table.h"
 #include    "prinbee/file/file_snap_database_table.h"
+#include    "prinbee/utils.h"
 
 
 // snapdev lib
