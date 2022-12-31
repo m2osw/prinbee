@@ -26,7 +26,7 @@
 
 // self
 //
-#include    "prinbee/bigint/utils.h"
+#include    "prinbee/utils.h"
 #include    "prinbee/data/schema.h"
 
 
