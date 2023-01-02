@@ -2099,14 +2099,14 @@ CATCH_TEST_CASE("convert_buffer", "[convert] [size] [valid]")
                     i.f_value[4] = 0xFFFFFFFFFFFFFFFF;
                     i.f_value[5] = 0xFFFFFFFFFFFFFFFF;
                     i.f_value[6] = 0xFFFFFFFFFFFFFFFF;
-                    i.f_value[7] = 0xFFFFFFFFFFFFFFFF;
+                    i.f_high_value = -1;
                 }
                 else
                 {
                     i.f_value[4] = 0;
                     i.f_value[5] = 0;
                     i.f_value[6] = 0;
-                    i.f_value[7] = 0;
+                    i.f_high_value = 0;
                 }
             }
             {
