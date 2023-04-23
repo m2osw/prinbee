@@ -28,10 +28,11 @@
 
 find_path(
     PRINBEE_INCLUDE_DIR
-        prinbee/prinbee.h
+        # TBD: we should have a prinbee.h at some point?
+        prinbee/version.h
 
     PATHS
-        $ENV{PRINBEE_INCLUDE_DIR}
+        ENV PRINBEE_INCLUDE_DIR
 )
 
 find_library(
@@ -39,7 +40,8 @@ find_library(
         prinbee
 
     PATHS
-        $ENV{PRINBEE_LIBRARY}
+        ${PRINBEE_LIBRARY_DIR}
+        ENV PRINBEE_LIBRARY
 )
 
 mark_as_advanced(

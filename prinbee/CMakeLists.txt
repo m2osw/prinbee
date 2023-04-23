@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+AtomicNames(names.an)
 
 ##
 ## prinbee library
@@ -76,6 +77,7 @@ add_library(${PROJECT_NAME} SHARED
     data/virtual_buffer.cpp
 
     error.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
     utils.cpp
     version.cpp
 )
@@ -199,6 +201,7 @@ install(
     FILES
         exception.h
         error.h
+        ${CMAKE_CURRENT_BINARY_DIR}/names.h
         utils.h
         ${CMAKE_CURRENT_BINARY_DIR}/version.h
 

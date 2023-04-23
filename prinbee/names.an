@@ -1,0 +1,11 @@
+# Global names for the Event Dispatcher Environment
+
+introducer=name
+project=prinbee
+
+[public]
+cmd_database_ready=DATABASE_READY
+cmd_no_database=NO_DATABASE
+cmd_database_status=DATABASE_STATUS
+
+# vim: syntax=dosini
