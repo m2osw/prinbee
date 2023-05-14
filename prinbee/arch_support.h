@@ -27,13 +27,18 @@
  */
 
 
-// C++ lib
+// snapdev
+//
+#include    <snapdev/version.h>
+
+
+// C++
 //
 #include    <cstdint>
 
 
 // various functions we need to support all distros
-#if __GNUC__ <= 5
+#if !SNAPDEV_CHECK_GCC_VERSION(5, 0, 0)
 namespace std
 {
 
