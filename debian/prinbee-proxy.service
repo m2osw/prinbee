@@ -3,6 +3,7 @@
 
 [Unit]
 Description=Prinbee Proxy, intermediate between your Client and the Prinbee Daemon.
+Documentation=https://snapwebsites.org/project/prinbee file:/usr/share/doc/prinbee-doc/html/
 
 [Service]
 Type=simple
