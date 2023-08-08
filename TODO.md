@@ -26,3 +26,10 @@ These need to be installed properly using the corresponding variables
 * block/... -- in progress
 * data/structure -- in progress (fields are done, structure requires blocks & virtual blocks)
 
+# query ideas
+
+* Bigquery has an interesting instruction called `COUNTIF(predicate)` which
+  count be useful in our environment; this is useful when querying a span of
+  rows and you want to count how many times this or that happens along the
+  way (although that probably requires a `GROUP BY` feature)
+
