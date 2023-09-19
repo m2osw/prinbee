@@ -53,26 +53,21 @@ Important parts of Cassandra that we are using:
      row along other values which either do not have a TTL or have
      a different TTL... However, for a session, the entire row should
      be given a TTL and in many situations the TTL should be kept
-     (i.e. a later INSERT without a USING TTL ### in Cassandra will
+     (i.e. a later `INSERT` without a `USING TTL ###` in Cassandra will
      lose the previous TTL since the new data is considered on its
      own; also Cassandra does not offer a TTL on a row, only on each
      cell / value.) So we want row and value TTLs that stick.
 
- * "Only columns are sorted." (rows are sorted, but using their MD5 sum
-   so it is generally not viewed as a useful sort.) We created indexes
+ * "Only columns are sorted." (rows are sorted, but using their Murmur3 sum
+   so it is generally not viewed as a useful sort). We created indexes
    using those columns in Cassandra.
 
-      Note about MD5 -- Cassandra actually makes use of Murmur3 and not
-      MD5 for their partitioner...
-      https://en.wikipedia.org/wiki/MurmurHash
-      https://github.com/aappleby/smhasher
-
-   Note that in our case we actually want to create actual indexes so
-   that way we can index the same set or rows in many different ways
+   Note that in our case we want to create actual indexes so
+   that way we can index the same set of rows in many different ways
    without the need to handle that by hand each time. More or less,
-   we want the equivalent of an SQL "VIEW * FROM ... WHERE ...", with
-   the WHERE being what the CREATE INDEX understands to sort a row and
-   we want the sorting to be automatically updated whenever a write
+   we want the equivalent of an SQL `VIEW * FROM ... WHERE ...`, with
+   the `WHERE` being what the `CREATE INDEX` understands to sort a row
+   and we want the sorting to be automatically updated whenever a write
    occurs.
 
    Ideas about sorting algorithms which could be useful to us?
@@ -84,7 +79,14 @@ Important parts of Cassandra that we are using:
 
      WARNING: the number of entries in a bloom filter has to be much larger
               than the number of rows otherwise all counters are non-zero
-              and the filter is totally useless
+              and the filter is totally useless. So a table with a few
+              million rows require Mb of bloom filter counters (not that
+              we can reduce the size using bits, but counters allow us to
+              remove deleted rows without having to regenerate the whole
+              bloom filter). With multiple indexes, it would mean Mb for
+              each index for such a table (unless some of said indexes
+              are much smaller; i.e. a list of a very specific type of
+              rows could be really small compared to the entire table
 
      https://en.wikipedia.org/wiki/Bloom_filter
 
@@ -99,7 +101,8 @@ Important parts of Cassandra that we are using:
      the data store and if not ignore that part altogether, but if present
      the next step is to find the 4 bytes of hash and compare those...)
 
-     Our bloom filter should make use of a fixed number of bits like 256.
+     Our bloom filter should make use of a fixed number of bits like 256
+     (this is wrong, it has to be a lot bigger).
 
      Cassandra seems to always use a bloom filter, when the number of
      items is really small, having to calculate the hash is probably
@@ -108,22 +111,27 @@ Important parts of Cassandra that we are using:
      hashes, check the bloom filter, get a positive answer and checking
      the 3 columns anyway...) However, it may be worth it if we can then
      check 4 bytes to find the rows, instead of the full row key (although
-     we are likely to only get the MD5 on a GET order.)
+     we are likely to only get the Murmur3 on a GET order.)
 
-     Note: Bloom filters need to be regenerated on a delete if you want
-     to possibly remove some of the bits (it is not possible to just
-     remove a bit). However, if we keep the 4 bytes of results, the
-     "recalculation" should be really fast (outside of the large number
-     of reads involved.) That is, we do not need to recalculate the hashes.
+     Note: Bloom filters using 1 bit per CRC need to be regenerated on a
+           delete if you want to possibly remove some of the bits (it is
+           not possible to just remove a bit since another key could be
+           using it). One way to help with that is to use one byte instead.
+           Then we can decrement unless the counter is already at 255. At
+           that point, we need to regenerate the filter anyway. Keeping the
+           CRC bytes may be helpful to avoid the recalculation, but then it
+           wastes a lot of space in the data and reading data from disk is
+           probably not any faster than computing CRCs (and we can compute
+           CRCs in parallel using multiple threads).
 
      Note: It looks like Cassandra keeps all sorts of bloom filter
-     bit fields at various levels. That can also be used to save time
-     to recalculate the filters. i.e. if you have an index store 256
-     keys and have a Bloom filter field specific to these 256 keys,
-     then you can first see whether the start/end match, if so, calculate
-     the hashes, check that section Bloom filter, and know whether it
-     exists or not. I would imagine that we calculate the hash at the
-     start and check on a composite Bloom filter first:
+           bit fields at various levels. That can also be used to save time
+           to recalculate the filters. i.e. if you have an index store 256
+           keys and have a Bloom filter field specific to these 256 keys,
+           then you can first see whether the start/end match, if so,
+           calculate the hashes, check that section Bloom filter, and know
+           whether it exists or not. I would imagine that we calculate the
+           hash at the start and check on a composite Bloom filter first.
 
      C++ bloom filter implementation: https://github.com/ArashPartow/bloom
 
@@ -144,7 +152,8 @@ Important parts of Cassandra that we are using:
            filter; if all 1's, search for the block that matches
            (note that AVX offers an AND which works in 512 bits, so
            having a large number of bits here is slow because of hard
-           drive access, but dead fast in memory.)
+           drive access, but dead fast in memory; that being said, the
+           DigitalOcean computers do not offer 512 bits just yet)
 
    * However, in most cases the fact that columns are sorted is not
      important; we could look into having three "types" of data added
@@ -196,14 +205,14 @@ Important parts of Cassandra that we are using:
    An interesting read in resolving [consistency in the real world]
    (https://en.wikipedia.org/wiki/Paxos_(computer_science))
    However, for us, we probably want computers running the prinbee database
-   library/driver to assign the timestamp whenever it receives an order
+   library/driver to assign the timestamp whenever it receives an event
    and not let the destination computers choose such (it is very important
-   if we want to make sure we keep orders serialized. The C++ driver to
+   if we want to make sure we keep events serialized. The C++ driver to
    handle Cassandra CQL does not do that so it NEVER guarantees which
    data arrives first when sending the same data twice to the same driver
    because when a node becomes overloaded, the driver auto-switch to another
-   node and thus some data ends up being sent out of order and without our
-   own TIMESTAMP info, the orders can end up being processed in the wrong
+   node and thus some events end up being sent out of order and without our
+   own TIMESTAMP info, events can end up being processed in the wrong
    order.)
 
    * Cassandra also offers a consistency of ZERO (write can fail) and

@@ -30,7 +30,7 @@ On the server side, the cache is used differently. There the idea is to
 make use of the RAM as a way to very quickly access the data in the database.
 
 I do not have any good point to make about this at this time. We want to
-obviously keep hot data and get rid of data which is not been used/accessed.
+obviously keep hot data and get rid of data which is not being used/accessed.
 There is also a maximum amount od memory that we want to limit ourselves to
 read. We'll be using `mmap()` for each block.
 
@@ -53,7 +53,7 @@ On a restart, the data in the Journals gets reloaded just as if the
 
 ## GET Cache
 
-Whenever we load data, we cache a lot of the tables blocks to find our way
+Whenever we load data, we cache a lot of the table blocks to find our way
 to the actual data. Remember that for each key we may need quite a few
 blocks (root, each level from the index, the data block, and if in use the
 indirect index level).

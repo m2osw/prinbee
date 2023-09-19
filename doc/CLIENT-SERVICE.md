@@ -10,6 +10,8 @@ You only communicate with this _Client Service_ and never actually send
 the data directly to the server. It includes support for all the available
 features.
 
+You may also call this client a proxy.
+
 ## Features
 
 ### Connecting to All Servers
@@ -31,7 +33,7 @@ expected.
 
 The first step in the replication process is to send the data once from
 the _Client Service_ to the servers expecting it (i.e. the clients
-calculates the CRC and automatically knows to where the data needs to
+calculates the CRC and automatically knows where the data needs to
 be sent).
 
 ### Compression

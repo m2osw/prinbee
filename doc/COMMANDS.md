@@ -16,6 +16,14 @@ Explicitly close a connection with the database.
 
 Add or update a key/value pair.
 
+**IMPORTANT:** "value" is really a set of columns.
+
+In order to "compress" such commands, the set of columns is important becase
+if an older message is to modify column A, C, & D and a newer message only
+changes column B, then both messages must be processed. The "compression"
+would results in column A, B, C, & D in one message... not just the second
+newer message.
+
 ## `INSERT`
 
 Add a new key/value pair. If the key already exists, the command fails.
@@ -45,7 +53,7 @@ Make sure the connection is live.
 
 ## `LISTEN`
 
-Listen to changes to a list of keys and statistics.
+Listen for changes to a list of keys and statistics.
 
 ## Reply: `ACKNOWLEDGEMENT`
 
@@ -53,7 +61,7 @@ Most commands reply with an acknowledgement reply.
 
 ## Reply: `CHANGE`
 
-Message from a `LISTEN`
+Message from a `LISTEN`.
 
 ## Reply: `STATUS`
 

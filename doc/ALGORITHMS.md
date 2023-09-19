@@ -23,21 +23,21 @@ We have several layers to sort the data:
 
 * Computer Selection (Partition)
 
-    First of all, we want to be able to use a cluster. That means saving
-    the data on one specific set of computers. This is generally done
-    using the Murmur hash of the `PRIMARY KEY`. That hash is then used
-    to select the computers that will replicate this data.
+  First of all, we want to be able to use a cluster. That means saving
+  the data on one specific set of computers. This is generally done
+  using the Murmur hash of the `PRIMARY KEY`. That hash is then used
+  to select the computers that will replicate this data.
 
-    In a relational RMDB, this is called a _Hash Index_.
+  In a relational RMDB, this is called a _Hash Index_.
 
 * B+Tree
 
-    This method is used to sort rows in our tables. Contrary to Cassandra
-    and Big Tables, we prefer to have separate indexes and not use one
-    row to index everything (Actually, Cassandra 3.x fixed the problem
-    with their secondary indexes which are _properly_ distributed).
+  This method is used to sort rows in our tables. Contrary to Cassandra
+  and Big Tables, we prefer to have separate indexes and not use one
+  row to index everything (Actually, Cassandra 3.x fixed the problem
+  with their secondary indexes which are _properly_ distributed).
 
-    At this point all of our sorts will be using binary sorts.
+  At this point all of our sorts will be using binary sorts.
 
 
 
