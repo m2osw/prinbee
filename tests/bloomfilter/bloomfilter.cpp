@@ -18,16 +18,17 @@
 
 // Bloomfilter evaluation
 
+#include    <cstdint>
 #include    <iostream>
 #include    <unordered_map>
 #include    <vector>
 
-constexpr   size_t          BLOOM_FILTER_SIZE = 1000000;
-constexpr   size_t          DATA_SIZE =           100000000;
-constexpr   size_t          HASH_COUNT =               13;
+constexpr   std::size_t     BLOOM_FILTER_SIZE = 1000000;
+constexpr   std::size_t     DATA_SIZE =           100000000;
+constexpr   std::size_t     HASH_COUNT =               13;
 
-typedef uint32_t                                hash_t;
-typedef std::vector<uint8_t>                    filter_t;
+typedef std::uint32_t                           hash_t;
+typedef std::vector<std::uint8_t>               filter_t;
 typedef std::unordered_map<std::string, int>    data_t;
 
 filter_t                    g_bloom_filter[HASH_COUNT + 1];
