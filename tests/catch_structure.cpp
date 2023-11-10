@@ -839,7 +839,10 @@ CATCH_TEST_CASE("structure_field", "[structure] [valid]")
 
         for(int i(1); i <= 10; ++i)
         {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wrestrict"
             std::string const name("f" + std::to_string(i));
+#pragma GCC diagnostic pop
             prinbee::flag_definition::pointer_t flag(std::make_shared<prinbee::flag_definition>("flags", name, i * 3, 3));
             CATCH_REQUIRE(flag->full_name() == "flags." + name);
             f->add_flag_definition(flag);
@@ -850,7 +853,10 @@ CATCH_TEST_CASE("structure_field", "[structure] [valid]")
         //
         for(int i(1); i <= 10; ++i)
         {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wrestrict"
             std::string const name("f" + std::to_string(i));
+#pragma GCC diagnostic pop
             CATCH_REQUIRE(f->find_flag_definition(name)->full_name() == "flags." + name);
         }
     }

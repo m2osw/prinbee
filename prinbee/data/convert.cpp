@@ -591,7 +591,10 @@ std::string integer_to_string(buffer_t const & value, int bytes_for_size, int ba
         }
         v = -v;
         buffer_t const neg(reinterpret_cast<uint8_t const *>(v.f_value), reinterpret_cast<uint8_t const *>(v.f_value + 8));
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wrestrict"
         return "-" + uinteger_to_string(neg, bytes_for_size, base);
+#pragma GCC diagnostic pop
     }
     else
     {
