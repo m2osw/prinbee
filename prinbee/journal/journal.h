@@ -154,6 +154,7 @@ private:
         std::uint32_t               f_size = 0;
     };
 
+    std::string                 get_configuration_filename() const;
     bool                        load_configuration();
     bool                        save_configuration();
     bool                        load_event_locations(bool compress = false);
@@ -170,7 +171,6 @@ private:
     // options (from .conf file)
     //
     bool                        f_sync = false;
-    bool                        f_using_alternate_file = false;
     bool                        f_compress_when_full = false;
     file_management_t           f_file_management = file_management_t::FILE_MANAGEMENT_KEEP;
     replay_order_t              f_replay_order = replay_order_t::REPLAY_ORDER_REQUEST_ID;

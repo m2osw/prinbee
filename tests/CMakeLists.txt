@@ -33,6 +33,7 @@ if(SnapCatch2_FOUND)
         catch_convert.cpp
         catch_dbfile.cpp
         catch_hash.cpp
+        catch_journal.cpp
         catch_structure.cpp
         catch_version.cpp
         catch_virtual_buffer.cpp

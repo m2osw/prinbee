@@ -448,19 +448,20 @@ bool journal::next_event(out_event_t & event, bool by_time)
 }
 
 
+std::string journal::get_configuration_filename() const
+{
+    return f_path + '/' + g_journal_conf;
+}
+
+
 bool journal::load_configuration()
 {
-    advgetopt::conf_file_setup setup(f_path + "/" + g_journal_conf);
+    advgetopt::conf_file_setup setup(get_configuration_filename());
     advgetopt::conf_file::pointer_t config(advgetopt::conf_file::get_conf_file(setup));
 
     if(config->has_parameter("sync"))
     {
         f_sync = advgetopt::is_true(config->get_parameter("sync"));
-    }
-
-    if(config->has_parameter("using_alternate_file"))
-    {
-        f_using_alternate_file = advgetopt::is_true(config->get_parameter("using_alternate_file"));
     }
 
     if(config->has_parameter("compress_when_full"))
@@ -569,18 +570,13 @@ bool journal::load_configuration()
 
 bool journal::save_configuration()
 {
-    advgetopt::conf_file_setup setup(f_path + "/" + g_journal_conf);
+    advgetopt::conf_file_setup setup(get_configuration_filename());
     advgetopt::conf_file::pointer_t config(advgetopt::conf_file::get_conf_file(setup));
 
     config->set_parameter(
         std::string(),
         "sync",
         f_sync ? "true" : "false");
-
-    config->set_parameter(
-        std::string(),
-        "using_alternate_file",
-        f_using_alternate_file ? "true" : "false");
 
     config->set_parameter(
         std::string(),
@@ -641,6 +637,8 @@ bool journal::save_configuration()
         std::string(),
         "maximum_events",
         std::to_string(static_cast<int>(f_maximum_events)));
+
+    config->save_configuration(".bak", true);
 
     return true;
 }
