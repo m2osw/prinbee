@@ -62,6 +62,8 @@ add_library(${PROJECT_NAME} SHARED
     file/file_snap_database_table.cpp
     file/hash.cpp
 
+    journal/journal.cpp
+
     database/conditions.cpp
     database/context.cpp
     database/cursor.cpp
@@ -165,6 +167,14 @@ install(
 
     DESTINATION
         include/prinbee/data
+)
+
+install(
+    FILES
+        journal/journal.h
+
+    DESTINATION
+        include/prinbee/journal
 )
 
 install(
