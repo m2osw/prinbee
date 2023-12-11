@@ -1,3 +1,9 @@
+prinbee (1.0.0.1~bionic) bionic; urgency=high
+
+  * Bumped build version to rebuild on Launchpad.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Mon, 11 Dec 2023 15:02:52 -0800
+
 prinbee (1.0.0.0~jammy) jammy; urgency=high
 
   * First iteration on converting snapdb to a new, separate project.
