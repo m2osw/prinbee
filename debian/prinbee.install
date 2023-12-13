@@ -2,6 +2,12 @@
 #
 usr/lib/lib*.so.*
 
+# Tools
+#
+# TBD: some of those tools may be considered low admin tools
+#
+usr/bin/prinbee-journal
+
 # Configuration Files
 #
 conf/README.md                                     etc/prinbee/

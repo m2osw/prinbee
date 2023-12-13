@@ -49,3 +49,7 @@ These need to be installed properly using the corresponding variables
   rows and you want to count how many times this or that happens along the
   way (although that probably requires a `GROUP BY` feature)
 
+# prinbee-journal
+
+* This tool is probably just a development tool and it should not be installed?
+
