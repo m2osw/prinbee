@@ -234,11 +234,15 @@ int prinbee_journal::scan_journal()
     bool const list(f_opt.is_defined("list"));
 
     prinbee::out_event_t event;
-    while(f_journal->next_event(event))
+    f_journal->rewind();
+    while(f_journal->next_event(event, false, true))
     {
-        std::cout << "Event: " << event.f_request_id << '\n';
+        std::cout << "Event: " << event.f_request_id
+            << " (file: \"" << event.f_debug_filename
+            << "\", offset: " << event.f_debug_offset
+            << ")\n";
 
-        std::cout << "Status: ";
+        std::cout << "  Status: ";
         switch(event.f_status)
         {
         case prinbee::status_t::STATUS_UNKNOWN:
@@ -271,18 +275,29 @@ int prinbee_journal::scan_journal()
 
         }
 
-        std::cout << "Event Time: " << event.f_event_time.to_string("%Y/%m/%d %T.%N") << '\n';
+        std::cout << "  Size: " << event.f_data.size() << '\n';
+        std::cout << "  Event Time: " << event.f_event_time.to_string("%Y/%m/%d %T.%N") << '\n';
 
         if(!list)
         {
             if(text)
             {
-                std::cout << "Event: " << reinterpret_cast<char const *>(event.f_data.data()) << '\n';
+                std::cout << "  Data: " << reinterpret_cast<char const *>(event.f_data.data()) << '\n';
             }
             else
             {
-                auto show_ascii = [](std::uint8_t const * data, std::size_t len)
+                auto show_ascii = [](std::uint8_t const * data, std::size_t const len)
                 {
+                    std::cout << "  ";
+                    for(std::size_t idx(len); idx < 16; ++idx)
+                    {
+                        std::cout << "   ";
+                        if(idx == 7)
+                        {
+                            std::cout << ' ';
+                        }
+                    }
+
                     for(std::size_t idx(0); idx < len; ++idx)
                     {
                         char const c(static_cast<char>(data[idx]));
@@ -297,7 +312,7 @@ int prinbee_journal::scan_journal()
                     }
                 };
 
-                char const * indent = "Event:";
+                char const * indent = "  Data:";
                 std::cout << std::hex;
                 std::size_t const size(event.f_data.size());
                 for(std::size_t idx(0); idx < size; ++idx)
@@ -311,12 +326,13 @@ int prinbee_journal::scan_journal()
                             std::cout << '\n';
                         }
                         std::cout << indent;
+                        indent = "       ";   // only spaces after that
                     }
                     else if(edge == 7)
                     {
                         std::cout << ' ';
                     }
-                    std::cout << ' ' << std::setw(2) << std::setfill('0') << event.f_data[idx];
+                    std::cout << ' ' << std::setw(2) << std::setfill('0') << static_cast<int>(event.f_data[idx]);
                 }
                 std::size_t last_few(size & 0xF);
                 if(last_few == 0 && size > 0)

@@ -106,6 +106,11 @@ struct out_event_t
     status_t                    f_status = status_t::STATUS_UNKNOWN;
     snapdev::timespec_ex        f_event_time = snapdev::timespec_ex();
     std::vector<std::uint8_t>   f_data = std::vector<std::uint8_t>();
+
+    // if the `debug` flag is set to true, these will also be set
+    //
+    std::string                 f_debug_filename = std::string();
+    std::uint32_t               f_debug_offset = 0;
 };
 
 
@@ -145,7 +150,7 @@ public:
     bool                        empty() const;
     std::size_t                 size() const;
     void                        rewind();
-    bool                        next_event(out_event_t & event, bool by_time = false);
+    bool                        next_event(out_event_t & event, bool by_time = false, bool debug = false);
 
 private:
     typedef std::shared_ptr<std::fstream>   event_file_t;

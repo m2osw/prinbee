@@ -55,15 +55,39 @@ std::string conf_filename(std::string const & path)
 }
 
 
+std::string event_filename(std::string const & path, int index)
+{
+    return path + "/journal-" + std::to_string(index) + ".events";
+}
+
+
 void unlink_conf(std::string const & path)
 {
-    std::string filename(conf_filename(path));
+    std::string const filename(conf_filename(path));
     if(unlink(filename.c_str()) != 0)
     {
         if(errno != ENOENT)
         {
             perror("unlink() returned unexpected error.");
             CATCH_REQUIRE(!"unlink() returned an unexpected error");
+        }
+    }
+}
+
+
+void unlink_events(std::string const & path)
+{
+    for(int idx(0);; ++idx)
+    {
+        std::string const filename(event_filename(path, idx));
+        if(unlink(filename.c_str()) != 0)
+        {
+            if(errno != ENOENT)
+            {
+                perror("unlink() returned unexpected error.");
+                CATCH_REQUIRE(!"unlink() returned an unexpected error");
+            }
+            break;
         }
     }
 }
@@ -77,6 +101,7 @@ std::string conf_path(std::string const & sub_path, bool create_directory = fals
         CATCH_REQUIRE(snapdev::mkdir_p(path) == 0);
     }
     unlink_conf(path);
+    unlink_events(path);
     return path;
 }
 
@@ -631,6 +656,7 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
                 prinbee::status_t::STATUS_FAILED,
             },
         };
+        int count(0);
         for(auto const & sequence : next_status)
         {
             std::string expected_result;
@@ -639,6 +665,8 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
             prinbee::journal j(path);
             CATCH_REQUIRE(j.is_valid());
 
+            ++count;
+            std::cerr << "--- running sequence #" << count << "\n";
             std::size_t const size(rand() % 10 * 1024 + 1);
             std::vector<std::uint8_t> data(size);
             for(std::size_t idx(0); idx < size; ++idx)
@@ -668,7 +696,8 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
 
             CATCH_REQUIRE("id-123" == out_event.f_request_id);
             CATCH_REQUIRE(size == out_event.f_data.size());
-            CATCH_REQUIRE(data == out_event.f_data);
+            CATCH_REQUIRE_LONG_STRING(std::string(reinterpret_cast<char const *>(data.data()), data.size())
+                                    , std::string(reinterpret_cast<char const *>(out_event.f_data.data()), out_event.f_data.size()));
             CATCH_REQUIRE(prinbee::status_t::STATUS_READY == out_event.f_status);
             CATCH_REQUIRE(event_time == out_event.f_event_time);
 
@@ -917,7 +946,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
         int const complete_count(rand() % 3 + 1);
         for(int idx(0); idx < complete_count; ++idx)
         {
-            std::string const request_id("id-" + std::to_string(idx));
+            std::string const request_id("id-" + std::to_string(ids[idx]));
             if((rand() & 1) == 0)
             {
                 CATCH_REQUIRE(j.event_completed(request_id));

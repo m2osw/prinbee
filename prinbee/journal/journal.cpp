@@ -386,11 +386,11 @@ bool journal::add_event(
                 file->write(reinterpret_cast<char const *>(&event_header), sizeof(event_header));
                 file->write(event.f_request_id.data(), event.f_request_id.length());
                 file->write(reinterpret_cast<char const *>(event.f_data), event.f_size);
-                if(!file->good())
+                if(file->fail())
                 {
                     // LCOV_EXCL_START
                     SNAP_LOG_FATAL
-                        << "request_id must be between 1 and 255 characters."
+                        << "failed add_event() while writing."
                         << SNAP_LOG_SEND;
                     return false;
                     // LCOV_EXCL_STOP
@@ -427,11 +427,9 @@ bool journal::add_event(
         {
             break;
         }
-std::cerr << "---------------------- we will try again after compression...\n";
 
         compress_when_full = false;
         load_event_locations(true);
-std::cerr << "---------------------- reload done, try inserting again...\n";
     }
 
     SNAP_LOG_FATAL
@@ -485,7 +483,7 @@ void journal::rewind()
 }
 
 
-bool journal::next_event(out_event_t & event, bool by_time)
+bool journal::next_event(out_event_t & event, bool by_time, bool debug)
 {
     location::pointer_t l;
     if(by_time)
@@ -524,14 +522,22 @@ bool journal::next_event(out_event_t & event, bool by_time)
     event.f_status = l->f_status;
     event.f_event_time = l->f_event_time;
     event.f_data.resize(l->f_size);
-    std::uint32_t const offset(l->f_offset + sizeof(event_journal_event_t) + l->f_request_id.length());
+    if(debug)
+    {
+        event.f_debug_filename = get_filename(l->f_file_index);
+        event.f_debug_offset = l->f_offset;
+    }
+    std::size_t const header_size(sizeof(event_journal_event_t) + l->f_request_id.length());
+    std::uint32_t const offset(l->f_offset + header_size);
     file->seekg(offset);
     file->read(reinterpret_cast<char *>(event.f_data.data()), l->f_size);
 
-    if(!file->good())
+    if(file->fail())
     {
         SNAP_LOG_FATAL
-            << "could not read event at "
+            << "could not read event "
+            << l->f_request_id
+            << " at "
             << offset
             << " in \""
             << get_filename(l->f_file_index)
@@ -792,7 +798,7 @@ bool journal::load_event_locations(bool compress)
         file->seekg(0);
         event_journal_header_t journal_header;
         file->read(reinterpret_cast<char *>(&journal_header), sizeof(journal_header));
-        if(!file->good())
+        if(file->fail())
         {
             continue;
         }
@@ -808,7 +814,7 @@ bool journal::load_event_locations(bool compress)
 
         write_end_marker::pointer_t fix_end;
 
-        bool can_be_compressed(false);
+        std::ios::pos_type compress_offset(0);
         bool good(true);
         while(good)
         {
@@ -817,6 +823,11 @@ bool journal::load_event_locations(bool compress)
             file->read(reinterpret_cast<char *>(&event_header), sizeof(event_header));
             if(!file->good())
             {
+                // in this case we need to clear because trying to read more
+                // data than available sets the fail bit and that happens
+                // here
+                //
+                file->clear();
                 break;
             }
 
@@ -898,12 +909,11 @@ bool journal::load_event_locations(bool compress)
             && static_cast<status_t>(event_header.f_status) != status_t::STATUS_ACKNOWLEDGED)
             {
                 file->seekg(event_header.f_size - sizeof(event_header), std::ios::cur);
-                if(!can_be_compressed)
+                if(compress_offset == 0)
                 {
-                    file->seekp(offset);
+                    compress_offset = offset;
                 }
                 f_can_be_compressed = true;
-                can_be_compressed = true;
                 continue;
             }
 
@@ -931,28 +941,30 @@ bool journal::load_event_locations(bool compress)
             f_timebased_replay[event_time] = l;
 
             std::uint32_t next_append(0);
-            if(can_be_compressed
+            if(compress_offset > 0
             && compress)
             {
                 // we are in compression mode and this event can be moved
                 // "up" (lower offset), do so
-std::cerr << "--------------------- apply compression now! ----------------------------\n";
 
                 if(fix_end == nullptr)
                 {
                     fix_end = std::make_shared<write_end_marker>(file);
                 }
 
+                std::ios::pos_type next_offset(file->tellg());
+
                 // save the header
                 //
-                l->f_offset = file->tellp();
+                l->f_offset = compress_offset;
+                file->seekp(compress_offset);
                 file->write(reinterpret_cast<char const *>(&event_header), sizeof(event_header));
+                compress_offset += sizeof(event_header);
 
-                // save the request id and string
+                // save the request id string
                 //
-                event_journal_event_t::request_id_size_t request_id_size(l->f_request_id.length());
-                file->write(reinterpret_cast<char const *>(&request_id_size), sizeof(request_id_size));
-                file->write(l->f_request_id.data(), request_id_size);
+                file->write(l->f_request_id.data(), l->f_request_id.length());
+                compress_offset += l->f_request_id.length();
 
                 // now copy the data, one block at a time
                 //
@@ -965,14 +977,31 @@ std::cerr << "--------------------- apply compression now! ---------------------
                 std::size_t remaining_size(data_size);
                 while(remaining_size > 0)
                 {
-                    ssize_t const s(std::min(remaining_size, buffer.size()));
+                    std::size_t const s(std::min(remaining_size, buffer.size()));
+
+                    // read
+                    //
+                    file->seekg(next_offset);
                     file->read(buffer.data(), s);
+                    if(file->fail())
+                    {
+                        // TODO: handle the error better (i.e. mark event
+                        //       as invalid)
+                        break;
+                    }
+                    next_offset += s;
+
+                    // write
+                    //
+                    file->seekp(compress_offset);
                     file->write(buffer.data(), s);
+                    compress_offset += s;
+
                     remaining_size -= s;
                 }
 
-                next_append = file->tellp();
-std::cerr << "--------------------- compression done ----------------------------\n";
+                next_append = compress_offset;
+                file->seekg(next_offset);
             }
             else
             {
@@ -980,7 +1009,7 @@ std::cerr << "--------------------- compression done ---------------------------
                 //
                 file->seekg(data_size, std::ios::cur);
 
-                next_append = event_header.f_size + offset;
+                next_append = offset + static_cast<std::ios::pos_type>(event_header.f_size);
             }
             if(f_next_append.size() <= index)
             {
@@ -1008,18 +1037,18 @@ journal::event_file_t journal::get_event_file(std::uint8_t index, bool create)
         }
     }
 
-    if(!create)
-    {
-        return f;
-    }
-
     // create new file
     //
-    std::string filename(get_filename(index));
+    std::string const filename(get_filename(index));
 
     f = std::make_shared<event_file_t::element_type>(filename, std::ios::in | std::ios::out | std::ios::binary);
     if(!f->good())
     {
+        if(!create)
+        {
+            return event_file_t();
+        }
+
         // it may not exist yet, create and then try reopening
         {
             event_file_t::element_type new_file(filename, std::ios::out | std::ios::binary);
@@ -1154,7 +1183,7 @@ bool journal::update_event_status(request_id_t const & request_id, status_t cons
 
     }
 
-    return file->good();
+    return !file->fail();
 }
 
 
