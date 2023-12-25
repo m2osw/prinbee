@@ -244,7 +244,8 @@ private:
     public:
         typedef std::shared_ptr<file>
                                     pointer_t;
-        typedef std::vector<pointer_t>
+        typedef std::weak_ptr<file> weak_pointer_t;
+        typedef std::vector<weak_pointer_t>
                                     vector_t;
 
                                     file(
@@ -281,7 +282,6 @@ private:
         journal *                   f_journal = nullptr;
         std::shared_ptr<std::fstream>
                                     f_event_file = std::shared_ptr<std::fstream>();
-        //location::location_map_t    f_locations = location::location_map_t();
         std::ios::pos_type          f_pos_read = 0;
         std::ios::pos_type          f_pos_write = 0;
         std::uint32_t               f_event_count = 0;

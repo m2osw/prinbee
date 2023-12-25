@@ -435,12 +435,34 @@ void journal::file::truncate()
             if(size == sizeof(event_journal_header_t)
             && file_management == file_management_t::FILE_MANAGEMENT_DELETE)
             {
-                ::unlink(f_filename.c_str());
+                int const r(::unlink(f_filename.c_str()));
+                if(r != 0)
+                {
+                    int const e(errno);
+                    SNAP_LOG_ERROR
+                        << "unlink() generated an error ("
+                        << e
+                        << ", "
+                        << strerror(e)
+                        << ")."
+                        << SNAP_LOG_SEND;
+                }
                 f_next_append = 0;
             }
             else
             {
-                ::ftruncate(fd, size);
+                int const r(::ftruncate(fd, size));
+                if(r != 0)
+                {
+                    int const e(errno);
+                    SNAP_LOG_ERROR
+                        << "ftruncate() generated an error ("
+                        << e
+                        << ", "
+                        << strerror(e)
+                        << ")."
+                        << SNAP_LOG_SEND;
+                }
             }
 
             // those should not be necessary, but I think it makes sense to
@@ -911,7 +933,7 @@ bool journal::add_event(
                 return true;
             }
 
-            // too large, try the next file
+            // event too large for this file, try the next file
             //
             ++f_current_file_index;
             if(f_current_file_index >= f_maximum_number_of_files)
@@ -1510,12 +1532,12 @@ journal::file::pointer_t journal::get_event_file(std::uint8_t index, bool create
            << std::to_string(static_cast<int>(index))
            << " > "
            << f_maximum_number_of_files
-           << '.';
+           << ").";
         SNAP_LOG_ERROR << ss.str() << SNAP_LOG_SEND;
         throw invalid_parameter(ss.str());
     }
 
-    file::pointer_t f(f_event_files[index]);
+    file::pointer_t f(f_event_files[index].lock());
     if(f != nullptr)
     {
         return f;
@@ -1665,7 +1687,7 @@ bool journal::update_event_status(request_id_t const & request_id, status_t cons
             // . shrink (truncate)
             // . be deleted (delete)
             //
-            it->second->get_file()->set_next_append(sizeof(event_journal_header_t));
+            f->set_next_append(sizeof(event_journal_header_t));
         }
         break;
 
