@@ -1,3 +1,9 @@
+prinbee (1.0.0.4~bionic) bionic; urgency=high
+
+  * Fixed a memory leak with files being kept in two locations.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Mon, 25 Dec 2023 09:06:59 -0800
+
 prinbee (1.0.0.3~bionic) bionic; urgency=high
 
   * Added more test and a better journalling.
