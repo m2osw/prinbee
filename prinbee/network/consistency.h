@@ -78,6 +78,76 @@ namespace prinbee
 {
 
 
+// TODO: we now want more consistency layers which will probably be handled
+//       by using multiple consistency_t values, but here is the main idea:
+//
+//       1. local journal (i.e. on the node generating the data, not a database node)
+//       2. remote journal (i.e. "zero")
+//       3. remote file (1, 2, 3, quorum, all)
+//       4. remote file + indexes
+//       5. external cluster journal
+//       6. external cluster file (1, 2, 3, quorum, all)
+//       7. external cluster file + indexes
+//
+//       the safest are 3. (one cluster) or 6. (multiple clusters) with the
+//       ALL consistency; the 4. and 7. mean we can now query the data through
+//       the indexes but it does not make the data safer
+//
+//       further, as noted below, you may quickly send data to the backend
+//       but it could end up on the wrong partition--i.e. the client has
+//       no connections to a node representing the correct partition so as
+//       a fallback it sends the data to a node managing a different
+//       partition, this means it can save the data in a remote journal (2.)
+//       but it cannot really save it in a database file; if you request
+//       a consistency of 3. in such a case, it will wait for that _wrong_
+//       node to send the data to the _right_ node(s)
+//
+//       so the consistency becomes a small array with the columns
+//       representing a location:
+//
+//       1. local (client's machine)
+//       2. local cluster
+//       3. remote clusters
+//       4. backup clusters
+//
+//       and the rows define the values:
+//
+//       0. zero (data is in a journal on the right database node)
+//       1. one (data is at least in one database file)
+//       2. two (data is at least in two database files)
+//       3. three (data is at least in three database files)
+//       4. quorum (data is at least in (N / 2 + 1) database files)
+//       5. all
+//       6. any (data is in a journal on any database node)
+//       7. ignore (data will travel there, but we do not need acknowledgement)
+//
+//       some combos are not possible, for example, there are no data files
+//       on the client's machine so the best you can do here is save the
+//       data in the local journal
+//
+//               | 1 | 2/3/4 | index |
+//       --------+---+-------+-------+
+//       zero    | x |   x   |   -   |
+//       one     | - |   x   |   x   |
+//       two     | - |   x   |   x   |
+//       three   | - |   x   |   x   |
+//       quorum  | - |   x   |   x   |
+//       all     | - |   x   |   x   |
+//       any     | - |   x   |   -   |
+//       ignore  | x |   x   |   x   |
+//
+//       for now, I propose using 8 bits per column in a uint32_t:
+//
+//       a. N as a number from 0 to 3
+//       b. special cases use numbers 4 to 7
+//         4 -- quorum
+//         5 -- all
+//         6 -- any
+//         7 -- ignore
+//       c. bit 6 -- acknowledge index ready
+//       c. bit 7 -- request acknowledgement
+//
+
 
 enum class consistency_t : std::int8_t
 {

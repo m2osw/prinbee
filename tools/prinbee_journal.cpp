@@ -64,6 +64,20 @@ namespace
 const advgetopt::option g_options[] =
 {
     advgetopt::define_option(
+          advgetopt::Name("binary-id")
+        , advgetopt::ShortName('b')
+        , advgetopt::Flags(advgetopt::standalone_command_flags<
+              advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("expect the identifier to be a binary (an integer).")
+    ),
+    advgetopt::define_option(
+          advgetopt::Name("by-time")
+        , advgetopt::ShortName('T')
+        , advgetopt::Flags(advgetopt::standalone_command_flags<
+              advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("list the events sorted by time instead of identifier.")
+    ),
+    advgetopt::define_option(
           advgetopt::Name("list")
         , advgetopt::ShortName('l')
         , advgetopt::Flags(advgetopt::standalone_command_flags<
@@ -230,14 +244,56 @@ int prinbee_journal::load_journal()
 
 int prinbee_journal::scan_journal()
 {
+    bool const binary_id(f_opt.is_defined("binary-id"));
+    bool const by_time(f_opt.is_defined("by-time"));
     bool const text(f_opt.is_defined("text"));
     bool const list(f_opt.is_defined("list"));
 
     prinbee::out_event_t event;
     f_journal->rewind();
-    while(f_journal->next_event(event, false, true))
+    while(f_journal->next_event(event, by_time, true))
     {
-        std::cout << "Event: " << event.f_request_id
+        std::string id(event.f_request_id);
+        if(binary_id)
+        {
+            switch(id.length())
+            {
+            case 1:
+                {
+                    std::uint8_t value(-1);
+                    prinbee::string_to_id(value, id);
+                    id = std::to_string(static_cast<std::uint32_t>(value));
+                }
+                break;
+
+            case 2:
+                {
+                    std::uint16_t value(-1);
+                    prinbee::string_to_id(value, id);
+                    id = std::to_string(static_cast<std::uint32_t>(value));
+                }
+                break;
+
+            case 4:
+                {
+                    std::uint32_t value(-1);
+                    prinbee::string_to_id(value, id);
+                    id = std::to_string(value);
+                }
+                break;
+
+            case 8:
+                {
+                    std::uint64_t value(-1);
+                    prinbee::string_to_id(value, id);
+                    id = std::to_string(value);
+                }
+                break;
+
+            }
+        }
+
+        std::cout << "Event: " << id
             << " (file: \"" << event.f_debug_filename
             << "\", offset: " << event.f_debug_offset
             << ")\n";

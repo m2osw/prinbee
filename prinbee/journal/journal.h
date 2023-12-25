@@ -31,7 +31,12 @@
  * Additional information can be found in the implementation file (.cpp).
  */
 
-// C++
+// self
+//
+#include    <prinbee/exception.h>
+
+
+// snapdev
 //
 #include    <snapdev/timespec_ex.h>
 
@@ -61,16 +66,28 @@ constexpr std::uint32_t const       JOURNAL_MINIMUM_EVENTS = 100;
 constexpr std::uint32_t const       JOURNAL_MAXIMUM_EVENTS = 100'000;
 
 
+// enum uses specific numbers because these get saved in a file
+// so it cannot change over time; just "cancel" old numbers
+// and use new ones as required
+//
 enum class status_t : std::uint8_t
 {
-    STATUS_UNKNOWN,       // equivalent to a "null"
+    STATUS_UNKNOWN = 0,       // equivalent to a "null"
 
-    STATUS_READY,
-    STATUS_FORWARDED,
-    STATUS_ACKNOWLEDGED,
-    STATUS_COMPLETED,
+    STATUS_READY = 1,
+    STATUS_FORWARDED = 2,
+    STATUS_ACKNOWLEDGED = 3,
+    STATUS_COMPLETED = 4,
 
-    STATUS_FAILED,        // TBD: maybe have a clearer reason for failure since we have another 250 numbers available?
+    STATUS_FAILED = 100,    // TBD: maybe have a clearer reason for failure since we have another ~150 numbers available?
+};
+
+
+enum class sync_t : std::uint8_t
+{
+    SYNC_NONE,           // no flushing or sync
+    SYNC_FLUSH,          // just standard flush() -- flush rdbuf
+    SYNC_FULL,           // fsync()
 };
 
 
@@ -114,6 +131,74 @@ struct out_event_t
 };
 
 
+/** \brief Convert an identifier represented by a number in a string.
+ *
+ * This helper function can be used to convert an identifier in a
+ * string. This is useful if you'd like to use a number as your
+ * identifiers.
+ *
+ * The transformation uses the number in bigendian order so that way
+ * they are sorted as expected (smallest to largest assuming all numbers
+ * are positive).
+ *
+ * Here is an example of usage:
+ *
+ * \code
+ *     prinbee::in_event_t const event =
+ *     {
+ *         .f_request_id = prinbee::id_to_string(id),
+ *         .f_size = size,
+ *         .f_data = data.data(),
+ *     };
+ * \endcode
+ *
+ * \note
+ * This function does not convert the number in ASCII digits in a string.
+ * It actually creates a string with the binary data.
+ *
+ * \note
+ * If you are going to re-use the same identifier many times, avoid calling
+ * the function over and over again. It should be considered slow. Saving
+ * the result in a variable is best.
+ *
+ * \tparam T  The type of integer.
+ * \param[in] id  The identifier to transform in a string.
+ *
+ * \return The `id` number in an std::string.
+ */
+template<
+      typename T
+    , std::enable_if_t<std::is_integral_v<T>, int> = 0>
+inline std::string id_to_string(T id)
+{
+    std::string result(sizeof(id), '\0');
+    for(int idx(sizeof(id) - 1); id != 0; --idx)
+    {
+        result[idx] = id & 255;
+        id >>= 8;
+    }
+    return result;
+}
+
+
+template<
+      typename T
+    , std::enable_if_t<std::is_integral_v<T>, int> = 0>
+inline T string_to_id(T & id, std::string const & value)
+{
+    if(value.length() != sizeof(T))
+    {
+        throw invalid_parameter("input string is not the right size");
+    }
+    id = 0;
+    for(std::size_t idx(0); idx < sizeof(id); ++idx)
+    {
+        id = (id << 8) | static_cast<std::uint8_t>(value[idx]);
+    }
+    return id;
+}
+
+
 class journal
 {
 public:
@@ -123,14 +208,15 @@ public:
                                 journal(std::string const & path);
 
     bool                        is_valid() const;
-    bool                        sync();
+    sync_t                      sync();
 
     // options
     //
     bool                        set_maximum_number_of_files(std::uint32_t maximum_number_of_files);
     bool                        set_maximum_file_size(std::uint32_t maximum_file_size);
     bool                        set_maximum_events(std::uint32_t maximum_events);
-    bool                        set_sync(bool sync);
+    bool                        set_sync(sync_t sync);
+    file_management_t           get_file_management() const;
     bool                        set_file_management(file_management_t file_management);
     bool                        set_replay_order(replay_order_t replay_order);
     bool                        set_compress_when_full(bool compress_when_full);
@@ -139,7 +225,7 @@ public:
     //
     bool                        add_event(
                                     in_event_t const & event,
-                                    snapdev::timespec_ex const & event_time);
+                                    snapdev::timespec_ex & event_time);
     bool                        event_forwarded(request_id_t const & request_id);
     bool                        event_acknowledged(request_id_t const & request_id);
     bool                        event_completed(request_id_t const & request_id);
@@ -150,19 +236,87 @@ public:
     bool                        empty() const;
     std::size_t                 size() const;
     void                        rewind();
-    bool                        next_event(out_event_t & event, bool by_time = false, bool debug = false);
+    bool                        next_event(out_event_t & event, bool by_time = true, bool debug = false);
 
 private:
-    typedef std::shared_ptr<std::fstream>   event_file_t;
-
-    struct location
+    class file
     {
+    public:
+        typedef std::shared_ptr<file>
+                                    pointer_t;
+        typedef std::vector<pointer_t>
+                                    vector_t;
+
+                                    file(
+                                          journal * j
+                                        , std::string const & filename
+                                        , bool create);
+                                    file(file const &) = delete;
+                                    ~file();
+        file &                      operator = (file const &) = delete;
+
+        std::string const &         filename() const;
+        bool                        good() const;
+        bool                        fail() const;
+        void                        clear();
+        void                        seekg(std::ios::pos_type offset, std::ios::seekdir dir = std::ios::beg);
+        void                        seekp(std::ios::pos_type offset, std::ios::seekdir dir = std::ios::beg);
+        std::ios::pos_type          tellg() const;
+        std::ios::pos_type          tellp() const;
+        std::ios::pos_type          tell() const;
+        std::ios::pos_type          size() const;
+        void                        read(void * data, std::size_t size);
+        void                        write(void const * data, std::size_t size);
+        void                        truncate();
+        void                        flush();
+        void                        fsync();
+        void                        reset_event_count();
+        void                        increase_event_count();
+        std::uint32_t               get_event_count() const;
+        void                        set_next_append(std::uint32_t offset);
+        std::uint32_t               get_next_append() const;
+
+    private:
+        std::string                 f_filename = std::string();
+        journal *                   f_journal = nullptr;
+        std::shared_ptr<std::fstream>
+                                    f_event_file = std::shared_ptr<std::fstream>();
+        //location::location_map_t    f_locations = location::location_map_t();
+        std::ios::pos_type          f_pos_read = 0;
+        std::ios::pos_type          f_pos_write = 0;
+        std::uint32_t               f_event_count = 0;
+        std::uint32_t               f_next_append = 0;
+    };
+
+    class location
+    {
+    public:
         typedef std::shared_ptr<location>
                                     pointer_t;
         typedef std::map<request_id_t, pointer_t>
-                                    location_map_t;
+                                    request_id_map_t;
         typedef std::map<snapdev::timespec_ex, pointer_t>
-                                    timebased_replay_map_t;
+                                    time_map_t;
+
+                                    location(file::pointer_t f);
+
+        file::pointer_t             get_file() const;
+
+        void                        set_request_id(std::string const & request_id);
+        snapdev::timespec_ex        get_event_time() const;
+        void                        set_event_time(snapdev::timespec_ex const & event_time);
+        status_t                    get_status() const;
+        void                        set_status(status_t status);
+        void                        set_file_index(std::uint8_t file_index);
+        std::uint32_t               get_offset() const;
+        void                        set_offset(std::uint32_t offset);
+        void                        set_size(std::uint32_t size);
+
+        bool                        read_data(out_event_t & event, bool debug);
+        bool                        write_new_event(in_event_t const & event);
+
+    private:
+        file::pointer_t             f_file = file::pointer_t();
 
         request_id_t                f_request_id = request_id_t();
         snapdev::timespec_ex        f_event_time = snapdev::timespec_ex();
@@ -178,9 +332,9 @@ private:
     bool                        load_event_locations(bool compress = false);
     bool                        append_new_event();
     bool                        update_event_status(request_id_t const & request_id, status_t const status);
-    event_file_t                get_event_file(std::uint8_t index, bool create = false);
+    file::pointer_t             get_event_file(std::uint8_t index, bool create = false);
     std::string                 get_filename(std::uint8_t index);
-    void                        sync_if_requested(event_file_t file);
+    void                        sync_if_requested(file::pointer_t file);
 
     std::string                 f_path = std::string();
     bool                        f_valid = false;
@@ -188,7 +342,7 @@ private:
 
     // options (from .conf file)
     //
-    bool                        f_sync = false;
+    sync_t                      f_sync = sync_t::SYNC_NONE;
     bool                        f_compress_when_full = false;
     file_management_t           f_file_management = file_management_t::FILE_MANAGEMENT_KEEP;
     replay_order_t              f_replay_order = replay_order_t::REPLAY_ORDER_REQUEST_ID;
@@ -199,16 +353,13 @@ private:
     // the actual journal data
     //
     std::uint8_t                f_current_file_index = 0;
-    std::vector<event_file_t>   f_event_files = std::vector<event_file_t>();
-    location::location_map_t    f_event_locations = location::location_map_t();
-    location::timebased_replay_map_t
-                                f_timebased_replay = location::timebased_replay_map_t();
-    location::location_map_t::iterator 
-                                f_event_locations_iterator = location::location_map_t::iterator();
-    location::timebased_replay_map_t::iterator
-                                f_timebased_replay_iterator = location::timebased_replay_map_t::iterator();
-    std::vector<std::uint32_t>  f_event_count = std::vector<std::uint32_t>();
-    std::vector<std::uint32_t>  f_next_append = std::vector<std::uint32_t>();
+    file::vector_t              f_event_files = file::vector_t();
+    location::request_id_map_t  f_event_locations = location::request_id_map_t();
+    location::time_map_t        f_timebased_replay = location::time_map_t();
+    location::request_id_map_t::iterator 
+                                f_event_locations_iterator = location::request_id_map_t::iterator();
+    location::time_map_t::iterator
+                                f_timebased_replay_iterator = location::time_map_t::iterator();
 };
 
 

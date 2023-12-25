@@ -136,6 +136,17 @@ conf_values_t load_conf(std::string const & path)
 }
 
 
+CATCH_TEST_CASE("journal_helper_functions", "[journal]")
+{
+    CATCH_START_SECTION("journal_helper_functions: id_to_string()")
+    {
+        std::uint32_t const id((0x31 << 24) | (0x32 << 16) | (0x33 << 8) | 0x34);
+        CATCH_REQUIRE(prinbee::id_to_string(id) == "1234");
+    }
+    CATCH_END_SECTION()
+}
+
+
 CATCH_TEST_CASE("journal_options", "[journal]")
 {
     CATCH_START_SECTION("journal_options: default options")
@@ -148,9 +159,12 @@ CATCH_TEST_CASE("journal_options", "[journal]")
             MAXIMUM_FILE_SIZE,
             MAXIMUM_NUMBER_OF_FILES,
             REPLAY_ORDER,
+            FLUSH,
             SYNC,
+
+            max_options
         };
-        for(int index(0); index < 7; ++index)
+        for(int index(0); index < max_options; ++index)
         {
             std::string expected_result;
             std::string const path(conf_path("journal_options"));
@@ -249,8 +263,12 @@ CATCH_TEST_CASE("journal_options", "[journal]")
                 }
                 break;
 
+            case FLUSH:
+                CATCH_REQUIRE(j.set_sync(prinbee::sync_t::SYNC_FLUSH));
+                break;
+
             case SYNC:
-                CATCH_REQUIRE(j.set_sync(true));
+                CATCH_REQUIRE(j.set_sync(prinbee::sync_t::SYNC_FULL));
                 break;
 
             }
@@ -288,7 +306,21 @@ CATCH_TEST_CASE("journal_options", "[journal]")
 
             it = conf_values.find("sync");
             CATCH_REQUIRE(it != conf_values.end());
-            CATCH_REQUIRE((index == SYNC ? "true" : "false") == it->second);
+            switch(index)
+            {
+            case FLUSH:
+                CATCH_REQUIRE("flush" == it->second);
+                break;
+
+            case SYNC:
+                CATCH_REQUIRE("full" == it->second);
+                break;
+
+            default:
+                CATCH_REQUIRE("none" == it->second);
+                break;
+
+            }
             conf_values.erase(it);
 
             CATCH_REQUIRE(conf_values.empty());
@@ -671,16 +703,19 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
             std::vector<std::uint8_t> data(size);
             for(std::size_t idx(0); idx < size; ++idx)
             {
-                data[idx] = rand();
+                data[idx] = static_cast<std::uint8_t>(rand());
             }
+            std::string const request_id(SNAP_CATCH2_NAMESPACE::random_string(1, 255));
             prinbee::in_event_t const event =
             {
-                .f_request_id = "id-123",
+                .f_request_id = request_id,
                 .f_size = size,
                 .f_data = data.data(),
             };
             snapdev::timespec_ex const event_time(snapdev::now());
-            CATCH_REQUIRE(j.add_event(event, event_time));
+            snapdev::timespec_ex pass_time(event_time);
+            CATCH_REQUIRE(j.add_event(event, pass_time));
+            CATCH_REQUIRE(event_time == pass_time);
 
             // the only way to verify that the event was sent to the journal
             // properly is to read it back using the next_event() function, but
@@ -694,7 +729,7 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
             j.rewind();
             CATCH_REQUIRE(j.next_event(out_event));
 
-            CATCH_REQUIRE("id-123" == out_event.f_request_id);
+            CATCH_REQUIRE(request_id == out_event.f_request_id);
             CATCH_REQUIRE(size == out_event.f_data.size());
             CATCH_REQUIRE_LONG_STRING(std::string(reinterpret_cast<char const *>(data.data()), data.size())
                                     , std::string(reinterpret_cast<char const *>(out_event.f_data.data()), out_event.f_data.size()));
@@ -711,6 +746,7 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
             // Process sequence
             //
             bool expect_success(true);
+            bool gone(false);
             prinbee::status_t last_success(prinbee::status_t::STATUS_UNKNOWN);
             for(auto const & status : sequence)
             {
@@ -725,43 +761,337 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
                     break;
 
                 case prinbee::status_t::STATUS_FORWARDED:
-                    CATCH_REQUIRE(j.event_forwarded("id-123") == expect_success);
+                    CATCH_REQUIRE(j.event_forwarded(request_id) == expect_success);
                     break;
 
                 case prinbee::status_t::STATUS_ACKNOWLEDGED:
-                    CATCH_REQUIRE(j.event_acknowledged("id-123") == expect_success);
+                    CATCH_REQUIRE(j.event_acknowledged(request_id) == expect_success);
                     break;
 
                 case prinbee::status_t::STATUS_COMPLETED:
-                    CATCH_REQUIRE(j.event_completed("id-123") == expect_success);
+                    CATCH_REQUIRE(j.event_completed(request_id) == expect_success);
+                    gone = true;
                     break;
 
                 case prinbee::status_t::STATUS_FAILED:
-                    CATCH_REQUIRE(j.event_failed("id-123") == expect_success);
+                    CATCH_REQUIRE(j.event_failed(request_id) == expect_success);
+                    gone = true;
                     break;
 
                 }
                 CATCH_REQUIRE_FALSE(j.next_event(out_event));
                 j.rewind();
-                CATCH_REQUIRE(j.next_event(out_event));
-
-                CATCH_REQUIRE("id-123" == out_event.f_request_id);
-                CATCH_REQUIRE(size == out_event.f_data.size());
-                CATCH_REQUIRE(data == out_event.f_data);
-                if(expect_success)
+                if(gone)
                 {
-                    CATCH_REQUIRE(status == out_event.f_status);
-                    last_success = out_event.f_status;
+                    // if gone, a second attempt still fails
+                    //
+                    CATCH_REQUIRE_FALSE(j.next_event(out_event));
                 }
                 else
                 {
-                    // on error, it does not change
+                    // not gone yet, all the data is still accessible
                     //
-                    CATCH_REQUIRE(last_success == out_event.f_status);
+                    CATCH_REQUIRE(j.next_event(out_event));
+
+                    CATCH_REQUIRE(request_id == out_event.f_request_id);
+                    CATCH_REQUIRE(size == out_event.f_data.size());
+                    CATCH_REQUIRE(data == out_event.f_data);
+                    if(expect_success)
+                    {
+                        CATCH_REQUIRE(status == out_event.f_status);
+                        last_success = out_event.f_status;
+                    }
+                    else
+                    {
+                        // on error, it does not change
+                        //
+                        CATCH_REQUIRE(last_success == out_event.f_status);
+                    }
+                    CATCH_REQUIRE(event_time == out_event.f_event_time);
                 }
-                CATCH_REQUIRE(event_time == out_event.f_event_time);
 
                 CATCH_REQUIRE_FALSE(j.next_event(out_event));
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_status_sequence: verify the delete functionality when empty")
+    {
+        std::random_device rd;
+        std::mt19937 g(rd());
+
+        std::string const path(conf_path("journal_delete"));
+
+        {
+            std::string expected_result;
+            advgetopt::conf_file::reset_conf_files();
+            prinbee::journal j(path);
+            CATCH_REQUIRE(j.set_file_management(prinbee::file_management_t::FILE_MANAGEMENT_DELETE));
+            CATCH_REQUIRE(j.set_maximum_events(5));
+            CATCH_REQUIRE(j.is_valid());
+
+            std::vector<int> ids;
+            for(int id(1); id <= 10; ++id)
+            {
+                std::size_t const size(rand() % 1024 + 1);
+                std::vector<std::uint8_t> data(size);
+                for(std::size_t idx(0); idx < size; ++idx)
+                {
+                    data[idx] = rand();
+                }
+                prinbee::in_event_t const event =
+                {
+                    .f_request_id = prinbee::id_to_string(id),
+                    .f_size = size,
+                    .f_data = data.data(),
+                };
+                snapdev::timespec_ex const event_time(snapdev::now());
+                snapdev::timespec_ex pass_time(event_time);
+                CATCH_REQUIRE(j.add_event(event, pass_time));
+                CATCH_REQUIRE(event_time == pass_time);
+
+                ids.push_back(id);
+            }
+
+            for(int status(0); status < 3; ++status)
+            {
+                std::shuffle(ids.begin(), ids.end(), g);
+
+                for(auto const & id : ids)
+                {
+                    switch(status)
+                    {
+                    case 0:
+                        CATCH_REQUIRE(j.event_forwarded(prinbee::id_to_string(id)));
+                        break;
+
+                    case 1:
+                        CATCH_REQUIRE(j.event_acknowledged(prinbee::id_to_string(id)));
+                        break;
+
+                    case 2:
+                        CATCH_REQUIRE(j.event_completed(prinbee::id_to_string(id)));
+                        break;
+
+                    default:
+                        CATCH_REQUIRE(!"unknown status");
+
+                    }
+                }
+            }
+        }
+
+        // make sure the DELETE happened
+        //
+        for(int idx(0); idx < 3; ++idx)
+        {
+            std::string const filename(event_filename(path, idx));
+            CATCH_REQUIRE(access(filename.c_str(), R_OK) != 0);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_status_sequence: verify the delete functionality when not empty")
+    {
+        std::random_device rd;
+        std::mt19937 g(rd());
+
+        std::string const path(conf_path("journal_truncate_delete"));
+
+        {
+            std::string expected_result;
+            advgetopt::conf_file::reset_conf_files();
+            prinbee::journal j(path);
+            CATCH_REQUIRE(j.set_file_management(prinbee::file_management_t::FILE_MANAGEMENT_DELETE));
+            CATCH_REQUIRE(j.set_maximum_events(5));
+            CATCH_REQUIRE(j.is_valid());
+
+            std::vector<int> ids;
+            for(int id(1); id <= 10; ++id)
+            {
+                std::size_t const size(rand() % 1024 + 1);
+                std::vector<std::uint8_t> data(size);
+                for(std::size_t idx(0); idx < size; ++idx)
+                {
+                    data[idx] = rand();
+                }
+                prinbee::in_event_t const event =
+                {
+                    .f_request_id = prinbee::id_to_string(id),
+                    .f_size = size,
+                    .f_data = data.data(),
+                };
+                snapdev::timespec_ex const event_time(snapdev::now());
+                snapdev::timespec_ex pass_time(event_time);
+                CATCH_REQUIRE(j.add_event(event, pass_time));
+                CATCH_REQUIRE(event_time == pass_time);
+
+                if(rand() % 2 != 0)
+                {
+                    ids.push_back(id);
+                }
+            }
+            if(ids.size() == 10)
+            {
+                // make sure at least one entry is out
+                //
+                ids.erase(ids.begin() + rand() % 10);
+            }
+
+            for(int status(0); status < 3; ++status)
+            {
+                std::shuffle(ids.begin(), ids.end(), g);
+
+                for(auto const & id : ids)
+                {
+                    switch(status)
+                    {
+                    case 0:
+                        CATCH_REQUIRE(j.event_forwarded(prinbee::id_to_string(id)));
+                        break;
+
+                    case 1:
+                        CATCH_REQUIRE(j.event_acknowledged(prinbee::id_to_string(id)));
+                        break;
+
+                    case 2:
+                        CATCH_REQUIRE(j.event_completed(prinbee::id_to_string(id)));
+                        break;
+
+                    default:
+                        CATCH_REQUIRE(!"unknown status");
+
+                    }
+                }
+            }
+        }
+
+        {
+            // make sure the DELETE does not happen when not empty
+            //
+            for(int idx(0); idx < 3; ++idx)
+            {
+                std::string const filename(event_filename(path, idx));
+                //CATCH_REQUIRE(access(filename.c_str(), R_OK) != 0);
+
+                struct stat s = {};
+                if(stat(filename.c_str(), &s) == 0)
+                {
+                      // main header is 8 bytes (See event_journal_header_t)
+                      //
+                      CATCH_REQUIRE(s.st_size > 8);
+                }
+                else
+                {
+                    // we (probably) reached the last file
+                    //
+                    int const e(errno);
+                    CATCH_REQUIRE(e == ENOENT);
+
+                    // we at least needed 1 file to save the few entries
+                    // created above, so idx should never be zero if it
+                    // worked as expected
+                    //
+                    CATCH_REQUIRE(idx > 0);
+                    break;
+                }
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_status_sequence: verify the truncate functionality")
+    {
+        std::random_device rd;
+        std::mt19937 g(rd());
+
+        std::string const path(conf_path("journal_truncate"));
+
+        {
+            std::string expected_result;
+            advgetopt::conf_file::reset_conf_files();
+            prinbee::journal j(path);
+            CATCH_REQUIRE(j.set_file_management(prinbee::file_management_t::FILE_MANAGEMENT_TRUNCATE));
+            CATCH_REQUIRE(j.set_maximum_events(5));
+            CATCH_REQUIRE(j.is_valid());
+
+            std::vector<int> ids;
+            for(int id(1); id <= 10; ++id)
+            {
+                std::size_t const size(rand() % 1024 + 1);
+                std::vector<std::uint8_t> data(size);
+                for(std::size_t idx(0); idx < size; ++idx)
+                {
+                    data[idx] = rand();
+                }
+                prinbee::in_event_t const event =
+                {
+                    .f_request_id = prinbee::id_to_string(id),
+                    .f_size = size,
+                    .f_data = data.data(),
+                };
+                snapdev::timespec_ex const event_time(snapdev::now());
+                snapdev::timespec_ex pass_time(event_time);
+                CATCH_REQUIRE(j.add_event(event, pass_time));
+                CATCH_REQUIRE(event_time == pass_time);
+
+                ids.push_back(id);
+            }
+
+            for(int status(0); status < 3; ++status)
+            {
+                std::shuffle(ids.begin(), ids.end(), g);
+
+                for(auto const & id : ids)
+                {
+                    switch(status)
+                    {
+                    case 0:
+                        CATCH_REQUIRE(j.event_forwarded(prinbee::id_to_string(id)));
+                        break;
+
+                    case 1:
+                        CATCH_REQUIRE(j.event_acknowledged(prinbee::id_to_string(id)));
+                        break;
+
+                    case 2:
+                        CATCH_REQUIRE(j.event_completed(prinbee::id_to_string(id)));
+                        break;
+
+                    default:
+                        CATCH_REQUIRE(!"unknown status");
+
+                    }
+                }
+            }
+        }
+
+        {
+            // make sure the TRUNCATE happened
+            //
+            for(int idx(0); idx < 3; ++idx)
+            {
+                std::string const filename(event_filename(path, idx));
+                struct stat s = {};
+                if(stat(filename.c_str(), &s) == 0)
+                {
+                    CATCH_REQUIRE(s.st_size == 8);  // main header is 8 bytes (See event_journal_header_t)
+                }
+                else
+                {
+                    // we (probably) reached the last file
+                    //
+                    int const e(errno);
+                    CATCH_REQUIRE(e == ENOENT);
+
+                    // we at least needed 1 file to save the few entries
+                    // created above, so idx should never be zero if it
+                    // worked as expected
+                    //
+                    CATCH_REQUIRE(idx > 0);
+                    break;
+                }
             }
         }
     }
@@ -774,7 +1104,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     CATCH_START_SECTION("journal_event_errors: trying to re-add the same event multiple times fails")
     {
         std::string expected_result;
-        std::string const path(conf_path("journal_events"));
+        std::string const path(conf_path("journal_duplicate_event"));
         advgetopt::conf_file::reset_conf_files();
         prinbee::journal j(path);
         CATCH_REQUIRE(j.is_valid());
@@ -804,7 +1134,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     CATCH_START_SECTION("journal_event_errors: request_id too long")
     {
         std::string expected_result;
-        std::string const path(conf_path("journal_events"));
+        std::string const path(conf_path("journal_large_event"));
         advgetopt::conf_file::reset_conf_files();
         prinbee::journal j(path);
         CATCH_REQUIRE(j.is_valid());

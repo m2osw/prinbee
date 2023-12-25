@@ -124,7 +124,9 @@
 
 // snapdev
 //
+#include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/mkdir_p.h>
+#include    <snapdev/not_reached.h>
 #include    <snapdev/stream_fd.h>
 
 
@@ -147,6 +149,12 @@ namespace
 // maximum discrepancy allowed ahead of current time
 //
 snapdev::timespec_ex const g_time_epsilon(5, 0);
+
+
+// when compressing the data, we may need an end marker
+// this is used to clear any existing marker
+//
+constexpr std::uint8_t const g_end_marker[2] = { 0, 0 };
 
 
 struct event_journal_header_t
@@ -180,6 +188,493 @@ char const *        g_journal_conf = "journal.conf";
 
 }
 // no name namespace
+
+
+
+
+
+journal::file::file(journal * j, std::string const & filename, bool create)
+    : f_filename(filename)
+    , f_journal(j)
+{
+    f_event_file = std::make_shared<std::fstream>(filename, std::ios::in | std::ios::out | std::ios::binary);
+    if(!f_event_file->good()
+    && create)
+    {
+        // it may not exist yet, create and then try reopening
+        {
+            std::fstream new_file(filename, std::ios::out | std::ios::binary);
+        }
+        f_event_file = std::make_shared<std::fstream>(filename, std::ios::in | std::ios::out | std::ios::binary);
+    }
+
+    if(!f_event_file->good())
+    {
+        f_event_file.reset();
+        return;
+    }
+}
+
+
+journal::file::~file()
+{
+    truncate();
+}
+
+
+std::string const & journal::file::filename() const
+{
+    return f_filename;
+}
+
+
+bool journal::file::good() const
+{
+    if(f_event_file == nullptr)
+    {
+        return false;
+    }
+
+    return f_event_file->good();
+}
+
+
+bool journal::file::fail() const
+{
+    if(f_event_file == nullptr)
+    {
+        return true;
+    }
+
+    return f_event_file->fail();
+}
+
+
+void journal::file::clear()
+{
+    if(f_event_file != nullptr)
+    {
+        f_event_file->clear();
+    }
+}
+
+
+void journal::file::seekg(std::ios::pos_type offset, std::ios::seekdir dir)
+{
+    switch(dir)
+    {
+    case std::ios::beg:
+        f_pos_read = offset;
+        break;
+
+    case std::ios::cur:
+        f_pos_read += offset;
+        break;
+
+    case std::ios::end:
+        f_pos_read = size();
+        break;
+
+    }
+}
+
+
+void journal::file::seekp(std::ios::pos_type offset, std::ios::seekdir dir)
+{
+    switch(dir)
+    {
+    case std::ios::beg:
+        f_pos_write = offset;
+        break;
+
+    case std::ios::cur:
+        f_pos_write += offset;
+        break;
+
+    case std::ios::end:
+        f_pos_write = size();
+        break;
+
+    }
+}
+
+
+/** \brief This function returns the next read position.
+ *
+ * We manage two offsets, a read and a write, to know where to read and/or
+ * write next in the journal files. This function returns the next read
+ * position. It can be updated using the seekp() function.
+ *
+ * If you want to get the actual position of the OS file pointer, use
+ * the tell() function instead.
+ *
+ * \return The offset for the next write() call.
+ */
+std::ios::pos_type journal::file::tellg() const
+{
+    return f_pos_read;
+}
+
+
+/** \brief This function returns the next write position.
+ *
+ * We manage two offsets, a read and a write, to know where to read and/or
+ * write next in the journal files. This function returns the next write
+ * position. It can be updated using the seekp() function.
+ *
+ * If you want to get the actual position of the OS file pointer, use
+ * the tell() function instead.
+ *
+ * \return The offset for the next write() call.
+ */
+std::ios::pos_type journal::file::tellp() const
+{
+    return f_pos_write;
+}
+
+
+/** \brief This function returns the current position of the file itself.
+ *
+ * This function actually calls tell() on the system file and returns that
+ * position. This is useful just after a read() or a write() to get that
+ * offset.
+ *
+ * \return The current file position.
+ */
+std::ios::pos_type journal::file::tell() const
+{
+    if(f_event_file != nullptr)
+    {
+        return f_event_file->tellg();
+    }
+
+    return 0;
+}
+
+
+std::ios::pos_type journal::file::size() const
+{
+    if(f_event_file != nullptr)
+    {
+        // note: all the read() and write() calls will do a seek before the
+        //       actual system call so there is not need to save the
+        //       current position here
+        //
+        f_event_file->seekg(0, std::ios::end);
+        return f_event_file->tellg();
+    }
+
+    return 0;
+}
+
+
+void journal::file::write(void const * data, std::size_t size)
+{
+    if(f_event_file != nullptr)
+    {
+        f_event_file->seekp(f_pos_write, std::ios::beg);
+        f_event_file->write(reinterpret_cast<char const *>(data), size);
+        f_pos_write += size;
+    }
+}
+
+
+void journal::file::read(void * data, std::size_t size)
+{
+    if(f_event_file != nullptr)
+    {
+        f_event_file->seekp(f_pos_read, std::ios::beg);
+        f_event_file->read(reinterpret_cast<char *>(data), size);
+        f_pos_read += size;
+    }
+}
+
+
+void journal::file::truncate()
+{
+    if(f_event_file == nullptr)
+    {
+        return;
+    }
+
+    int const fd(snapdev::stream_fd(*f_event_file));
+    if(fd == -1)
+    {
+        return;
+    }
+
+    file_management_t const file_management(f_journal->get_file_management());
+    switch(file_management)
+    {
+    case file_management_t::FILE_MANAGEMENT_KEEP:
+        {
+            // in this case we keep all the content
+            //
+            std::size_t const file_size(size());
+            if(file_size > static_cast<std::size_t>(f_next_append))
+            {
+                seekp(f_next_append);
+                write(
+                    reinterpret_cast<char const *>(&g_end_marker),
+                    std::min(sizeof(g_end_marker), file_size - f_next_append));
+            }
+        }
+        break;
+
+    case file_management_t::FILE_MANAGEMENT_TRUNCATE:
+    case file_management_t::FILE_MANAGEMENT_DELETE:
+        {
+            // make sure all previous write()'s where applied before
+            // truncating or we can end up with spurious data (it's also
+            // a good idea to do that if you are to delete the file so it
+            // stay deleted)
+            //
+            f_event_file->flush();
+
+            std::size_t const size(std::max(sizeof(event_journal_header_t), static_cast<std::size_t>(f_next_append)));
+            if(size == sizeof(event_journal_header_t)
+            && file_management == file_management_t::FILE_MANAGEMENT_DELETE)
+            {
+                ::unlink(f_filename.c_str());
+                f_next_append = 0;
+            }
+            else
+            {
+                ::ftruncate(fd, size);
+            }
+
+            // those should not be necessary, but I think it makes sense to
+            // fix the position if out of scope
+            //
+            if(f_pos_read > f_next_append)
+            {
+                f_pos_read = f_next_append;
+            }
+            if(f_pos_write > f_next_append)
+            {
+                f_pos_write = f_next_append;
+            }
+        }
+        break;
+
+    }
+}
+
+
+void journal::file::flush()
+{
+    if(f_event_file != nullptr)
+    {
+        f_event_file->flush();
+    }
+}
+
+
+void journal::file::fsync()
+{
+    if(f_event_file != nullptr)
+    {
+        int const fd(snapdev::stream_fd(*f_event_file));
+        if(fd != -1)
+        {
+            ::fsync(fd);
+        }
+    }
+}
+
+
+void journal::file::reset_event_count()
+{
+    f_event_count = 0;
+}
+
+
+void journal::file::increase_event_count()
+{
+    ++f_event_count;
+}
+
+
+std::uint32_t journal::file::get_event_count() const
+{
+    return f_event_count;
+}
+
+
+void journal::file::set_next_append(std::uint32_t offset)
+{
+    f_next_append = offset;
+}
+
+
+std::uint32_t journal::file::get_next_append() const
+{
+    return f_next_append;
+}
+
+
+
+
+
+
+
+
+
+
+
+journal::location::location(file::pointer_t f)
+    : f_file(f)
+{
+}
+
+
+bool journal::location::read_data(out_event_t & event, bool debug)
+{
+    event.f_request_id = f_request_id;
+    event.f_status = f_status;
+    event.f_event_time = f_event_time;
+    event.f_data.resize(f_size);
+    if(debug)
+    {
+        event.f_debug_filename = f_file->filename();
+        event.f_debug_offset = f_offset;
+    }
+    std::size_t const header_size(sizeof(event_journal_event_t) + f_request_id.length());
+    std::uint32_t const offset(f_offset + header_size);
+    f_file->seekg(offset);
+    f_file->read(event.f_data.data(), f_size);
+
+    if(f_file->fail())
+    {
+        SNAP_LOG_CRITICAL
+            << "could not read event "
+            << f_request_id
+            << " at "
+            << offset
+            << " in \""
+            << f_file->filename()
+            << "\"."
+            << SNAP_LOG_SEND;
+        return false;
+    }
+
+    return true;
+}
+
+
+journal::file::pointer_t journal::location::get_file() const
+{
+    return f_file;
+}
+
+
+void journal::location::set_request_id(std::string const & request_id)
+{
+    f_request_id = request_id;
+}
+
+
+snapdev::timespec_ex journal::location::get_event_time() const
+{
+    return f_event_time;
+}
+
+
+void journal::location::set_event_time(snapdev::timespec_ex const & event_time)
+{
+    f_event_time = event_time;
+}
+
+
+status_t journal::location::get_status() const
+{
+    return f_status;
+}
+
+
+void journal::location::set_status(status_t status)
+{
+    f_status = status;
+}
+
+
+void journal::location::set_file_index(std::uint8_t file_index)
+{
+    f_file_index = file_index;
+}
+
+
+std::uint32_t journal::location::get_offset() const
+{
+    return f_offset;
+}
+
+
+void journal::location::set_offset(std::uint32_t offset)
+{
+    f_offset = offset;
+}
+
+
+void journal::location::set_size(std::uint32_t size)
+{
+    f_size = size;
+}
+
+
+bool journal::location::write_new_event(in_event_t const & event)
+{
+    if(f_file->get_next_append() == 0)
+    {
+        event_journal_header_t journal_header;
+        f_file->seekp(0);
+        f_file->write(&journal_header, sizeof(journal_header));
+        f_file->set_next_append(sizeof(journal_header));
+    }
+
+    f_request_id = event.f_request_id;
+    f_status = status_t::STATUS_READY;
+    f_offset = f_file->get_next_append();
+    f_size = event.f_size;
+
+    event_journal_event_t event_header;
+    event_header.f_magic[0] = 'e';
+    event_header.f_magic[1] = 'v';
+    event_header.f_status = static_cast<event_journal_event_t::file_status_t>(f_status);
+    event_header.f_request_id_size = f_request_id.length();
+    event_header.f_size = sizeof(event_journal_event_t)
+                        + f_request_id.length()
+                        + event.f_size;
+    event_header.f_time[0] = f_event_time.tv_sec;
+    event_header.f_time[1] = f_event_time.tv_nsec;
+
+    f_file->seekp(f_offset);
+    f_file->write(reinterpret_cast<char const *>(&event_header), sizeof(event_header));
+    f_file->write(f_request_id.data(), f_request_id.length());
+    f_file->write(reinterpret_cast<char const *>(event.f_data), f_size);
+    if(f_file->fail())
+    {
+        // LCOV_EXCL_START
+        SNAP_LOG_FATAL
+            << "failed write_new_event() while writing."
+            << SNAP_LOG_SEND;
+        return false;
+        // LCOV_EXCL_STOP
+    }
+
+    f_file->set_next_append(f_file->tell());
+    f_file->increase_event_count();
+
+    return true;
+}
+
+
+
+
+
+
+
+
 
 
 
@@ -219,6 +714,7 @@ bool journal::set_maximum_number_of_files(std::uint32_t maximum_number_of_files)
             + std::to_string(JOURNAL_MAXIMUM_NUMBER_OF_FILES)
             + "]");
     }
+
     if(maximum_number_of_files < f_maximum_number_of_files)
     {
         // here we are supposed to make sure that if extra files exist,
@@ -229,9 +725,10 @@ bool journal::set_maximum_number_of_files(std::uint32_t maximum_number_of_files)
             << "the current version of the journal does not verify that decreasing the maximum number of files is doable at the time it happens."
             << SNAP_LOG_SEND;
     }
+
     f_maximum_number_of_files = maximum_number_of_files;
-    f_next_append.resize(f_maximum_number_of_files);
     f_event_files.resize(f_maximum_number_of_files);
+
     return save_configuration();
 }
 
@@ -272,10 +769,16 @@ bool journal::set_maximum_events(std::uint32_t maximum_events)
 }
 
 
-bool journal::set_sync(bool sync)
+bool journal::set_sync(sync_t sync)
 {
     f_sync = sync;
     return save_configuration();
+}
+
+
+file_management_t journal::get_file_management() const
+{
+    return f_file_management;
 }
 
 
@@ -321,9 +824,30 @@ bool journal::set_compress_when_full(bool compress_when_full)
 }
 
 
+/** \brief Add \p event to the journal.
+ *
+ * This function adds the \p event to the journal and saves it to disk.
+ * If you asked for synchronized I/O, the function only returns after the
+ * data was commited to disk.
+ *
+ * The \p event_time is expected to be set to snapdev::now(). If another
+ * event happened at exactly the same time, the second one being added gets
+ * its time updated (+1) so both events can also be distinguished by time.
+ * The change gets returned in your \p event_time variable.
+ *
+ * \warning
+ * If that event (as defined by the event request identifier) already exists,
+ * then the function ignores the request and returns false.
+ *
+ * \param[in] event  The event data and metadata.
+ * \param[in] event_time  The time when the event occurred. May be updated
+ * by this function if an ealier event already used this time.
+ *
+ * \return true if the event was added as to the journal.
+ */
 bool journal::add_event(
     in_event_t const & event,
-    snapdev::timespec_ex const & event_time)
+    snapdev::timespec_ex & event_time)
 {
     if(f_event_locations.contains(event.f_request_id))
     {
@@ -346,69 +870,42 @@ bool journal::add_event(
     event_size += event.f_request_id.length();
     event_size += event.f_size;
 
+    while(f_timebased_replay.contains(event_time))
+    {
+        ++event_time;
+    }
+
+    // if the file can be compessed, we need up to two attempts, hence
+    // the extra loop
+    //
     bool compress_when_full(f_compress_when_full && f_can_be_compressed);
     for(int attempts(0); attempts < 2; ++attempts)
     {
         for(int count(0); count < f_maximum_number_of_files; ++count)
         {
-            if(f_next_append[f_current_file_index] + event_size < f_maximum_file_size
-            && f_event_count[f_current_file_index] < f_maximum_events)
+            file::pointer_t f(get_event_file(f_current_file_index, true));
+            if(f == nullptr)
             {
-                event_file_t file(get_event_file(f_current_file_index, true));
-                if(file == nullptr)
-                {
-                    SNAP_LOG_FATAL
-                        << "could not retrieve/create event file."
-                        << SNAP_LOG_SEND;
-                    return false;
-                }
+                SNAP_LOG_FATAL
+                    << "could not retrieve/create event file."
+                    << SNAP_LOG_SEND;
+                return false;
+            }
 
+            if(f->get_next_append() + event_size < f_maximum_file_size
+            && f->get_event_count() < f_maximum_events)
+            {
                 // if file is still empty, it was not yet created and thus
                 // it requires a EVTJ header first
                 //
-                if(f_next_append[f_current_file_index] == 0)
-                {
-                    event_journal_header_t journal_header;
-                    file->write(reinterpret_cast<char const *>(&journal_header), sizeof(journal_header));
-                    f_next_append[f_current_file_index] += sizeof(journal_header);
-                }
+                location::pointer_t l(std::make_shared<location>(f));
+                l->set_event_time(event_time);
+                l->set_file_index(f_current_file_index);
 
-                event_journal_event_t event_header;
-                event_header.f_magic[0] = 'e';
-                event_header.f_magic[1] = 'v';
-                event_header.f_status = static_cast<int>(status_t::STATUS_READY);
-                event_header.f_request_id_size = event.f_request_id.length();
-                event_header.f_size = event_size;
-                event_header.f_time[0] = event_time.tv_sec;
-                event_header.f_time[1] = event_time.tv_nsec;
+                l->write_new_event(event);
 
-                file->seekp(f_next_append[f_current_file_index]);
-                file->write(reinterpret_cast<char const *>(&event_header), sizeof(event_header));
-                file->write(event.f_request_id.data(), event.f_request_id.length());
-                file->write(reinterpret_cast<char const *>(event.f_data), event.f_size);
-                if(file->fail())
-                {
-                    // LCOV_EXCL_START
-                    SNAP_LOG_FATAL
-                        << "failed add_event() while writing."
-                        << SNAP_LOG_SEND;
-                    return false;
-                    // LCOV_EXCL_STOP
-                }
-                sync_if_requested(file);
+                sync_if_requested(f);
 
-                location::pointer_t l(std::make_shared<location>());
-                l->f_request_id = event.f_request_id;
-                l->f_event_time = event_time;
-                l->f_status = status_t::STATUS_READY;
-                l->f_file_index = f_current_file_index;
-                l->f_offset = f_next_append[f_current_file_index];
-                l->f_size = event.f_size;
-
-                l->f_request_id.resize(event_header.f_request_id_size);
-
-                f_next_append[f_current_file_index] = file->tellp();
-                ++f_event_count[f_current_file_index];
                 f_event_locations[event.f_request_id] = l;
                 f_timebased_replay[event_time] = l;
                 return true;
@@ -505,48 +1002,7 @@ bool journal::next_event(out_event_t & event, bool by_time, bool debug)
         ++f_event_locations_iterator;
     }
 
-    event_file_t file(get_event_file(l->f_file_index));
-    if(file == nullptr)
-    {
-        SNAP_LOG_FATAL
-            << "file for request_id "
-            << l->f_request_id
-            << " named \""
-            << get_filename(l->f_file_index)
-            << "\" not found."
-            << SNAP_LOG_SEND;
-        return false;
-    }
-
-    event.f_request_id = l->f_request_id;
-    event.f_status = l->f_status;
-    event.f_event_time = l->f_event_time;
-    event.f_data.resize(l->f_size);
-    if(debug)
-    {
-        event.f_debug_filename = get_filename(l->f_file_index);
-        event.f_debug_offset = l->f_offset;
-    }
-    std::size_t const header_size(sizeof(event_journal_event_t) + l->f_request_id.length());
-    std::uint32_t const offset(l->f_offset + header_size);
-    file->seekg(offset);
-    file->read(reinterpret_cast<char *>(event.f_data.data()), l->f_size);
-
-    if(file->fail())
-    {
-        SNAP_LOG_FATAL
-            << "could not read event "
-            << l->f_request_id
-            << " at "
-            << offset
-            << " in \""
-            << get_filename(l->f_file_index)
-            << "\"."
-            << SNAP_LOG_SEND;
-        return false;
-    }
-
-    return true;
+    return l->read_data(event, debug);
 }
 
 
@@ -563,7 +1019,27 @@ bool journal::load_configuration()
 
     if(config->has_parameter("sync"))
     {
-        f_sync = advgetopt::is_true(config->get_parameter("sync"));
+        std::string const sync(config->get_parameter("sync"));
+        if(sync == "none")
+        {
+            f_sync = sync_t::SYNC_NONE;
+        }
+        else if(sync == "flush")
+        {
+            f_sync = sync_t::SYNC_FLUSH;
+        }
+        else if(sync == "full")
+        {
+            f_sync = sync_t::SYNC_FULL;
+        }
+        else
+        {
+            SNAP_LOG_WARNING
+                << "unknown sync type \""
+                << sync
+                << "\"."
+                << SNAP_LOG_SEND;
+        }
     }
 
     if(config->has_parameter("compress_when_full"))
@@ -632,7 +1108,6 @@ bool journal::load_configuration()
         }
         f_maximum_number_of_files = max;
     }
-    f_next_append.resize(f_maximum_number_of_files);
     f_event_files.resize(f_maximum_number_of_files);
 
     if(config->has_parameter("maximum_file_size"))
@@ -676,10 +1151,26 @@ bool journal::save_configuration()
     advgetopt::conf_file_setup setup(get_configuration_filename());
     advgetopt::conf_file::pointer_t config(advgetopt::conf_file::get_conf_file(setup));
 
+    std::string sync;
+    switch(f_sync)
+    {
+    case sync_t::SYNC_NONE:
+        sync = "none";
+        break;
+
+    case sync_t::SYNC_FLUSH:
+        sync = "flush";
+        break;
+
+    case sync_t::SYNC_FULL:
+        sync = "full";
+        break;
+
+    }
     config->set_parameter(
         std::string(),
         "sync",
-        f_sync ? "true" : "false");
+        sync);
 
     config->set_parameter(
         std::string(),
@@ -749,56 +1240,22 @@ bool journal::save_configuration()
 
 bool journal::load_event_locations(bool compress)
 {
-    class write_end_marker
-    {
-    public:
-        typedef std::shared_ptr<write_end_marker> pointer_t;
-
-        write_end_marker(event_file_t file)
-            : f_file(file)
-        {
-        }
-
-        ~write_end_marker()
-        {
-            if(f_compress_when_full)
-            {
-                f_file->seekg(0, std::ios::end);
-                std::size_t const size(f_file->tellg());
-                std::uint8_t const end_marker[2] = { 0, 0 };
-                std::size_t const pos(f_file->tellp());
-                if(pos < size)
-                {
-                    f_file->write(
-                        reinterpret_cast<char const *>(&end_marker),
-                        std::min(sizeof(end_marker), size - pos));
-                }
-            }
-        }
-
-    private:
-        event_file_t        f_file = event_file_t();
-        bool                f_compress_when_full = false;
-    };
-
     std::vector<char> buffer;
-    f_event_count.resize(f_maximum_number_of_files);
-    std::fill(f_event_count.begin(), f_event_count.end(), 0);
     f_can_be_compressed = false;
     f_event_locations.clear();
     for(std::uint32_t index(0); index < f_maximum_number_of_files; ++index)
     {
-        event_file_t file(get_event_file(index));
-        if(file == nullptr)
+        file::pointer_t f(get_event_file(index));
+        if(f == nullptr)
         {
             continue;
         }
-        file->seekg(0, std::ios::end);
-        std::size_t const file_size(file->tellg());
-        file->seekg(0);
+        f->reset_event_count();
+        std::size_t const file_size(f->size());
+        f->seekg(0);
         event_journal_header_t journal_header;
-        file->read(reinterpret_cast<char *>(&journal_header), sizeof(journal_header));
-        if(file->fail())
+        f->read(reinterpret_cast<char *>(&journal_header), sizeof(journal_header));
+        if(f->fail())
         {
             continue;
         }
@@ -812,22 +1269,20 @@ bool journal::load_event_locations(bool compress)
             continue;
         }
 
-        write_end_marker::pointer_t fix_end;
-
-        std::ios::pos_type compress_offset(0);
+        bool found_compress_offset(false);
         bool good(true);
         while(good)
         {
-            std::ios::pos_type const offset(file->tellg());
+            std::ios::pos_type const offset(f->tell());
             event_journal_event_t event_header;
-            file->read(reinterpret_cast<char *>(&event_header), sizeof(event_header));
-            if(!file->good())
+            f->read(&event_header, sizeof(event_header));
+            if(!f->good())
             {
                 // in this case we need to clear because trying to read more
                 // data than available sets the fail bit and that happens
                 // here
                 //
-                file->clear();
+                f->clear();
                 break;
             }
 
@@ -836,9 +1291,49 @@ bool journal::load_event_locations(bool compress)
             if(event_header.f_magic[0] != 'e'
             || event_header.f_magic[1] != 'v')
             {
-                // this happens when we compress a file (i.e. the end is marked
-                // with "\0\0" instead of "ev"
+                // this happens when we compress a file and it is not marked
+                // to be truncated (i.e. the end is marked with "\0\0"
+                // instead of "ev")
                 //
+                if(event_header.f_magic[0] != g_end_marker[0]
+                || event_header.f_magic[1] != g_end_marker[1])
+                {
+                    auto ascii = [](char c)
+                    {
+                        if(c < 0x20)
+                        {
+                            char buf[2] = {
+                                '^',
+                                static_cast<char>(c + 0x20),
+                            };
+                            return std::string(buf, 2);
+                        }
+                        else if(c > 0x7E)
+                        {
+                            char buf[4] = {
+                                '0',
+                                'x',
+                                snapdev::to_hex((c >> 4) & 15),
+                                snapdev::to_hex(c & 15),
+                            };
+                            return std::string(buf, 4);
+                        }
+                        else {
+                            return std::string(1, c);
+                        }
+                    };
+
+                    SNAP_LOG_MAJOR
+                        << "found an invalid event magic ("
+                        << ascii(event_header.f_magic[0])
+                        << ascii(event_header.f_magic[1])
+                        << ") at "
+                        << offset
+                        << " in \""
+                        << f->filename()
+                        << '"'
+                        << SNAP_LOG_SEND;
+                }
                 break;
             }
 
@@ -898,7 +1393,7 @@ bool journal::load_event_locations(bool compress)
                 break;
             }
 
-            ++f_event_count[index];
+            f->increase_event_count();
 
             // if event has a status other than a "still working on that
             // event", then skip it, it's not part of our index (it can
@@ -908,25 +1403,19 @@ bool journal::load_event_locations(bool compress)
             && static_cast<status_t>(event_header.f_status) != status_t::STATUS_FORWARDED
             && static_cast<status_t>(event_header.f_status) != status_t::STATUS_ACKNOWLEDGED)
             {
-                file->seekg(event_header.f_size - sizeof(event_header), std::ios::cur);
-                if(compress_offset == 0)
+                f->seekg(event_header.f_size - sizeof(event_header), std::ios::cur);
+                if(!found_compress_offset)
                 {
-                    compress_offset = offset;
+                    found_compress_offset = true;
+                    f->seekp(offset);
                 }
                 f_can_be_compressed = true;
                 continue;
             }
 
-            location::pointer_t l(std::make_shared<location>());
-            l->f_event_time = event_time;
-            l->f_status = static_cast<status_t>(event_header.f_status);
-            l->f_file_index = index;
-            l->f_offset = offset;
-            l->f_size = data_size;
-
-            l->f_request_id.resize(event_header.f_request_id_size);
-            file->read(l->f_request_id.data(), event_header.f_request_id_size);
-            if(!file->good())
+            std::string request_id(event_header.f_request_id_size, ' ');
+            f->read(request_id.data(), event_header.f_request_id_size);
+            if(!f->good())
             {
                 SNAP_LOG_FATAL
                     << "could not read request identifier at "
@@ -937,34 +1426,31 @@ bool journal::load_event_locations(bool compress)
                     << SNAP_LOG_SEND;
                 break;
             }
-            f_event_locations[l->f_request_id] = l;
+
+            location::pointer_t l(std::make_shared<location>(f));
+            l->set_request_id(request_id);
+            l->set_event_time(event_time);
+            l->set_status(static_cast<status_t>(event_header.f_status));
+            l->set_file_index(index);
+            l->set_offset(offset);
+            l->set_size(data_size);
+
+            f_event_locations[request_id] = l;
             f_timebased_replay[event_time] = l;
 
-            std::uint32_t next_append(0);
-            if(compress_offset > 0
-            && compress)
+            if(found_compress_offset && compress)
             {
                 // we are in compression mode and this event can be moved
                 // "up" (lower offset), do so
 
-                if(fix_end == nullptr)
-                {
-                    fix_end = std::make_shared<write_end_marker>(file);
-                }
-
-                std::ios::pos_type next_offset(file->tellg());
-
                 // save the header
                 //
-                l->f_offset = compress_offset;
-                file->seekp(compress_offset);
-                file->write(reinterpret_cast<char const *>(&event_header), sizeof(event_header));
-                compress_offset += sizeof(event_header);
+                l->set_offset(f->tellp());
+                f->write(reinterpret_cast<char const *>(&event_header), sizeof(event_header));
 
                 // save the request id string
                 //
-                file->write(l->f_request_id.data(), l->f_request_id.length());
-                compress_offset += l->f_request_id.length();
+                f->write(request_id.data(), request_id.length());
 
                 // now copy the data, one block at a time
                 //
@@ -981,41 +1467,31 @@ bool journal::load_event_locations(bool compress)
 
                     // read
                     //
-                    file->seekg(next_offset);
-                    file->read(buffer.data(), s);
-                    if(file->fail())
+                    f->read(buffer.data(), s);
+                    if(f->fail())
                     {
                         // TODO: handle the error better (i.e. mark event
                         //       as invalid)
                         break;
                     }
-                    next_offset += s;
 
                     // write
                     //
-                    file->seekp(compress_offset);
-                    file->write(buffer.data(), s);
-                    compress_offset += s;
+                    f->write(buffer.data(), s);
 
                     remaining_size -= s;
                 }
 
-                next_append = compress_offset;
-                file->seekg(next_offset);
+                f->set_next_append(f->tellp());
             }
             else
             {
                 // skip the data, we don't need it for our index
                 //
-                file->seekg(data_size, std::ios::cur);
+                f->seekg(data_size, std::ios::cur);
 
-                next_append = offset + static_cast<std::ios::pos_type>(event_header.f_size);
+                f->set_next_append(offset + static_cast<std::ios::pos_type>(event_header.f_size));
             }
-            if(f_next_append.size() <= index)
-            {
-                f_next_append.resize(index + 1);
-            }
-            f_next_append[index] = next_append;
         }
     }
 
@@ -1025,50 +1501,37 @@ bool journal::load_event_locations(bool compress)
 }
 
 
-journal::event_file_t journal::get_event_file(std::uint8_t index, bool create)
+journal::file::pointer_t journal::get_event_file(std::uint8_t index, bool create)
 {
-    event_file_t f;
-    if(index < f_event_files.size())
+    if(index >= f_maximum_number_of_files)
     {
-        f = f_event_files[index];
-        if(f != nullptr)
-        {
-            return f;
-        }
+        std::stringstream ss;
+        ss << "index too large in get_event_file() ("
+           << std::to_string(static_cast<int>(index))
+           << " > "
+           << f_maximum_number_of_files
+           << '.';
+        SNAP_LOG_ERROR << ss.str() << SNAP_LOG_SEND;
+        throw invalid_parameter(ss.str());
+    }
+
+    file::pointer_t f(f_event_files[index]);
+    if(f != nullptr)
+    {
+        return f;
     }
 
     // create new file
     //
     std::string const filename(get_filename(index));
-
-    f = std::make_shared<event_file_t::element_type>(filename, std::ios::in | std::ios::out | std::ios::binary);
-    if(!f->good())
-    {
-        if(!create)
-        {
-            return event_file_t();
-        }
-
-        // it may not exist yet, create and then try reopening
-        {
-            event_file_t::element_type new_file(filename, std::ios::out | std::ios::binary);
-        }
-        f = std::make_shared<event_file_t::element_type>(filename, std::ios::in | std::ios::out | std::ios::binary);
-    }
-
+    f = std::make_shared<file>(this, filename, create);
     if(f->good())
     {
-        // TODO: do that when the number of files changes
-        //
-        if(f_event_files.size() <= index)
-        {
-            f_event_files.resize(index + 1);
-        }
         f_event_files[index] = f;
     }
     else
     {
-        f = event_file_t();
+        f.reset();
     }
 
     return f;
@@ -1117,7 +1580,7 @@ bool journal::update_event_status(request_id_t const & request_id, status_t cons
         return (static_cast<int>(a) << 8) | static_cast<int>(b);
     };
 
-    switch(merge_status(it->second->f_status, status))
+    switch(merge_status(it->second->get_status(), status))
     {
     case merge_status(status_t::STATUS_READY, status_t::STATUS_FORWARDED):
     case merge_status(status_t::STATUS_READY, status_t::STATUS_ACKNOWLEDGED):
@@ -1133,7 +1596,7 @@ bool journal::update_event_status(request_id_t const & request_id, status_t cons
     default:
         SNAP_LOG_MAJOR
             << "location already has status "
-            << static_cast<int>(it->second->f_status)
+            << static_cast<int>(it->second->get_status())
             << ", it cannot be changed to "
             << static_cast<int>(status)
             << '.'
@@ -1142,19 +1605,21 @@ bool journal::update_event_status(request_id_t const & request_id, status_t cons
 
     }
 
-    event_file_t file(get_event_file(it->second->f_file_index));
-    if(file == nullptr)
+    file::pointer_t f(it->second->get_file());
+    if(f == nullptr)
     {
         // LCOV_EXCL_START
-        // if we arrive here, we have a big problem since we found the
-        // request identifier which means we'd found that entry in the file
+        // if we arrive here, we have a big problem since we create a location
+        // with a file pointer and do not allow changes to that field
         //
-        SNAP_LOG_MAJOR
-            << "location file for request identifier \""
-            << request_id
-            << "\" not found while attempting to update its status."
+        std::stringstream ss;
+        ss << "location file for request identifier \""
+           << request_id
+           << "\" not found while attempting to update its status.";
+        SNAP_LOG_EXCEPTION
+            << ss
             << SNAP_LOG_SEND;
-        return false;
+        throw logic_error(ss.str());
         // LCOV_EXCL_STOP
     }
 
@@ -1162,43 +1627,75 @@ bool journal::update_event_status(request_id_t const & request_id, status_t cons
     //       at the end of the file and then write there even if that's
     //       the wrong location
     //
-    file->seekp(it->second->f_offset + offsetof(event_journal_event_t, f_status));
+    f->seekp(it->second->get_offset() + offsetof(event_journal_event_t, f_status));
 
     // type comes from the event_journal_event_t structure
     //
     event_journal_event_t::file_status_t const s(static_cast<std::uint8_t>(status));
-    file->write(reinterpret_cast<char const *>(&s), sizeof(s));
-    it->second->f_status = status;
-    sync_if_requested(file);
+    f->write(reinterpret_cast<char const *>(&s), sizeof(s));
+    sync_if_requested(f);
 
     switch(status)
     {
     case status_t::STATUS_COMPLETED:
     case status_t::STATUS_FAILED:
         f_can_be_compressed = true;
+
+        {
+            auto const time_it(f_timebased_replay.find(it->second->get_event_time()));
+            if(time_it == f_timebased_replay.end())
+            {
+                SNAP_LOG_ERROR
+                    << "could not find event with time "
+                    << it->second->get_event_time()
+                    << " while updating event status."
+                    << SNAP_LOG_SEND;
+            }
+            else
+            {
+                f_timebased_replay.erase(time_it);
+            }
+        }
+        f_event_locations.erase(it);
+
+        if(f_event_locations.empty())
+        {
+            // this allows for the file to:
+            // . be reused (keep)
+            // . shrink (truncate)
+            // . be deleted (delete)
+            //
+            it->second->get_file()->set_next_append(sizeof(event_journal_header_t));
+        }
         break;
 
     default:
+        it->second->set_status(status);
         break;
 
     }
 
-    return !file->fail();
+    return !f->fail();
 }
 
 
-void journal::sync_if_requested(event_file_t file)
+void journal::sync_if_requested(file::pointer_t f)
 {
-    if(!f_sync)
+    switch(f_sync)
     {
+    case sync_t::SYNC_NONE:
         return;
-    }
 
-    int const fd(snapdev::stream_fd(*file));
-    if(fd != -1)
-    {
-        ::fsync(fd);
+    case sync_t::SYNC_FLUSH:
+        f->flush();
+        return;
+
+    case sync_t::SYNC_FULL:
+        f->fsync();
+        return;
+
     }
+    snapdev::NOT_REACHED();
 }
 
 
