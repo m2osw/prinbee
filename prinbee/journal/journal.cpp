@@ -211,7 +211,6 @@ journal::file::file(journal * j, std::string const & filename, bool create)
     if(!f_event_file->good())
     {
         f_event_file.reset();
-        return;
     }
 }
 
@@ -271,9 +270,11 @@ void journal::file::seekg(std::ios::pos_type offset, std::ios::seekdir dir)
         f_pos_read += offset;
         break;
 
+    // LCOV_EXCL_START
     case std::ios::end:
-        f_pos_read = size();
+        f_pos_read = size() + offset;
         break;
+    // LCOV_EXCL_STOP
 
     }
 }
@@ -287,13 +288,15 @@ void journal::file::seekp(std::ios::pos_type offset, std::ios::seekdir dir)
         f_pos_write = offset;
         break;
 
+    // LCOV_EXCL_START
     case std::ios::cur:
         f_pos_write += offset;
         break;
 
     case std::ios::end:
-        f_pos_write = size();
+        f_pos_write = size() + offset;
         break;
+    // LCOV_EXCL_STOP
 
     }
 }
@@ -310,10 +313,12 @@ void journal::file::seekp(std::ios::pos_type offset, std::ios::seekdir dir)
  *
  * \return The offset for the next write() call.
  */
+// LCOV_EXCL_START
 std::ios::pos_type journal::file::tellg() const
 {
     return f_pos_read;
 }
+// LCOV_EXCL_STOP
 
 
 /** \brief This function returns the next write position.
@@ -348,7 +353,7 @@ std::ios::pos_type journal::file::tell() const
         return f_event_file->tellg();
     }
 
-    return 0;
+    return 0; // LCOV_EXCL_LINE
 }
 
 
@@ -357,14 +362,14 @@ std::ios::pos_type journal::file::size() const
     if(f_event_file != nullptr)
     {
         // note: all the read() and write() calls will do a seek before the
-        //       actual system call so there is not need to save the
-        //       current position here
+        //       actual system call so there is no need to save & restore
+        //       the current position here
         //
         f_event_file->seekg(0, std::ios::end);
         return f_event_file->tellg();
     }
 
-    return 0;
+    return 0; // LCOV_EXCL_LINE
 }
 
 
@@ -400,7 +405,7 @@ void journal::file::truncate()
     int const fd(snapdev::stream_fd(*f_event_file));
     if(fd == -1)
     {
-        return;
+        return; // LCOV_EXCL_LINE
     }
 
     file_management_t const file_management(f_journal->get_file_management());
@@ -438,6 +443,7 @@ void journal::file::truncate()
                 int const r(::unlink(f_filename.c_str()));
                 if(r != 0)
                 {
+                    // LCOV_EXCL_START
                     int const e(errno);
                     SNAP_LOG_ERROR
                         << "unlink() generated an error ("
@@ -446,6 +452,7 @@ void journal::file::truncate()
                         << strerror(e)
                         << ")."
                         << SNAP_LOG_SEND;
+                    // LCOV_EXCL_STOP
                 }
                 f_next_append = 0;
             }
@@ -454,6 +461,7 @@ void journal::file::truncate()
                 int const r(::ftruncate(fd, size));
                 if(r != 0)
                 {
+                    // LCOV_EXCL_START
                     int const e(errno);
                     SNAP_LOG_ERROR
                         << "ftruncate() generated an error ("
@@ -462,6 +470,7 @@ void journal::file::truncate()
                         << strerror(e)
                         << ")."
                         << SNAP_LOG_SEND;
+                    // LCOV_EXCL_STOP
                 }
             }
 
@@ -470,7 +479,7 @@ void journal::file::truncate()
             //
             if(f_pos_read > f_next_append)
             {
-                f_pos_read = f_next_append;
+                f_pos_read = f_next_append; // LCOV_EXCL_LINE
             }
             if(f_pos_write > f_next_append)
             {
@@ -568,6 +577,7 @@ bool journal::location::read_data(out_event_t & event, bool debug)
 
     if(f_file->fail())
     {
+        // LCOV_EXCL_START
         SNAP_LOG_CRITICAL
             << "could not read event "
             << f_request_id
@@ -578,6 +588,7 @@ bool journal::location::read_data(out_event_t & event, bool debug)
             << "\"."
             << SNAP_LOG_SEND;
         return false;
+        // LCOV_EXCL_STOP
     }
 
     return true;
@@ -1002,6 +1013,33 @@ void journal::rewind()
 }
 
 
+/** \brief Read the next event.
+ *
+ * This function reads the next event and saves the data and metadata
+ * available to the \p event parameter.
+ *
+ * The \p by_time flag is used to know whether you'd like to load the
+ * the next event by time (true) or by identifier (false). The default
+ * is to return the data by identifier.
+ *
+ * The \p debug flag can be used for debug purposes. In that case, the
+ * \p event debug fields get set. This includes the name of the file
+ * and the position of the data in the file (offset).
+ *
+ * \note
+ * For speed, the \p event structure is not cleared on a call to the
+ * next_event() function. If the \p debug flag is set to false (default),
+ * then those fields remain the same (i.e. the same value as they were
+ * on entry). So if you set it to true once and false afterward, the
+ * debug data comes from that call when you once set the flag to true.
+ *
+ * \param[in,out] event  The object where the event data and metadata is saved.
+ * \param[in] by_time  Whether to search for the next event by time or by
+ * identifier.
+ * \param[in] debug  Whether to gather the debug parameters.
+ *
+ * \return true if an event is available and saved in the \p event parameter.
+ */
 bool journal::next_event(out_event_t & event, bool by_time, bool debug)
 {
     location::pointer_t l;
@@ -1295,7 +1333,7 @@ bool journal::load_event_locations(bool compress)
         bool good(true);
         while(good)
         {
-            std::ios::pos_type const offset(f->tell());
+            std::ios::pos_type const offset(f->tellg());
             event_journal_event_t event_header;
             f->read(&event_header, sizeof(event_header));
             if(!f->good())
@@ -1340,7 +1378,8 @@ bool journal::load_event_locations(bool compress)
                             };
                             return std::string(buf, 4);
                         }
-                        else {
+                        else
+                        {
                             return std::string(1, c);
                         }
                     };
@@ -1512,7 +1551,7 @@ bool journal::load_event_locations(bool compress)
                 //
                 f->seekg(data_size, std::ios::cur);
 
-                f->set_next_append(offset + static_cast<std::ios::pos_type>(event_header.f_size));
+                f->set_next_append(f->tellg());
             }
         }
     }

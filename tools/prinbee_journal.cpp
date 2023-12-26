@@ -348,7 +348,7 @@ int prinbee_journal::scan_journal()
                     for(std::size_t idx(len); idx < 16; ++idx)
                     {
                         std::cout << "   ";
-                        if(idx == 7)
+                        if(idx == 8)
                         {
                             std::cout << ' ';
                         }
@@ -384,7 +384,7 @@ int prinbee_journal::scan_journal()
                         std::cout << indent;
                         indent = "       ";   // only spaces after that
                     }
-                    else if(edge == 7)
+                    else if(edge == 8)
                     {
                         std::cout << ' ';
                     }

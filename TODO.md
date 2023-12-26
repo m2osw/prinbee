@@ -52,4 +52,7 @@ These need to be installed properly using the corresponding variables
 # prinbee-journal
 
 * This tool is probably just a development tool and it should not be installed?
+* The tool will apply a DELETE or TRUNCATE if that journal is setup that way;
+  it seems that this should be a read-only function... at the moment we cannot
+  just change the parameter since that would change the .conf file
 

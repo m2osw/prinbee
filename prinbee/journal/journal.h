@@ -178,7 +178,7 @@ inline std::string id_to_string(T id)
         id >>= 8;
     }
     return result;
-}
+} // LCOV_EXCL_LINE
 
 
 template<
