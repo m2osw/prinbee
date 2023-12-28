@@ -242,7 +242,7 @@ bool journal::file::fail() const
 {
     if(f_event_file == nullptr)
     {
-        return true;
+        return true; // LCOV_EXCL_LINE
     }
 
     return f_event_file->fail();
@@ -526,6 +526,12 @@ void journal::file::increase_event_count()
 }
 
 
+void journal::file::decrease_event_count()
+{
+    --f_event_count;
+}
+
+
 std::uint32_t journal::file::get_event_count() const
 {
     return f_event_count;
@@ -733,6 +739,37 @@ bool journal::is_valid() const
 }
 
 
+/** \brief Change the maximum number of files used by this journal.
+ *
+ * When you first setup your journal, you may want to change the total
+ * number of files used by this instance. By default, it is set to 2
+ * which may not be sufficient for your specific case.
+ *
+ * \exception out_of_range
+ * If the new maximum is less than JOURNAL_MINIMUM_NUMBER_OF_FILES
+ * or larger than JOURNAL_MAXIMUM_NUMBER_OF_FILES then this exception
+ * is raised.
+ *
+ * \exception file_still_in_use
+ * You may try to reduce the number of files using this function. However,
+ * if any of the last few files still include events, this function raises
+ * this error.
+ *
+ * \todo
+ * When shrinking the number of files used, try to move the events still
+ * found in the last few files to ealier files if there are any. Only
+ * raise the file_still_in_use exception if that fails.
+ *
+ * \todo
+ * When reducing the number of files, the code does not attempt to delete
+ * still existing files.
+ *
+ * \param[in] maximum_number_of_files  The new maximum number of files
+ * to use.
+ *
+ * \return true if the change succeeded (i.e. got saved to the journal
+ * configuration file).
+ */
 bool journal::set_maximum_number_of_files(std::uint32_t maximum_number_of_files)
 {
     if(maximum_number_of_files < JOURNAL_MINIMUM_NUMBER_OF_FILES
@@ -748,15 +785,23 @@ bool journal::set_maximum_number_of_files(std::uint32_t maximum_number_of_files)
             + "]");
     }
 
-    if(maximum_number_of_files < f_maximum_number_of_files)
+    // verify that we can apply this change
+    // otherwise throw an error
+    //
+    for(std::uint32_t idx(maximum_number_of_files); idx < f_maximum_number_of_files; ++idx)
     {
-        // here we are supposed to make sure that if extra files exist,
-        // they are empty and if not, either an error occurs or the data
-        // can be moved within the files with a smaller index
-        //
-        SNAP_LOG_TODO
-            << "the current version of the journal does not verify that decreasing the maximum number of files is doable at the time it happens."
-            << SNAP_LOG_SEND;
+        if(idx >= f_event_files.size())
+        {
+            break;
+        }
+        file::pointer_t f(get_event_file(idx));
+        if(f != nullptr)
+        {
+            // if the file exists, then there is data in there
+            // (otherwise it gets shutdown)
+            //
+            throw file_still_in_use("it is not currently possible to reduce the maximum number of files when some of those over the new limit are still in use.");
+        }
     }
 
     f_maximum_number_of_files = maximum_number_of_files;
@@ -833,23 +878,6 @@ bool journal::set_file_management(file_management_t file_management)
 }
 
 
-bool journal::set_replay_order(replay_order_t replay_order)
-{
-    switch(replay_order)
-    {
-    case replay_order_t::REPLAY_ORDER_REQUEST_ID:
-    case replay_order_t::REPLAY_ORDER_EVENT_TIME:
-        break;
-
-    default:
-        throw invalid_parameter("unsupported replay order number");
-
-    }
-    f_replay_order = replay_order;
-    return save_configuration();
-}
-
-
 bool journal::set_compress_when_full(bool compress_when_full)
 {
     f_compress_when_full = compress_when_full;
@@ -886,6 +914,15 @@ bool journal::add_event(
     {
         SNAP_LOG_FATAL
             << "request_id already exists in the list of events, it cannot be re-added."
+            << SNAP_LOG_SEND;
+        return false;
+    }
+    if(event_time.is_in_the_future(g_time_epsilon))
+    {
+        SNAP_LOG_FATAL
+            << "trying to add an event created in the future: "
+            << event_time.to_string("%Y/%m/%d %H:%M:%S.%N")
+            << '.'
             << SNAP_LOG_SEND;
         return false;
     }
@@ -1094,11 +1131,13 @@ bool journal::load_configuration()
         }
         else
         {
+            // LCOV_EXCL_START
             SNAP_LOG_WARNING
                 << "unknown sync type \""
                 << sync
                 << "\"."
                 << SNAP_LOG_SEND;
+            // LCOV_EXCL_STOP
         }
     }
 
@@ -1124,32 +1163,13 @@ bool journal::load_configuration()
         }
         else
         {
+            // LCOV_EXCL_START
             SNAP_LOG_WARNING
                 << "unknown file management type \""
                 << file_management
                 << "\"."
                 << SNAP_LOG_SEND;
-        }
-    }
-
-    if(config->has_parameter("replay_order"))
-    {
-        std::string const replay_order(config->get_parameter("replay_order"));
-        if(replay_order == "request-id")
-        {
-            f_replay_order = replay_order_t::REPLAY_ORDER_REQUEST_ID;
-        }
-        else if(replay_order == "event-time")
-        {
-            f_replay_order = replay_order_t::REPLAY_ORDER_EVENT_TIME;
-        }
-        else
-        {
-            SNAP_LOG_WARNING
-                << "unknown replay order type \""
-                << replay_order
-                << "\"."
-                << SNAP_LOG_SEND;
+            // LCOV_EXCL_STOP
         }
     }
 
@@ -1160,11 +1180,11 @@ bool journal::load_configuration()
         advgetopt::validator_integer::convert_string(maximum_number_of_files, max);
         if(max < JOURNAL_MINIMUM_NUMBER_OF_FILES)
         {
-            max = JOURNAL_MINIMUM_NUMBER_OF_FILES;
+            max = JOURNAL_MINIMUM_NUMBER_OF_FILES; // LCOV_EXCL_LINE
         }
         else if(max > JOURNAL_MAXIMUM_NUMBER_OF_FILES)
         {
-            max = JOURNAL_MAXIMUM_NUMBER_OF_FILES;
+            max = JOURNAL_MAXIMUM_NUMBER_OF_FILES; // LCOV_EXCL_LINE
         }
         f_maximum_number_of_files = max;
     }
@@ -1177,11 +1197,11 @@ bool journal::load_configuration()
         advgetopt::validator_integer::convert_string(maximum_file_size, max);
         if(max < JOURNAL_MINIMUM_FILE_SIZE)
         {
-            max = JOURNAL_MINIMUM_FILE_SIZE;
+            max = JOURNAL_MINIMUM_FILE_SIZE; // LCOV_EXCL_LINE
         }
         else if(max > JOURNAL_MAXIMUM_FILE_SIZE)
         {
-            max = JOURNAL_MAXIMUM_FILE_SIZE;
+            max = JOURNAL_MAXIMUM_FILE_SIZE; // LCOV_EXCL_LINE
         }
         f_maximum_file_size = max;
     }
@@ -1193,11 +1213,11 @@ bool journal::load_configuration()
         advgetopt::validator_integer::convert_string(maximum_events, max);
         if(max < JOURNAL_MINIMUM_EVENTS)
         {
-            max = JOURNAL_MINIMUM_EVENTS;
+            max = JOURNAL_MINIMUM_EVENTS; // LCOV_EXCL_LINE
         }
         else if(max > JOURNAL_MAXIMUM_EVENTS)
         {
-            max = JOURNAL_MAXIMUM_EVENTS;
+            max = JOURNAL_MAXIMUM_EVENTS; // LCOV_EXCL_LINE
         }
         f_maximum_events = max;
     }
@@ -1258,24 +1278,6 @@ bool journal::save_configuration()
         std::string(),
         "file_management",
         file_management);
-
-    std::string replay_order;
-    switch(f_replay_order)
-    {
-    case replay_order_t::REPLAY_ORDER_EVENT_TIME:    
-        replay_order = "event-time";
-        break;
-
-    //case replay_order_t::REPLAY_ORDER_REQUEST_ID:
-    default:
-        replay_order = "request-id";
-        break;
-
-    }
-    config->set_parameter(
-        std::string(),
-        "replay_order",
-        replay_order);
 
     config->set_parameter(
         std::string(),
@@ -1407,6 +1409,7 @@ bool journal::load_event_locations(bool compress)
             case status_t::STATUS_FAILED:
                 break;
 
+            // LCOV_EXCL_START
             default:
                 good = false;
                 SNAP_LOG_FATAL
@@ -1419,6 +1422,7 @@ bool journal::load_event_locations(bool compress)
                     << '"'
                     << SNAP_LOG_SEND;
                 continue;
+            // LCOV_EXCL_STOP
 
             }
             ssize_t const data_size(event_header.f_size - sizeof(event_header) - event_header.f_request_id_size);
@@ -1449,12 +1453,10 @@ bool journal::load_event_locations(bool compress)
                     << offset
                     << " in \""
                     << get_filename(index)
-                    << '"'
+                    << "\"."
                     << SNAP_LOG_SEND;
                 break;
             }
-
-            f->increase_event_count();
 
             // if event has a status other than a "still working on that
             // event", then skip it, it's not part of our index (it can
@@ -1478,6 +1480,7 @@ bool journal::load_event_locations(bool compress)
             f->read(request_id.data(), event_header.f_request_id_size);
             if(!f->good())
             {
+                // LCOV_EXCL_START
                 SNAP_LOG_FATAL
                     << "could not read request identifier at "
                     << offset
@@ -1486,6 +1489,7 @@ bool journal::load_event_locations(bool compress)
                     << '"'
                     << SNAP_LOG_SEND;
                 break;
+                // LCOV_EXCL_STOP
             }
 
             location::pointer_t l(std::make_shared<location>(f));
@@ -1498,6 +1502,7 @@ bool journal::load_event_locations(bool compress)
 
             f_event_locations[request_id] = l;
             f_timebased_replay[event_time] = l;
+            f->increase_event_count();
 
             if(found_compress_offset && compress)
             {
@@ -1533,7 +1538,7 @@ bool journal::load_event_locations(bool compress)
                     {
                         // TODO: handle the error better (i.e. mark event
                         //       as invalid)
-                        break;
+                        break; // LCOV_EXCL_LINE
                     }
 
                     // write
@@ -1566,6 +1571,7 @@ journal::file::pointer_t journal::get_event_file(std::uint8_t index, bool create
 {
     if(index >= f_maximum_number_of_files)
     {
+        // LCOV_EXCL_START
         std::stringstream ss;
         ss << "index too large in get_event_file() ("
            << std::to_string(static_cast<int>(index))
@@ -1574,7 +1580,8 @@ journal::file::pointer_t journal::get_event_file(std::uint8_t index, bool create
            << ").";
         SNAP_LOG_ERROR << ss.str() << SNAP_LOG_SEND;
         throw invalid_parameter(ss.str());
-    }
+        // LCOV_EXCL_STOP
+    } // LCOV_EXCL_LINE
 
     file::pointer_t f(f_event_files[index].lock());
     if(f != nullptr)
@@ -1606,7 +1613,7 @@ std::string journal::get_filename(std::uint8_t index)
     filename += std::to_string(static_cast<int>(index));
     filename += ".events";
     return filename;
-}
+} // LCOV_EXCL_LINE
 
 
 bool journal::update_event_status(request_id_t const & request_id, status_t const status)
@@ -1620,8 +1627,8 @@ bool journal::update_event_status(request_id_t const & request_id, status_t cons
     case status_t::STATUS_FAILED:
         break;
 
-    default:
-        throw invalid_parameter("the status in `update_event_status` is not valid");
+    default: // LCOV_EXCL_LINE
+        throw invalid_parameter("the status in `update_event_status` is not valid"); // LCOV_EXCL_LINE
 
     }
 
@@ -1682,7 +1689,7 @@ bool journal::update_event_status(request_id_t const & request_id, status_t cons
             << SNAP_LOG_SEND;
         throw logic_error(ss.str());
         // LCOV_EXCL_STOP
-    }
+    } // LCOV_EXCL_LINE
 
     // TODO: a seekp() doesn't fail; instead, it may move the file pointer
     //       at the end of the file and then write there even if that's
@@ -1706,11 +1713,13 @@ bool journal::update_event_status(request_id_t const & request_id, status_t cons
             auto const time_it(f_timebased_replay.find(it->second->get_event_time()));
             if(time_it == f_timebased_replay.end())
             {
+                // LCOV_EXCL_START
                 SNAP_LOG_ERROR
                     << "could not find event with time "
                     << it->second->get_event_time()
                     << " while updating event status."
                     << SNAP_LOG_SEND;
+                // LCOV_EXCL_STOP
             }
             else
             {
@@ -1718,6 +1727,7 @@ bool journal::update_event_status(request_id_t const & request_id, status_t cons
             }
         }
         f_event_locations.erase(it);
+        f->decrease_event_count();
 
         if(f_event_locations.empty())
         {
@@ -1756,7 +1766,7 @@ void journal::sync_if_requested(file::pointer_t f)
         return;
 
     }
-    snapdev::NOT_REACHED();
+    snapdev::NOT_REACHED(); // LCOV_EXCL_LINE
 }
 
 

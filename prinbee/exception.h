@@ -55,6 +55,7 @@ DECLARE_EXCEPTION(prinbee_exception, conversion_unavailable);
 DECLARE_EXCEPTION(prinbee_exception, field_not_found);
 DECLARE_EXCEPTION(prinbee_exception, file_not_found);
 DECLARE_EXCEPTION(prinbee_exception, file_not_opened);
+DECLARE_EXCEPTION(prinbee_exception, file_still_in_use);
 DECLARE_EXCEPTION(prinbee_exception, id_already_assigned);
 DECLARE_EXCEPTION(prinbee_exception, id_missing);
 DECLARE_EXCEPTION(prinbee_exception, invalid_entity);

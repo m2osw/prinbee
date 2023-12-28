@@ -99,13 +99,6 @@ enum class file_management_t : std::uint8_t
 };
 
 
-enum class replay_order_t : std::uint8_t
-{
-    REPLAY_ORDER_REQUEST_ID,
-    REPLAY_ORDER_EVENT_TIME,
-};
-
-
 typedef std::string     request_id_t;
 
 
@@ -218,7 +211,6 @@ public:
     bool                        set_sync(sync_t sync);
     file_management_t           get_file_management() const;
     bool                        set_file_management(file_management_t file_management);
-    bool                        set_replay_order(replay_order_t replay_order);
     bool                        set_compress_when_full(bool compress_when_full);
 
     // events status
@@ -273,6 +265,7 @@ private:
         void                        fsync();
         void                        reset_event_count();
         void                        increase_event_count();
+        void                        decrease_event_count();
         std::uint32_t               get_event_count() const;
         void                        set_next_append(std::uint32_t offset);
         std::uint32_t               get_next_append() const;
@@ -345,7 +338,6 @@ private:
     sync_t                      f_sync = sync_t::SYNC_NONE;
     bool                        f_compress_when_full = false;
     file_management_t           f_file_management = file_management_t::FILE_MANAGEMENT_KEEP;
-    replay_order_t              f_replay_order = replay_order_t::REPLAY_ORDER_REQUEST_ID;
     std::uint8_t                f_maximum_number_of_files = JOURNAL_DEFAULT_NUMBER_OF_FILES;
     std::uint32_t               f_maximum_file_size = JOURNAL_DEFAULT_FILE_SIZE;
     std::uint32_t               f_maximum_events = JOURNAL_DEFAULT_EVENTS;

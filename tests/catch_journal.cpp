@@ -158,7 +158,6 @@ CATCH_TEST_CASE("journal_options", "[journal]")
             MAXIMUM_EVENTS,
             MAXIMUM_FILE_SIZE,
             MAXIMUM_NUMBER_OF_FILES,
-            REPLAY_ORDER,
             FLUSH,
             SYNC,
 
@@ -245,24 +244,6 @@ CATCH_TEST_CASE("journal_options", "[journal]")
                 }
                 break;
 
-            case REPLAY_ORDER:
-                {
-                    prinbee::replay_order_t const value(static_cast<prinbee::replay_order_t>(rand() % 2));
-                    CATCH_REQUIRE(j.set_replay_order(value));
-                    switch(value)
-                    {
-                    case prinbee::replay_order_t::REPLAY_ORDER_REQUEST_ID:
-                        expected_result = "request-id";
-                        break;
-
-                    case prinbee::replay_order_t::REPLAY_ORDER_EVENT_TIME:
-                        expected_result = "event-time";
-                        break;
-
-                    }
-                }
-                break;
-
             case FLUSH:
                 CATCH_REQUIRE(j.set_sync(prinbee::sync_t::SYNC_FLUSH));
                 break;
@@ -299,11 +280,6 @@ CATCH_TEST_CASE("journal_options", "[journal]")
             CATCH_REQUIRE((index == MAXIMUM_NUMBER_OF_FILES ? expected_result : "2") == it->second);
             conf_values.erase(it);
 
-            it = conf_values.find("replay_order");
-            CATCH_REQUIRE(it != conf_values.end());
-            CATCH_REQUIRE((index == REPLAY_ORDER ? expected_result : "request-id") == it->second);
-            conf_values.erase(it);
-
             it = conf_values.find("sync");
             CATCH_REQUIRE(it != conf_values.end());
             switch(index)
@@ -330,7 +306,6 @@ CATCH_TEST_CASE("journal_options", "[journal]")
 
     CATCH_START_SECTION("journal_options: reducing the number of files generates a TODO")
     {
-        std::string expected_result;
         std::string const path(conf_path("journal_options"));
         advgetopt::conf_file::reset_conf_files();
         prinbee::journal j(path);
@@ -363,35 +338,6 @@ CATCH_TEST_CASE("journal_options", "[journal]")
                         , prinbee::invalid_parameter
                         , Catch::Matchers::ExceptionMessage(
                                   "prinbee_exception: unsupported file management number"));
-                break;
-
-            }
-        }
-    }
-    CATCH_END_SECTION()
-
-    CATCH_START_SECTION("journal_options: invalid replay order numbers")
-    {
-        std::string const path(conf_path("journal_options"));
-        advgetopt::conf_file::reset_conf_files();
-        prinbee::journal j(path);
-        CATCH_REQUIRE(j.is_valid());
-
-        for(int i(-100); i <= 100; ++i)
-        {
-            switch(static_cast<prinbee::replay_order_t>(i))
-            {
-            case prinbee::replay_order_t::REPLAY_ORDER_REQUEST_ID:
-            case prinbee::replay_order_t::REPLAY_ORDER_EVENT_TIME:
-                // these are valid, ignore
-                break;
-
-            default:
-                CATCH_REQUIRE_THROWS_MATCHES(
-                          j.set_replay_order(static_cast<prinbee::replay_order_t>(i))
-                        , prinbee::invalid_parameter
-                        , Catch::Matchers::ExceptionMessage(
-                                  "prinbee_exception: unsupported replay order number"));
                 break;
 
             }
@@ -691,7 +637,6 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
         int count(0);
         for(auto const & sequence : next_status)
         {
-            std::string expected_result;
             std::string const path(conf_path("journal_events"));
             advgetopt::conf_file::reset_conf_files();
             prinbee::journal j(path);
@@ -838,7 +783,6 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
         for(int sync(0); sync < 3; ++sync)
         {
             {
-                std::string expected_result;
                 advgetopt::conf_file::reset_conf_files();
                 prinbee::journal j(path);
                 CATCH_REQUIRE(j.set_file_management(prinbee::file_management_t::FILE_MANAGEMENT_DELETE));
@@ -904,6 +848,20 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
                 std::string const filename(event_filename(path, idx));
                 CATCH_REQUIRE(access(filename.c_str(), R_OK) != 0);
             }
+
+            // just re-opening does not re-create files
+            {
+                prinbee::journal j(path);
+                CATCH_REQUIRE(j.empty());
+            }
+
+            // make sure the files were not re-created
+            //
+            for(int idx(0); idx < 3; ++idx)
+            {
+                std::string const filename(event_filename(path, idx));
+                CATCH_REQUIRE(access(filename.c_str(), R_OK) != 0);
+            }
         }
     }
     CATCH_END_SECTION()
@@ -919,7 +877,6 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
             std::string const path(conf_path(name));
 
             {
-                std::string expected_result;
                 advgetopt::conf_file::reset_conf_files();
                 prinbee::journal j(path);
                 CATCH_REQUIRE(j.set_file_management(prinbee::file_management_t::FILE_MANAGEMENT_DELETE));
@@ -1032,7 +989,6 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
         for(int sync(0); sync < 3; ++sync)
         {
             {
-                std::string expected_result;
                 advgetopt::conf_file::reset_conf_files();
                 prinbee::journal j(path);
                 CATCH_REQUIRE(j.set_file_management(prinbee::file_management_t::FILE_MANAGEMENT_TRUNCATE));
@@ -1149,12 +1105,12 @@ CATCH_TEST_CASE("journal_event_list", "[journal]")
 
         std::vector<snapdev::timespec_ex> times(ids.size());
         {
-            std::string expected_result;
             advgetopt::conf_file::reset_conf_files();
             prinbee::journal j(path);
             CATCH_REQUIRE(j.set_file_management(prinbee::file_management_t::FILE_MANAGEMENT_DELETE));
             CATCH_REQUIRE(j.set_maximum_events(5));
             CATCH_REQUIRE(j.is_valid());
+            CATCH_REQUIRE(j.empty());
 
             for(int r(0); r < 10; ++r)
             {
@@ -1173,6 +1129,7 @@ CATCH_TEST_CASE("journal_event_list", "[journal]")
                 CATCH_REQUIRE(j.add_event(event, pass_time));
                 CATCH_REQUIRE(event_time == pass_time);
                 CATCH_REQUIRE(j.size() == r + 1ULL);
+                CATCH_REQUIRE_FALSE(j.empty());
                 times[ids[r] - 1] = pass_time;
 
                 ++event_time; // next time it will be incremented by one
@@ -1190,6 +1147,13 @@ CATCH_TEST_CASE("journal_event_list", "[journal]")
                 CATCH_REQUIRE(prinbee::id_to_string(ids[r]) == event.f_request_id);
                 ++event_time;
             }
+
+            // make sure we reached the end
+            //
+            {
+                prinbee::out_event_t event;
+                CATCH_REQUIRE_FALSE(j.next_event(event));
+            }
         }
 
         {
@@ -1201,6 +1165,13 @@ CATCH_TEST_CASE("journal_event_list", "[journal]")
                 CATCH_REQUIRE(times[r] == event.f_event_time);
                 CATCH_REQUIRE(prinbee::id_to_string(r + 1) == event.f_request_id);
             }
+
+            // make sure we reached the end
+            //
+            {
+                prinbee::out_event_t event;
+                CATCH_REQUIRE_FALSE(j.next_event(event, false));
+            }
         }
     }
     CATCH_END_SECTION()
@@ -1211,7 +1182,6 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 {
     CATCH_START_SECTION("journal_event_errors: trying to re-add the same event multiple times fails")
     {
-        std::string expected_result;
         std::string const path(conf_path("journal_duplicate_event"));
         advgetopt::conf_file::reset_conf_files();
         prinbee::journal j(path);
@@ -1241,7 +1211,6 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 
     CATCH_START_SECTION("journal_event_errors: request_id too long")
     {
-        std::string expected_result;
         std::string const path(conf_path("journal_large_event"));
         advgetopt::conf_file::reset_conf_files();
         prinbee::journal j(path);
@@ -1305,7 +1274,6 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 
     CATCH_START_SECTION("journal_event_errors: missing folder")
     {
-        std::string expected_result;
         std::string const path(conf_path("journal_missing", true));
         chmod(path.c_str(), 0); // remove permissions so the add_event() fails with EPERM
         advgetopt::conf_file::reset_conf_files();
@@ -1331,7 +1299,6 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 
     CATCH_START_SECTION("journal_event_errors: filled up journal (small size)")
     {
-        std::string expected_result;
         std::string const path(conf_path("journal_filled"));
         advgetopt::conf_file::reset_conf_files();
         prinbee::journal j(path);
@@ -1417,6 +1384,145 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
             //
             CATCH_REQUIRE(j.set_compress_when_full(true));
             CATCH_REQUIRE(j.add_event(event, event_time));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_errors: fail with invalid size as ID is not complete and data is missing")
+    {
+        std::string const name("journal_incomplete_id");
+        std::string const path(conf_path(name));
+
+        // create a journal file with one valid event
+        {
+            advgetopt::conf_file::reset_conf_files();
+            prinbee::journal j(path);
+            CATCH_REQUIRE(j.is_valid());
+            CATCH_REQUIRE(j.empty());
+
+            std::uint8_t data[20] = {};
+            prinbee::in_event_t const event =
+            {
+                .f_request_id = "this-id",
+                .f_size = sizeof(data),
+                .f_data = data,
+            };
+            snapdev::timespec_ex now(snapdev::now());
+            CATCH_REQUIRE(j.add_event(event, now));
+            CATCH_REQUIRE(j.size() == 1ULL);
+            CATCH_REQUIRE_FALSE(j.empty());
+        }
+
+        // open that journal and add a broken header (invalid identifier) 
+        {
+            std::string const filename(event_filename(path, 0));
+            std::ofstream out(filename, std::ios::app | std::ios::binary);
+            std::uint8_t const header[] = {
+                'e', 'v',                               // f_magic
+                static_cast<std::uint8_t>(prinbee::status_t::STATUS_READY), // f_status
+                sizeof("next-id") - 1,                  // f_request_id_size
+                23, 0, 0, 0,                            // f_size
+                0, 0, 0, 0, 0, 0, 0, 0,                 // f_time
+                0, 0, 0, 0, 0, 0, 0, 0,
+            };
+            out.write(reinterpret_cast<char const *>(header), sizeof(header));
+            out.write("next", 4);                           // <-- only 4 bytes
+        }
+
+        {
+            prinbee::journal j(path);
+            prinbee::out_event_t event;
+
+            // we find the first valid event
+            //
+            CATCH_REQUIRE(j.next_event(event));
+            CATCH_REQUIRE("this-id" == event.f_request_id);
+
+            // make sure we reached the end; the second event was invalid
+            //
+            CATCH_REQUIRE_FALSE(j.next_event(event));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_errors: invalid event date & time")
+    {
+        std::string const name("journal_wrong_time");
+        std::string const path(conf_path(name));
+
+        // create a journal file with one valid event
+        {
+            advgetopt::conf_file::reset_conf_files();
+            prinbee::journal j(path);
+            CATCH_REQUIRE(j.is_valid());
+            CATCH_REQUIRE(j.empty());
+
+            std::uint8_t data[20] = {};
+            prinbee::in_event_t event =
+            {
+                .f_request_id = "this-id",
+                .f_size = sizeof(data),
+                .f_data = data,
+            };
+            snapdev::timespec_ex now(snapdev::now());
+            CATCH_REQUIRE(j.add_event(event, now));
+            CATCH_REQUIRE(j.size() == 1ULL);
+            CATCH_REQUIRE_FALSE(j.empty());
+
+            // trying to add an event in the future fails
+            //
+            snapdev::timespec_ex soon(snapdev::now());
+            soon += snapdev::timespec_ex(100, 0);            // 100 seconds in the future
+            event.f_request_id = "future";
+            CATCH_REQUIRE_FALSE(j.add_event(event, soon));
+        }
+
+        // open that journal and add a broken header (invalid date & time) 
+        {
+            std::string const filename(event_filename(path, 0));
+            std::ofstream out(filename, std::ios::app | std::ios::binary);
+            snapdev::timespec_ex soon(snapdev::now());
+            soon += snapdev::timespec_ex(100, 0);            // 100 seconds in the future
+            char data[32];
+            std::uint8_t const header[] = {
+                'e', 'v',                               // f_magic
+                static_cast<std::uint8_t>(prinbee::status_t::STATUS_READY), // f_status
+                sizeof("next-id") - 1,                  // f_request_id_size
+                sizeof(data), 0, 0, 0,                  // f_size
+                static_cast<std::uint8_t>(soon.tv_sec >>  0), // f_time
+                static_cast<std::uint8_t>(soon.tv_sec >>  8),
+                static_cast<std::uint8_t>(soon.tv_sec >> 16),
+                static_cast<std::uint8_t>(soon.tv_sec >> 24),
+                static_cast<std::uint8_t>(soon.tv_sec >> 32),
+                static_cast<std::uint8_t>(soon.tv_sec >> 40),
+                static_cast<std::uint8_t>(soon.tv_sec >> 48),
+                static_cast<std::uint8_t>(soon.tv_sec >> 56),
+                static_cast<std::uint8_t>(soon.tv_nsec >>  0),
+                static_cast<std::uint8_t>(soon.tv_nsec >>  8),
+                static_cast<std::uint8_t>(soon.tv_nsec >> 16),
+                static_cast<std::uint8_t>(soon.tv_nsec >> 24),
+                static_cast<std::uint8_t>(soon.tv_nsec >> 32),
+                static_cast<std::uint8_t>(soon.tv_nsec >> 40),
+                static_cast<std::uint8_t>(soon.tv_nsec >> 48),
+                static_cast<std::uint8_t>(soon.tv_nsec >> 56),
+            };
+            out.write(reinterpret_cast<char const *>(header), sizeof(header));
+            out.write("next-id", sizeof("next-id") - 1);
+            out.write(data, sizeof(data));
+        }
+
+        {
+            prinbee::journal j(path);
+            prinbee::out_event_t event;
+
+            // we find the first valid event
+            //
+            CATCH_REQUIRE(j.next_event(event));
+            CATCH_REQUIRE("this-id" == event.f_request_id);
+
+            // make sure we reached the end; the second event was invalid
+            //
+            CATCH_REQUIRE_FALSE(j.next_event(event));
         }
     }
     CATCH_END_SECTION()
