@@ -1178,6 +1178,53 @@ CATCH_TEST_CASE("journal_event_list", "[journal]")
 }
 
 
+CATCH_TEST_CASE("journal_event_files", "[journal]")
+{
+    CATCH_START_SECTION("journal_event_files: reduce number of files with missing files")
+    {
+        std::string const path(conf_path("journal_event_files"));
+        advgetopt::conf_file::reset_conf_files();
+
+        {
+            prinbee::journal j(path);
+            CATCH_REQUIRE(j.is_valid());
+            CATCH_REQUIRE(j.set_maximum_number_of_files(5));
+
+            // 9 to 10 Kb of data per message so we should be able to add
+            // between 6 and 7 messages per file; i.e. 14 maximum then we
+            // are expecting an error on the add_event()
+            //
+            std::size_t const size(rand() % 1024 + 1);
+            std::vector<std::uint8_t> data(size);
+            for(std::size_t idx(0); idx < size; ++idx)
+            {
+                data[idx] = rand();
+            }
+            prinbee::in_event_t const event =
+            {
+                .f_request_id = "id-1",
+                .f_size = size,
+                .f_data = data.data(),
+            };
+            snapdev::timespec_ex event_time(snapdev::now());
+            CATCH_REQUIRE(j.add_event(event, event_time));
+
+            // trying to reduce the number of files works fine when events are
+            // only in the very first file
+            //
+            CATCH_REQUIRE(j.set_maximum_number_of_files(prinbee::JOURNAL_MINIMUM_NUMBER_OF_FILES));
+        }
+
+        {
+            prinbee::journal j(path);
+            CATCH_REQUIRE(j.is_valid());
+            CATCH_REQUIRE(j.get_file_management() == prinbee::file_management_t::FILE_MANAGEMENT_KEEP);
+        }
+    }
+    CATCH_END_SECTION()
+}
+
+
 CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 {
     CATCH_START_SECTION("journal_event_errors: trying to re-add the same event multiple times fails")
@@ -1524,6 +1571,329 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
             //
             CATCH_REQUIRE_FALSE(j.next_event(event));
         }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_errors: invalid end marker")
+    {
+        // to test the conversions, we need multiple cases so use a loop
+        //
+        struct marker
+        {
+            char a;
+            char b;
+        };
+        std::vector<marker> invalid_markers{
+            { 'n', 'g' },
+            { 0x03, 0x07 },
+            { 0x7F, static_cast<char>(0x97) },
+        };
+        int count(0);
+        for(auto const & bad_marker : invalid_markers)
+        {
+            ++count;
+            std::string name("journal_invalid_end_marker-");
+            name += std::to_string(count);
+            std::string const path(conf_path(name));
+
+            // create a journal file with one valid event
+            {
+                advgetopt::conf_file::reset_conf_files();
+                prinbee::journal j(path);
+                CATCH_REQUIRE(j.is_valid());
+                CATCH_REQUIRE(j.empty());
+
+                std::uint8_t data[20] = {};
+                prinbee::in_event_t event =
+                {
+                    .f_request_id = "this-id",
+                    .f_size = sizeof(data),
+                    .f_data = data,
+                };
+                snapdev::timespec_ex now(snapdev::now());
+                CATCH_REQUIRE(j.add_event(event, now));
+                CATCH_REQUIRE(j.size() == 1ULL);
+                CATCH_REQUIRE_FALSE(j.empty());
+            }
+
+            // open that journal and add a broken end marker
+            // the header and data are otherwise valid
+            {
+                std::string const filename(event_filename(path, 0));
+                std::ofstream out(filename, std::ios::app | std::ios::binary);
+                char data[1];
+                std::uint8_t const header[] = {
+                    static_cast<std::uint8_t>(bad_marker.a), // f_magic
+                    static_cast<std::uint8_t>(bad_marker.b),
+                    static_cast<std::uint8_t>(prinbee::status_t::STATUS_READY), // f_status
+                    sizeof("next-id") - 1,                  // f_request_id_size
+                    sizeof(data), 0, 0, 0,                  // f_size
+                    0, 0, 0, 0, 0, 0, 0, 0,                 // f_time
+                    0, 0, 0, 0, 0, 0, 0, 0,
+                };
+                out.write(reinterpret_cast<char const *>(header), sizeof(header));
+                out.write("next-id", sizeof("next-id") - 1);
+                out.write(data, sizeof(data));
+            }
+
+            {
+                prinbee::journal j(path);
+                prinbee::out_event_t event;
+
+                // we find the first valid event
+                //
+                CATCH_REQUIRE(j.next_event(event));
+                CATCH_REQUIRE("this-id" == event.f_request_id);
+
+                // make sure we reached the end; the second event was invalid
+                //
+                CATCH_REQUIRE_FALSE(j.next_event(event));
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_errors: incomplete header")
+    {
+        for(int idx(0); idx < 5; ++idx)
+        {
+            std::string name("journal_incomplete_header-");
+            name += std::to_string(idx + 1);
+            std::string const path(conf_path(name));
+
+            // create a journal file with one valid event
+            {
+                advgetopt::conf_file::reset_conf_files();
+                prinbee::journal j(path);
+                CATCH_REQUIRE(j.is_valid());
+                CATCH_REQUIRE(j.empty());
+
+                std::uint8_t data[20] = {};
+                prinbee::in_event_t event =
+                {
+                    .f_request_id = "this-id",
+                    .f_size = sizeof(data),
+                    .f_data = data,
+                };
+                snapdev::timespec_ex now(snapdev::now());
+                CATCH_REQUIRE(j.add_event(event, now));
+                CATCH_REQUIRE(j.size() == 1ULL);
+                CATCH_REQUIRE_FALSE(j.empty());
+            }
+
+            // open that journal and add a broken end marker
+            // the header and data are otherwise valid
+            {
+                std::string const filename(event_filename(path, 0));
+                std::ofstream out(filename, std::ios::app | std::ios::binary);
+                char data[1];
+                std::uint8_t const header[] = {
+                    'e', 'v',                               // f_magic
+                    static_cast<std::uint8_t>(prinbee::status_t::STATUS_READY), // f_status
+                    sizeof("next-id") - 1,                  // f_request_id_size
+                    sizeof(data), 0, 0, 0,                  // f_size
+                    0, 0, 0, 0, 0, 0, 0, 0,                 // f_time
+                    0, 0, 0, 0, 0, 0, 0, 0,
+                };
+                std::size_t const size(rand() % (sizeof(header) - 1) + 1);
+                out.write(reinterpret_cast<char const *>(header), size);
+            }
+
+            {
+                prinbee::journal j(path);
+                prinbee::out_event_t event;
+
+                // we find the first valid event
+                //
+                CATCH_REQUIRE(j.next_event(event));
+                CATCH_REQUIRE("this-id" == event.f_request_id);
+
+                // make sure we reached the end; the second event was invalid
+                // note: in this case we do not get an error message
+                //
+                CATCH_REQUIRE_FALSE(j.next_event(event));
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_errors: invalid magic (start of file header magic tampered)")
+    {
+        for(int pos(0); pos < 6; ++pos)
+        {
+            std::string name("journal_invalid_magic-");
+            name += std::to_string(pos);
+            std::string const path(conf_path(name));
+
+            // create a journal file with one valid event
+            // (without the event, it does not create the file)
+            {
+                advgetopt::conf_file::reset_conf_files();
+                prinbee::journal j(path);
+                CATCH_REQUIRE(j.is_valid());
+                CATCH_REQUIRE(j.empty());
+
+                std::uint8_t data[20] = {};
+                prinbee::in_event_t event =
+                {
+                    .f_request_id = "this-id",
+                    .f_size = sizeof(data),
+                    .f_data = data,
+                };
+                snapdev::timespec_ex now(snapdev::now());
+                CATCH_REQUIRE(j.add_event(event, now));
+                CATCH_REQUIRE(j.size() == 1ULL);
+                CATCH_REQUIRE_FALSE(j.empty());
+            }
+
+            // smash one of the header characters
+            {
+                std::string const filename(event_filename(path, 0));
+                std::fstream out(filename);
+                out.seekp(pos);
+                std::string header;
+                header += 'E';
+                header += 'V';
+                header += 'T';
+                header += 'J';
+                header += '\1';
+                header += '\0';
+                for(;;)
+                {
+                    char c(static_cast<char>(rand()));
+                    if(c != header[pos])
+                    {
+                        out.write(&c, 1);
+                        break;
+                    }
+                }
+            }
+
+            {
+                prinbee::journal j(path);
+                prinbee::out_event_t event;
+
+                // we find no events
+                //
+                CATCH_REQUIRE_FALSE(j.next_event(event));
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_errors: short magic (start of file header)")
+    {
+        for(int size(0); size < 8; ++size)
+        {
+            std::string name("journal_short_magic-");
+            name += std::to_string(size);
+            std::string const path(conf_path(name));
+
+            // create a journal file with one valid event
+            // (without the event, it does not create the file)
+            {
+                advgetopt::conf_file::reset_conf_files();
+                prinbee::journal j(path);
+                CATCH_REQUIRE(j.is_valid());
+                CATCH_REQUIRE(j.empty());
+
+                std::uint8_t data[20] = {};
+                prinbee::in_event_t event =
+                {
+                    .f_request_id = "this-id",
+                    .f_size = sizeof(data),
+                    .f_data = data,
+                };
+                snapdev::timespec_ex now(snapdev::now());
+                CATCH_REQUIRE(j.add_event(event, now));
+                CATCH_REQUIRE(j.size() == 1ULL);
+                CATCH_REQUIRE_FALSE(j.empty());
+            }
+
+            // truncate the header to `size` bytes
+            {
+                std::string const filename(event_filename(path, 0));
+                truncate(filename.c_str(), size);
+            }
+
+            {
+                prinbee::journal j(path);
+                prinbee::out_event_t event;
+
+                // we find no events
+                //
+                CATCH_REQUIRE_FALSE(j.next_event(event));
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_errors: can't reduce number of files in a filled up journal")
+    {
+        std::string const path(conf_path("journal_reduce_max_files"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        CATCH_REQUIRE(j.set_maximum_number_of_files(5));
+
+        j.set_maximum_file_size(prinbee::JOURNAL_MINIMUM_FILE_SIZE);
+
+        // 9 to 10 Kb of data per message so we should be able to add
+        // between 6 and 7 messages per file; i.e. 14 maximum then we
+        // are expecting an error on the add_event()
+        //
+        std::vector<std::uint8_t> data;
+        bool success(false);
+        int count(0);
+        for(;; ++count)
+        {
+            std::size_t const size(rand() % 1024 + 1024 * 9);
+            data.resize(size);
+            for(std::size_t idx(0); idx < size; ++idx)
+            {
+                data[idx] = rand();
+            }
+            prinbee::in_event_t const event =
+            {
+                .f_request_id = "id-" + std::to_string(count),
+                .f_size = size,
+                .f_data = data.data(),
+            };
+            snapdev::timespec_ex event_time(snapdev::now());
+            bool const r(j.add_event(event, event_time));
+            if(!r)
+            {
+                success = true;
+                break;
+            }
+        }
+        CATCH_REQUIRE(success);
+
+        // trying to reduce the number of files when full fails with
+        // an exception
+        //
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  j.set_maximum_number_of_files(prinbee::JOURNAL_MINIMUM_NUMBER_OF_FILES)
+                , prinbee::file_still_in_use
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: it is not currently possible to reduce the maximum number of files when some of those over the new limit are still in use."));
+
+        // mark all as complete and re-attempt the reduction
+        //
+        for(int idx(0); idx < count; ++idx)
+        {
+            std::string const request_id("id-" + std::to_string(idx));
+            if((rand() & 1) == 0)
+            {
+                CATCH_REQUIRE(j.event_completed(request_id));
+            }
+            else
+            {
+                CATCH_REQUIRE(j.event_failed(request_id));
+            }
+        }
+
+        CATCH_REQUIRE(j.set_maximum_number_of_files(prinbee::JOURNAL_MINIMUM_NUMBER_OF_FILES));
     }
     CATCH_END_SECTION()
 }

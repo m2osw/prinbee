@@ -412,6 +412,7 @@ void journal::file::truncate()
     switch(file_management)
     {
     case file_management_t::FILE_MANAGEMENT_KEEP:
+        if(f_next_append > 0)
         {
             // in this case we keep all the content
             //
@@ -792,15 +793,22 @@ bool journal::set_maximum_number_of_files(std::uint32_t maximum_number_of_files)
     {
         if(idx >= f_event_files.size())
         {
-            break;
+            break; // LCOV_EXCL_LINE
         }
         file::pointer_t f(get_event_file(idx));
-        if(f != nullptr)
+        if(f == nullptr)
         {
-            // if the file exists, then there is data in there
-            // (otherwise it gets shutdown)
-            //
-            throw file_still_in_use("it is not currently possible to reduce the maximum number of files when some of those over the new limit are still in use.");
+            continue;
+        }
+        for(auto const & l : f_event_locations)
+        {
+            if(l.second->get_file() == f)
+            {
+                // if the file is still used by a location, then there is
+                // data in there
+                //
+                throw file_still_in_use("it is not currently possible to reduce the maximum number of files when some of those over the new limit are still in use.");
+            }
         }
     }
 
@@ -1360,20 +1368,20 @@ bool journal::load_event_locations(bool compress)
                 if(event_header.f_magic[0] != g_end_marker[0]
                 || event_header.f_magic[1] != g_end_marker[1])
                 {
-                    auto ascii = [](char c)
+                    auto ascii = [](std::uint8_t c)
                     {
                         if(c < 0x20)
                         {
                             char buf[2] = {
                                 '^',
-                                static_cast<char>(c + 0x20),
+                                static_cast<char>(c + 0x40),
                             };
                             return std::string(buf, 2);
                         }
                         else if(c > 0x7E)
                         {
                             char buf[4] = {
-                                '0',
+                                '\\',
                                 'x',
                                 snapdev::to_hex((c >> 4) & 15),
                                 snapdev::to_hex(c & 15),
@@ -1382,7 +1390,7 @@ bool journal::load_event_locations(bool compress)
                         }
                         else
                         {
-                            return std::string(1, c);
+                            return std::string(1, static_cast<char>(c));
                         }
                     };
 
