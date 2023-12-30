@@ -407,7 +407,7 @@ std::string int512_t::to_string(int base, bool introducer, bool uppercase) const
     }
     result += v.to_string(base, introducer, uppercase);
     return result;
-}
+} // LCOV_EXCL_LINE
 
 
 std::string to_string(int512_t const & v)

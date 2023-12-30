@@ -1585,6 +1585,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
         };
         std::vector<marker> invalid_markers{
             { 'n', 'g' },
+            { '\0', '@' },       // starts well, bad ending
             { 0x03, 0x07 },
             { 0x7F, static_cast<char>(0x97) },
         };
