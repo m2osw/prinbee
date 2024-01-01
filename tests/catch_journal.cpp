@@ -1814,7 +1814,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
             // truncate the header to `size` bytes
             {
                 std::string const filename(event_filename(path, 0));
-                CATH_REQUIRE(truncate(filename.c_str(), size) == 0);
+                CATCH_REQUIRE(truncate(filename.c_str(), size) == 0);
             }
 
             {
