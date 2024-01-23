@@ -112,7 +112,14 @@ conf_values_t load_conf(std::string const & path)
 {
     conf_values_t conf_values;
     snapdev::file_contents file(conf_filename(path));
-    CATCH_REQUIRE(file.read_all());
+    bool const valid(file.read_all());
+    if(!valid)
+    {
+        std::cerr << "--- error loading configuration file: "
+            << file.last_error()
+            << "\n";
+    }
+    CATCH_REQUIRE(valid);
     std::string const contents(file.contents());
     std::list<std::string> lines;
     snapdev::tokenize_string(lines, contents, "\r\n", true);
@@ -149,7 +156,167 @@ CATCH_TEST_CASE("journal_helper_functions", "[journal]")
 
 CATCH_TEST_CASE("journal_options", "[journal]")
 {
-    CATCH_START_SECTION("journal_options: default options")
+    CATCH_START_SECTION("journal_options: set_maximum_number_of_files(): default does nothing")
+    {
+        std::string const path(conf_path("journal_options"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        CATCH_REQUIRE(j.set_maximum_number_of_files(prinbee::JOURNAL_DEFAULT_NUMBER_OF_FILES));
+        std::string const filename(conf_filename(path));
+        struct stat s;
+        if(stat(filename.c_str(), &s) != 0)
+        {
+            CATCH_REQUIRE(errno == ENOENT);
+        }
+        else
+        {
+            CATCH_REQUIRE(!"set_maximum_number_of_files() default created a configuration file.");
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_options: set_maximum_file_size(): default does nothing")
+    {
+        std::string const path(conf_path("journal_options"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        CATCH_REQUIRE(j.set_maximum_file_size(prinbee::JOURNAL_DEFAULT_FILE_SIZE));
+        std::string const filename(conf_filename(path));
+        struct stat s;
+        if(stat(filename.c_str(), &s) != 0)
+        {
+            CATCH_REQUIRE(errno == ENOENT);
+        }
+        else
+        {
+            CATCH_REQUIRE(!"set_maximum_file_size() default created a configuration file.");
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_options: set_maximum_events(): default does nothing")
+    {
+        std::string const path(conf_path("journal_options"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        CATCH_REQUIRE(j.set_maximum_events(prinbee::JOURNAL_DEFAULT_EVENTS));
+        std::string const filename(conf_filename(path));
+        struct stat s;
+        if(stat(filename.c_str(), &s) != 0)
+        {
+            CATCH_REQUIRE(errno == ENOENT);
+        }
+        else
+        {
+            CATCH_REQUIRE(!"set_maximum_events() default created a configuration file.");
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_options: set_inline_attachment_size_threshold(): default does nothing")
+    {
+        std::string const path(conf_path("journal_options"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        CATCH_REQUIRE(j.set_inline_attachment_size_threshold(prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD));
+        std::string const filename(conf_filename(path));
+        struct stat s;
+        if(stat(filename.c_str(), &s) != 0)
+        {
+            CATCH_REQUIRE(errno == ENOENT);
+        }
+        else
+        {
+            CATCH_REQUIRE(!"set_inline_attachment_size_threshold() default created a configuration file.");
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_options: set_sync(): default does nothing")
+    {
+        std::string const path(conf_path("journal_options"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        CATCH_REQUIRE(j.set_sync(prinbee::sync_t::SYNC_NONE));
+        std::string const filename(conf_filename(path));
+        struct stat s;
+        if(stat(filename.c_str(), &s) != 0)
+        {
+            CATCH_REQUIRE(errno == ENOENT);
+        }
+        else
+        {
+            CATCH_REQUIRE(!"set_sync() default created a configuration file.");
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_options: set_file_management(): default does nothing")
+    {
+        std::string const path(conf_path("journal_options"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        CATCH_REQUIRE(j.set_file_management(prinbee::file_management_t::FILE_MANAGEMENT_KEEP));
+        std::string const filename(conf_filename(path));
+        struct stat s;
+        if(stat(filename.c_str(), &s) != 0)
+        {
+            CATCH_REQUIRE(errno == ENOENT);
+        }
+        else
+        {
+            CATCH_REQUIRE(!"set_file_management() default created a configuration file.");
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_options: set_compress_when_full(): default does nothing")
+    {
+        std::string const path(conf_path("journal_options"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        CATCH_REQUIRE(j.set_compress_when_full(false));
+        std::string const filename(conf_filename(path));
+        struct stat s;
+        if(stat(filename.c_str(), &s) != 0)
+        {
+            CATCH_REQUIRE(errno == ENOENT);
+        }
+        else
+        {
+            CATCH_REQUIRE(!"set_compress_when_full() default created a configuration file.");
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_options: set_attachment_copy_handling(): default does nothing")
+    {
+        std::string const path(conf_path("journal_options"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK));
+        std::string const filename(conf_filename(path));
+        struct stat s;
+        if(stat(filename.c_str(), &s) != 0)
+        {
+            CATCH_REQUIRE(errno == ENOENT);
+        }
+        else
+        {
+            CATCH_REQUIRE(!"set_attachment_copy_handling() default created a configuration file.");
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_options: verify set options")
     {
         enum
         {
@@ -160,6 +327,11 @@ CATCH_TEST_CASE("journal_options", "[journal]")
             MAXIMUM_NUMBER_OF_FILES,
             FLUSH,
             SYNC,
+            INLINE_ATTACHMENT_SIZE_THRESHOLD,
+            ATTACHMENT_COPY_HANDLING_SOFTLINK,
+            ATTACHMENT_COPY_HANDLING_HARDLINK,
+            ATTACHMENT_COPY_HANDLING_REFLINK,
+            ATTACHMENT_COPY_HANDLING_FULL,
 
             max_options
         };
@@ -179,6 +351,17 @@ CATCH_TEST_CASE("journal_options", "[journal]")
             case FILE_MANAGEMENT:
                 {
                     prinbee::file_management_t const value(static_cast<prinbee::file_management_t>(rand() % 3));
+
+                    // just setting the default does not re-save the configuration file
+                    // which we need to happen for this test
+                    //
+                    if(value == prinbee::file_management_t::FILE_MANAGEMENT_KEEP)
+                    {
+                        CATCH_REQUIRE(j.set_file_management(rand() % 2 == 0
+                                    ? prinbee::file_management_t::FILE_MANAGEMENT_TRUNCATE
+                                    : prinbee::file_management_t::FILE_MANAGEMENT_DELETE));
+                    }
+
                     CATCH_REQUIRE(j.set_file_management(value));
                     switch(value)
                     {
@@ -200,7 +383,12 @@ CATCH_TEST_CASE("journal_options", "[journal]")
 
             case MAXIMUM_EVENTS:
                 {
-                    std::uint32_t const value(rand());
+                    std::uint32_t value(0);
+                    do
+                    {
+                        value = rand();
+                    }
+                    while(value == prinbee::JOURNAL_DEFAULT_EVENTS);
                     CATCH_REQUIRE(j.set_maximum_events(value));
                     if(value < prinbee::JOURNAL_MINIMUM_EVENTS)
                     {
@@ -219,7 +407,12 @@ CATCH_TEST_CASE("journal_options", "[journal]")
 
             case MAXIMUM_FILE_SIZE:
                 {
-                    std::uint32_t const value(rand() + 1);
+                    std::uint32_t value;
+                    do
+                    {
+                        value = rand() + 1;
+                    }
+                    while(value == prinbee::JOURNAL_DEFAULT_FILE_SIZE);
                     CATCH_REQUIRE(j.set_maximum_file_size(value));
                     if(value < prinbee::JOURNAL_MINIMUM_FILE_SIZE)
                     {
@@ -238,7 +431,10 @@ CATCH_TEST_CASE("journal_options", "[journal]")
 
             case MAXIMUM_NUMBER_OF_FILES:
                 {
-                    int const value(rand() % (256 - 2) + 2);
+                    // avoid the default (i.e. 2) so the configuration file
+                    // gets saved
+                    //
+                    int const value(rand() % (256 - 3) + 3);
                     CATCH_REQUIRE(j.set_maximum_number_of_files(value));
                     expected_result = std::to_string(value);
                 }
@@ -250,6 +446,44 @@ CATCH_TEST_CASE("journal_options", "[journal]")
 
             case SYNC:
                 CATCH_REQUIRE(j.set_sync(prinbee::sync_t::SYNC_FULL));
+                break;
+
+            case INLINE_ATTACHMENT_SIZE_THRESHOLD:
+                {
+                    int value(0);
+                    do
+                    {
+                        value = (rand() % (prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_MAXIMUM_THRESHOLD - prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_MINIMUM_THRESHOLD)
+                                        + prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_MINIMUM_THRESHOLD);
+                    }
+                    while(value == prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD);
+                    CATCH_REQUIRE(j.set_inline_attachment_size_threshold(value));
+                    expected_result = std::to_string(value);
+                }
+                break;
+
+            case ATTACHMENT_COPY_HANDLING_SOFTLINK:
+                // SOFTLINK is the default, to make sure we get a conf file,
+                // first set HARDLINK and then switch back
+                //
+                CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK));
+                CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK));
+                break;
+
+            case ATTACHMENT_COPY_HANDLING_HARDLINK:
+                CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK));
+                break;
+
+            case ATTACHMENT_COPY_HANDLING_REFLINK:
+                CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK));
+                break;
+
+            case ATTACHMENT_COPY_HANDLING_FULL:
+                CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL));
+                break;
+
+            default:
+                CATCH_REQUIRE(!"the test is invalid, add another case as required");
                 break;
 
             }
@@ -294,6 +528,40 @@ CATCH_TEST_CASE("journal_options", "[journal]")
 
             default:
                 CATCH_REQUIRE("none" == it->second);
+                break;
+
+            }
+            conf_values.erase(it);
+
+            it = conf_values.find("inline_attachment_size_threshold");
+            CATCH_REQUIRE(it != conf_values.end());
+            CATCH_REQUIRE((index == INLINE_ATTACHMENT_SIZE_THRESHOLD
+                                        ? expected_result
+                                        : std::to_string(prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD)) == it->second);
+            conf_values.erase(it);
+
+            it = conf_values.find("attachment_copy_handling");
+            CATCH_REQUIRE(it != conf_values.end());
+            switch(index)
+            {
+                break;
+
+            case ATTACHMENT_COPY_HANDLING_HARDLINK:
+                CATCH_REQUIRE("hardlink" == it->second);
+                break;
+
+            case ATTACHMENT_COPY_HANDLING_REFLINK:
+                CATCH_REQUIRE("reflink" == it->second);
+                break;
+
+            case ATTACHMENT_COPY_HANDLING_FULL:
+                CATCH_REQUIRE("full" == it->second);
+                break;
+
+            // the default is "softlink"
+            case ATTACHMENT_COPY_HANDLING_SOFTLINK:
+            default:
+                CATCH_REQUIRE("softlink" == it->second);
                 break;
 
             }
@@ -651,12 +919,13 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
                 data[idx] = static_cast<std::uint8_t>(rand());
             }
             std::string const request_id(SNAP_CATCH2_NAMESPACE::random_string(1, 255));
-            prinbee::in_event_t const event =
+            prinbee::in_event event;
+            event.set_request_id(request_id);
             {
-                .f_request_id = request_id,
-                .f_size = size,
-                .f_data = data.data(),
-            };
+                prinbee::attachment a;
+                a.set_data(data.data(), data.size());
+                event.add_attachment(a);
+            }
             snapdev::timespec_ex const event_time(snapdev::now());
             snapdev::timespec_ex pass_time(event_time);
             CATCH_REQUIRE(j.add_event(event, pass_time));
@@ -668,22 +937,27 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
             // it (i.e. that iterator is already pointing to end()), so we'll
             // need a rewind() call first
             //
-            prinbee::out_event_t out_event;
+            prinbee::out_event out_event;
             CATCH_REQUIRE_FALSE(j.next_event(out_event));
 
             j.rewind();
             CATCH_REQUIRE(j.next_event(out_event, true, true));
 
             std::string const filename(path + "/journal-0.events");
-            CATCH_REQUIRE(filename == out_event.f_debug_filename);
-            CATCH_REQUIRE(8U == out_event.f_debug_offset);
+            CATCH_REQUIRE(filename == out_event.get_debug_filename());
+            CATCH_REQUIRE(8U == out_event.get_debug_offset());
 
-            CATCH_REQUIRE(request_id == out_event.f_request_id);
-            CATCH_REQUIRE(size == out_event.f_data.size());
-            CATCH_REQUIRE_LONG_STRING(std::string(reinterpret_cast<char const *>(data.data()), data.size())
-                                    , std::string(reinterpret_cast<char const *>(out_event.f_data.data()), out_event.f_data.size()));
-            CATCH_REQUIRE(prinbee::status_t::STATUS_READY == out_event.f_status);
-            CATCH_REQUIRE(event_time == out_event.f_event_time);
+            CATCH_REQUIRE(request_id == out_event.get_request_id());
+            CATCH_REQUIRE(prinbee::status_t::STATUS_READY == out_event.get_status());
+            CATCH_REQUIRE(event_time == out_event.get_event_time());
+
+            {
+                CATCH_REQUIRE(out_event.get_attachment_size() == 1);
+                prinbee::attachment a(out_event.get_attachment(0));
+                CATCH_REQUIRE(size == static_cast<std::size_t>(a.size()));
+                CATCH_REQUIRE_LONG_STRING(std::string(reinterpret_cast<char const *>(data.data()), data.size())
+                                        , std::string(reinterpret_cast<char const *>(a.data()), a.size()));
+            }
 
             CATCH_REQUIRE_FALSE(j.next_event(out_event));
 
@@ -740,31 +1014,38 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
                 {
                     // not gone yet, all the data is still accessible
                     //
-                    prinbee::out_event_t out_event2;
+                    prinbee::out_event out_event2;
                     CATCH_REQUIRE(j.next_event(out_event2));
 
                     // at the moment the debug does not get cleared, so we
                     // used a separate structure to verify that by default
                     // the debug data remains untouched
                     //
-                    CATCH_REQUIRE("" == out_event2.f_debug_filename);
-                    CATCH_REQUIRE(0 == out_event2.f_debug_offset);
+                    CATCH_REQUIRE("" == out_event2.get_debug_filename());
+                    CATCH_REQUIRE(0 == out_event2.get_debug_offset());
 
-                    CATCH_REQUIRE(request_id == out_event2.f_request_id);
-                    CATCH_REQUIRE(size == out_event2.f_data.size());
-                    CATCH_REQUIRE(data == out_event2.f_data);
+                    CATCH_REQUIRE(request_id == out_event2.get_request_id());
+
+                    {
+                        CATCH_REQUIRE(out_event2.get_attachment_size() == 1);
+                        prinbee::attachment a(out_event2.get_attachment(0));
+                        CATCH_REQUIRE(size == static_cast<std::size_t>(a.size()));
+                        CATCH_REQUIRE_LONG_STRING(std::string(reinterpret_cast<char const *>(data.data()), data.size())
+                                                , std::string(reinterpret_cast<char const *>(a.data()), a.size()));
+                    }
+
                     if(expect_success)
                     {
-                        CATCH_REQUIRE(status == out_event2.f_status);
-                        last_success = out_event2.f_status;
+                        CATCH_REQUIRE(status == out_event2.get_status());
+                        last_success = out_event2.get_status();
                     }
                     else
                     {
                         // on error, it does not change
                         //
-                        CATCH_REQUIRE(last_success == out_event2.f_status);
+                        CATCH_REQUIRE(last_success == out_event2.get_status());
                     }
-                    CATCH_REQUIRE(event_time == out_event2.f_event_time);
+                    CATCH_REQUIRE(event_time == out_event2.get_event_time());
                 }
 
                 CATCH_REQUIRE_FALSE(j.next_event(out_event));
@@ -799,12 +1080,14 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
                     {
                         data[idx] = rand();
                     }
-                    prinbee::in_event_t const event =
+                    prinbee::in_event event;
+                    event.set_request_id(prinbee::id_to_string(id));
                     {
-                        .f_request_id = prinbee::id_to_string(id),
-                        .f_size = size,
-                        .f_data = data.data(),
-                    };
+                        prinbee::attachment a;
+                        a.set_data(data.data(), size);
+                        event.add_attachment(a);
+                    }
+
                     snapdev::timespec_ex const event_time(snapdev::now());
                     snapdev::timespec_ex pass_time(event_time);
                     CATCH_REQUIRE(j.add_event(event, pass_time));
@@ -893,12 +1176,13 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
                     {
                         data[idx] = rand();
                     }
-                    prinbee::in_event_t const event =
+                    prinbee::in_event event;
+                    event.set_request_id(prinbee::id_to_string(id));
                     {
-                        .f_request_id = prinbee::id_to_string(id),
-                        .f_size = size,
-                        .f_data = data.data(),
-                    };
+                        prinbee::attachment a;
+                        a.set_data(data.data(), size);
+                        event.add_attachment(a);
+                    }
                     snapdev::timespec_ex const event_time(snapdev::now());
                     snapdev::timespec_ex pass_time(event_time);
                     CATCH_REQUIRE(j.add_event(event, pass_time));
@@ -1005,12 +1289,13 @@ CATCH_TEST_CASE("journal_event_status_sequence", "[journal]")
                     {
                         data[idx] = rand();
                     }
-                    prinbee::in_event_t const event =
+                    prinbee::in_event event;
+                    event.set_request_id(prinbee::id_to_string(id));
                     {
-                        .f_request_id = prinbee::id_to_string(id),
-                        .f_size = size,
-                        .f_data = data.data(),
-                    };
+                        prinbee::attachment a;
+                        a.set_data(data.data(), size);
+                        event.add_attachment(a);
+                    }
                     snapdev::timespec_ex const event_time(snapdev::now());
                     snapdev::timespec_ex pass_time(event_time);
                     CATCH_REQUIRE(j.add_event(event, pass_time));
@@ -1120,12 +1405,13 @@ CATCH_TEST_CASE("journal_event_list", "[journal]")
                 {
                     data[idx] = rand();
                 }
-                prinbee::in_event_t const event =
+                prinbee::in_event event;
+                event.set_request_id(prinbee::id_to_string(ids[r]));
                 {
-                    .f_request_id = prinbee::id_to_string(ids[r]),
-                    .f_size = size,
-                    .f_data = data.data(),
-                };
+                    prinbee::attachment a;
+                    a.set_data(data.data(), size);
+                    event.add_attachment(a);
+                }
                 CATCH_REQUIRE(j.add_event(event, pass_time));
                 CATCH_REQUIRE(event_time == pass_time);
                 CATCH_REQUIRE(j.size() == r + 1ULL);
@@ -1141,17 +1427,17 @@ CATCH_TEST_CASE("journal_event_list", "[journal]")
             event_time = start_time;
             for(int r(0); r < 10; ++r)
             {
-                prinbee::out_event_t event;
+                prinbee::out_event event;
                 CATCH_REQUIRE(j.next_event(event));
-                CATCH_REQUIRE(event_time == event.f_event_time);
-                CATCH_REQUIRE(prinbee::id_to_string(ids[r]) == event.f_request_id);
+                CATCH_REQUIRE(event_time == event.get_event_time());
+                CATCH_REQUIRE(prinbee::id_to_string(ids[r]) == event.get_request_id());
                 ++event_time;
             }
 
             // make sure we reached the end
             //
             {
-                prinbee::out_event_t event;
+                prinbee::out_event event;
                 CATCH_REQUIRE_FALSE(j.next_event(event));
             }
         }
@@ -1160,16 +1446,16 @@ CATCH_TEST_CASE("journal_event_list", "[journal]")
             prinbee::journal j(path);
             for(int r(0); r < 10; ++r)
             {
-                prinbee::out_event_t event;
+                prinbee::out_event event;
                 CATCH_REQUIRE(j.next_event(event, false));
-                CATCH_REQUIRE(times[r] == event.f_event_time);
-                CATCH_REQUIRE(prinbee::id_to_string(r + 1) == event.f_request_id);
+                CATCH_REQUIRE(times[r] == event.get_event_time());
+                CATCH_REQUIRE(prinbee::id_to_string(r + 1) == event.get_request_id());
             }
 
             // make sure we reached the end
             //
             {
-                prinbee::out_event_t event;
+                prinbee::out_event event;
                 CATCH_REQUIRE_FALSE(j.next_event(event, false));
             }
         }
@@ -1200,12 +1486,13 @@ CATCH_TEST_CASE("journal_event_files", "[journal]")
             {
                 data[idx] = rand();
             }
-            prinbee::in_event_t const event =
+            prinbee::in_event event;
+            event.set_request_id("id-1");
             {
-                .f_request_id = "id-1",
-                .f_size = size,
-                .f_data = data.data(),
-            };
+                prinbee::attachment a;
+                a.set_data(data.data(), size);
+                event.add_attachment(a);
+            }
             snapdev::timespec_ex event_time(snapdev::now());
             CATCH_REQUIRE(j.add_event(event, event_time));
 
@@ -1240,12 +1527,13 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
         {
             data[idx] = rand();
         }
-        prinbee::in_event_t const event =
+        prinbee::in_event event;
+        event.set_request_id("id-123");
         {
-            .f_request_id = "id-123",
-            .f_size = size,
-            .f_data = data.data(),
-        };
+            prinbee::attachment a;
+            a.set_data(data.data(), size);
+            event.add_attachment(a);
+        }
         snapdev::timespec_ex event_time(snapdev::now());
         CATCH_REQUIRE(j.add_event(event, event_time));
 
@@ -1269,12 +1557,13 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
         {
             data[idx] = rand();
         }
-        prinbee::in_event_t const event =
+        prinbee::in_event event;
+        event.set_request_id("for a request identifier too be way to long here it needs to be some two hundred and fifty six or way more characters which means this is a really long sentence to make it happen and well, since I have a lot of imagination that is really no issue at all, right?");
         {
-            .f_request_id = "for a request identifier too be way to long here it needs to be some two hundred and fifty six or way more characters which means this is a really long sentence to make it happen and well, since I have a lot of imagination that is really no issue at all, right?",
-            .f_size = size,
-            .f_data = data.data(),
-        };
+            prinbee::attachment a;
+            a.set_data(data.data(), size);
+            event.add_attachment(a);
+        }
         snapdev::timespec_ex event_time(snapdev::now());
         CATCH_REQUIRE_FALSE(j.add_event(event, event_time));
     }
@@ -1333,12 +1622,13 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
         {
             data[idx] = rand();
         }
-        prinbee::in_event_t const event =
+        prinbee::in_event event;
+        event.set_request_id("id-123");
         {
-            .f_request_id = "id-123",
-            .f_size = size,
-            .f_data = data.data(),
-        };
+            prinbee::attachment a;
+            a.set_data(data.data(), size);
+            event.add_attachment(a);
+        }
         snapdev::timespec_ex event_time(snapdev::now());
         CATCH_REQUIRE_FALSE(j.add_event(event, event_time));
     }
@@ -1352,6 +1642,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
         CATCH_REQUIRE(j.is_valid());
 
         j.set_maximum_file_size(prinbee::JOURNAL_MINIMUM_FILE_SIZE);
+        j.set_inline_attachment_size_threshold(prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_MAXIMUM_THRESHOLD);
 
         // 9 to 10 Kb of data per message so we should be able to add
         // between 6 and 7 messages per file; i.e. 14 maximum then we
@@ -1368,11 +1659,12 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
             {
                 data[idx] = rand();
             }
-            prinbee::in_event_t const event =
+            prinbee::in_event event;
+            event.set_request_id("id-" + std::to_string(count));
             {
-                .f_request_id = "id-" + std::to_string(count),
-                .f_size = size,
-                .f_data = data.data(),
+                prinbee::attachment a;
+                a.set_data(data.data(), size);
+                event.add_attachment(a);
             };
             snapdev::timespec_ex event_time(snapdev::now());
             bool const r(j.add_event(event, event_time));
@@ -1418,11 +1710,12 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
             //{
             //    data[idx] = rand();
             //}
-            prinbee::in_event_t const event =
+            prinbee::in_event event;
+            event.set_request_id("id-extra");
             {
-                .f_request_id = "id-extra",
-                .f_size = data.size(),
-                .f_data = data.data(),
+                prinbee::attachment a;
+                a.set_data(data.data(), data.size());
+                event.add_attachment(a);
             };
             snapdev::timespec_ex event_time(snapdev::now());
             CATCH_REQUIRE_FALSE(j.add_event(event, event_time));
@@ -1448,12 +1741,13 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
             CATCH_REQUIRE(j.empty());
 
             std::uint8_t data[20] = {};
-            prinbee::in_event_t const event =
+            prinbee::in_event event;
+            event.set_request_id("this-id");
             {
-                .f_request_id = "this-id",
-                .f_size = sizeof(data),
-                .f_data = data,
-            };
+                prinbee::attachment a;
+                a.set_data(data, sizeof(data));
+                event.add_attachment(a);
+            }
             snapdev::timespec_ex now(snapdev::now());
             CATCH_REQUIRE(j.add_event(event, now));
             CATCH_REQUIRE(j.size() == 1ULL);
@@ -1478,12 +1772,12 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 
         {
             prinbee::journal j(path);
-            prinbee::out_event_t event;
+            prinbee::out_event event;
 
             // we find the first valid event
             //
             CATCH_REQUIRE(j.next_event(event));
-            CATCH_REQUIRE("this-id" == event.f_request_id);
+            CATCH_REQUIRE("this-id" == event.get_request_id());
 
             // make sure we reached the end; the second event was invalid
             //
@@ -1505,12 +1799,13 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
             CATCH_REQUIRE(j.empty());
 
             std::uint8_t data[20] = {};
-            prinbee::in_event_t event =
+            prinbee::in_event event;
+            event.set_request_id("this-id");
             {
-                .f_request_id = "this-id",
-                .f_size = sizeof(data),
-                .f_data = data,
-            };
+                prinbee::attachment a;
+                a.set_data(data, sizeof(data));
+                event.add_attachment(a);
+            }
             snapdev::timespec_ex now(snapdev::now());
             CATCH_REQUIRE(j.add_event(event, now));
             CATCH_REQUIRE(j.size() == 1ULL);
@@ -1520,7 +1815,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
             //
             snapdev::timespec_ex soon(snapdev::now());
             soon += snapdev::timespec_ex(100, 0);            // 100 seconds in the future
-            event.f_request_id = "future";
+            event.set_request_id("future");
             CATCH_REQUIRE_FALSE(j.add_event(event, soon));
         }
 
@@ -1560,12 +1855,12 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 
         {
             prinbee::journal j(path);
-            prinbee::out_event_t event;
+            prinbee::out_event event;
 
             // we find the first valid event
             //
             CATCH_REQUIRE(j.next_event(event));
-            CATCH_REQUIRE("this-id" == event.f_request_id);
+            CATCH_REQUIRE("this-id" == event.get_request_id());
 
             // make sure we reached the end; the second event was invalid
             //
@@ -1605,12 +1900,13 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
                 CATCH_REQUIRE(j.empty());
 
                 std::uint8_t data[20] = {};
-                prinbee::in_event_t event =
+                prinbee::in_event event;
+                event.set_request_id("this-id");
                 {
-                    .f_request_id = "this-id",
-                    .f_size = sizeof(data),
-                    .f_data = data,
-                };
+                    prinbee::attachment a;
+                    a.set_data(data, sizeof(data));
+                    event.add_attachment(a);
+                }
                 snapdev::timespec_ex now(snapdev::now());
                 CATCH_REQUIRE(j.add_event(event, now));
                 CATCH_REQUIRE(j.size() == 1ULL);
@@ -1639,12 +1935,12 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 
             {
                 prinbee::journal j(path);
-                prinbee::out_event_t event;
+                prinbee::out_event event;
 
                 // we find the first valid event
                 //
                 CATCH_REQUIRE(j.next_event(event));
-                CATCH_REQUIRE("this-id" == event.f_request_id);
+                CATCH_REQUIRE("this-id" == event.get_request_id());
 
                 // make sure we reached the end; the second event was invalid
                 //
@@ -1670,11 +1966,12 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
                 CATCH_REQUIRE(j.empty());
 
                 std::uint8_t data[20] = {};
-                prinbee::in_event_t event =
+                prinbee::in_event event;
+                event.set_request_id("this-id");
                 {
-                    .f_request_id = "this-id",
-                    .f_size = sizeof(data),
-                    .f_data = data,
+                    prinbee::attachment a;
+                    a.set_data(data, sizeof(data));
+                    event.add_attachment(a);
                 };
                 snapdev::timespec_ex now(snapdev::now());
                 CATCH_REQUIRE(j.add_event(event, now));
@@ -1702,12 +1999,12 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 
             {
                 prinbee::journal j(path);
-                prinbee::out_event_t event;
+                prinbee::out_event event;
 
                 // we find the first valid event
                 //
                 CATCH_REQUIRE(j.next_event(event));
-                CATCH_REQUIRE("this-id" == event.f_request_id);
+                CATCH_REQUIRE("this-id" == event.get_request_id());
 
                 // make sure we reached the end; the second event was invalid
                 // note: in this case we do not get an error message
@@ -1735,12 +2032,13 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
                 CATCH_REQUIRE(j.empty());
 
                 std::uint8_t data[20] = {};
-                prinbee::in_event_t event =
+                prinbee::in_event event;
+                event.set_request_id("this-id");
                 {
-                    .f_request_id = "this-id",
-                    .f_size = sizeof(data),
-                    .f_data = data,
-                };
+                    prinbee::attachment a;
+                    a.set_data(data, sizeof(data));
+                    event.add_attachment(a);
+                }
                 snapdev::timespec_ex now(snapdev::now());
                 CATCH_REQUIRE(j.add_event(event, now));
                 CATCH_REQUIRE(j.size() == 1ULL);
@@ -1772,7 +2070,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 
             {
                 prinbee::journal j(path);
-                prinbee::out_event_t event;
+                prinbee::out_event event;
 
                 // we find no events
                 //
@@ -1799,11 +2097,12 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
                 CATCH_REQUIRE(j.empty());
 
                 std::uint8_t data[20] = {};
-                prinbee::in_event_t event =
+                prinbee::in_event event;
+                event.set_request_id("this-id");
                 {
-                    .f_request_id = "this-id",
-                    .f_size = sizeof(data),
-                    .f_data = data,
+                    prinbee::attachment a;
+                    a.set_data(data, sizeof(data));
+                    event.add_attachment(a);
                 };
                 snapdev::timespec_ex now(snapdev::now());
                 CATCH_REQUIRE(j.add_event(event, now));
@@ -1819,7 +2118,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
 
             {
                 prinbee::journal j(path);
-                prinbee::out_event_t event;
+                prinbee::out_event event;
 
                 // we find no events
                 //
@@ -1854,11 +2153,12 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
             {
                 data[idx] = rand();
             }
-            prinbee::in_event_t const event =
+            prinbee::in_event event;
+            event.set_request_id("id-" + std::to_string(count));
             {
-                .f_request_id = "id-" + std::to_string(count),
-                .f_size = size,
-                .f_data = data.data(),
+                prinbee::attachment a;
+                a.set_data(data.data(), size);
+                event.add_attachment(a);
             };
             snapdev::timespec_ex event_time(snapdev::now());
             bool const r(j.add_event(event, event_time));

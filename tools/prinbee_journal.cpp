@@ -68,7 +68,7 @@ const advgetopt::option g_options[] =
         , advgetopt::ShortName('b')
         , advgetopt::Flags(advgetopt::standalone_command_flags<
               advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
-        , advgetopt::Help("expect the identifier to be a binary (an integer).")
+        , advgetopt::Help("expect the identifier to be binary (an integer).")
     ),
     advgetopt::define_option(
           advgetopt::Name("by-time")
@@ -89,7 +89,7 @@ const advgetopt::option g_options[] =
         , advgetopt::ShortName('t')
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
-        , advgetopt::Help("assume events are can be printed as is in your console.")
+        , advgetopt::Help("assume events are text based and can be printed as is in your console.")
     ),
     advgetopt::define_option(
           advgetopt::Name("--")
@@ -249,11 +249,11 @@ int prinbee_journal::scan_journal()
     bool const text(f_opt.is_defined("text"));
     bool const list(f_opt.is_defined("list"));
 
-    prinbee::out_event_t event;
+    prinbee::out_event event;
     f_journal->rewind();
     while(f_journal->next_event(event, by_time, true))
     {
-        std::string id(event.f_request_id);
+        std::string id(event.get_request_id());
         if(binary_id)
         {
             switch(id.length())
@@ -294,12 +294,12 @@ int prinbee_journal::scan_journal()
         }
 
         std::cout << "Event: " << id
-            << " (file: \"" << event.f_debug_filename
-            << "\", offset: " << event.f_debug_offset
+            << " (file: \"" << event.get_debug_filename()
+            << "\", offset: " << event.get_debug_offset()
             << ")\n";
 
         std::cout << "  Status: ";
-        switch(event.f_status)
+        switch(event.get_status())
         {
         case prinbee::status_t::STATUS_UNKNOWN:
             std::cout << "Unknown\n";
@@ -326,81 +326,96 @@ int prinbee_journal::scan_journal()
             break;
 
         default:
-            std::cout << "<unknown status:" << static_cast<int>(event.f_status) << '\n';
+            std::cout << "<unknown status:" << static_cast<int>(event.get_status()) << '\n';
             break;
 
         }
 
-        std::cout << "  Size: " << event.f_data.size() << '\n';
-        std::cout << "  Event Time: " << event.f_event_time.to_string("%Y/%m/%d %T.%N") << '\n';
+        //std::cout << "  Size: " << event.f_data.size() << '\n'; -- TBD: we could still display the total size of all the attachments
+        std::cout << "  Event Time: " << event.get_event_time().to_string("%Y/%m/%d %T.%N") << '\n';
 
         if(!list)
         {
-            if(text)
+            // go through the attachments
+            //
+            std::size_t const max(event.get_attachment_size());
+            for(std::size_t idx(0); idx < max; ++idx)
             {
-                std::cout << "  Data: " << reinterpret_cast<char const *>(event.f_data.data()) << '\n';
-            }
-            else
-            {
-                auto show_ascii = [](std::uint8_t const * data, std::size_t const len)
+                prinbee::attachment a(event.get_attachment(idx));
+                if(a.is_file())
                 {
-                    std::cout << "  ";
-                    for(std::size_t idx(len); idx < 16; ++idx)
-                    {
-                        std::cout << "   ";
-                        if(idx == 8)
-                        {
-                            std::cout << ' ';
-                        }
-                    }
-
-                    for(std::size_t idx(0); idx < len; ++idx)
-                    {
-                        char const c(static_cast<char>(data[idx]));
-                        if(c < ' ' || c > '~')
-                        {
-                            std::cout << '.';
-                        }
-                        else
-                        {
-                            std::cout << c;
-                        }
-                    }
-                };
-
-                char const * indent = "  Data:";
-                std::cout << std::hex;
-                std::size_t const size(event.f_data.size());
-                for(std::size_t idx(0); idx < size; ++idx)
+                    std::cout << "  File: " << a.filename() << "\n";
+                }
+                else
                 {
-                    std::size_t const edge(idx & 0xF);
-                    if(edge == 0)
+                    if(text)
                     {
-                        if(idx != 0)
+                        std::cout << "  Data: " << std::string(reinterpret_cast<char const *>(a.data()), a.size()) << '\n';
+                    }
+                    else
+                    {
+                        auto show_ascii = [](std::uint8_t const * data, std::size_t const len)
                         {
-                            show_ascii(event.f_data.data() + idx - 16, 16);
+                            std::cout << "  ";
+                            for(std::size_t pos(len); pos < 16; ++pos)
+                            {
+                                std::cout << "   ";
+                                if(pos == 8)
+                                {
+                                    std::cout << ' ';
+                                }
+                            }
+
+                            for(std::size_t pos(0); pos < len; ++pos)
+                            {
+                                char const c(static_cast<char>(data[pos]));
+                                if(c < ' ' || c > '~')
+                                {
+                                    std::cout << '.';
+                                }
+                                else
+                                {
+                                    std::cout << c;
+                                }
+                            }
+                        };
+
+                        char const * indent = "  Data:";
+                        std::uint8_t const * data(reinterpret_cast<std::uint8_t const *>(a.data()));
+                        std::size_t const size(a.size());
+                        std::cout << std::hex;
+                        for(std::size_t pos(0); pos < size; ++pos)
+                        {
+                            std::size_t const edge(pos & 0xF);
+                            if(edge == 0)
+                            {
+                                if(pos != 0)
+                                {
+                                    show_ascii(data + pos - 16, 16);
+                                    std::cout << '\n';
+                                }
+                                std::cout << indent;
+                                indent = "       ";   // only spaces after that
+                            }
+                            else if(edge == 8)
+                            {
+                                std::cout << ' ';
+                            }
+                            std::cout << ' ' << std::setw(2) << std::setfill('0') << static_cast<int>(data[pos]);
+                        }
+                        std::size_t last_few(size & 0xF);
+                        if(last_few == 0 && size > 0)
+                        {
+                            last_few = 16;
+                        }
+                        if(last_few > 0)
+                        {
+                            show_ascii(data + size - last_few, last_few);
                             std::cout << '\n';
                         }
-                        std::cout << indent;
-                        indent = "       ";   // only spaces after that
+                        std::cout << std::dec;
                     }
-                    else if(edge == 8)
-                    {
-                        std::cout << ' ';
-                    }
-                    std::cout << ' ' << std::setw(2) << std::setfill('0') << static_cast<int>(event.f_data[idx]);
                 }
-                std::size_t last_few(size & 0xF);
-                if(last_few == 0 && size > 0)
-                {
-                    last_few = 16;
-                }
-                if(last_few > 0)
-                {
-                    show_ascii(event.f_data.data() + size - last_few, last_few);
-                    std::cout << '\n';
-                }
-                std::cout << std::dec;
             }
         }
     }

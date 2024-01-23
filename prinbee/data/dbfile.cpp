@@ -242,7 +242,7 @@ int dbfile::open_file()
 
     // we need to have a global lock in case the file was not yet created
     //
-    snapdev::lockfile global_lock(f_lock_filename, snapdev::lockfile::mode_t::LOCKFILE_EXCLUSIVE);
+    snapdev::lockfile global_lock(f_lock_filename, snapdev::operation_t::OPERATION_EXCLUSIVE);
     global_lock.lock();
 
     // first attempt a regular open because once a file was created, this

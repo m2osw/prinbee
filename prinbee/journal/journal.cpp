@@ -87,21 +87,53 @@
  *
  * \code
  *     // file header and set of events
- *     char        f_magic[4];          // "EVTJ"
- *     uint8_t     f_major_version;     // 1
- *     uint8_t     f_minor_version;     // 0
- *     uint8_t     f_pad2;
- *     uint8_t     f_pad3;
- *     event_t     f_event[n];   // n is 0 to `f_maximum_events - 1`
+ *     char            f_magic[4];          // "EVTJ"
+ *     uint8_t         f_major_version;     // 1
+ *     uint8_t         f_minor_version;     // 0
+ *     uint16_t        f_pad;
+ *     event_t         f_event[n];   // n is 0 to `f_maximum_events - 1`
  *
  *     // where event_t looks like this
- *     uint32_t    f_size;
- *     uint64_t    f_time[2];
- *     uint8_t     f_status;
- *     uint8_t     f_request_id_size;
- *     uint8_t     f_request_id[f_request_id_size];
- *     char        f_event[f_size - 16 - 1 - 1 - f_request_id_size];
+ *     uint8_t         f_magic[2];   // "eve"
+ *     uint8_t         f_status;
+ *     uint8_t         f_request_id_size;
+ *     uint32_t        f_size;       // total size of the event
+ *     uint64_t        f_time[2];
+ *     uint8_t         f_attachment_count;
+ *     uint8_t         f_pad[7];
+ *     attachment_t    f_attachment_offsets[f_attachment_count]; // see union below
+ *     uint8_t         f_request_id[f_request_id_size];
+ *     uint8_t         f_attachement[<index>][<size>];
+ *
+ *     // where attachment_t looks like this
+ *     union attachment_t
+ *     {
+ *         struct inline_attachment
+ *         {
+ *             uint32_t        f_mode : 1;      // = 0 -- inline
+ *             uint32_t        f_size : 31;
+ *         };
+ *         struct external_attachment
+ *         {
+ *             uint32_t        f_mode : 1;      // = 1 -- external file
+ *             uint32_t        f_identifier : 31;
+ *         };
+ *     };
+ *     // the size of an attachment is defined as f_size[n + 1] - f_size[n]
+ *     // the last attachment size uses the event_t.f_size - f_size[n]
+ *     // the attachment with an `f_identifier` are skipped to compute the size
+ *     
  * \endcode
+ *
+ * attachments.f_mode is one of:
+ *
+ * 0 -- small attachment; saved inline
+ * 1 -- large attachment; saved in separate file
+ *
+ * \li Multi-threading Support
+ *
+ * At the moment, the journal is not multi-thread safe. You must make sure
+ * to use the journal serially.
  */
 
 // self
@@ -126,8 +158,14 @@
 //
 #include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/mkdir_p.h>
-#include    <snapdev/not_reached.h>
 #include    <snapdev/stream_fd.h>
+#include    <snapdev/unique_number.h>
+
+
+// C
+//
+#include    <linux/fs.h>
+#include    <sys/ioctl.h>
 
 
 // last include
@@ -163,7 +201,7 @@ struct event_journal_header_t
     std::uint8_t        f_major_version = 1;
     std::uint8_t        f_minor_version = 0;
     std::uint16_t       f_pad = 0;
-    // event_journal_event_t    f_events[n];
+    //event_journal_event_t    f_events[n];
 };
 
 
@@ -177,17 +215,357 @@ struct event_journal_event_t
     request_id_size_t   f_request_id_size;
     std::uint32_t       f_size;
     std::uint64_t       f_time[2];
-    // std::uint8_t        f_request_id[f_request_id_size];
-    // char                f_event[f_size - 24 - f_request_id_size];
+    std::uint8_t        f_attachment_count;
+    std::uint8_t        f_pad[7];
+    //std::uint32_t       f_attachment_offsets[f_attachment_count]; -- if bit 15 is set, the offset represents a filename number
+    //std::uint8_t        f_request_id[f_request_id_size];
+    //std::uint8_t        f_event[<event size>];
+    //std::uint8_t        f_attachments[<index>][<attachment size>];
 };
 
 
-char const *        g_journal_conf = "journal.conf";
+constexpr char const *      g_journal_conf = "journal.conf";
 
+constexpr std::size_t const MAXIMUM_ATTACHMENT_COUNT = 255;
+
+
+std::string ascii(std::uint8_t c)
+{
+    if(c < 0x20)
+    {
+        char buf[2] = {
+            '^',
+            static_cast<char>(c + 0x40),
+        };
+        return std::string(buf, 2);
+    }
+    else if(c > 0x7E)
+    {
+        char buf[4] = {
+            '\\',
+            'x',
+            snapdev::to_hex((c >> 4) & 15),
+            snapdev::to_hex(c & 15),
+        };
+        return std::string(buf, 4);
+    }
+    else
+    {
+        return std::string(1, static_cast<char>(c));
+    }
+
+    snapdev::NOT_REACHED();
+}
 
 
 }
 // no name namespace
+
+
+
+
+
+void attachment::clear()
+{
+    f_size = 0;
+    f_data = nullptr;
+    f_saved_data.reset();
+    f_filename.clear();
+}
+
+
+void attachment::set_data(void * data, off_t sz)
+{
+    clear();
+
+    if(sz > 0 && data == nullptr)
+    {
+        throw invalid_parameter("attachment with a size > 0 must have a non null data pointer.");
+    }
+
+    f_size = sz;
+    f_data = data;
+}
+
+
+void attachment::save_data(void * data, off_t sz)
+{
+    clear();
+
+    if(sz > 0 && data == nullptr)
+    {
+        throw invalid_parameter("attachment with a size > 0 must have a non null data pointer (2).");
+    }
+
+    f_saved_data = std::make_shared<data_t>(reinterpret_cast<std::uint8_t const *>(data), reinterpret_cast<std::uint8_t const *>(data) + sz);
+    f_size = sz;
+    f_data = f_saved_data->data();
+}
+
+
+void attachment::save_data(data_t const & data)
+{
+    clear();
+
+    f_saved_data = std::make_shared<data_t>(data.begin(), data.end());
+    f_size = data.size();
+    f_data = f_saved_data->data();
+}
+
+
+void attachment::set_file(std::string const & filename, off_t sz)
+{
+    clear();
+
+    struct stat s;
+    if(stat(filename.c_str(), &s) != 0)
+    {
+        throw file_not_found("file \""
+            + filename
+            + "\" not found or permission denied.");
+    }
+    if(sz == 0)
+    {
+        sz = s.st_size;
+    }
+    else if(sz > s.st_size)
+    {
+        throw invalid_parameter(
+                  "trying to save more data ("
+                + std::to_string(sz)
+                + ") than available in file attachment \""
+                + filename
+                + "\" ("
+                + std::to_string(s.st_size)
+                + ").");
+    }
+
+    f_filename = filename;
+    f_size = sz;
+}
+
+
+off_t attachment::size() const
+{
+    return f_size;
+}
+
+
+void * attachment::data() const
+{
+    if(is_file() && f_data == nullptr)
+    {
+        const_cast<attachment *>(this)->load_file_data();
+    }
+
+    return f_data;
+}
+
+
+std::string const & attachment::filename() const
+{
+    return f_filename;
+}
+
+
+bool attachment::load_file_data()
+{
+    if(is_file() && f_saved_data == nullptr)
+    {
+        std::ifstream in(f_filename);
+        if(!in.is_open())
+        {
+            throw file_not_found("file \""
+                + f_filename
+                + "\" not found or permission denied.");
+        }
+        f_saved_data = std::make_shared<data_t>(f_size);
+        in.read(reinterpret_cast<char *>(f_saved_data->data()), f_size);
+        if(in.fail())
+        {
+            f_saved_data.reset();
+            return false;
+        }
+
+        f_data = f_saved_data->data();
+    }
+
+    return true;
+}
+
+
+bool attachment::empty() const
+{
+    return f_size == 0;
+}
+
+
+bool attachment::is_file() const
+{
+    return !f_filename.empty();
+}
+
+
+
+
+
+
+void in_event::set_request_id(request_id_t const & request_id)
+{
+    f_request_id = request_id;
+}
+
+
+request_id_t const & in_event::get_request_id() const
+{
+    return f_request_id;
+}
+
+
+attachment_id_t in_event::add_attachment(attachment const & a)
+{
+    attachment_id_t const id(f_attachments.size());
+    if(id >= MAXIMUM_ATTACHMENT_COUNT)
+    {
+        throw full("attachment table is full, this attachment cannot be added (in_event).");
+    }
+
+    f_attachments.push_back(a);
+    return id;
+}
+
+
+std::size_t in_event::get_attachment_size() const
+{
+    return f_attachments.size();
+}
+
+
+attachment const & in_event::get_attachment(attachment_id_t id) const
+{
+    if(id >= f_attachments.size())
+    {
+        throw out_of_range("attachment identifier out of range trying to retrieve file from in_event.");
+    }
+
+    return f_attachments[id];
+}
+
+
+
+
+
+
+
+void out_event::set_request_id(request_id_t const & request_id)
+{
+    f_request_id = request_id;
+}
+
+
+request_id_t const & out_event::get_request_id() const
+{
+    return f_request_id;
+}
+
+
+void out_event::set_status(status_t status)
+{
+    switch(status)
+    {
+    case status_t::STATUS_UNKNOWN:
+    case status_t::STATUS_READY:
+    case status_t::STATUS_FORWARDED:
+    case status_t::STATUS_ACKNOWLEDGED:
+    case status_t::STATUS_COMPLETED:
+    case status_t::STATUS_FAILED:
+        break;
+
+    default:
+        throw invalid_parameter("unsupported status number");
+
+    }
+
+    f_status = status;
+}
+
+
+status_t out_event::get_status() const
+{
+    return f_status;
+}
+
+
+void out_event::set_event_time(snapdev::timespec_ex const & event_time)
+{
+    f_event_time = event_time;
+}
+
+
+snapdev::timespec_ex const & out_event::get_event_time() const
+{
+    return f_event_time;
+}
+
+
+attachment_id_t out_event::add_attachment(attachment const & a)
+{
+    attachment_id_t const id(f_attachments.size());
+    if(id >= MAXIMUM_ATTACHMENT_COUNT)
+    {
+        throw full("attachment table is full, this attachment cannot be added (out_event).");
+    }
+
+    f_attachments.push_back(a);
+    return id;
+}
+
+
+std::size_t out_event::get_attachment_size() const
+{
+    return f_attachments.size();
+}
+
+
+attachment const & out_event::get_attachment(attachment_id_t id) const
+{
+    if(id >= f_attachments.size())
+    {
+        throw out_of_range("attachment identifier out of range retrieving attachment from out event.");
+    }
+
+    return f_attachments[id];
+}
+
+
+void out_event::set_debug_filename(std::string debug_filename)
+{
+    f_debug_filename = debug_filename;
+}
+
+
+std::string out_event::get_debug_filename() const
+{
+    return f_debug_filename;
+}
+
+
+void out_event::set_debug_offset(std::uint32_t debug_offset)
+{
+    f_debug_offset = debug_offset;
+}
+
+
+std::uint32_t out_event::get_debug_offset() const
+{
+    return f_debug_offset;
+}
+
+
+
+
+
+
 
 
 
@@ -218,6 +596,12 @@ journal::file::file(journal * j, std::string const & filename, bool create)
 journal::file::~file()
 {
     truncate();
+}
+
+
+std::string const & journal::file::get_path() const
+{
+    return f_journal->get_path();
 }
 
 
@@ -551,6 +935,18 @@ std::uint32_t journal::file::get_next_append() const
 }
 
 
+std::uint32_t journal::file::get_inline_attachment_size_threshold() const
+{
+    return f_journal->get_inline_attachment_size_threshold();
+}
+
+
+attachment_copy_handling_t journal::file::get_attachment_copy_handling() const
+{
+    return f_journal->get_attachment_copy_handling();
+}
+
+
 
 
 
@@ -566,30 +962,62 @@ journal::location::location(file::pointer_t f)
 }
 
 
-bool journal::location::read_data(out_event_t & event, bool debug)
+bool journal::location::read_data(out_event & event, bool debug)
 {
-    event.f_request_id = f_request_id;
-    event.f_status = f_status;
-    event.f_event_time = f_event_time;
-    event.f_data.resize(f_size);
+    event.set_request_id(f_request_id);
+    event.set_status(f_status);
+    event.set_event_time(f_event_time);
     if(debug)
     {
-        event.f_debug_filename = f_file->filename();
-        event.f_debug_offset = f_offset;
+        event.set_debug_filename(f_file->filename());
+        event.set_debug_offset(f_offset);
     }
-    std::size_t const header_size(sizeof(event_journal_event_t) + f_request_id.length());
-    std::uint32_t const offset(f_offset + header_size);
-    f_file->seekg(offset);
-    f_file->read(event.f_data.data(), f_size);
+
+    f_file->seekg(f_offset + sizeof(event_journal_event_t));
+
+    std::vector<attachment_offsets_t> offsets(f_attachment_count);
+    f_file->read(offsets.data(), f_attachment_count * sizeof(attachment_offsets_t));
+
+    for(std::uint32_t idx(0); idx < f_attachment_count; ++idx)
+    {
+        attachment a;
+        if((offsets[idx] & JOURNAL_IS_EXTERNAL_ATTACHMENT) != 0)
+        {
+            std::uint32_t const identifier(offsets[idx] & ~JOURNAL_IS_EXTERNAL_ATTACHMENT);
+            std::string external_filename(f_file->get_path());
+            external_filename += '/';
+            external_filename += std::to_string(identifier);
+            external_filename += ".bin";
+            a.set_file(external_filename);
+        }
+        else
+        {
+            std::size_t size(f_size - offsets[idx]);
+            for(std::uint32_t j(idx + 1); j < f_attachment_count; ++j)
+            {
+                if((offsets[j] & JOURNAL_IS_EXTERNAL_ATTACHMENT) == 0)
+                {
+                    size = offsets[j] - offsets[idx];
+                    break;
+                }
+            }
+            data_t data(size);
+            f_file->seekg(f_offset + offsets[idx]);
+            f_file->read(data.data(), size);
+            a.save_data(data);
+        }
+
+        event.add_attachment(a);
+    }
 
     if(f_file->fail())
     {
         // LCOV_EXCL_START
         SNAP_LOG_CRITICAL
-            << "could not read event "
+            << "could not read data of event "
             << f_request_id
             << " at "
-            << offset
+            << f_offset
             << " in \""
             << f_file->filename()
             << "\"."
@@ -650,6 +1078,12 @@ std::uint32_t journal::location::get_offset() const
 }
 
 
+void journal::location::set_attachment_count(std::uint32_t count)
+{
+    f_attachment_count = count;
+}
+
+
 void journal::location::set_offset(std::uint32_t offset)
 {
     f_offset = offset;
@@ -662,7 +1096,7 @@ void journal::location::set_size(std::uint32_t size)
 }
 
 
-bool journal::location::write_new_event(in_event_t const & event)
+bool journal::location::write_new_event(in_event const & event)
 {
     if(f_file->get_next_append() == 0)
     {
@@ -672,28 +1106,226 @@ bool journal::location::write_new_event(in_event_t const & event)
         f_file->set_next_append(sizeof(journal_header));
     }
 
-    f_request_id = event.f_request_id;
+    f_request_id = event.get_request_id();
     f_status = status_t::STATUS_READY;
     f_offset = f_file->get_next_append();
-    f_size = event.f_size;
 
-    event_journal_event_t event_header;
+    // compute the size of the event, including its attachments
+    //
+    f_size = sizeof(event_journal_event_t);
+    std::size_t const number_of_attachments(event.get_attachment_size());
+    f_size += number_of_attachments * sizeof(attachment_offsets_t);
+    f_size += f_request_id.length();
+    std::uint32_t const attachment_size_threshold(f_file->get_inline_attachment_size_threshold());
+    std::vector<attachment_offsets_t> attachment_offsets(number_of_attachments);
+    for(std::size_t idx(0); idx < number_of_attachments; ++idx)
+    {
+        attachment const & data(event.get_attachment(idx));
+        if(data.size() >= attachment_size_threshold)
+        {
+            // too big to be saved in the main file, save in a separate file
+            //
+            std::string const & path(f_file->get_path());
+            std::string counter_filename(path + "/counters.seq");
+
+            // only keep the lower 31 bits of the counter
+            //
+            attachment_offsets_t const identifier(static_cast<attachment_offsets_t>(snapdev::unique_number(counter_filename, JOURNAL_ATTACHMENT_COUNTER_INDEX)) & ~JOURNAL_IS_EXTERNAL_ATTACHMENT);
+
+            std::string const external_filename(path + "/" + std::to_string(identifier) + ".bin");
+            if(data.is_file())
+            {
+                int r(0);
+                if(f_file->get_attachment_copy_handling() == attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK)
+                {
+                    r = link(data.filename().c_str(), external_filename.c_str());
+                }
+                if(r != 0 || f_file->get_attachment_copy_handling() == attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK)
+                {
+                    std::ifstream in(data.filename());
+                    if(!in.is_open())
+                    {
+                        SNAP_LOG_FATAL
+                            << "could not open \""
+                            << data.filename()
+                            << "\" to create a reflink from."
+                            << SNAP_LOG_SEND;
+                        return false;
+                    }
+                    std::ofstream out(external_filename);
+                    if(!out.is_open())
+                    {
+                        SNAP_LOG_FATAL
+                            << "could not open \""
+                            << external_filename
+                            << "\" to create a reflink to \""
+                            << data.filename()
+                            << "\"."
+                            << SNAP_LOG_SEND;
+                        return false;
+                    }
+                    file_clone_range range{
+                        .src_fd = snapdev::stream_fd(in),
+                        .src_offset = 0,
+                        .src_length = static_cast<__u64>(data.size()),
+                        .dest_offset = 0,
+                    };
+                    r = ioctl(snapdev::stream_fd(out), FICLONERANGE, &range);
+                }
+                if(r != 0 || f_file->get_attachment_copy_handling() == attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL)
+                {
+                    char buf[64 * 1024];
+                    std::ifstream in(data.filename());
+                    if(!in.is_open())
+                    {
+                        SNAP_LOG_FATAL
+                            << "could not open \""
+                            << data.filename()
+                            << "\" to create a copy from."
+                            << SNAP_LOG_SEND;
+                        return false;
+                    }
+                    std::ofstream out(external_filename);
+                    if(!out.is_open())
+                    {
+                        SNAP_LOG_FATAL
+                            << "could not open \""
+                            << external_filename
+                            << "\" to copy \""
+                            << data.filename()
+                            << "\" into."
+                            << SNAP_LOG_SEND;
+                        return false;
+                    }
+                    std::size_t size(data.size());
+                    while(size > 0)
+                    {
+                        ssize_t const segment_size(std::min(size, sizeof(buf)));
+                        in.read(buf, segment_size);
+                        if(in.fail())
+                        {
+                            r = -1;
+                            break;
+                        }
+                        out.write(buf, segment_size);
+                        if(out.fail())
+                        {
+                            r = -1;
+                            break;
+                        }
+                        size -= segment_size;
+                    }
+                }
+                if(r != 0 || f_file->get_attachment_copy_handling() == attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK)
+                {
+                    r = unlink(external_filename.c_str());
+                    if(r != 0 && errno != ENOENT)
+                    {
+                        SNAP_LOG_FATAL
+                            << "could not unlink \""
+                            << external_filename
+                            << "\" to create a soft link."
+                            << SNAP_LOG_SEND;
+                        return false;
+                    }
+                    r = symlink(data.filename().c_str(), external_filename.c_str());
+                }
+                if(r != 0)
+                {
+                    // TODO: generate messages on each error above so this
+                    //       error here can be more precise (i.e. EPERM,
+                    //       ENOENT, etc.)
+                    //
+                    SNAP_LOG_FATAL
+                        << "could not save file \""
+                        << data.filename()
+                        << "\" in the journal as \""
+                        << external_filename
+                        << "\"."
+                        << SNAP_LOG_SEND;
+                    return false;
+                }
+            }
+            else
+            {
+                std::ofstream out(external_filename);
+                if(!out.is_open())
+                {
+                    SNAP_LOG_FATAL
+                        << "could not open \""
+                        << external_filename
+                        << "\" to save large attachment."
+                        << SNAP_LOG_SEND;
+                    return false;
+                }
+                out.write(reinterpret_cast<char const *>(data.data()), data.size());
+                if(out.fail())
+                {
+                    // LCOV_EXCL_START
+                    SNAP_LOG_FATAL
+                        << "failed write_new_event() while writing external file \""
+                        << external_filename
+                        << "\"."
+                        << SNAP_LOG_SEND;
+                    return false;
+                    // LCOV_EXCL_STOP
+                }
+            }
+
+            attachment_offsets[idx] = identifier | JOURNAL_IS_EXTERNAL_ATTACHMENT;
+        }
+        else
+        {
+            attachment_offsets[idx] = f_size;
+            f_size += data.size();
+        }
+    }
+
+    event_journal_event_t event_header = {};
     event_header.f_magic[0] = 'e';
     event_header.f_magic[1] = 'v';
     event_header.f_status = static_cast<event_journal_event_t::file_status_t>(f_status);
     event_header.f_request_id_size = f_request_id.length();
-    event_header.f_size = sizeof(event_journal_event_t)
-                        + f_request_id.length()
-                        + event.f_size;
+    event_header.f_size = f_size;
     event_header.f_time[0] = f_event_time.tv_sec;
     event_header.f_time[1] = f_event_time.tv_nsec;
+    event_header.f_attachment_count = number_of_attachments;
+    //event_header.f_pad = {}; -- this is not valid, instead I initialize to zero above
 
     f_file->seekp(f_offset);
     f_file->write(reinterpret_cast<char const *>(&event_header), sizeof(event_header));
+    f_file->write(attachment_offsets.data(), attachment_offsets.size() * sizeof(decltype(attachment_offsets)::value_type));
     f_file->write(f_request_id.data(), f_request_id.length());
-    f_file->write(reinterpret_cast<char const *>(event.f_data), f_size);
+
+    // write inline attachments
+    //
+    for(std::size_t idx(0); idx < number_of_attachments; ++idx)
+    {
+        attachment const & a(event.get_attachment(idx));
+        if(a.size() < attachment_size_threshold)
+        {
+            if(a.is_file())
+            {
+                // small files are copied inside the journal file directly
+                //
+                std::ifstream in(a.filename());
+                data_t data(a.size());
+                in.read(reinterpret_cast<char *>(data.data()), data.size());
+                f_file->write(reinterpret_cast<char const *>(data.data()), data.size());
+            }
+            else
+            {
+                f_file->write(reinterpret_cast<char const *>(a.data()), a.size());
+            }
+        }
+    }
+
     if(f_file->fail())
     {
+        // TODO: a partial write happened we would need to clear the magic
+        //       if that was saved properly otherwise a load will think that
+        //       was correct...
+        //
         // LCOV_EXCL_START
         SNAP_LOG_FATAL
             << "failed write_new_event() while writing."
@@ -704,6 +1336,8 @@ bool journal::location::write_new_event(in_event_t const & event)
 
     f_file->set_next_append(f_file->tell());
     f_file->increase_event_count();
+
+    f_attachment_count = number_of_attachments;
 
     return true;
 }
@@ -731,6 +1365,12 @@ journal::journal(std::string const & path)
 
         load_event_locations(false);
     }
+}
+
+
+std::string const & journal::get_path() const
+{
+    return f_path;
 }
 
 
@@ -785,6 +1425,10 @@ bool journal::set_maximum_number_of_files(std::uint32_t maximum_number_of_files)
             + std::to_string(JOURNAL_MAXIMUM_NUMBER_OF_FILES)
             + "]");
     }
+    if(f_maximum_number_of_files == maximum_number_of_files)
+    {
+        return true;
+    }
 
     // verify that we can apply this change
     // otherwise throw an error
@@ -821,42 +1465,68 @@ bool journal::set_maximum_number_of_files(std::uint32_t maximum_number_of_files)
 
 bool journal::set_maximum_file_size(std::uint32_t maximum_file_size)
 {
-    if(maximum_file_size < JOURNAL_MINIMUM_FILE_SIZE)
+    maximum_file_size = std::clamp(
+                              maximum_file_size
+                            , JOURNAL_MINIMUM_FILE_SIZE
+                            , JOURNAL_MAXIMUM_FILE_SIZE);
+
+    if(f_maximum_file_size == maximum_file_size)
     {
-        f_maximum_file_size = JOURNAL_MINIMUM_FILE_SIZE;
+        return true;
     }
-    else if(maximum_file_size > JOURNAL_MAXIMUM_FILE_SIZE)
-    {
-        f_maximum_file_size = JOURNAL_MAXIMUM_FILE_SIZE;
-    }
-    else
-    {
-        f_maximum_file_size = maximum_file_size;
-    }
+
+    f_maximum_file_size = maximum_file_size;
     return save_configuration();
 }
 
 
 bool journal::set_maximum_events(std::uint32_t maximum_events)
 {
-    if(maximum_events < JOURNAL_MINIMUM_EVENTS)
+    maximum_events = std::clamp(
+                          maximum_events
+                        , JOURNAL_MINIMUM_EVENTS
+                        , JOURNAL_MAXIMUM_EVENTS);
+
+    if(f_maximum_events == maximum_events)
     {
-        f_maximum_events = JOURNAL_MINIMUM_EVENTS;
+        return true;
     }
-    else if(maximum_events > JOURNAL_MAXIMUM_EVENTS)
+
+    f_maximum_events = maximum_events;
+    return save_configuration();
+}
+
+
+std::uint32_t journal::get_inline_attachment_size_threshold() const
+{
+    return f_inline_attachment_size_threshold;
+}
+
+
+bool journal::set_inline_attachment_size_threshold(std::uint32_t inline_attachment_size_threshold)
+{
+    inline_attachment_size_threshold = std::clamp(
+                                      inline_attachment_size_threshold
+                                    , JOURNAL_INLINE_ATTACHMENT_SIZE_MINIMUM_THRESHOLD
+                                    , JOURNAL_INLINE_ATTACHMENT_SIZE_MAXIMUM_THRESHOLD);
+
+    if(inline_attachment_size_threshold == f_inline_attachment_size_threshold)
     {
-        f_maximum_events = JOURNAL_MAXIMUM_EVENTS;
+        return true;
     }
-    else
-    {
-        f_maximum_events = maximum_events;
-    }
+
+    f_inline_attachment_size_threshold = inline_attachment_size_threshold;
     return save_configuration();
 }
 
 
 bool journal::set_sync(sync_t sync)
 {
+    if(f_sync == sync)
+    {
+        return true;
+    }
+
     f_sync = sync;
     return save_configuration();
 }
@@ -881,6 +1551,11 @@ bool journal::set_file_management(file_management_t file_management)
         throw invalid_parameter("unsupported file management number");
 
     }
+    if(f_file_management == file_management)
+    {
+        return true;
+    }
+
     f_file_management = file_management;
     return save_configuration();
 }
@@ -888,7 +1563,52 @@ bool journal::set_file_management(file_management_t file_management)
 
 bool journal::set_compress_when_full(bool compress_when_full)
 {
+    if(f_compress_when_full == compress_when_full)
+    {
+        return true;
+    }
+
     f_compress_when_full = compress_when_full;
+    return save_configuration();
+}
+
+
+attachment_copy_handling_t journal::get_attachment_copy_handling() const
+{
+    return f_attachment_copy_handling;
+}
+
+
+bool journal::set_attachment_copy_handling(attachment_copy_handling_t attachment_copy_handling)
+{
+    switch(attachment_copy_handling)
+    {
+    case attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_DEFAULT:
+        attachment_copy_handling = attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK;
+        break;
+
+    case attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK:
+    case attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK:
+    case attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK:
+    case attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL:
+        break;
+
+    default:
+        std::stringstream ss;
+        ss << "unknown attachment_copy_handling_t enumeration type ("
+           << static_cast<int>(attachment_copy_handling)
+           << ").";
+        SNAP_LOG_ERROR << ss.str() << SNAP_LOG_SEND;
+        throw invalid_parameter(ss.str());
+
+    }
+
+    if(f_attachment_copy_handling == attachment_copy_handling)
+    {
+        return true;
+    }
+
+    f_attachment_copy_handling = attachment_copy_handling;
     return save_configuration();
 }
 
@@ -915,10 +1635,10 @@ bool journal::set_compress_when_full(bool compress_when_full)
  * \return true if the event was added as to the journal.
  */
 bool journal::add_event(
-    in_event_t const & event,
+    in_event const & event,
     snapdev::timespec_ex & event_time)
 {
-    if(f_event_locations.contains(event.f_request_id))
+    if(f_event_locations.contains(event.get_request_id()))
     {
         SNAP_LOG_FATAL
             << "request_id already exists in the list of events, it cannot be re-added."
@@ -935,8 +1655,8 @@ bool journal::add_event(
         return false;
     }
 
-    if(event.f_request_id.empty()
-    || event.f_request_id.length() > 255)
+    if(event.get_request_id().empty()
+    || event.get_request_id().length() > 255)
     {
         SNAP_LOG_FATAL
             << "request_id must be between 1 and 255 characters."
@@ -944,9 +1664,21 @@ bool journal::add_event(
         return false;
     }
 
+    std::size_t const attachment_size(event.get_attachment_size());
+
     std::size_t event_size(sizeof(event_journal_event_t));
-    event_size += event.f_request_id.length();
-    event_size += event.f_size;
+    event_size += attachment_size * sizeof(attachment_offsets_t);
+    event_size += event.get_request_id().length();
+
+    for(std::size_t idx(0); idx < attachment_size; ++idx)
+    {
+        attachment const & a(event.get_attachment(idx));
+        if(a.size() < f_inline_attachment_size_threshold)
+        {
+            event_size += a.size();
+        }
+        //else -- this will be in a separate file
+    }
 
     while(f_timebased_replay.contains(event_time))
     {
@@ -984,7 +1716,7 @@ bool journal::add_event(
 
                 sync_if_requested(f);
 
-                f_event_locations[event.f_request_id] = l;
+                f_event_locations[event.get_request_id()] = l;
                 f_timebased_replay[event_time] = l;
                 return true;
             }
@@ -1085,7 +1817,7 @@ void journal::rewind()
  *
  * \return true if an event is available and saved in the \p event parameter.
  */
-bool journal::next_event(out_event_t & event, bool by_time, bool debug)
+bool journal::next_event(out_event & event, bool by_time, bool debug)
 {
     location::pointer_t l;
     if(by_time)
@@ -1186,15 +1918,10 @@ bool journal::load_configuration()
         std::string const maximum_number_of_files(config->get_parameter("maximum_number_of_files"));
         std::int64_t max(0);
         advgetopt::validator_integer::convert_string(maximum_number_of_files, max);
-        if(max < JOURNAL_MINIMUM_NUMBER_OF_FILES)
-        {
-            max = JOURNAL_MINIMUM_NUMBER_OF_FILES; // LCOV_EXCL_LINE
-        }
-        else if(max > JOURNAL_MAXIMUM_NUMBER_OF_FILES)
-        {
-            max = JOURNAL_MAXIMUM_NUMBER_OF_FILES; // LCOV_EXCL_LINE
-        }
-        f_maximum_number_of_files = max;
+        f_maximum_number_of_files = std::clamp(
+                                          static_cast<std::uint32_t>(max)
+                                        , JOURNAL_MINIMUM_NUMBER_OF_FILES
+                                        , JOURNAL_MAXIMUM_NUMBER_OF_FILES);
     }
     f_event_files.resize(f_maximum_number_of_files);
 
@@ -1203,15 +1930,7 @@ bool journal::load_configuration()
         std::string const maximum_file_size(config->get_parameter("maximum_file_size"));
         std::int64_t max(0);
         advgetopt::validator_integer::convert_string(maximum_file_size, max);
-        if(max < JOURNAL_MINIMUM_FILE_SIZE)
-        {
-            max = JOURNAL_MINIMUM_FILE_SIZE; // LCOV_EXCL_LINE
-        }
-        else if(max > JOURNAL_MAXIMUM_FILE_SIZE)
-        {
-            max = JOURNAL_MAXIMUM_FILE_SIZE; // LCOV_EXCL_LINE
-        }
-        f_maximum_file_size = max;
+        f_maximum_file_size = std::clamp(static_cast<std::uint32_t>(max), JOURNAL_MINIMUM_FILE_SIZE, JOURNAL_MAXIMUM_FILE_SIZE);
     }
 
     if(config->has_parameter("maximum_events"))
@@ -1219,15 +1938,47 @@ bool journal::load_configuration()
         std::string const maximum_events(config->get_parameter("maximum_events"));
         std::int64_t max(0);
         advgetopt::validator_integer::convert_string(maximum_events, max);
-        if(max < JOURNAL_MINIMUM_EVENTS)
+        f_maximum_events = std::clamp(static_cast<std::uint32_t>(max), JOURNAL_MINIMUM_EVENTS, JOURNAL_MAXIMUM_EVENTS);
+    }
+
+    if(config->has_parameter("inline_attachment_size_threshold"))
+    {
+        std::string const inline_attachment_size(config->get_parameter("inline_attachment_size_threshold"));
+        std::int64_t max(0);
+        advgetopt::validator_integer::convert_string(inline_attachment_size, max);
+        f_inline_attachment_size_threshold = std::clamp(static_cast<std::uint32_t>(max), JOURNAL_INLINE_ATTACHMENT_SIZE_MINIMUM_THRESHOLD, JOURNAL_INLINE_ATTACHMENT_SIZE_MAXIMUM_THRESHOLD);
+    }
+
+    if(config->has_parameter("attachment_copy_handling"))
+    {
+        std::string const attachment_copy_handling(config->get_parameter("attachment_copy_handling"));
+        if(attachment_copy_handling == "default"
+        || attachment_copy_handling == "softlink")
         {
-            max = JOURNAL_MINIMUM_EVENTS; // LCOV_EXCL_LINE
+            f_attachment_copy_handling = attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK;
         }
-        else if(max > JOURNAL_MAXIMUM_EVENTS)
+        else if(attachment_copy_handling == "hardlink")
         {
-            max = JOURNAL_MAXIMUM_EVENTS; // LCOV_EXCL_LINE
+            f_attachment_copy_handling = attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK;
         }
-        f_maximum_events = max;
+        else if(attachment_copy_handling == "reflink")
+        {
+            f_attachment_copy_handling = attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK;
+        }
+        else if(attachment_copy_handling == "full")
+        {
+            f_attachment_copy_handling = attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL;
+        }
+        else
+        {
+            // LCOV_EXCL_START
+            SNAP_LOG_WARNING
+                << "unknown attachment copy handling type \""
+                << attachment_copy_handling
+                << "\"."
+                << SNAP_LOG_SEND;
+            // LCOV_EXCL_STOP
+        }
     }
 
     return true;
@@ -1242,16 +1993,17 @@ bool journal::save_configuration()
     std::string sync;
     switch(f_sync)
     {
-    case sync_t::SYNC_NONE:
-        sync = "none";
-        break;
-
     case sync_t::SYNC_FLUSH:
         sync = "flush";
         break;
 
     case sync_t::SYNC_FULL:
         sync = "full";
+        break;
+
+    //case sync_t::SYNC_NONE:
+    default:
+        sync = "none";
         break;
 
     }
@@ -1302,6 +2054,39 @@ bool journal::save_configuration()
         "maximum_events",
         std::to_string(static_cast<int>(f_maximum_events)));
 
+    config->set_parameter(
+        std::string(),
+        "inline_attachment_size_threshold",
+        std::to_string(static_cast<int>(f_inline_attachment_size_threshold)));
+
+    std::string attachment_copy_handling;
+    switch(f_attachment_copy_handling)
+    {
+    case attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK:
+        attachment_copy_handling = "hardlink";
+        break;
+
+    case attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK:
+        attachment_copy_handling = "reflink";
+        break;
+
+    case attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL:
+        attachment_copy_handling = "full";
+        break;
+
+    // the default is softlink
+    //case attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_DEFAULT:
+    //case attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK:
+    default:
+        attachment_copy_handling = "softlink";
+        break;
+
+    }
+    config->set_parameter(
+        std::string(),
+        "attachment_copy_handling",
+        attachment_copy_handling);
+
     config->save_configuration(".bak", true);
 
     return true;
@@ -1310,7 +2095,7 @@ bool journal::save_configuration()
 
 bool journal::load_event_locations(bool compress)
 {
-    std::vector<char> buffer;
+    std::vector<char> compress_buffer;
     f_can_be_compressed = false;
     f_event_locations.clear();
     for(std::uint32_t index(0); index < f_maximum_number_of_files; ++index)
@@ -1336,6 +2121,20 @@ bool journal::load_event_locations(bool compress)
         || journal_header.f_major_version != 1
         || journal_header.f_minor_version != 0)
         {
+            SNAP_LOG_MAJOR
+                << "found event file with invalid magic and/or version ("
+                << ascii(journal_header.f_magic[0])
+                << ascii(journal_header.f_magic[1])
+                << ascii(journal_header.f_magic[2])
+                << ascii(journal_header.f_magic[3])
+                << ") version "
+                << journal_header.f_major_version
+                << '.'
+                << journal_header.f_minor_version
+                << " in \""
+                << f->filename()
+                << '"'
+                << SNAP_LOG_SEND;
             continue;
         }
 
@@ -1368,32 +2167,6 @@ bool journal::load_event_locations(bool compress)
                 if(event_header.f_magic[0] != g_end_marker[0]
                 || event_header.f_magic[1] != g_end_marker[1])
                 {
-                    auto ascii = [](std::uint8_t c)
-                    {
-                        if(c < 0x20)
-                        {
-                            char buf[2] = {
-                                '^',
-                                static_cast<char>(c + 0x40),
-                            };
-                            return std::string(buf, 2);
-                        }
-                        else if(c > 0x7E)
-                        {
-                            char buf[4] = {
-                                '\\',
-                                'x',
-                                snapdev::to_hex((c >> 4) & 15),
-                                snapdev::to_hex(c & 15),
-                            };
-                            return std::string(buf, 4);
-                        }
-                        else
-                        {
-                            return std::string(1, static_cast<char>(c));
-                        }
-                    };
-
                     SNAP_LOG_MAJOR
                         << "found an invalid event magic ("
                         << ascii(event_header.f_magic[0])
@@ -1433,7 +2206,10 @@ bool journal::load_event_locations(bool compress)
             // LCOV_EXCL_STOP
 
             }
-            ssize_t const data_size(event_header.f_size - sizeof(event_header) - event_header.f_request_id_size);
+            ssize_t const data_size(event_header.f_size
+                                        - sizeof(event_header)
+                                        - event_header.f_attachment_count * sizeof(attachment_offsets_t)
+                                        - event_header.f_request_id_size);
             if(event_header.f_request_id_size == 0
             || static_cast<std::size_t>(event_header.f_size + offset) > file_size
             || data_size <= 0)
@@ -1484,6 +2260,13 @@ bool journal::load_event_locations(bool compress)
                 continue;
             }
 
+            // skip the attachment offsets, we don't need them at the moment
+            // unless we are compressing then we'll need to copy them so keep
+            // the offset
+            //
+            off_t const attachment_offsets(f->tellg());
+            f->seekg(event_header.f_attachment_count * sizeof(attachment_offsets_t), std::ios::cur);
+
             std::string request_id(event_header.f_request_id_size, ' ');
             f->read(request_id.data(), event_header.f_request_id_size);
             if(!f->good())
@@ -1505,8 +2288,9 @@ bool journal::load_event_locations(bool compress)
             l->set_event_time(event_time);
             l->set_status(static_cast<status_t>(event_header.f_status));
             l->set_file_index(index);
+            l->set_attachment_count(event_header.f_attachment_count);
             l->set_offset(offset);
-            l->set_size(data_size);
+            l->set_size(event_header.f_size); // full size, allows us to compute the size of the last attachment
 
             f_event_locations[request_id] = l;
             f_timebased_replay[event_time] = l;
@@ -1517,10 +2301,32 @@ bool journal::load_event_locations(bool compress)
                 // we are in compression mode and this event can be moved
                 // "up" (lower offset), do so
 
+                if(compress_buffer.size() == 0)
+                {
+                    // copy up to 64Kb at a time
+                    //
+                    constexpr std::size_t const COMPRESS_BUFFER_SIZE(64 * 1024);
+                    static_assert(COMPRESS_BUFFER_SIZE >= MAXIMUM_ATTACHMENT_COUNT * sizeof(attachment_offsets_t));
+                    compress_buffer.resize(COMPRESS_BUFFER_SIZE);
+                }
+
+                // read the attachment offsets in this case, we also need
+                // to move them
+                //
+                off_t const current_offset(f->tellg());
+                f->seekg(attachment_offsets);
+                std::size_t const offset_size(event_header.f_attachment_count * sizeof(attachment_offsets_t));
+                f->read(compress_buffer.data(), offset_size);
+                f->seekg(current_offset);
+
                 // save the header
                 //
                 l->set_offset(f->tellp());
                 f->write(reinterpret_cast<char const *>(&event_header), sizeof(event_header));
+
+                // save the attachment offsets
+                //
+                f->write(compress_buffer.data(), offset_size);
 
                 // save the request id string
                 //
@@ -1528,20 +2334,14 @@ bool journal::load_event_locations(bool compress)
 
                 // now copy the data, one block at a time
                 //
-                if(buffer.size() == 0)
-                {
-                    // copy up to 64Kb at a time
-                    //
-                    buffer.resize(64 * 1024);
-                }
                 std::size_t remaining_size(data_size);
                 while(remaining_size > 0)
                 {
-                    std::size_t const s(std::min(remaining_size, buffer.size()));
+                    std::size_t const s(std::min(remaining_size, compress_buffer.size()));
 
                     // read
                     //
-                    f->read(buffer.data(), s);
+                    f->read(compress_buffer.data(), s);
                     if(f->fail())
                     {
                         // TODO: handle the error better (i.e. mark event
@@ -1551,7 +2351,7 @@ bool journal::load_event_locations(bool compress)
 
                     // write
                     //
-                    f->write(buffer.data(), s);
+                    f->write(compress_buffer.data(), s);
 
                     remaining_size -= s;
                 }
@@ -1582,7 +2382,7 @@ journal::file::pointer_t journal::get_event_file(std::uint8_t index, bool create
         // LCOV_EXCL_START
         std::stringstream ss;
         ss << "index too large in get_event_file() ("
-           << std::to_string(static_cast<int>(index))
+           << static_cast<int>(index)
            << " > "
            << f_maximum_number_of_files
            << ").";

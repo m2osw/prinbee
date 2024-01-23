@@ -65,6 +65,15 @@ constexpr std::uint32_t const       JOURNAL_DEFAULT_EVENTS = 4096;
 constexpr std::uint32_t const       JOURNAL_MINIMUM_EVENTS = 100;
 constexpr std::uint32_t const       JOURNAL_MAXIMUM_EVENTS = 100'000;
 
+constexpr std::uint32_t const       JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD = 4 * 1024;
+constexpr std::uint32_t const       JOURNAL_INLINE_ATTACHMENT_SIZE_MINIMUM_THRESHOLD = 256;
+constexpr std::uint32_t const       JOURNAL_INLINE_ATTACHMENT_SIZE_MAXIMUM_THRESHOLD = 16 * 1024;
+
+typedef std::uint32_t               attachment_offsets_t;
+constexpr std::uint32_t const       JOURNAL_IS_EXTERNAL_ATTACHMENT = 1UL << (sizeof(attachment_offsets_t) * CHAR_BIT - 1);
+
+constexpr int const                 JOURNAL_ATTACHMENT_COUNTER_INDEX = 0;
+
 
 // enum uses specific numbers because these get saved in a file
 // so it cannot change over time; just "cancel" old numbers
@@ -99,23 +108,93 @@ enum class file_management_t : std::uint8_t
 };
 
 
-typedef std::string     request_id_t;
-
-
-struct in_event_t
+enum class attachment_copy_handling_t : std::uint8_t
 {
-    request_id_t                f_request_id = std::string();
-    std::size_t                 f_size = 0;
-    void *                      f_data = nullptr;
+    ATTACHMENT_COPY_HANDLING_DEFAULT,
+    ATTACHMENT_COPY_HANDLING_SOFTLINK,
+    ATTACHMENT_COPY_HANDLING_HARDLINK,
+    ATTACHMENT_COPY_HANDLING_REFLINK,
+    ATTACHMENT_COPY_HANDLING_FULL,
 };
 
 
-struct out_event_t
+typedef std::string                 request_id_t;
+typedef std::uint8_t                attachment_id_t;
+typedef std::vector<std::uint8_t>   data_t;
+
+
+class attachment
 {
-    request_id_t                f_request_id = std::string();
+public:
+    typedef std::vector<attachment>     vector_t;
+
+    //                            attachment(attachment &) = default;
+    //attachment                  operator = (attachment &) = default;
+
+    void                        clear();
+    void                        set_data(void * data, off_t sz);
+    void                        save_data(void * data, off_t sz);
+    void                        save_data(data_t const & data);
+    void                        set_file(std::string const & filename, off_t sz = 0);
+
+    off_t                       size() const;
+    void *                      data() const;
+    std::string const &         filename() const;
+    bool                        load_file_data();
+    bool                        empty() const;
+    bool                        is_file() const;
+
+private:
+    off_t                       f_size = 0;
+    void *                      f_data = nullptr;
+    std::shared_ptr<data_t>     f_saved_data = std::shared_ptr<data_t>(); // used when caller is not going to hold the data (i.e. a copy is required)
+    std::string                 f_filename = std::string();
+};
+
+
+class in_event
+{
+public:
+    void                        set_request_id(request_id_t const & request_id);
+    request_id_t const &        get_request_id() const;
+
+    attachment_id_t             add_attachment(attachment const & a);
+    std::size_t                 get_attachment_size() const;
+    attachment const &          get_attachment(attachment_id_t id) const;
+
+private:
+    request_id_t                f_request_id = request_id_t();
+    attachment::vector_t        f_attachments = attachment::vector_t();
+};
+
+
+class out_event
+{
+public:
+    void                        set_request_id(request_id_t const & request_id);
+    request_id_t const &        get_request_id() const;
+
+    void                        set_status(status_t status);
+    status_t                    get_status() const;
+
+    void                        set_event_time(snapdev::timespec_ex const & event_time);
+    snapdev::timespec_ex const &get_event_time() const;
+
+    attachment_id_t             add_attachment(attachment const & a);
+    std::size_t                 get_attachment_size() const;
+    attachment const &          get_attachment(attachment_id_t id) const;
+
+    void                        set_debug_filename(std::string debug_filename);
+    std::string                 get_debug_filename() const;
+
+    void                        set_debug_offset(std::uint32_t debug_offset);
+    std::uint32_t               get_debug_offset() const;
+
+private:
+    request_id_t                f_request_id = request_id_t();
     status_t                    f_status = status_t::STATUS_UNKNOWN;
     snapdev::timespec_ex        f_event_time = snapdev::timespec_ex();
-    std::vector<std::uint8_t>   f_data = std::vector<std::uint8_t>();
+    attachment::vector_t        f_attachments = attachment::vector_t();
 
     // if the `debug` flag is set to true, these will also be set
     //
@@ -137,12 +216,22 @@ struct out_event_t
  * Here is an example of usage:
  *
  * \code
- *     prinbee::in_event_t const event =
+ *     prinbee::in_event event;
+ *     event.set_request_id(prinbee::id_to_string(id)),
+ *     prinbee::buffer_t buffer =
  *     {
- *         .f_request_id = prinbee::id_to_string(id),
- *         .f_size = size,
+ *         .f_size = data.size(),
  *         .f_data = data.data(),
  *     };
+ *     event.set_data(buffer);
+ *     prinbee::buffer_t image_buffer =
+ *     {
+ *         .f_size = image_size,
+ *         .f_data = image_data.data(),
+ *     };
+ *     event.add_attachment(image_buffer);
+ *     snapdev::timespec_ex event_time(snapdev::now());
+ *     journal.add_event(event, event_time);
  * \endcode
  *
  * \note
@@ -200,6 +289,7 @@ public:
 
                                 journal(std::string const & path);
 
+    std::string const &         get_path() const;
     bool                        is_valid() const;
     sync_t                      sync();
 
@@ -208,15 +298,19 @@ public:
     bool                        set_maximum_number_of_files(std::uint32_t maximum_number_of_files);
     bool                        set_maximum_file_size(std::uint32_t maximum_file_size);
     bool                        set_maximum_events(std::uint32_t maximum_events);
+    std::uint32_t               get_inline_attachment_size_threshold() const;
+    bool                        set_inline_attachment_size_threshold(std::uint32_t inline_attachment_size_threshold);
     bool                        set_sync(sync_t sync);
     file_management_t           get_file_management() const;
     bool                        set_file_management(file_management_t file_management);
     bool                        set_compress_when_full(bool compress_when_full);
+    attachment_copy_handling_t  get_attachment_copy_handling() const;
+    bool                        set_attachment_copy_handling(attachment_copy_handling_t attachment_copy_handling);
 
     // events status
     //
     bool                        add_event(
-                                    in_event_t const & event,
+                                    in_event const & event,
                                     snapdev::timespec_ex & event_time);
     bool                        event_forwarded(request_id_t const & request_id);
     bool                        event_acknowledged(request_id_t const & request_id);
@@ -228,7 +322,10 @@ public:
     bool                        empty() const;
     std::size_t                 size() const;
     void                        rewind();
-    bool                        next_event(out_event_t & event, bool by_time = true, bool debug = false);
+    bool                        next_event(
+                                    out_event & event,
+                                    bool by_time = true,
+                                    bool debug = false);
 
 private:
     class file
@@ -248,6 +345,7 @@ private:
                                     ~file();
         file &                      operator = (file const &) = delete;
 
+        std::string const &         get_path() const;
         std::string const &         filename() const;
         bool                        good() const;
         bool                        fail() const;
@@ -269,6 +367,8 @@ private:
         std::uint32_t               get_event_count() const;
         void                        set_next_append(std::uint32_t offset);
         std::uint32_t               get_next_append() const;
+        std::uint32_t               get_inline_attachment_size_threshold() const;
+        attachment_copy_handling_t  get_attachment_copy_handling() const;
 
     private:
         std::string                 f_filename = std::string();
@@ -301,12 +401,13 @@ private:
         status_t                    get_status() const;
         void                        set_status(status_t status);
         void                        set_file_index(std::uint8_t file_index);
+        void                        set_attachment_count(std::uint32_t count);
         std::uint32_t               get_offset() const;
         void                        set_offset(std::uint32_t offset);
         void                        set_size(std::uint32_t size);
 
-        bool                        read_data(out_event_t & event, bool debug);
-        bool                        write_new_event(in_event_t const & event);
+        bool                        read_data(out_event & event, bool debug);
+        bool                        write_new_event(in_event const & event);
 
     private:
         file::pointer_t             f_file = file::pointer_t();
@@ -315,6 +416,7 @@ private:
         snapdev::timespec_ex        f_event_time = snapdev::timespec_ex();
         status_t                    f_status = status_t::STATUS_UNKNOWN;
         std::uint8_t                f_file_index = 0;
+        std::uint8_t                f_attachment_count = 0;
         std::uint32_t               f_offset = 0;
         std::uint32_t               f_size = 0;
     };
@@ -341,6 +443,8 @@ private:
     std::uint8_t                f_maximum_number_of_files = JOURNAL_DEFAULT_NUMBER_OF_FILES;
     std::uint32_t               f_maximum_file_size = JOURNAL_DEFAULT_FILE_SIZE;
     std::uint32_t               f_maximum_events = JOURNAL_DEFAULT_EVENTS;
+    std::uint32_t               f_inline_attachment_size_threshold = JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD;
+    attachment_copy_handling_t  f_attachment_copy_handling = attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK;
 
     // the actual journal data
     //

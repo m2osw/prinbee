@@ -48,7 +48,6 @@ DECLARE_MAIN_EXCEPTION(fatal_error);
 DECLARE_MAIN_EXCEPTION(prinbee_exception);
 
 // uncomment as we use these
-DECLARE_EXCEPTION(prinbee_exception, block_full);
 DECLARE_EXCEPTION(prinbee_exception, block_not_found);
 DECLARE_EXCEPTION(prinbee_exception, column_not_found);
 DECLARE_EXCEPTION(prinbee_exception, conversion_unavailable);
@@ -56,6 +55,7 @@ DECLARE_EXCEPTION(prinbee_exception, field_not_found);
 DECLARE_EXCEPTION(prinbee_exception, file_not_found);
 DECLARE_EXCEPTION(prinbee_exception, file_not_opened);
 DECLARE_EXCEPTION(prinbee_exception, file_still_in_use);
+DECLARE_EXCEPTION(prinbee_exception, full);
 DECLARE_EXCEPTION(prinbee_exception, id_already_assigned);
 DECLARE_EXCEPTION(prinbee_exception, id_missing);
 DECLARE_EXCEPTION(prinbee_exception, invalid_entity);
@@ -67,6 +67,7 @@ DECLARE_EXCEPTION(prinbee_exception, invalid_token);
 DECLARE_EXCEPTION(prinbee_exception, invalid_xml);
 DECLARE_EXCEPTION(prinbee_exception, io_error);
 DECLARE_EXCEPTION(prinbee_exception, node_already_in_tree);
+DECLARE_EXCEPTION(prinbee_exception, out_of_bounds);
 DECLARE_EXCEPTION(prinbee_exception, page_not_found);
 DECLARE_EXCEPTION(prinbee_exception, row_already_exists);
 DECLARE_EXCEPTION(prinbee_exception, row_not_found);
@@ -75,7 +76,6 @@ DECLARE_EXCEPTION(prinbee_exception, string_not_terminated);
 DECLARE_EXCEPTION(prinbee_exception, type_mismatch);
 DECLARE_EXCEPTION(prinbee_exception, unexpected_eof);
 DECLARE_EXCEPTION(prinbee_exception, unexpected_token);
-DECLARE_EXCEPTION(prinbee_exception, out_of_bounds);
 
 
 

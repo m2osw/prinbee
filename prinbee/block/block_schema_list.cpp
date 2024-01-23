@@ -246,7 +246,7 @@ void block_schema_list::add_schema(schema_table::pointer_t schema)
         //       the overflow and that may make it easier (i.e. the current
         //       schema is managed "the usual way")
         //
-        throw block_full("Schema List Block is full, you can't change the schema at the moment. Wait until all the existing rows were updated to the newer schema first.");
+        throw full("Schema List Block is full, you can't change the schema at the moment. Wait until all the existing rows were updated to the newer schema first.");
     }
 
     std::uint8_t * buffer(data() + offset);
