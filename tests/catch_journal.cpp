@@ -298,20 +298,41 @@ CATCH_TEST_CASE("journal_options", "[journal]")
 
     CATCH_START_SECTION("journal_options: set_attachment_copy_handling(): default does nothing")
     {
-        std::string const path(conf_path("journal_options"));
-        advgetopt::conf_file::reset_conf_files();
-        prinbee::journal j(path);
-        CATCH_REQUIRE(j.is_valid());
-        CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK));
-        std::string const filename(conf_filename(path));
-        struct stat s;
-        if(stat(filename.c_str(), &s) != 0)
         {
-            CATCH_REQUIRE(errno == ENOENT);
+            std::string const path(conf_path("journal_options"));
+            advgetopt::conf_file::reset_conf_files();
+            prinbee::journal j(path);
+            CATCH_REQUIRE(j.is_valid());
+            CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK));
+            std::string const filename(conf_filename(path));
+            struct stat s;
+            if(stat(filename.c_str(), &s) != 0)
+            {
+                CATCH_REQUIRE(errno == ENOENT);
+            }
+            else
+            {
+                CATCH_REQUIRE(!"set_attachment_copy_handling() default created a configuration file.");
+            }
         }
-        else
+
+        // "default" is viewed as "softlink" so it's also the default
         {
-            CATCH_REQUIRE(!"set_attachment_copy_handling() default created a configuration file.");
+            std::string const path(conf_path("journal_options"));
+            advgetopt::conf_file::reset_conf_files();
+            prinbee::journal j(path);
+            CATCH_REQUIRE(j.is_valid());
+            CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_DEFAULT));
+            std::string const filename(conf_filename(path));
+            struct stat s;
+            if(stat(filename.c_str(), &s) != 0)
+            {
+                CATCH_REQUIRE(errno == ENOENT);
+            }
+            else
+            {
+                CATCH_REQUIRE(!"set_attachment_copy_handling() default created a configuration file.");
+            }
         }
     }
     CATCH_END_SECTION()
