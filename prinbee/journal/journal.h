@@ -73,6 +73,7 @@ typedef std::uint32_t               attachment_offsets_t;
 constexpr std::uint32_t const       JOURNAL_IS_EXTERNAL_ATTACHMENT = 1UL << (sizeof(attachment_offsets_t) * CHAR_BIT - 1);
 
 constexpr int const                 JOURNAL_ATTACHMENT_COUNTER_INDEX = 0;
+constexpr std::size_t const         MAXIMUM_ATTACHMENT_COUNT = 255;
 
 
 // enum uses specific numbers because these get saved in a file

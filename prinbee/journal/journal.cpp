@@ -226,7 +226,6 @@ struct event_journal_event_t
 
 constexpr char const *      g_journal_conf = "journal.conf";
 
-constexpr std::size_t const MAXIMUM_ATTACHMENT_COUNT = 255;
 
 
 std::string ascii(std::uint8_t c)
@@ -278,6 +277,10 @@ void attachment::set_data(void * data, off_t sz)
 {
     clear();
 
+    if(sz < 0)
+    {
+        throw invalid_parameter("attachment cannot have a negative size.");
+    }
     if(sz > 0 && data == nullptr)
     {
         throw invalid_parameter("attachment with a size > 0 must have a non null data pointer.");
@@ -292,6 +295,10 @@ void attachment::save_data(void * data, off_t sz)
 {
     clear();
 
+    if(sz < 0)
+    {
+        throw invalid_parameter("attachment cannot have a negative size.");
+    }
     if(sz > 0 && data == nullptr)
     {
         throw invalid_parameter("attachment with a size > 0 must have a non null data pointer (2).");
@@ -383,8 +390,8 @@ bool attachment::load_file_data()
         in.read(reinterpret_cast<char *>(f_saved_data->data()), f_size);
         if(in.fail())
         {
-            f_saved_data.reset();
-            return false;
+            f_saved_data.reset();       // LCOV_EXCL_LINE
+            return false;               // LCOV_EXCL_LINE
         }
 
         f_data = f_saved_data->data();
@@ -445,7 +452,7 @@ attachment const & in_event::get_attachment(attachment_id_t id) const
 {
     if(id >= f_attachments.size())
     {
-        throw out_of_range("attachment identifier out of range trying to retrieve file from in_event.");
+        throw out_of_range("identifier out of range retrieving attachment from in_event.");
     }
 
     return f_attachments[id];
@@ -482,7 +489,7 @@ void out_event::set_status(status_t status)
         break;
 
     default:
-        throw invalid_parameter("unsupported status number");
+        throw invalid_parameter("unsupported status number.");
 
     }
 
@@ -531,7 +538,7 @@ attachment const & out_event::get_attachment(attachment_id_t id) const
 {
     if(id >= f_attachments.size())
     {
-        throw out_of_range("attachment identifier out of range retrieving attachment from out event.");
+        throw out_of_range("identifier out of range retrieving attachment from out_event.");
     }
 
     return f_attachments[id];

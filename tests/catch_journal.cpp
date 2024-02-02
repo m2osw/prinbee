@@ -508,6 +508,9 @@ CATCH_TEST_CASE("journal_options", "[journal]")
                 break;
 
             }
+
+            // load configuration we just updated
+            //
             conf_values_t conf_values(load_conf(path));
 
             auto it(conf_values.find("compress_when_full"));
@@ -565,8 +568,6 @@ CATCH_TEST_CASE("journal_options", "[journal]")
             CATCH_REQUIRE(it != conf_values.end());
             switch(index)
             {
-                break;
-
             case ATTACHMENT_COPY_HANDLING_HARDLINK:
                 CATCH_REQUIRE("hardlink" == it->second);
                 break;
@@ -611,7 +612,7 @@ CATCH_TEST_CASE("journal_options", "[journal]")
         prinbee::journal j(path);
         CATCH_REQUIRE(j.is_valid());
 
-        for(int i(-100); i <= 100; ++i)
+        for(int i(0); i < 256; ++i)
         {
             switch(static_cast<prinbee::file_management_t>(i))
             {
@@ -627,6 +628,43 @@ CATCH_TEST_CASE("journal_options", "[journal]")
                         , prinbee::invalid_parameter
                         , Catch::Matchers::ExceptionMessage(
                                   "prinbee_exception: unsupported file management number"));
+                break;
+
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_options: invalid attachment copy handling numbers")
+    {
+        std::string const path(conf_path("journal_options"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+
+        for(int i(0); i < 256; ++i)
+        {
+            switch(static_cast<prinbee::attachment_copy_handling_t>(i))
+            {
+            case prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_DEFAULT:
+            case prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK:
+            case prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK:
+            case prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK:
+            case prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL:
+                // these are valid, ignore
+                break;
+
+            default:
+                {
+                    std::stringstream ss;
+                    ss << "prinbee_exception: unknown attachment_copy_handling_t enumeration type ("
+                       << i
+                       << ").";
+                    CATCH_REQUIRE_THROWS_MATCHES(
+                              j.set_attachment_copy_handling(static_cast<prinbee::attachment_copy_handling_t>(i))
+                            , prinbee::invalid_parameter
+                            , Catch::Matchers::ExceptionMessage(ss.str()));
+                }
                 break;
 
             }
@@ -1533,9 +1571,83 @@ CATCH_TEST_CASE("journal_event_files", "[journal]")
 }
 
 
-CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
+CATCH_TEST_CASE("journal_attachement", "[journal][attachment]")
 {
-    CATCH_START_SECTION("journal_event_errors: trying to re-add the same event multiple times fails")
+    CATCH_START_SECTION("journal_attachment: attachment save_data() makes a copy")
+    {
+        for(int i(0); i < 100; ++i)
+        {
+            prinbee::attachment a;
+
+            std::size_t sz(rand() & 1000 + 1);
+            std::vector<std::uint8_t> data(sz);
+            for(std::size_t idx(0); idx < sz; ++idx)
+            {
+                data[idx] = rand();
+            }
+            a.save_data(data.data(), sz);
+
+            // keep a copy
+            //
+            std::vector<std::uint8_t> copy(data);
+
+            // "mess up original"
+            //
+            for(std::size_t idx(0); idx < sz; ++idx)
+            {
+                do
+                {
+                    data[idx] = rand();
+                }
+                while(data[idx] == copy[idx]);
+            }
+
+            CATCH_REQUIRE(static_cast<off_t>(sz) == a.size());
+
+            void const * p(a.data());
+            std::uint8_t const * ptr(reinterpret_cast<std::uint8_t const *>(p));
+
+            for(std::size_t idx(0); idx < sz; ++idx)
+            {
+                CATCH_REQUIRE(ptr[idx] == copy[idx]);
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_attachment: attachment set_file() saves a filename and reads its data")
+    {
+        std::string const content("This is the file.\n");
+        std::string const path(SNAP_CATCH2_NAMESPACE::g_tmp_dir() + "/set_file-test-file.txt");
+        {
+            std::ofstream out(path);
+            CATCH_REQUIRE(out.is_open());
+            out << content;
+        }
+        prinbee::attachment a;
+        a.set_file(path);
+        CATCH_REQUIRE_FALSE(a.empty());
+        CATCH_REQUIRE(a.size() == static_cast<off_t>(content.length()));
+        CATCH_REQUIRE(a.is_file());
+        CATCH_REQUIRE(a.filename() == path);
+
+        // the a.data() will read the file in memory inside the attachment
+        // object then we can compare and make sure it is equal to our input
+        //
+        void const * p(a.data());
+        char const * ptr(reinterpret_cast<char const *>(p));
+        for(std::size_t idx(0); idx < content.length(); ++idx)
+        {
+            CATCH_REQUIRE(ptr[idx] == content[idx]);
+        }
+    }
+    CATCH_END_SECTION()
+}
+
+
+CATCH_TEST_CASE("journal_errors", "[journal][error]")
+{
+    CATCH_START_SECTION("journal_errors: trying to re-add the same event multiple times fails")
     {
         std::string const path(conf_path("journal_duplicate_event"));
         advgetopt::conf_file::reset_conf_files();
@@ -1565,7 +1677,85 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: request_id too long")
+    CATCH_START_SECTION("journal_errors: attachment negative size (set_data)")
+    {
+        prinbee::attachment a;
+        std::uint8_t buf[256];
+
+        for(int i(0); i < 100; ++i)
+        {
+            off_t size(0);
+            while(size >= 0)
+            {
+                size = -rand();
+            }
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      a.set_data(buf, size)
+                    , prinbee::invalid_parameter
+                    , Catch::Matchers::ExceptionMessage("prinbee_exception: attachment cannot have a negative size."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: attachment invalid size / pointer combo (set_data)")
+    {
+        prinbee::attachment a;
+
+        for(int i(0); i < 100; ++i)
+        {
+            off_t size(0);
+            while(size <= 0)
+            {
+                size = rand();
+            }
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      a.set_data(nullptr, size)
+                    , prinbee::invalid_parameter
+                    , Catch::Matchers::ExceptionMessage("prinbee_exception: attachment with a size > 0 must have a non null data pointer."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: attachment negative size (save_data)")
+    {
+        prinbee::attachment a;
+        std::uint8_t buf[256];
+
+        for(int i(0); i < 100; ++i)
+        {
+            off_t size(0);
+            while(size >= 0)
+            {
+                size = -rand();
+            }
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      a.save_data(buf, size)
+                    , prinbee::invalid_parameter
+                    , Catch::Matchers::ExceptionMessage("prinbee_exception: attachment cannot have a negative size."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: attachment invalid size / pointer combo (save_data)")
+    {
+        prinbee::attachment a;
+
+        for(int i(0); i < 100; ++i)
+        {
+            off_t size(0);
+            while(size <= 0)
+            {
+                size = rand();
+            }
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      a.save_data(nullptr, size)
+                    , prinbee::invalid_parameter
+                    , Catch::Matchers::ExceptionMessage("prinbee_exception: attachment with a size > 0 must have a non null data pointer (2)."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: request_id too long")
     {
         std::string const path(conf_path("journal_large_event"));
         advgetopt::conf_file::reset_conf_files();
@@ -1590,7 +1780,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: invalid number of files")
+    CATCH_START_SECTION("journal_errors: invalid number of files")
     {
         std::string const path(conf_path("journal_out_of_range"));
         advgetopt::conf_file::reset_conf_files();
@@ -1629,7 +1819,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: missing folder")
+    CATCH_START_SECTION("journal_errors: missing folder")
     {
         std::string const path(conf_path("journal_missing", true));
         chmod(path.c_str(), 0); // remove permissions so the add_event() fails with EPERM
@@ -1655,7 +1845,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: filled up journal (small size)")
+    CATCH_START_SECTION("journal_errors: filled up journal (small size)")
     {
         std::string const path(conf_path("journal_filled"));
         advgetopt::conf_file::reset_conf_files();
@@ -1749,7 +1939,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: fail with invalid size as ID is not complete and data is missing")
+    CATCH_START_SECTION("journal_errors: fail with invalid size as ID is not complete and data is missing")
     {
         std::string const name("journal_incomplete_id");
         std::string const path(conf_path(name));
@@ -1807,7 +1997,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: invalid event date & time")
+    CATCH_START_SECTION("journal_errors: invalid event date & time")
     {
         std::string const name("journal_wrong_time");
         std::string const path(conf_path(name));
@@ -1890,7 +2080,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: invalid end marker")
+    CATCH_START_SECTION("journal_errors: invalid end marker")
     {
         // to test the conversions, we need multiple cases so use a loop
         //
@@ -1971,7 +2161,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: incomplete header")
+    CATCH_START_SECTION("journal_errors: incomplete header")
     {
         for(int idx(0); idx < 5; ++idx)
         {
@@ -2036,7 +2226,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: invalid magic (start of file header magic tampered)")
+    CATCH_START_SECTION("journal_errors: invalid magic (start of file header magic tampered)")
     {
         for(int pos(0); pos < 6; ++pos)
         {
@@ -2101,7 +2291,7 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: short magic (start of file header)")
+    CATCH_START_SECTION("journal_errors: short magic (start of file header)")
     {
         for(int size(0); size < 8; ++size)
         {
@@ -2149,7 +2339,36 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_event_errors: can't reduce number of files in a filled up journal")
+    CATCH_START_SECTION("journal_errors: invalid out event statuses")
+    {
+        for(int idx(0); idx < 256; ++idx)
+        {
+            switch(static_cast<prinbee::status_t>(idx))
+            {
+            case prinbee::status_t::STATUS_UNKNOWN:
+            case prinbee::status_t::STATUS_READY:
+            case prinbee::status_t::STATUS_FORWARDED:
+            case prinbee::status_t::STATUS_ACKNOWLEDGED:
+            case prinbee::status_t::STATUS_COMPLETED:
+            case prinbee::status_t::STATUS_FAILED:
+                continue;
+
+            default:
+                break;
+
+            }
+
+            prinbee::out_event event;
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      event.set_status(static_cast<prinbee::status_t>(idx))
+                    , prinbee::invalid_parameter
+                    , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: unsupported status number."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: can't reduce number of files in a filled up journal")
     {
         std::string const path(conf_path("journal_reduce_max_files"));
         advgetopt::conf_file::reset_conf_files();
@@ -2216,6 +2435,182 @@ CATCH_TEST_CASE("journal_event_errors", "[journal][error]")
         }
 
         CATCH_REQUIRE(j.set_maximum_number_of_files(prinbee::JOURNAL_MINIMUM_NUMBER_OF_FILES));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: source file missing")
+    {
+        prinbee::attachment a;
+        std::string const path(SNAP_CATCH2_NAMESPACE::g_tmp_dir() + "/this-does-not-exist.txt");
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  a.set_file(path)
+                , prinbee::file_not_found
+                , Catch::Matchers::ExceptionMessage(
+                            std::string("prinbee_exception: file \"")
+                          + path
+                          + "\" not found or permission denied."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: file size mismatch")
+    {
+        prinbee::attachment a;
+        std::size_t real_size(0);
+        std::string const path(SNAP_CATCH2_NAMESPACE::g_tmp_dir() + "/some-file.txt");
+        {
+            std::ofstream out(path);
+            CATCH_REQUIRE(out.is_open());
+            out << "This small file.\n";
+            real_size = out.tellp();
+        }
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  a.set_file(path, 100)
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: trying to save more data (100) than available in file attachment \""
+                          + path
+                          + "\" ("
+                          + std::to_string(real_size)
+                          + ")."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: delete attachment file too soon")
+    {
+        std::string content("File about to be deleted.\n");
+        std::string const path(SNAP_CATCH2_NAMESPACE::g_tmp_dir() + "/set_file-unlink-file.txt");
+        {
+            std::ofstream out(path);
+            CATCH_REQUIRE(out.is_open());
+            out << content;
+        }
+        prinbee::attachment a;
+        a.set_file(path);
+        CATCH_REQUIRE_FALSE(a.empty());
+        CATCH_REQUIRE(a.size() == static_cast<off_t>(content.length()));
+        CATCH_REQUIRE(a.is_file());
+        CATCH_REQUIRE(a.filename() == path);
+
+        // deleting the file before call a.data() means we get an error
+        //
+        CATCH_REQUIRE(unlink(path.c_str()) == 0);
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  a.data()
+                , prinbee::file_not_found
+                , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: file \""
+                          + path
+                          + "\" not found or permission denied."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: add too many attachments (in)")
+    {
+        // create a journal
+        //
+        std::string const path(conf_path("journal_events"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        prinbee::in_event event;
+
+        // add the maximum number of attachments
+        //
+        for(std::size_t count(0); count < prinbee::MAXIMUM_ATTACHMENT_COUNT; ++count)
+        {
+            for(std::size_t id(count); id < prinbee::MAXIMUM_ATTACHMENT_COUNT; ++id)
+            {
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          event.get_attachment(id)
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage(
+                                    "out_of_range: identifier out of range retrieving attachment from in_event."));
+            }
+
+            prinbee::attachment a;
+            std::size_t const size(rand() % 25 + 1);
+            std::vector<std::uint8_t> data(size);
+            for(std::size_t idx(0); idx < size; ++idx)
+            {
+                data[idx] = static_cast<std::uint8_t>(rand());
+            }
+            a.set_data(data.data(), size);
+            event.add_attachment(a);
+        }
+
+        // try to add one more attachment, that must fail
+        //
+        {
+            prinbee::attachment a;
+            std::size_t const size(rand() % 25 + 1);
+            std::vector<std::uint8_t> data(size);
+            for(std::size_t idx(0); idx < size; ++idx)
+            {
+                data[idx] = static_cast<std::uint8_t>(rand());
+            }
+            a.set_data(data.data(), size);
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      event.add_attachment(a)
+                    , prinbee::full
+                    , Catch::Matchers::ExceptionMessage(
+                                "prinbee_exception: attachment table is full, this attachment cannot be added (in_event)."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: add too many attachments (out)")
+    {
+        // create a journal
+        //
+        std::string const path(conf_path("journal_events"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        CATCH_REQUIRE(j.is_valid());
+        prinbee::out_event event;
+
+        // add the maximum number of attachments
+        //
+        for(std::size_t count(0); count < prinbee::MAXIMUM_ATTACHMENT_COUNT; ++count)
+        {
+            for(std::size_t id(count); id < prinbee::MAXIMUM_ATTACHMENT_COUNT; ++id)
+            {
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          event.get_attachment(id)
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage(
+                                    "out_of_range: identifier out of range retrieving attachment from out_event."));
+            }
+
+            prinbee::attachment a;
+            std::size_t const size(rand() % 25 + 1);
+            std::vector<std::uint8_t> data(size);
+            for(std::size_t idx(0); idx < size; ++idx)
+            {
+                data[idx] = static_cast<std::uint8_t>(rand());
+            }
+            a.set_data(data.data(), size);
+            event.add_attachment(a);
+        }
+
+        // try to add one more attachment, that must fail
+        //
+        {
+            prinbee::attachment a;
+            std::size_t const size(rand() % 25 + 1);
+            std::vector<std::uint8_t> data(size);
+            for(std::size_t idx(0); idx < size; ++idx)
+            {
+                data[idx] = static_cast<std::uint8_t>(rand());
+            }
+            a.set_data(data.data(), size);
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      event.add_attachment(a)
+                    , prinbee::full
+                    , Catch::Matchers::ExceptionMessage(
+                                "prinbee_exception: attachment table is full, this attachment cannot be added (out_event)."));
+        }
     }
     CATCH_END_SECTION()
 }
