@@ -158,6 +158,7 @@
 //
 #include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/mkdir_p.h>
+#include    <snapdev/pathinfo.h>
 #include    <snapdev/stream_fd.h>
 #include    <snapdev/unique_number.h>
 
@@ -219,8 +220,7 @@ struct event_journal_event_t
     std::uint8_t        f_pad[7];
     //std::uint32_t       f_attachment_offsets[f_attachment_count]; -- if bit 15 is set, the offset represents a filename number
     //std::uint8_t        f_request_id[f_request_id_size];
-    //std::uint8_t        f_event[<event size>];
-    //std::uint8_t        f_attachments[<index>][<attachment size>];
+    //std::uint8_t        f_attachments[<index>][<attachment size>]; -- <attachment size> calculated using f_attachment_offsets
 };
 
 
@@ -327,9 +327,14 @@ void attachment::set_file(std::string const & filename, off_t sz)
     struct stat s;
     if(stat(filename.c_str(), &s) != 0)
     {
-        throw file_not_found("file \""
-            + filename
-            + "\" not found or permission denied.");
+        int const e(errno);
+        std::stringstream ss;
+        ss << "file \""
+           << filename
+           << "\" not accessible: "
+           << strerror(e)
+           << ".";
+        throw file_not_found(ss.str());
     }
     if(sz == 0)
     {
@@ -582,15 +587,15 @@ journal::file::file(journal * j, std::string const & filename, bool create)
     : f_filename(filename)
     , f_journal(j)
 {
-    f_event_file = std::make_shared<std::fstream>(filename, std::ios::in | std::ios::out | std::ios::binary);
+    f_event_file = std::make_shared<std::fstream>(f_filename, std::ios::in | std::ios::out | std::ios::binary);
     if(!f_event_file->good()
     && create)
     {
         // it may not exist yet, create and then try reopening
         {
-            std::fstream new_file(filename, std::ios::out | std::ios::binary);
+            std::fstream new_file(f_filename, std::ios::out | std::ios::binary);
         }
-        f_event_file = std::make_shared<std::fstream>(filename, std::ios::in | std::ios::out | std::ios::binary);
+        f_event_file = std::make_shared<std::fstream>(f_filename, std::ios::in | std::ios::out | std::ios::binary);
     }
 
     if(!f_event_file->good())
@@ -1211,14 +1216,23 @@ bool journal::location::write_new_event(in_event const & event)
                         in.read(buf, segment_size);
                         if(in.fail())
                         {
-                            r = -1;
-                            break;
+                            SNAP_LOG_FATAL
+                                << "could not read all the input data from \""
+                                << data.filename()
+                                << "\" to copy into \""
+                                << external_filename
+                                << "\"."
+                                << SNAP_LOG_SEND;
+                            return false;
                         }
                         out.write(buf, segment_size);
                         if(out.fail())
                         {
+                            // LCOV_EXCL_START
+                            snapdev::NOT_USED(unlink(external_filename.c_str()));
                             r = -1;
                             break;
+                            // LCOV_EXCL_STOP
                         }
                         size -= segment_size;
                     }
@@ -1235,13 +1249,44 @@ bool journal::location::write_new_event(in_event const & event)
                             << SNAP_LOG_SEND;
                         return false;
                     }
-                    r = symlink(data.filename().c_str(), external_filename.c_str());
+                    if(snapdev::pathinfo::is_relative(data.filename()))
+                    {
+                        std::string error_msg;
+                        std::string const cwd(snapdev::pathinfo::getcwd(error_msg));
+                        if(cwd.empty())
+                        {
+                            // LCOV_EXCL_START
+                            SNAP_LOG_FATAL
+                                << "could not determine current working directory: "
+                                << error_msg
+                                << SNAP_LOG_SEND;
+                            return false;
+                            // LCOV_EXCL_STOP
+                        }
+
+                        // TODO: consider computing a relative path from
+                        //       our destination location, that way the
+                        //       administrator may be able to move the data
+                        //       without having to tweak the softlinks
+                        //
+                        std::string const absolute_path(cwd + '/' + data.filename());
+                        r = symlink(absolute_path.c_str(), external_filename.c_str());
+                    }
+                    else
+                    {
+                        r = symlink(data.filename().c_str(), external_filename.c_str());
+                    }
                 }
                 if(r != 0)
                 {
+                    // LCOV_EXCL_START
                     // TODO: generate messages on each error above so this
                     //       error here can be more precise (i.e. EPERM,
-                    //       ENOENT, etc.)
+                    //       ENOENT, etc.) -- at the same time, it looks like
+                    //       this error is not reachable because the symlink()
+                    //       function is not very likely to fail... (because
+                    //       we first do an unlink() and return on error
+                    //       there so then down here we should not fail ever)
                     //
                     SNAP_LOG_FATAL
                         << "could not save file \""
@@ -1251,6 +1296,7 @@ bool journal::location::write_new_event(in_event const & event)
                         << "\"."
                         << SNAP_LOG_SEND;
                     return false;
+                    // LCOV_EXCL_STOP
                 }
             }
             else
@@ -1318,6 +1364,15 @@ bool journal::location::write_new_event(in_event const & event)
                 std::ifstream in(a.filename());
                 data_t data(a.size());
                 in.read(reinterpret_cast<char *>(data.data()), data.size());
+                if(in.fail())
+                {
+                    SNAP_LOG_FATAL
+                        << "failed write_new_event() while reading file \""
+                        << a.filename()
+                        << "\"."
+                        << SNAP_LOG_SEND;
+                    return false;
+                }
                 f_file->write(reinterpret_cast<char const *>(data.data()), data.size());
             }
             else
@@ -1636,10 +1691,10 @@ bool journal::set_attachment_copy_handling(attachment_copy_handling_t attachment
  * then the function ignores the request and returns false.
  *
  * \param[in] event  The event data and metadata.
- * \param[in] event_time  The time when the event occurred. May be updated
- * by this function if an ealier event already used this time.
+ * \param[in,out] event_time  The time when the event occurred. May be
+ * updated by this function if an ealier event already used this exact time.
  *
- * \return true if the event was added as to the journal.
+ * \return true if the event was added to the journal.
  */
 bool journal::add_event(
     in_event const & event,
@@ -1719,7 +1774,10 @@ bool journal::add_event(
                 l->set_event_time(event_time);
                 l->set_file_index(f_current_file_index);
 
-                l->write_new_event(event);
+                if(!l->write_new_event(event))
+                {
+                    return false;
+                }
 
                 sync_if_requested(f);
 
@@ -2135,9 +2193,9 @@ bool journal::load_event_locations(bool compress)
                 << ascii(journal_header.f_magic[2])
                 << ascii(journal_header.f_magic[3])
                 << ") version "
-                << journal_header.f_major_version
+                << static_cast<int>(journal_header.f_major_version)
                 << '.'
-                << journal_header.f_minor_version
+                << static_cast<int>(journal_header.f_minor_version)
                 << " in \""
                 << f->filename()
                 << '"'

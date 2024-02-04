@@ -31,6 +31,7 @@
 //
 #include    <snapdev/file_contents.h>
 #include    <snapdev/mkdir_p.h>
+#include    <snapdev/pathinfo.h>
 
 
 // C++
@@ -314,6 +315,7 @@ CATCH_TEST_CASE("journal_options", "[journal]")
             {
                 CATCH_REQUIRE(!"set_attachment_copy_handling() default created a configuration file.");
             }
+            CATCH_REQUIRE(j.get_attachment_copy_handling() == prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK);
         }
 
         // "default" is viewed as "softlink" so it's also the default
@@ -333,6 +335,7 @@ CATCH_TEST_CASE("journal_options", "[journal]")
             {
                 CATCH_REQUIRE(!"set_attachment_copy_handling() default created a configuration file.");
             }
+            CATCH_REQUIRE(j.get_attachment_copy_handling() == prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK);
         }
     }
     CATCH_END_SECTION()
@@ -367,6 +370,7 @@ CATCH_TEST_CASE("journal_options", "[journal]")
             {
             case COMPRESS_WHEN_FULL:
                 CATCH_REQUIRE(j.set_compress_when_full(true));
+                //CATCH_REQUIRE(j.get_compress_when_full());
                 break;
 
             case FILE_MANAGEMENT:
@@ -384,6 +388,7 @@ CATCH_TEST_CASE("journal_options", "[journal]")
                     }
 
                     CATCH_REQUIRE(j.set_file_management(value));
+                    CATCH_REQUIRE(j.get_file_management() == value);
                     switch(value)
                     {
                     case prinbee::file_management_t::FILE_MANAGEMENT_KEEP:
@@ -463,10 +468,12 @@ CATCH_TEST_CASE("journal_options", "[journal]")
 
             case FLUSH:
                 CATCH_REQUIRE(j.set_sync(prinbee::sync_t::SYNC_FLUSH));
+                //CATCH_REQUIRE(j.get_sync() == prinbee::sync_t::SYNC_FLUSH);
                 break;
 
             case SYNC:
                 CATCH_REQUIRE(j.set_sync(prinbee::sync_t::SYNC_FULL));
+                //CATCH_REQUIRE(j.get_sync() == prinbee::sync_t::SYNC_FULL);
                 break;
 
             case INLINE_ATTACHMENT_SIZE_THRESHOLD:
@@ -489,18 +496,22 @@ CATCH_TEST_CASE("journal_options", "[journal]")
                 //
                 CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK));
                 CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK));
+                CATCH_REQUIRE(j.get_attachment_copy_handling() == prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK);
                 break;
 
             case ATTACHMENT_COPY_HANDLING_HARDLINK:
                 CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK));
+                CATCH_REQUIRE(j.get_attachment_copy_handling() == prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK);
                 break;
 
             case ATTACHMENT_COPY_HANDLING_REFLINK:
                 CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK));
+                CATCH_REQUIRE(j.get_attachment_copy_handling() == prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK);
                 break;
 
             case ATTACHMENT_COPY_HANDLING_FULL:
                 CATCH_REQUIRE(j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL));
+                CATCH_REQUIRE(j.get_attachment_copy_handling() == prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL);
                 break;
 
             default:
@@ -1520,6 +1531,129 @@ CATCH_TEST_CASE("journal_event_list", "[journal]")
         }
     }
     CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_event_list: fill an event with files & direct data")
+    {
+        std::string const temp(SNAP_CATCH2_NAMESPACE::g_tmp_dir() + "/files_of_mixed_test");
+        CATCH_REQUIRE(snapdev::mkdir_p(temp) == 0);
+
+        // we want a realpath (a.k.a. absolute path) and a relative path
+        //
+        std::string error_msg;
+        std::string const temp_absolute(snapdev::pathinfo::realpath(temp, error_msg));
+        std::string const cwd(snapdev::pathinfo::getcwd(error_msg));
+        std::string const temp_relative(snapdev::pathinfo::relative_path(cwd, temp_absolute));
+
+        prinbee::attachment_copy_handling_t const mode[] =
+        {
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK,
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK,
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK,
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL,
+        };
+
+        for(auto const & handling : mode)
+        {
+            for(int count(0); count < 5; ++count)
+            {
+                std::string name("journal_event_with_mixed_data-");
+                name += std::to_string(count + 1);
+                name += '-';
+                name += std::to_string(static_cast<int>(handling));
+                std::string const path(conf_path(name));
+
+                std::size_t const max(rand() % 100 + 150);
+                std::vector<prinbee::data_t> data(max);
+
+                // create one event in a journal with many attachments
+                // some of which are direct others will be files
+                {
+                    advgetopt::conf_file::reset_conf_files();
+                    prinbee::journal j(path);
+                    CATCH_REQUIRE(j.set_file_management(prinbee::file_management_t::FILE_MANAGEMENT_DELETE));
+                    CATCH_REQUIRE(j.set_attachment_copy_handling(handling));
+                    CATCH_REQUIRE(j.is_valid());
+                    CATCH_REQUIRE(j.empty());
+
+                    // create the event with many attachments
+                    //
+                    prinbee::in_event event;
+                    event.set_request_id(prinbee::id_to_string(count));
+
+                    std::uint16_t select(0);
+                    for(std::size_t r(0); r < max; ++r, select >>= 1)
+                    {
+                        if((r % 16) == 0)
+                        {
+                            select = rand();
+                        }
+
+                        std::size_t const size(rand() % (20 * 1024) + 1);
+                        data[r].resize(size);
+                        for(std::size_t idx(0); idx < size; ++idx)
+                        {
+                            data[r][idx] = rand();
+                        }
+
+                        prinbee::attachment a;
+                        if((select & 1) == 0)
+                        {
+                            // add as direct data
+                            //
+                            a.set_data(data[r].data(), size);
+                        }
+                        else
+                        {
+                            // add as a file
+                            //
+                            std::string filename((rand() & 1) == 0 ? temp_absolute : temp_relative);
+                            filename += "/in-";
+                            filename += std::to_string(count + 1);
+                            filename += '-';
+                            filename += std::to_string(r + 1);
+                            filename += ".data";
+                            {
+                                std::ofstream out(filename);
+                                CATCH_REQUIRE(out.is_open());
+                                out.write(reinterpret_cast<char const *>(data[r].data()), size);
+                            }
+                            a.set_file(filename);
+                        }
+                        event.add_attachment(a);
+                    }
+
+                    snapdev::timespec_ex event_time(snapdev::now());
+                    CATCH_REQUIRE(j.add_event(event, event_time));
+                    CATCH_REQUIRE(j.size() == 1ULL);
+                    CATCH_REQUIRE_FALSE(j.empty());
+                }
+
+                // now reload that journal and see that we can retrieve all
+                // the attachments as we added above
+                {
+                    prinbee::journal j(path);
+
+                    prinbee::out_event event;
+                    CATCH_REQUIRE(j.next_event(event));
+                    CATCH_REQUIRE(prinbee::id_to_string(count) == event.get_request_id());
+                    CATCH_REQUIRE(max == event.get_attachment_size());
+
+                    for(std::size_t r(0); r < max; ++r)
+                    {
+                        prinbee::attachment const a(event.get_attachment(r));
+                        void * d(a.data());
+                        std::size_t sz(a.size());
+                        CATCH_REQUIRE(data[r].size() == sz);
+                        CATCH_REQUIRE(memcmp(d, data[r].data(), sz) == 0);
+                    }
+
+                    // make sure we reached the end
+                    CATCH_REQUIRE_FALSE(j.next_event(event));
+                }
+            }
+        }
+    }
+    CATCH_END_SECTION()
 }
 
 
@@ -1969,15 +2103,28 @@ CATCH_TEST_CASE("journal_errors", "[journal][error]")
         {
             std::string const filename(event_filename(path, 0));
             std::ofstream out(filename, std::ios::app | std::ios::binary);
+            char data[1];
+            std::size_t const size(32 /* == sizeof(header) */
+                             + 1 * sizeof(prinbee::attachment_offsets_t)
+                             + sizeof("next-id") - 1
+                             + sizeof(data));
+            CATCH_REQUIRE(size < 256ULL);
             std::uint8_t const header[] = {
                 'e', 'v',                               // f_magic
                 static_cast<std::uint8_t>(prinbee::status_t::STATUS_READY), // f_status
                 sizeof("next-id") - 1,                  // f_request_id_size
-                23, 0, 0, 0,                            // f_size
+                size, 0, 0, 0,                          // f_size
                 0, 0, 0, 0, 0, 0, 0, 0,                 // f_time
                 0, 0, 0, 0, 0, 0, 0, 0,
+                1,                                      // f_attachment_offsets
+                0, 0, 0, 0, 0, 0, 0,                    // f_pad[7]
             };
             out.write(reinterpret_cast<char const *>(header), sizeof(header));
+            prinbee::attachment_offsets_t const offset(
+                      sizeof(header)
+                    + 1 * sizeof(prinbee::attachment_offsets_t)     // itself
+                    + sizeof("next-id") - 1);
+            out.write(reinterpret_cast<char const *>(&offset), sizeof(offset));
             out.write("next", 4);                           // <-- only 4 bytes
         }
 
@@ -2036,12 +2183,17 @@ CATCH_TEST_CASE("journal_errors", "[journal][error]")
             std::ofstream out(filename, std::ios::app | std::ios::binary);
             snapdev::timespec_ex soon(snapdev::now());
             soon += snapdev::timespec_ex(100, 0);            // 100 seconds in the future
-            char data[32];
+            char data[32]; // content not used by the test, no need to initialized
+            std::size_t const size(32 /* == sizeof(header)*/
+                                 + 1 * sizeof(prinbee::attachment_offsets_t)
+                                 + sizeof("next-id") - 1
+                                 + sizeof(data));
+            CATCH_REQUIRE(size < 256ULL);
             std::uint8_t const header[] = {
                 'e', 'v',                               // f_magic
                 static_cast<std::uint8_t>(prinbee::status_t::STATUS_READY), // f_status
                 sizeof("next-id") - 1,                  // f_request_id_size
-                sizeof(data), 0, 0, 0,                  // f_size
+                size, 0, 0, 0,                          // f_size
                 static_cast<std::uint8_t>(soon.tv_sec >>  0), // f_time
                 static_cast<std::uint8_t>(soon.tv_sec >>  8),
                 static_cast<std::uint8_t>(soon.tv_sec >> 16),
@@ -2058,8 +2210,15 @@ CATCH_TEST_CASE("journal_errors", "[journal][error]")
                 static_cast<std::uint8_t>(soon.tv_nsec >> 40),
                 static_cast<std::uint8_t>(soon.tv_nsec >> 48),
                 static_cast<std::uint8_t>(soon.tv_nsec >> 56),
+                1,                                      // f_attachment_count
+                0, 0, 0, 0, 0, 0, 0,                    // f_pad[7]
             };
             out.write(reinterpret_cast<char const *>(header), sizeof(header));
+            prinbee::attachment_offsets_t const offset(
+                      sizeof(header)
+                    + 1 * sizeof(prinbee::attachment_offsets_t)     // itself
+                    + sizeof("next-id") - 1);
+            out.write(reinterpret_cast<char const *>(&offset), sizeof(offset));
             out.write("next-id", sizeof("next-id") - 1);
             out.write(data, sizeof(data));
         }
@@ -2130,16 +2289,28 @@ CATCH_TEST_CASE("journal_errors", "[journal][error]")
                 std::string const filename(event_filename(path, 0));
                 std::ofstream out(filename, std::ios::app | std::ios::binary);
                 char data[1];
+                std::size_t const size(32 /* == sizeof(header) */
+                                 + 1 * sizeof(prinbee::attachment_offsets_t)
+                                 + sizeof("next-id") - 1
+                                 + sizeof(data));
+                CATCH_REQUIRE(size < 256ULL);
                 std::uint8_t const header[] = {
                     static_cast<std::uint8_t>(bad_marker.a), // f_magic
                     static_cast<std::uint8_t>(bad_marker.b),
                     static_cast<std::uint8_t>(prinbee::status_t::STATUS_READY), // f_status
                     sizeof("next-id") - 1,                  // f_request_id_size
-                    sizeof(data), 0, 0, 0,                  // f_size
+                    size, 0, 0, 0,                          // f_size
                     0, 0, 0, 0, 0, 0, 0, 0,                 // f_time
                     0, 0, 0, 0, 0, 0, 0, 0,
+                    1,                                      // f_attachment_offsets
+                    0, 0, 0, 0, 0, 0, 0,                    // f_pad[7]
                 };
                 out.write(reinterpret_cast<char const *>(header), sizeof(header));
+                prinbee::attachment_offsets_t const offset(
+                          sizeof(header)
+                        + 1 * sizeof(prinbee::attachment_offsets_t)     // itself
+                        + sizeof("next-id") - 1);
+                out.write(reinterpret_cast<char const *>(&offset), sizeof(offset));
                 out.write("next-id", sizeof("next-id") - 1);
                 out.write(data, sizeof(data));
             }
@@ -2190,22 +2361,28 @@ CATCH_TEST_CASE("journal_errors", "[journal][error]")
                 CATCH_REQUIRE_FALSE(j.empty());
             }
 
-            // open that journal and add a broken end marker
-            // the header and data are otherwise valid
+            // create a broken header (too small by 1 or more bytes)
             {
                 std::string const filename(event_filename(path, 0));
                 std::ofstream out(filename, std::ios::app | std::ios::binary);
                 char data[1];
+                std::size_t const size(32 /* == sizeof(header) */
+                                 + 1 * sizeof(prinbee::attachment_offsets_t)
+                                 + sizeof("next-id") - 1
+                                 + sizeof(data));
+                CATCH_REQUIRE(size < 256ULL);
                 std::uint8_t const header[] = {
                     'e', 'v',                               // f_magic
                     static_cast<std::uint8_t>(prinbee::status_t::STATUS_READY), // f_status
                     sizeof("next-id") - 1,                  // f_request_id_size
-                    sizeof(data), 0, 0, 0,                  // f_size
+                    size, 0, 0, 0,                          // f_size
                     0, 0, 0, 0, 0, 0, 0, 0,                 // f_time
                     0, 0, 0, 0, 0, 0, 0, 0,
+                    1,                                      // f_attachment_offsets
+                    0, 0, 0, 0, 0, 0, 0,                    // f_pad[7]
                 };
-                std::size_t const size(rand() % (sizeof(header) - 1) + 1);
-                out.write(reinterpret_cast<char const *>(header), size);
+                std::size_t const bad_size(rand() % (sizeof(header) - 1) + 1);
+                out.write(reinterpret_cast<char const *>(header), bad_size);
             }
 
             {
@@ -2448,7 +2625,7 @@ CATCH_TEST_CASE("journal_errors", "[journal][error]")
                 , Catch::Matchers::ExceptionMessage(
                             std::string("prinbee_exception: file \"")
                           + path
-                          + "\" not found or permission denied."));
+                          + "\" not accessible: No such file or directory."));
     }
     CATCH_END_SECTION()
 
@@ -2475,7 +2652,7 @@ CATCH_TEST_CASE("journal_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("journal_errors: delete attachment file too soon")
+    CATCH_START_SECTION("journal_errors: delete attachment file then try to read the data")
     {
         std::string content("File about to be deleted.\n");
         std::string const path(SNAP_CATCH2_NAMESPACE::g_tmp_dir() + "/set_file-unlink-file.txt");
@@ -2501,6 +2678,237 @@ CATCH_TEST_CASE("journal_errors", "[journal][error]")
                             "prinbee_exception: file \""
                           + path
                           + "\" not found or permission denied."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: delete small attachment file before adding event to journal")
+    {
+        std::string const path(conf_path("journal_small_attachment"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+
+        std::string content("Another file about to be deleted.\n");
+        std::string const to_unlink(SNAP_CATCH2_NAMESPACE::g_tmp_dir() + "/set_file-add_event-unlink-file.txt");
+        {
+            std::ofstream out(to_unlink);
+            CATCH_REQUIRE(out.is_open());
+            out << content;
+        }
+        prinbee::attachment a;
+        a.set_file(to_unlink);
+        CATCH_REQUIRE_FALSE(a.empty());
+        CATCH_REQUIRE(a.size() == static_cast<off_t>(content.length()));
+        CATCH_REQUIRE(a.is_file());
+        CATCH_REQUIRE(a.filename() == to_unlink);
+
+        prinbee::in_event event;
+        event.set_request_id("unlinked");
+        event.add_attachment(a);
+
+        // deleting the file before calling j.add_event()
+        //
+        CATCH_REQUIRE(unlink(to_unlink.c_str()) == 0);
+
+        // the add fails as a result
+        //
+        snapdev::timespec_ex event_time(snapdev::now());
+        CATCH_REQUIRE_FALSE(j.add_event(event, event_time));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: delete large attachment file before adding event to journal")
+    {
+        prinbee::attachment_copy_handling_t const mode[] =
+        {
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK,
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK,
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK,
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL,
+        };
+
+        for(auto const & handling : mode)
+        {
+            std::string const path(conf_path("journal_large_attachment"));
+            advgetopt::conf_file::reset_conf_files();
+            prinbee::journal j(path);
+            j.set_attachment_copy_handling(handling);
+
+            // create a large string so we go through the large file case
+            //
+            std::string const content(SNAP_CATCH2_NAMESPACE::random_string(
+                    prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD,
+                    prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD * 2,
+                    SNAP_CATCH2_NAMESPACE::character_t::CHARACTER_ZUNICODE));
+            std::string const to_unlink(SNAP_CATCH2_NAMESPACE::g_tmp_dir() + "/set_file-add_event-unlink-file.txt");
+            {
+                std::ofstream out(to_unlink);
+                CATCH_REQUIRE(out.is_open());
+                out << content;
+            }
+            prinbee::attachment a;
+            a.set_file(to_unlink);
+            CATCH_REQUIRE_FALSE(a.empty());
+            CATCH_REQUIRE(a.size() == static_cast<off_t>(content.length()));
+            CATCH_REQUIRE(a.is_file());
+            CATCH_REQUIRE(a.filename() == to_unlink);
+
+            prinbee::in_event event;
+            event.set_request_id("unlinked");
+            event.add_attachment(a);
+
+            // deleting the file before calling j.add_event()
+            //
+            CATCH_REQUIRE(unlink(to_unlink.c_str()) == 0);
+
+            // the add fails as a result
+            //
+            snapdev::timespec_ex event_time(snapdev::now());
+            if(handling == prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK)
+            {
+                // softlink does not require access to the original file so
+                // the test passes in this case (oops?)
+                //
+                CATCH_REQUIRE(j.add_event(event, event_time));
+            }
+            else
+            {
+                CATCH_REQUIRE_FALSE(j.add_event(event, event_time));
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: large attachment file destination is a directory")
+    {
+        prinbee::attachment_copy_handling_t const mode[] =
+        {
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_SOFTLINK,
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_HARDLINK,
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_REFLINK,
+            prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL,
+        };
+
+        prinbee::attachment_offsets_t id(0);
+        for(auto const & handling : mode)
+        {
+            std::string const path(conf_path("journal_attachment_to_directory"));
+            advgetopt::conf_file::reset_conf_files();
+            prinbee::journal j(path);
+            j.set_attachment_copy_handling(handling);
+
+            // create a large string so we go through the large file case
+            //
+            std::string const content(SNAP_CATCH2_NAMESPACE::random_string(
+                    prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD,
+                    prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD * 2,
+                    SNAP_CATCH2_NAMESPACE::character_t::CHARACTER_ZUNICODE));
+            std::string const to_unlink(SNAP_CATCH2_NAMESPACE::g_tmp_dir() + "/set_file-add_event-unlink-file.txt");
+            {
+                std::ofstream out(to_unlink);
+                CATCH_REQUIRE(out.is_open());
+                out << content;
+            }
+            prinbee::attachment a;
+            a.set_file(to_unlink);
+            CATCH_REQUIRE_FALSE(a.empty());
+            CATCH_REQUIRE(a.size() == static_cast<off_t>(content.length()));
+            CATCH_REQUIRE(a.is_file());
+            CATCH_REQUIRE(a.filename() == to_unlink);
+
+            prinbee::in_event event;
+            event.set_request_id("directory_as_destination");
+            event.add_attachment(a);
+
+            // create a directory preventing creation of destination file
+            //
+            // note: we use the same directory so the sequence counter will
+            // continue to increase instead of using 1.bin each time
+            //
+            ++id;
+            std::string const dirname(path + "/" + std::to_string(id) + ".bin");
+            CATCH_REQUIRE(snapdev::mkdir_p(dirname.c_str()) == 0);
+
+            // the add fails as a result
+            //
+            snapdev::timespec_ex event_time(snapdev::now());
+            CATCH_REQUIRE_FALSE(j.add_event(event, event_time));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: large attachment buffer destination is a directory")
+    {
+        std::string const path(conf_path("journal_large_buffer_attachment_to_directory"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+
+        // create a large string so we go through the large file case
+        //
+        std::string const content(SNAP_CATCH2_NAMESPACE::random_string(
+                prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD,
+                prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD * 2,
+                SNAP_CATCH2_NAMESPACE::character_t::CHARACTER_ZUNICODE));
+        prinbee::attachment a;
+        a.set_data(const_cast<char *>(content.data()), content.size());
+        CATCH_REQUIRE_FALSE(a.empty());
+        CATCH_REQUIRE(a.size() == static_cast<off_t>(content.length()));
+        CATCH_REQUIRE_FALSE(a.is_file());
+        CATCH_REQUIRE(a.filename() == "");
+
+        prinbee::in_event event;
+        event.set_request_id("directory_as_destination");
+        event.add_attachment(a);
+
+        // create a directory preventing creation of destination file
+        //
+        std::string const dirname(path + "/1.bin");
+        CATCH_REQUIRE(snapdev::mkdir_p(dirname.c_str()) == 0);
+
+        // the add fails as a result
+        //
+        snapdev::timespec_ex event_time(snapdev::now());
+        CATCH_REQUIRE_FALSE(j.add_event(event, event_time));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: large attachment file shorten before added to journal in FULL copy mode")
+    {
+        std::string const path(conf_path("journal_shorten_large_attachment"));
+        advgetopt::conf_file::reset_conf_files();
+        prinbee::journal j(path);
+        j.set_attachment_copy_handling(prinbee::attachment_copy_handling_t::ATTACHMENT_COPY_HANDLING_FULL);
+
+        // create a large string so we go through the large file case
+        //
+        std::string const content(SNAP_CATCH2_NAMESPACE::random_string(
+                prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD,
+                prinbee::JOURNAL_INLINE_ATTACHMENT_SIZE_DEFAULT_THRESHOLD * 2,
+                SNAP_CATCH2_NAMESPACE::character_t::CHARACTER_ZUNICODE));
+        std::string const to_unlink(SNAP_CATCH2_NAMESPACE::g_tmp_dir() + "/set_file-add_event-unlink-file.txt");
+        {
+            std::ofstream out(to_unlink);
+            CATCH_REQUIRE(out.is_open());
+            out << content;
+        }
+        prinbee::attachment a;
+        a.set_file(to_unlink);
+        CATCH_REQUIRE_FALSE(a.empty());
+        CATCH_REQUIRE(a.size() == static_cast<off_t>(content.length()));
+        CATCH_REQUIRE(a.is_file());
+        CATCH_REQUIRE(a.filename() == to_unlink);
+
+        prinbee::in_event event;
+        event.set_request_id("shorten");
+        event.add_attachment(a);
+
+        // shortening the file before calling j.add_event()
+        //
+        CATCH_REQUIRE(truncate(to_unlink.c_str(), content.length() / 2) == 0);
+
+        // the add fails as a result
+        //
+        snapdev::timespec_ex event_time(snapdev::now());
+        CATCH_REQUIRE_FALSE(j.add_event(event, event_time));
     }
     CATCH_END_SECTION()
 

@@ -219,13 +219,13 @@ private:
  * \code
  *     prinbee::in_event event;
  *     event.set_request_id(prinbee::id_to_string(id)),
- *     prinbee::buffer_t buffer =
+ *     prinbee::data_t buffer =
  *     {
  *         .f_size = data.size(),
  *         .f_data = data.data(),
  *     };
  *     event.set_data(buffer);
- *     prinbee::buffer_t image_buffer =
+ *     prinbee::data_t image_buffer =
  *     {
  *         .f_size = image_size,
  *         .f_data = image_data.data(),
