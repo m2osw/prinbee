@@ -336,6 +336,15 @@ void attachment::set_file(std::string const & filename, off_t sz)
            << ".";
         throw file_not_found(ss.str());
     }
+    if((s.st_mode & S_IFMT) != S_IFREG)
+    {
+        std::stringstream ss;
+        ss << "file \""
+           << filename
+           << "\" does not represent a regular file.";
+        throw invalid_parameter(ss.str());
+    }
+
     if(sz == 0)
     {
         sz = s.st_size;

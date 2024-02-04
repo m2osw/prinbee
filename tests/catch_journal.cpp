@@ -2912,6 +2912,28 @@ CATCH_TEST_CASE("journal_errors", "[journal][error]")
     }
     CATCH_END_SECTION()
 
+    CATCH_START_SECTION("journal_errors: special file cannot be used")
+    {
+        prinbee::attachment a;
+        CATCH_REQUIRE_THROWS_MATCHES(
+              a.set_file("/dev/null")
+            , prinbee::invalid_parameter
+            , Catch::Matchers::ExceptionMessage(
+                        "prinbee_exception: file \"/dev/null\" does not represent a regular file."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("journal_errors: directories cannot be used")
+    {
+        prinbee::attachment a;
+        CATCH_REQUIRE_THROWS_MATCHES(
+              a.set_file("/usr/bin")
+            , prinbee::invalid_parameter
+            , Catch::Matchers::ExceptionMessage(
+                        "prinbee_exception: file \"/usr/bin\" does not represent a regular file."));
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("journal_errors: add too many attachments (in)")
     {
         // create a journal
