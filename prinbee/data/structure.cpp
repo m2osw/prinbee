@@ -28,7 +28,6 @@
 //
 #include    "prinbee/data/structure.h"
 
-#include    "prinbee/arch_support.h"
 #include    "prinbee/data/convert.h"
 #include    "prinbee/utils.h"
 

@@ -30,7 +30,6 @@
 #include    "prinbee/bigint/uint512.h"
 
 #include    "prinbee/exception.h"
-#include    "prinbee/arch_support.h"
 
 
 // C++
