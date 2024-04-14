@@ -42,7 +42,7 @@
  * for that table, latest version across your entire set of nodes.
  * The other, which is much easier as it requires no inter-node
  * communication, is to calculate an MD5 sum of the schema. As long as
- * thjat calculation doesn't change across versions of Snap! Database
+ * that calculation doesn't change across versions of Snap! Database
  * then we're all good (but I don't think we can ever guarantee such
  * a thing, so that solution becomes complicated in that sense).
  */

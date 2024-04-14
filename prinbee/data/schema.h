@@ -69,7 +69,7 @@ enum class model_t
     TABLE_MODEL_SESSION,
     TABLE_MODEL_TREE,
 
-    TABLE_MODEL_DEFAULT = TABLE_MODEL_CONTENT
+    TABLE_MODEL_DEFAULT = TABLE_MODEL_CONTENT,
 };
 
 model_t             name_to_model(std::string const & name);
@@ -79,7 +79,7 @@ enum compare_t
 {
     COMPARE_SCHEMA_EQUAL,
     COMPARE_SCHEMA_UPDATE,
-    COMPARE_SCHEMA_DIFFER
+    COMPARE_SCHEMA_DIFFER,
 };
 
 

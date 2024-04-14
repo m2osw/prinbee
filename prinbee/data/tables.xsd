@@ -276,7 +276,7 @@
       <xs:enumeration value="time_seconds"/>
 
       <!-- specialized TBD -->
-      <!-- xs:enumeration value="enumaration"/ -->
+      <!-- xs:enumeration value="enumeration"/ -->
 
       <!-- CT_secure_value == -1 (not checked), 0 (not secure), 1 (secure) -->
       <!-- CT_status_value == 0 (unknown), 1 (create), 2 (normal), 3 (hidden), 4 (moved), 5 (deleted) -->
