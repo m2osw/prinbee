@@ -32,6 +32,11 @@
 #include    <advgetopt/options.h>
 
 
+// C++
+//
+#include    <bitset>
+
+
 // C
 //
 #include    <grp.h>
