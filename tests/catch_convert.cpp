@@ -36,6 +36,7 @@
 
 // C++
 //
+#include    <bitset>
 #include    <fstream>
 #include    <iomanip>
 
