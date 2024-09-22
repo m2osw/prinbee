@@ -26,11 +26,15 @@
 #include    <prinbee/version.h>
 
 
+// last include
+//
+#include    <snapdev/poison.h>
+
 
 
 CATCH_TEST_CASE("Version", "[version]")
 {
-    CATCH_START_SECTION("verify runtime vs compile time version numbers")
+    CATCH_START_SECTION("version: verify runtime vs compile time version numbers")
     {
         CATCH_REQUIRE(prinbee::get_major_version()   == PRINBEE_VERSION_MAJOR);
         CATCH_REQUIRE(prinbee::get_release_version() == PRINBEE_VERSION_MINOR);

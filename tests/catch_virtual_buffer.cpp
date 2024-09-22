@@ -33,9 +33,9 @@
 
 
 
-CATCH_TEST_CASE("VirtualBuffer", "[virtual-buffer]")
+CATCH_TEST_CASE("virtual_buffer", "[virtual-buffer]")
 {
-    CATCH_START_SECTION("simple write + read")
+    CATCH_START_SECTION("virtual_buffer: simple write + read")
     {
         prinbee::virtual_buffer::pointer_t v(std::make_shared<prinbee::virtual_buffer>());
         CATCH_REQUIRE(v->size() == 0);
@@ -59,7 +59,7 @@ CATCH_TEST_CASE("VirtualBuffer", "[virtual-buffer]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("write once + read many times")
+    CATCH_START_SECTION("virtual_buffer: write once + read many times")
     {
         prinbee::virtual_buffer::pointer_t v(std::make_shared<prinbee::virtual_buffer>());
         CATCH_REQUIRE(v->size() == 0);
@@ -85,7 +85,7 @@ CATCH_TEST_CASE("VirtualBuffer", "[virtual-buffer]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("short write + read several times")
+    CATCH_START_SECTION("virtual_buffer: short write + read several times")
     {
         prinbee::virtual_buffer::pointer_t v(std::make_shared<prinbee::virtual_buffer>());
         CATCH_REQUIRE(v->size() == 0);

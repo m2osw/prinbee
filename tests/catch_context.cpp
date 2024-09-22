@@ -38,6 +38,11 @@
 #include    <pwd.h>
 
 
+// last include
+//
+#include    <snapdev/poison.h>
+
+
 
 CATCH_TEST_CASE("Context", "[centext]")
 {
@@ -47,7 +52,7 @@ std::cerr << "error: ... test not working at the moment ...\n";
 
     CATCH_REQUIRE(true);
 
-//    CATCH_START_SECTION("create a context")
+//    CATCH_START_SECTION("context: create a context")
 //    {
 //        std::vector<std::string> const simple_context =
 //            {

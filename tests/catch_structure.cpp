@@ -378,7 +378,7 @@ CATCH_TEST_CASE("structure_type_name", "[structure] [type] [valid]")
 
 CATCH_TEST_CASE("structure_type_name_invalid", "[structure] [type] [invalid]")
 {
-    CATCH_START_SECTION("structure_type_name: unknown")
+    CATCH_START_SECTION("structure_type_name_invalid: unknown")
     {
         for(int i(0); i < 100; ++i)
         {
@@ -397,7 +397,7 @@ CATCH_TEST_CASE("structure_type_name_invalid", "[structure] [type] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("structure_type_name: invalid")
+    CATCH_START_SECTION("structure_type_name_invalid: invalid")
     {
         for(int i(0); i < 100; ++i)
         {
@@ -437,7 +437,7 @@ CATCH_TEST_CASE("structure_type_metadata", "[structure] [type] [valid]")
 
 CATCH_TEST_CASE("structure_version_basics", "[structure] [version]")
 {
-    CATCH_START_SECTION("version: default")
+    CATCH_START_SECTION("structure_version_basics: default version")
     {
         prinbee::version_t version;
         CATCH_REQUIRE(version.get_major() == 0);
@@ -445,7 +445,7 @@ CATCH_TEST_CASE("structure_version_basics", "[structure] [version]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("version: conversions")
+    CATCH_START_SECTION("structure_version_basics: version conversions")
     {
         for(int n(0); n < 100; ++n)
         {
@@ -539,7 +539,7 @@ CATCH_TEST_CASE("structure_version_basics", "[structure] [version]")
 
 CATCH_TEST_CASE("structure_version_compare", "[structure] [version]")
 {
-    CATCH_START_SECTION("version: compare")
+    CATCH_START_SECTION("structure_version_compare: compare")
     {
         for(int n(0); n < 100; ++n)
         {
@@ -579,7 +579,7 @@ CATCH_TEST_CASE("structure_version_compare", "[structure] [version]")
 
 CATCH_TEST_CASE("structure_version_overflow", "[structure] [version] [invalid]")
 {
-    CATCH_START_SECTION("version overflow")
+    CATCH_START_SECTION("structure_version_overflow: version overflow")
     {
         for(int n(0); n < 100; ++n)
         {
@@ -610,7 +610,7 @@ CATCH_TEST_CASE("structure_version_overflow", "[structure] [version] [invalid]")
 
 CATCH_TEST_CASE("structure_min_max_version", "[structure] [version] [valid]")
 {
-    CATCH_START_SECTION("min_max_version: default")
+    CATCH_START_SECTION("structure_min_max_version: default")
     {
         prinbee::version_t version = prinbee::version_t();
         prinbee::min_max_version_t zero;
@@ -649,7 +649,7 @@ CATCH_TEST_CASE("structure_flag_definitions", "[structure] [flags] [valid]")
 
 CATCH_TEST_CASE("structure_flag_definitions_incorrect_construction", "[structure] [flags] [invalid]")
 {
-    CATCH_START_SECTION("structure_flag_definitions: missing name(s)")
+    CATCH_START_SECTION("structure_flag_definitions_incorrect_construction: missing name(s)")
     {
         // missing flag name
         std::string name(SNAP_CATCH2_NAMESPACE::rand_string(rand() % 100 + 1));
@@ -677,7 +677,7 @@ CATCH_TEST_CASE("structure_flag_definitions_incorrect_construction", "[structure
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("structure_flag_definitions: unsupported sizes / positions")
+    CATCH_START_SECTION("structure_flag_definitions_incorrect_construction: unsupported sizes / positions")
     {
         // zero fails
         //
@@ -1398,7 +1398,7 @@ CATCH_TEST_CASE("structure", "[structure] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("structure with a string")
+    CATCH_START_SECTION("structure: structure with a string")
     {
         prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description2));
 

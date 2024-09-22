@@ -838,7 +838,7 @@ CATCH_TEST_CASE("convert_32bit", "[convert] [valid]")
 
 CATCH_TEST_CASE("convert_size", "[convert] [size] [valid]")
 {
-    CATCH_START_SECTION("convert_size")
+    CATCH_START_SECTION("convert_size: test all possible size names")
     {
         struct size_info
         {
@@ -3226,7 +3226,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: p8string too large")
+    CATCH_START_SECTION("convert_errors: p8string too large")
     {
         for(int j(256); j < 300; ++j)
         {
@@ -3242,7 +3242,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: p16string too large")
+    CATCH_START_SECTION("convert_errors: p16string too large")
     {
         for(int j(65536); j <= 65536 + 300; ++j)
         {
@@ -3258,7 +3258,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: buffer8 too large")
+    CATCH_START_SECTION("convert_errors: buffer8 too large")
     {
         for(int j(256); j < 300; ++j)
         {
@@ -3282,7 +3282,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: buffer16 too large")
+    CATCH_START_SECTION("convert_errors: buffer16 too large")
     {
         for(int j(65536); j <= 65536 + 300; ++j)
         {
@@ -3306,7 +3306,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: input too small for buffer size")
+    CATCH_START_SECTION("convert_errors: input too small for buffer size")
     {
         prinbee::buffer_t buffer;
 
@@ -3364,7 +3364,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: input too small for P-Buffer data")
+    CATCH_START_SECTION("convert_errors: input too small for P-Buffer data")
     {
         prinbee::buffer_t buffer;
 
@@ -3412,7 +3412,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: buffer too small for P-String size")
+    CATCH_START_SECTION("convert_errors: buffer too small for P-String size")
     {
         prinbee::buffer_t buffer;
 
@@ -3470,7 +3470,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: buffer too small for P-String data")
+    CATCH_START_SECTION("convert_errors: buffer too small for P-String data")
     {
         prinbee::buffer_t buffer;
 
@@ -3518,7 +3518,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: time with too many decimal")
+    CATCH_START_SECTION("convert_errors: time with too many decimal")
     {
         for(int i(4); i <= 10; ++i)
         {
@@ -3578,7 +3578,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: wrong buffer size for time")
+    CATCH_START_SECTION("convert_errors: wrong buffer size for time")
     {
         prinbee::buffer_t buffer;
         for(int i(0); i < 10; ++i)
@@ -3616,7 +3616,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("convert_buffer: unexpected structure type")
+    CATCH_START_SECTION("convert_errors: unexpected structure type")
     {
         std::vector<prinbee::struct_type_t> unsupported_types{
             prinbee::struct_type_t::STRUCT_TYPE_ARRAY8,

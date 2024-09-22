@@ -36,6 +36,11 @@
 #include    <snapdev/hexadecimal_string.h>
 
 
+// last include
+//
+#include    <snapdev/poison.h>
+
+
 
 namespace
 {
@@ -1224,7 +1229,7 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
 
 CATCH_TEST_CASE("bigint_string", "[bigint] [valid]")
 {
-    CATCH_START_SECTION("bigint: to_string()")
+    CATCH_START_SECTION("bigint_string: to_string()")
     {
         // first try some small numbers
         //
@@ -1706,9 +1711,9 @@ CATCH_TEST_CASE("bigint_string", "[bigint] [valid]")
 }
 
 
-CATCH_TEST_CASE("rounding", "[round] [valid]")
+CATCH_TEST_CASE("bigint_rounding", "[round] [valid]")
 {
-    CATCH_START_SECTION("rounding: round down")
+    CATCH_START_SECTION("bigint_rounding: round down")
     {
         std::uint64_t const multiple(rand() % 512 + 512);
         std::uint64_t const max(multiple * 5 + multiple / 2);
@@ -1724,7 +1729,7 @@ CATCH_TEST_CASE("rounding", "[round] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("rounding: round up")
+    CATCH_START_SECTION("bigint_rounding: round up")
     {
         std::uint64_t const multiple(rand() % 512 + 512);
         std::uint64_t const max(multiple * 5 + multiple / 2);
@@ -1740,7 +1745,7 @@ CATCH_TEST_CASE("rounding", "[round] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("rounding: divide round up")
+    CATCH_START_SECTION("bigint_rounding: divide round up")
     {
         std::uint64_t const multiple(rand() % 512 + 512);
         std::uint64_t const max(multiple * 5 + multiple / 2);
@@ -1760,7 +1765,7 @@ CATCH_TEST_CASE("rounding", "[round] [valid]")
 
 CATCH_TEST_CASE("bigint_invalid", "[bigint] [invalid]")
 {
-    CATCH_START_SECTION("bigint: input too large")
+    CATCH_START_SECTION("bigint_invalid: input too large")
     {
         CATCH_REQUIRE_THROWS_MATCHES(
                   prinbee::int512_t({1, 2, 3, 4, 5, 6, 7, 8, 9})
@@ -1774,7 +1779,7 @@ CATCH_TEST_CASE("bigint_invalid", "[bigint] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint: negative shift")
+    CATCH_START_SECTION("bigint_invalid: negative shift")
     {
         prinbee::uint512_t a({1, 2, 3, 4, 5, 6, 7, 8});
         for(int i(-10); i < 0; ++i)
@@ -1798,7 +1803,7 @@ CATCH_TEST_CASE("bigint_invalid", "[bigint] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint: divide by zero")
+    CATCH_START_SECTION("bigint_invalid: divide by zero")
     {
         prinbee::uint512_t a({1, 2, 3, 4, 5, 6, 7, 8});
         prinbee::uint512_t b;
@@ -1816,7 +1821,7 @@ CATCH_TEST_CASE("bigint_invalid", "[bigint] [invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("bigint: invalid base")
+    CATCH_START_SECTION("bigint_invalid: invalid base")
     {
         for(int i(-10); i < 50; ++i)
         {

@@ -27,6 +27,11 @@
 #include    <prinbee/bigint/uint512.h>
 
 
+// snaplogger
+//
+#include    <snaplogger/snapcatch2.hpp>
+
+
 // C++
 //
 #include    <string>

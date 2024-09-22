@@ -94,7 +94,7 @@ prinbee::hash_t compute_hash(uint8_t const * v, std::size_t size, prinbee::hash_
 
 CATCH_TEST_CASE("hash", "[hash] [valid]")
 {
-    CATCH_START_SECTION("hash")
+    CATCH_START_SECTION("hash: 100x verifications")
     {
         for(int count(0); count < 100; ++count)
         {

@@ -92,7 +92,7 @@ bool is_valid_type(prinbee::dbtype_t type)
 
 CATCH_TEST_CASE("dbfile_dbtype", "[dbfile] [valid]")
 {
-    CATCH_START_SECTION("dbfile: to_string()")
+    CATCH_START_SECTION("dbfile_dbtype: to_string()")
     {
         CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::DBTYPE_UNKNOWN) == "Unknown");
         CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_SNAP_DATABASE_TABLE) == "Snap Database Type (SDBT)");
@@ -114,7 +114,7 @@ CATCH_TEST_CASE("dbfile_dbtype", "[dbfile] [valid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("dbfile: to_string() -- invalid types")
+    CATCH_START_SECTION("dbfile_dbtype: to_string() -- invalid types")
     {
         // anything else is an invalid type
         //

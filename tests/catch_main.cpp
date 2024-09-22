@@ -55,6 +55,11 @@
 #include    <sys/types.h>
 
 
+// last include
+//
+#include    <snapdev/poison.h>
+
+
 
 namespace SNAP_CATCH2_NAMESPACE
 {
@@ -144,9 +149,11 @@ int init_tests(Catch::Session & session)
 {
     snapdev::NOT_USED(session);
 
-    snaplogger::logger::pointer_t l(snaplogger::logger::get_instance());
-    l->add_console_appender();
-    l->set_severity(snaplogger::severity_t::SEVERITY_ALL);
+    snaplogger::setup_catch2_nested_diagnostics();
+
+    //snaplogger::logger::pointer_t l(snaplogger::logger::get_instance());
+    //l->add_console_appender();
+    //l->set_severity(snaplogger::severity_t::SEVERITY_ALL);
 
     // to test that the logger works as expected
     //SNAP_LOG_ERROR
