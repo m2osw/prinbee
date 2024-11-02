@@ -61,15 +61,16 @@
 #include    <snaplogger/message.h>
 
 
+// snapdev
+//
+#include    <snapdev/tokenize_string.h>
+#include    <snapdev/to_upper.h>
+
+
 // C++
 //
 #include    <iostream>
 #include    <type_traits>
-
-
-// boost
-//
-#include    <boost/algorithm/string.hpp>
 
 
 // last include
@@ -88,160 +89,162 @@ namespace
 
 
 
-std::string             g_expiration_date = "expiration_date";
+constexpr char const * const    g_column_scope = "column::";
+constexpr char const * const    g_expiration_date = "expiration_date";
+constexpr char const * const    g_index_scope = "index::";
 
 
 
-struct_description_t g_column_description[] =
-{
-    define_description(
-          FieldName("name")
-        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
-    ),
-    define_description(
-          FieldName("column_id")
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
-    ),
-    define_description(
-          FieldName("type")
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
-    ),
-    define_description(
-          FieldName("flags=limited/required/blob/system/revision_type:2")
-        , FieldType(struct_type_t::STRUCT_TYPE_BITS32)
-    ),
-    define_description(
-          FieldName("encrypt_key_name")
-        , FieldType(struct_type_t::STRUCT_TYPE_P16STRING)
-    ),
-    define_description(
-          FieldName("default_value")
-        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
-    ),
-    define_description(
-          FieldName("minimum_value")
-        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
-    ),
-    define_description(
-          FieldName("maximum_value")
-        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
-    ),
-    define_description(
-          FieldName("minimum_length")
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT32)
-    ),
-    define_description(
-          FieldName("maximum_length")
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT32)
-    ),
-    define_description(
-          FieldName("validation")
-        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
-    ),
-    end_descriptions()
-};
+//struct_description_t g_column_description[] =
+//{
+//    define_description(
+//          FieldName("name")
+//        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
+//    ),
+//    define_description(
+//          FieldName("column_id")
+//        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
+//    ),
+//    define_description(
+//          FieldName("type")
+//        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
+//    ),
+//    define_description(
+//          FieldName("flags=limited/required/blob/system/revision_type:2")
+//        , FieldType(struct_type_t::STRUCT_TYPE_BITS32)
+//    ),
+//    define_description(
+//          FieldName("encrypt_key_name")
+//        , FieldType(struct_type_t::STRUCT_TYPE_P16STRING)
+//    ),
+//    define_description(
+//          FieldName("default_value")
+//        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
+//    ),
+//    define_description(
+//          FieldName("minimum_value")
+//        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
+//    ),
+//    define_description(
+//          FieldName("maximum_value")
+//        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
+//    ),
+//    define_description(
+//          FieldName("minimum_length")
+//        , FieldType(struct_type_t::STRUCT_TYPE_UINT32)
+//    ),
+//    define_description(
+//          FieldName("maximum_length")
+//        , FieldType(struct_type_t::STRUCT_TYPE_UINT32)
+//    ),
+//    define_description(
+//          FieldName("validation")
+//        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
+//    ),
+//    end_descriptions()
+//};
+//
+//
+//struct_description_t g_column_reference[] =
+//{
+//    define_description(
+//          FieldName("column_id")
+//        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
+//    ),
+//    end_descriptions()
+//};
+//
+//
+//struct_description_t g_sort_column[] =
+//{
+//    define_description(
+//          FieldName("column_id")
+//        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
+//    ),
+//    define_description(
+//          FieldName("flags=descending/not_null")
+//        , FieldType(struct_type_t::STRUCT_TYPE_BITS32)
+//    ),
+//    define_description(
+//          FieldName("length")
+//        , FieldType(struct_type_t::STRUCT_TYPE_UINT32)
+//    ),
+//    define_description(
+//          FieldName("function")
+//        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
+//    ),
+//    end_descriptions()
+//};
 
 
-struct_description_t g_column_reference[] =
-{
-    define_description(
-          FieldName("column_id")
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
-    ),
-    end_descriptions()
-};
-
-
-struct_description_t g_sort_column[] =
-{
-    define_description(
-          FieldName("column_id")
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
-    ),
-    define_description(
-          FieldName("flags=descending/not_null")
-        , FieldType(struct_type_t::STRUCT_TYPE_BITS32)
-    ),
-    define_description(
-          FieldName("length")
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT32)
-    ),
-    define_description(
-          FieldName("function")
-        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
-    ),
-    end_descriptions()
-};
-
-
-struct_description_t g_table_secondary_index[] =
-{
-    define_description(
-          FieldName("name")
-        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
-    ),
-    define_description(
-          FieldName("flags=distributed")
-        , FieldType(struct_type_t::STRUCT_TYPE_BITS32)
-    ),
-    define_description(
-          FieldName("sort_columns")
-        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
-        , FieldSubDescription(g_sort_column)
-    ),
-    define_description(
-          FieldName("filter")
-        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
-    ),
-    end_descriptions()
-};
+//struct_description_t g_table_secondary_index[] =
+//{
+//    define_description(
+//          FieldName("name")
+//        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
+//    ),
+//    define_description(
+//          FieldName("flags=distributed")
+//        , FieldType(struct_type_t::STRUCT_TYPE_BITS32)
+//    ),
+//    define_description(
+//          FieldName("sort_columns")
+//        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
+//        , FieldSubDescription(g_sort_column)
+//    ),
+//    define_description(
+//          FieldName("filter")
+//        , FieldType(struct_type_t::STRUCT_TYPE_BUFFER32)
+//    ),
+//    end_descriptions()
+//};
 
 
 
 
-struct_description_t g_table_description[] =
-{
-    define_description(
-          FieldName("schema_version")
-        , FieldType(struct_type_t::STRUCT_TYPE_VERSION)
-    ),
-    define_description(
-          FieldName("added_on")
-        , FieldType(struct_type_t::STRUCT_TYPE_TIME)
-    ),
-    define_description(
-          FieldName("name")
-        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
-    ),
-    define_description(
-          FieldName("flags=temporary/sparse")
-        , FieldType(struct_type_t::STRUCT_TYPE_BITS64)
-    ),
-    define_description(
-          FieldName("block_size")
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT32)
-    ),
-    define_description(
-          FieldName("model")
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT8)
-    ),
-    define_description(
-          FieldName("row_key")
-        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
-        , FieldSubDescription(g_column_reference)
-    ),
-    define_description(
-          FieldName("secondary_indexes")
-        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
-        , FieldSubDescription(g_table_secondary_index)
-    ),
-    define_description(
-          FieldName("columns")
-        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
-        , FieldSubDescription(g_column_description)
-    ),
-    end_descriptions()
-};
+//struct_description_t g_table_description[] =
+//{
+//    define_description(
+//          FieldName("schema_version")
+//        , FieldType(struct_type_t::STRUCT_TYPE_VERSION)
+//    ),
+//    define_description(
+//          FieldName("added_on")
+//        , FieldType(struct_type_t::STRUCT_TYPE_TIME)
+//    ),
+//    define_description(
+//          FieldName("name")
+//        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
+//    ),
+//    define_description(
+//          FieldName("flags=temporary")
+//        , FieldType(struct_type_t::STRUCT_TYPE_BITS64)
+//    ),
+//    define_description(
+//          FieldName("block_size")
+//        , FieldType(struct_type_t::STRUCT_TYPE_UINT32)
+//    ),
+//    define_description(
+//          FieldName("model")
+//        , FieldType(struct_type_t::STRUCT_TYPE_UINT8)
+//    ),
+//    define_description(
+//          FieldName("primary_key")
+//        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
+//        , FieldSubDescription(g_column_reference)
+//    ),
+//    define_description(
+//          FieldName("secondary_indexes")
+//        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
+//        , FieldSubDescription(g_table_secondary_index)
+//    ),
+//    define_description(
+//          FieldName("columns")
+//        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
+//        , FieldSubDescription(g_column_description)
+//    ),
+//    end_descriptions()
+//};
 
 
 
@@ -257,31 +260,31 @@ index_type_t index_name_to_index_type(std::string const & name)
         return index_type_t::INDEX_TYPE_INVALID;
     }
 
-    switch(name[0])
+    if(name.length() >= 2) switch(name[1])
     {
     case 'e':
-        if(name == "expiration")
+        if(name == "_expiration")
         {
             return index_type_t::INDEX_TYPE_EXPIRATION;
         }
         break;
 
     case 'i':
-        if(name == "indirect")
+        if(name == "_indirect")
         {
             return index_type_t::INDEX_TYPE_INDIRECT;
         }
         break;
 
     case 'p':
-        if(name == "primary")
+        if(name == "_primary")
         {
             return index_type_t::INDEX_TYPE_PRIMARY;
         }
         break;
 
     case 't':
-        if(name == "tree")
+        if(name == "_tree")
         {
             return index_type_t::INDEX_TYPE_TREE;
         }
@@ -318,6 +321,11 @@ struct model_and_name_t
 {
     model_t const           f_model = model_t::TABLE_MODEL_CONTENT;
     char const * const      f_name = nullptr;
+
+    bool operator < (model_and_name_t const & rhs) const
+    {
+        return strcmp(f_name, rhs.f_name) < 0;
+    }
 };
 
 #define MODEL_AND_NAME(name)    { model_t::TABLE_MODEL_##name, #name }
@@ -338,23 +346,11 @@ model_and_name_t g_model_and_name[] =
 model_t name_to_model(std::string const & name)
 {
 #ifdef _DEBUG
-    // verify in debug because if not in order we can't do a binary search
-    for(size_t idx(1);
-        idx < sizeof(g_model_and_name) / sizeof(g_model_and_name[0]);
-        ++idx)
+    // verify in debug because if not in order we cannot do a valid binary search
+    //
+    if(!std::is_sorted(g_model_and_name, g_model_and_name + std::size(g_model_and_name)))
     {
-        if(strcmp(g_model_and_name[idx - 1].f_name
-                , g_model_and_name[idx].f_name) >= 0)
-        {
-            throw logic_error(
-                      "names in g_model_and_name are not in alphabetical order: "
-                    + std::string(g_model_and_name[idx - 1].f_name)
-                    + " >= "
-                    + g_model_and_name[idx].f_name
-                    + " (position: "
-                    + std::to_string(idx)
-                    + ").");
-        }
+        throw logic_error("names in g_model_and_name are not in alphabetical order.");
     }
 #endif
 
@@ -363,10 +359,14 @@ model_t name_to_model(std::string const & name)
         return model_t::TABLE_MODEL_DEFAULT;
     }
 
-    std::string const uc(boost::algorithm::to_upper_copy(name));
+    std::string const uc(snapdev::to_upper(name));
 
+    // unfortunately, the standard library does not offer an algorithm
+    // that returns the element that is equal with a complexity of
+    // log2(N)+O(1) like we have here
+    //
     int i(0);
-    int j(sizeof(g_model_and_name) / sizeof(g_model_and_name[0]));
+    int j(std::size(g_model_and_name));
     while(i < j)
     {
         int const p((j - i) / 2 + i);
@@ -385,98 +385,213 @@ model_t name_to_model(std::string const & name)
         }
     }
 
-    SNAP_LOG_WARNING
-        << "Unknown model name \""
-        << name
-        << "\" for your table. Please check the spelling. The name is case insensitive."
-        << SNAP_LOG_SEND;
-
-    // return the default, this is just a warning
-    //
-    return model_t::TABLE_MODEL_DEFAULT;
+    throw invalid_name(
+              "unrecognized model \""
+            + name
+            + "\".");
 }
+
 
 
 
 
 
 // required constructor for copying in the map
-schema_complex_type::schema_complex_type()
-{
-}
+//
+//schema_complex_type::schema_complex_type()
+//{
+//}
 
 
-/** \brief Initialize a complex type from an XML node.
+/** \brief Initialize a complex type from a configuration file.
  *
  * Once in a list of columns, a complex type becomes a
  * `STRUCT_TYPE_STRUCTURE`.
+ *
+ * \param[in] config  The configuration file (.ini) where this complex
+ *                    type is defined.
+ * \param[in] name  The name of the complex type being read.
  */
-schema_complex_type::schema_complex_type(basic_xml::node::pointer_t x)
+schema_complex_type::schema_complex_type(advgetopt::conf_file::pointer_t config, std::string const & name)
 {
-    if(x->tag_name() != "complex-type")
+    if(name_to_struct_type(name) != INVALID_STRUCT_TYPE)
     {
-        throw invalid_xml(
-                  "A column schema must be a \"column\" tag. \""
-                + x->tag_name()
-                + "\" is not acceptable.");
+        throw type_mismatch(
+                  "the name of a complex type cannot be the name of a basic type; \""
+                + name
+                + "\" is not considered valid.");
     }
 
-    f_name = x->attribute("name");
+    f_name = name;
 
-    struct_type_t last_type(struct_type_t::STRUCT_TYPE_VOID);
-    for(auto child(x->first_child()); child != nullptr; child = child->next())
+    std::string const section_name("type::" + name);
+
+    // these parameters are optional; they remain empty if undefined
+    //
+    f_description = config->get_parameter(section_name + "::description");
+    f_compare = config->get_parameter(section_name + "::compare");
+    f_validation_script = config->get_parameter(section_name + "::validation_script");
+
+    std::string const field_definitions(section_name + "::fields");
+    std::string const enum_names(section_name + "::enum");
+
+    bool const has_field_definitions(config->has_parameter(field_definitions));
+    f_is_enum = config->has_parameter(enum_names);
+
+    if(has_field_definitions
+    && f_is_enum)
     {
-        if(child->tag_name() == "type")
-        {
-            if(last_type == struct_type_t::STRUCT_TYPE_END)
-            {
-                throw invalid_xml(
-                          "The complex type was already ended with an explicit END. You cannot have additional types after that. Yet \""
-                        + child->text()
-                        + "\" was found after the END.");
-            }
-            field_t ct;
-            ct.f_name = child->attribute("name");
-            ct.f_type = name_to_struct_type(child->text());
-            if(ct.f_type == INVALID_STRUCT_TYPE)
-            {
-                throw invalid_xml(
-                          "Found unknown type \""
-                        + child->text()
-                        + "\" in your complex type definition (we do not currently support complex types within other complex types).");
-            }
-            last_type = ct.f_type;
+        throw exclusive_fields("a complex type cannot have the \"fields\" and \"enum\" parameters defined together.");
+    }
 
-            if(ct.f_type != struct_type_t::STRUCT_TYPE_END)
+    if(f_is_enum)
+    {
+        // the enumeration type is optional, especially if the type is not an
+        // enumeration (in which case it is ignored if defined)
+        //
+        std::string const enum_type_name(section_name + "::enum_type");
+        if(config->has_parameter(enum_type_name))
+        {
+            f_enum_type = name_to_struct_type(config->get_parameter(enum_type_name));
+            if(f_enum_type < struct_type_t::STRUCT_TYPE_INT8
+            || f_enum_type > struct_type_t::STRUCT_TYPE_UINT64)
             {
-                f_fields.push_back(ct);
+                throw type_mismatch(
+                          "an enum type must be an integer type from 8 to 64 bits; \""
+                        + enum_type_name
+                        + "\" is not considered valid.");
             }
         }
-        else
+
+        advgetopt::string_list_t list;
+        advgetopt::split_string(config->get_parameter(enum_names), list, {","});
+        for(auto const & nv : list)
         {
-            SNAP_LOG_WARNING
-                << "Unknown tag \""
-                << child->tag_name()
-                << "\" within a <complex-type> tag ignored."
-                << SNAP_LOG_SEND;
+            advgetopt::string_list_t name_value;
+            advgetopt::split_string(nv, name_value, {" "});
+            if(name_value.size() != 2)
+            {
+                throw type_mismatch(
+                          "an enum definition must be a name and an integer separated by a space, not \""
+                        + nv
+                        + "\".");
+            }
+            auto const it_name(std::find_if(
+                  f_fields.begin()
+                , f_fields.end()
+                , [&name_value](field_t const & f)
+                {
+                    return name_value[0] == f.f_name;
+                }));
+            if(it_name != f_fields.end())
+            {
+                throw type_mismatch(
+                          "each name in an enum definition must be unique, found \""
+                        + name_value[0]
+                        + "\" twice.");
+            }
+            field_t enum_field;
+            enum_field.f_name = name_value[0];
+            enum_field.f_enum_value = convert_to_uint(name_value[1], 64);
+
+            // TBD: do we want the values of an enum to be unique? at the moment
+            //      I am thinking that yes and we are not offering the user to
+            //      set the value anyway...
+            auto const it_value(std::find_if(
+                  f_fields.begin()
+                , f_fields.end()
+                , [&enum_field](field_t const & f)
+                {
+                    return enum_field.f_enum_value == f.f_enum_value;
+                }));
+            if(it_value != f_fields.end())
+            {
+                throw type_mismatch(
+                          "each value in an enum definition must be unique, found \""
+                        + name_value[1]
+                        + "\" twice in \""
+                        + it_value->f_name
+                        + "\" and \""
+                        + name_value[0]
+                        + "\".");
+            }
+
+            f_fields.push_back(enum_field);
         }
+    }
+    else if(has_field_definitions)
+    {
+        advgetopt::string_list_t list;
+        advgetopt::split_string(config->get_parameter(field_definitions), list, {","});
+        for(auto const & nt : list)
+        {
+            advgetopt::string_list_t name_type;
+            advgetopt::split_string(nt, name_type, {" "});
+            if(name_type.size() != 2)
+            {
+                throw type_mismatch(
+                          "a field definition must be a name and a type separated by a space, not \""
+                        + nt
+                        + "\".");
+            }
+            auto const it(std::find_if(
+                  f_fields.begin()
+                , f_fields.end()
+                , [&name_type](field_t const & f)
+                {
+                    return name_type[0] == f.f_name;
+                }));
+            if(it != f_fields.end())
+            {
+                throw type_mismatch(
+                          "each field name in an complex type must be unique, found \""
+                        + name_type[0]
+                        + "\" twice.");
+            }
+
+            // we do not yet have all the complex types so we cannot verify
+            // their existance just yet (or whether a loop exists)
+            //
+            field_t field;
+            field.f_name = name_type[0];
+            field.f_type_name = name_type[1];
+            f_fields.push_back(field);
+        }
+    }
+    else
+    {
+        throw missing_parameter("a complex type must have \"fields=...\" or an \"enum=...\" definition.");
     }
 }
 
 
-std::string schema_complex_type::name() const
+//void schema_comple_type::verify_types(schema_complex_type::map_pointer_t complex_types)
+//{
+//    f_complex_types = complex_types;
+//
+//    f_type = name_to_struct_type(type_name);
+//}
+
+
+std::string schema_complex_type::get_name() const
 {
     return f_name;
 }
 
 
-size_t schema_complex_type::size() const
+bool schema_complex_type::is_enum() const
+{
+    return f_is_enum;
+}
+
+
+std::size_t schema_complex_type::get_size() const
 {
     return f_fields.size();
 }
 
 
-std::string schema_complex_type::type_name(int idx) const
+void schema_complex_type::set_type_name(int idx, std::string const & type_name)
 {
     if(static_cast<std::size_t>(idx) >= f_fields.size())
     {
@@ -488,11 +603,52 @@ std::string schema_complex_type::type_name(int idx) const
                 + ").");
     }
 
-    return f_fields[idx].f_name;
+    if(type_name.empty())
+    {
+        throw invalid_name("the type name cannot be set to an empty string.");
+    }
+
+    // if the type_name is a complex type, then the following returns
+    // the special value INVALID_STRUCT_TYPE so we need special handling
+    // (i.e. you do not want to set the type name to STRUCTURE in that
+    // case)
+    //
+    struct_type_t const type(name_to_struct_type(type_name));
+
+    if(type == struct_type_t::STRUCT_TYPE_STRUCTURE)
+    {
+        throw invalid_name("the type name cannot be explicitly set to STRUCTURE; use the name of a complex type instead.");
+    }
+
+    if(type != INVALID_STRUCT_TYPE)
+    {
+        f_fields[idx].f_type = type;
+    }
+    else
+    {
+        f_fields[idx].f_type = struct_type_t::STRUCT_TYPE_STRUCTURE;
+    }
+    f_fields[idx].f_type_name = type_name;
 }
 
 
-struct_type_t schema_complex_type::type(int idx) const
+std::string schema_complex_type::get_type_name(int idx) const
+{
+    if(static_cast<std::size_t>(idx) >= f_fields.size())
+    {
+        throw out_of_range(
+                "index ("
+                + std::to_string(idx)
+                + ") is too large for this complex type list of fields (max: "
+                + std::to_string(f_fields.size())
+                + ").");
+    }
+
+    return f_fields[idx].f_type_name;
+}
+
+
+struct_type_t schema_complex_type::get_type(int idx) const
 {
     if(static_cast<std::size_t>(idx) >= f_fields.size())
     {
@@ -508,51 +664,118 @@ struct_type_t schema_complex_type::type(int idx) const
 }
 
 
-
-
-
-
-schema_column::schema_column(schema_table::pointer_t table, basic_xml::node::pointer_t x)
-    : f_schema_table(table)
+void schema_complex_type::set_type(int idx, struct_type_t type)
 {
-    if(x->tag_name() != "column")
+    if(static_cast<std::size_t>(idx) >= f_fields.size())
     {
-        throw invalid_xml(
-                  "A column schema must be a \"column\" tag. \""
-                + x->tag_name()
-                + "\" is not acceptable.");
+        throw out_of_range(
+                "index ("
+                + std::to_string(idx)
+                + ") is too large for this complex type list of fields (max: "
+                + std::to_string(f_fields.size())
+                + ").");
     }
 
-    f_name = x->attribute("name");
+    f_fields[idx].f_type = type;
+    if(type != struct_type_t::STRUCT_TYPE_STRUCTURE)
+    {
+        f_fields[idx].f_type_name = to_string(type);
+    }
+}
+
+
+std::int64_t schema_complex_type::get_enum_value(int idx) const
+{
+    if(static_cast<std::size_t>(idx) >= f_fields.size())
+    {
+        throw out_of_range(
+                "index ("
+                + std::to_string(idx)
+                + ") is too large for this complex type list of fields (max: "
+                + std::to_string(f_fields.size())
+                + ").");
+    }
+
+    return f_fields[idx].f_enum_value;
+}
+
+
+
+
+
+
+
+
+
+
+schema_column::schema_column(
+          schema_table::pointer_t table
+        , advgetopt::conf_file::pointer_t config
+        , std::string const & column_id)
+    : f_schema_table(table)
+{
+    f_id = convert_to_uint(column_id, 16);
+    if(f_id == 0)
+    {
+        throw invalid_number(
+                  "a column identifier must be a 16 bit number except 0; \""
+                + column_id
+                + "\" is not valid.");
+    }
+
+    std::string const section_name(g_column_scope + column_id);
+
+    std::string const column_field_name(section_name + "::name");
+    if(!config->has_parameter(column_field_name))
+    {
+        throw missing_parameter(
+                  "a \"name=...\" is mandatory for a column definition (id: "
+                + column_id
+                + ").");
+    }
+    f_name = config->get_parameter(column_field_name);
     if(!validate_name(f_name))
     {
-        throw invalid_xml(
+        throw invalid_name(
                   "\""
                 + f_name
                 + "\" is not a valid column name.");
     }
+    if(f_name[0] == '_')
+    {
+        throw invalid_name(
+                  "a user defined column name (\""
+                + f_name
+                + "\") cannot start with an underscore. This is reserved for system columns.");
+    }
 
-    std::string const & type_name(x->attribute("type"));
+    std::string const column_field_type(section_name + "::type");
+    if(!config->has_parameter(column_field_type))
+    {
+        throw missing_parameter(
+                  "a \"type=...\" is mandatory in your \""
+                + f_name
+                + "\" column definition.");
+    }
+    std::string const & type_name(config->get_parameter(column_field_type));
     f_type = name_to_struct_type(type_name);
     if(f_type == INVALID_STRUCT_TYPE)
     {
-        schema_complex_type::pointer_t ct(table->complex_type(type_name));
+        schema_complex_type::pointer_t ct(table->get_complex_type(type_name));
         if(ct == nullptr)
         {
-            throw invalid_xml(
-                      "Found unknown type \""
-                    + x->attribute("type")
+            throw invalid_type(
+                      "found unknown type \""
+                    + type_name
                     + "\" in your \""
                     + f_name
                     + "\" column definition.");
         }
 
         // TODO: actually implement the complex type
-        //       (at this time I'm thinking that the way to do it is
-        //       to create one column per complex type column with the
-        //       name defined as `<foo>.<blah>`--however, we may also
-        //       want to keep the data in a single column and use
-        //       the complex type to read/write it)
+        //       (at this time, I'm thinking that the way to do it is
+        //       to use snapdev/brs.h and save each field that way in
+        //       one binary blob)
         //
         throw not_yet_implemented(
                 "full support for complex types not yet implemented");
@@ -568,11 +791,12 @@ schema_column::schema_column(schema_table::pointer_t table, basic_xml::node::poi
         case struct_type_t::STRUCT_TYPE_TIME:
         case struct_type_t::STRUCT_TYPE_MSTIME:
         case struct_type_t::STRUCT_TYPE_USTIME:
+        case struct_type_t::STRUCT_TYPE_NSTIME:
             break;
 
         default:
             throw type_mismatch(
-                    "the \"expiration_date\" column must be assigned a  valid time type (TIME, MSTIME, USTIME), "
+                    "the \"expiration_date\" column must be assigned a  valid time type (TIME, MSTIME, USTIME, NSTYPE); "
                   + to_string(f_type)
                   + " is not valid.");
 
@@ -580,77 +804,125 @@ schema_column::schema_column(schema_table::pointer_t table, basic_xml::node::poi
     }
 
     f_flags = 0;
-    if(x->attribute("limited") == "limited")
+    std::string const column_field_flags(section_name + "::flags");
+    if(config->has_parameter(column_field_flags))
     {
-        // limit display of this column by default because it could be really
-        // large
-        //
-        f_flags |= COLUMN_FLAG_LIMITED;
-    }
-    if(x->attribute("required") == "required")
-    {
-        f_flags |= COLUMN_FLAG_REQUIRED;
-    }
-    if(x->attribute("blob") == "blob")
-    {
-        f_flags |= COLUMN_FLAG_BLOB;
-    }
+        std::list<std::string> flags;
+        snapdev::tokenize_string(flags, config->get_parameter(column_field_flags), { "," }, true);
 
-    f_encrypt_key_name = x->attribute("encrypt");
-
-    for(auto child(x->first_child()); child != nullptr; child = child->next())
-    {
-        if(child->tag_name() == "description")
+        for(auto const & f : flags)
         {
-            f_description = child->text();
-        }
-        else if(child->tag_name() == "default")
-        {
-            f_default_value = string_to_typed_buffer(f_type, child->text());
-        }
-        else if(child->tag_name() == "external")
-        {
-            f_internal_size_limit = convert_to_int(child->text(), 32, unit_t::UNIT_SIZE);
-        }
-        else if(child->tag_name() == "min-value")
-        {
-            f_minimum_value = string_to_typed_buffer(f_type, child->text());
-        }
-        else if(child->tag_name() == "max-value")
-        {
-            f_maximum_value = string_to_typed_buffer(f_type, child->text());
-        }
-        else if(child->tag_name() == "min-length")
-        {
-            f_minimum_length = convert_to_uint(child->text(), 32);
-        }
-        else if(child->tag_name() == "max-length")
-        {
-            f_maximum_length = convert_to_uint(child->text(), 32);
-        }
-        else if(child->tag_name() == "validation")
-        {
-            std::string const code(child->text());
-            if(!code.empty())
+            if(f == "blob")
             {
-                // TODO: looks into implementating that with as2js
-                //f_validation = compile_script(code);
-                f_validation.clear();
+                f_flags |= COLUMN_FLAG_BLOB;
+            }
+            else if(f == "hidden")
+            {
+                f_flags |= COLUMN_FLAG_HIDDEN;
+            }
+            else if(f == "limited")
+            {
+                // limit display of this column by default because it
+                // could be really large
+                //
+                f_flags |= COLUMN_FLAG_LIMITED;
+            }
+            else if(f == "required")
+            {
+                // i.e. column cannot be set to NULL; note that if a default
+                //      exists then the column can be undefined and the
+                //      default value gets used instead
+                //
+                f_flags |= COLUMN_FLAG_REQUIRED;
+            }
+            else if(f == "versioned")
+            {
+                // only versioned column generate a new row when updated
+                //
+                f_flags |= COLUMN_FLAG_VERSIONED;
             }
             else
             {
-                f_validation.clear();
+                throw invalid_name(
+                          "column \""
+                        + f_name
+                        + "\" includes an unknown flag: \""
+                        + f
+                        + "\".");
             }
         }
-        else
+    }
+
+    std::string const column_field_encrypt(section_name + "::encrypt");
+    f_encrypt_key_name = config->get_parameter(column_field_encrypt);
+
+    std::string const column_field_description(section_name + "::description");
+    f_description = config->get_parameter(column_field_description);
+
+    std::string const column_field_default_value(section_name + "::default_value");
+    if(config->has_parameter(column_field_default_value))
+    {
+        f_default_value = string_to_typed_buffer(f_type, config->get_parameter(column_field_default_value));
+    }
+
+    std::string const column_field_default_value_script(section_name + "::default_value_script");
+    std::string const default_script(config->get_parameter(column_field_default_value_script));
+    if(!default_script.empty())
+    {
+        // TODO: compile that script with as2js and save that in memory
+        //
+        //f_default_value_script = parse(default_script);
+        throw not_yet_implemented("code -> f_default_value_script not yet implemented");
+    }
+
+    std::string const column_field_validation_script(section_name + "::validation_script");
+    std::string code(config->get_parameter(column_field_validation_script));
+    if(!code.empty())
+    {
+        // TODO: compile that script with as2js and save that in memory
+        //
+        //f_validation = parse(code);
+        throw not_yet_implemented("code -> f_validation not yet implemented");
+    }
+
+    std::string const column_field_minimum_value(section_name + "::minimum_value");
+    if(config->has_parameter(column_field_minimum_value))
+    {
+        f_minimum_value = string_to_typed_buffer(f_type, config->get_parameter(column_field_minimum_value));
+    }
+
+    std::string const column_field_maximum_value(section_name + "::maximum_value");
+    if(config->has_parameter(column_field_maximum_value))
+    {
+        f_maximum_value = string_to_typed_buffer(f_type, config->get_parameter(column_field_maximum_value));
+    }
+
+    std::string const column_field_minimum_size(section_name + "::minimum_size");
+    if(config->has_parameter(column_field_minimum_size))
+    {
+        f_minimum_size = convert_to_uint(config->get_parameter(column_field_minimum_size), 32);
+    }
+
+    std::string const column_field_maximum_size(section_name + "::maximum_size");
+    if(config->has_parameter(column_field_maximum_size))
+    {
+        f_maximum_size = convert_to_uint(config->get_parameter(column_field_maximum_size), 32);
+    }
+
+    std::string const column_field_internal_size_limit(section_name + "::internal_size_limit");
+    if(config->has_parameter(column_field_internal_size_limit))
+    {
+        f_internal_size_limit = convert_to_int(config->get_parameter(column_field_internal_size_limit), 32);
+        if(f_internal_size_limit != -1 && f_internal_size_limit < 128)
         {
-            // generate an error for unknown tags or ignore?
-            //
-            SNAP_LOG_WARNING
-                << "Unknown tag \""
-                << child->tag_name()
-                << "\" within a <column> tag ignored."
-                << SNAP_LOG_SEND;
+            throw type_mismatch(
+                      "column \""
+                    + table->get_name()
+                    + "::column"
+                    + column_id
+                    + "::internal_size_limit\" has an invalid external size limit \""
+                    + config->get_parameter(column_field_internal_size_limit)
+                    + "\" value (not a number or too small).");
         }
     }
 }
@@ -665,7 +937,7 @@ schema_column::schema_column(schema_table::pointer_t table, structure::pointer_t
 
 schema_column::schema_column(
               schema_table_pointer_t table
-            , std::string name
+            , std::string const & name
             , struct_type_t type
             , flag32_t flags)
     : f_name(name)
@@ -673,22 +945,33 @@ schema_column::schema_column(
     , f_flags(flags)
     , f_schema_table(table)
 {
+    if((flags & COLUMN_FLAG_SYSTEM) == 0)
+    {
+        throw logic_error("only system columns can be created using this constructor.");
+    }
+
+    if(f_name.length() < 2
+    || f_name[0] != '_')
+    {
+        throw logic_error("all system column names must start with an underscore.");
+    }
 }
 
 
 void schema_column::from_structure(structure::pointer_t s)
 {
     f_name = s->get_string("name");
-    f_column_id = s->get_uinteger("column_id");
+    f_id = s->get_uinteger("column_id");
     f_type = static_cast<struct_type_t>(s->get_uinteger("type"));
     f_flags = s->get_uinteger("flags");
     f_encrypt_key_name = s->get_string("encrypt_key_name");
+    f_internal_size_limit = s->get_integer("internal_size_limit");
     f_default_value = s->get_buffer("default_value");
     f_minimum_value = s->get_buffer("minimum_value");
     f_maximum_value = s->get_buffer("maximum_value");
-    f_minimum_length = s->get_uinteger("minimum_length");
-    f_maximum_length = s->get_uinteger("maximum_length");
-    f_validation = s->get_buffer("validation");
+    f_minimum_size = s->get_uinteger("minimum_size");
+    f_maximum_size = s->get_uinteger("maximum_size");
+    f_validation_script = s->get_buffer("validation_script");
 }
 
 
@@ -760,12 +1043,12 @@ compare_t schema_column::compare(schema_column const & rhs) const
         return compare_t::COMPARE_SCHEMA_DIFFER;
     }
 
-    if(f_minimum_length != rhs.f_minimum_length)
+    if(f_minimum_size != rhs.f_minimum_size)
     {
         return compare_t::COMPARE_SCHEMA_DIFFER;
     }
 
-    if(f_maximum_length != rhs.f_maximum_length)
+    if(f_maximum_size != rhs.f_maximum_size)
     {
         return compare_t::COMPARE_SCHEMA_DIFFER;
     }
@@ -773,7 +1056,7 @@ compare_t schema_column::compare(schema_column const & rhs) const
     // we can't do much better here, unfortunately
     // but if the script changes many things can be affected
     //
-    if(f_validation != rhs.f_validation)
+    if(f_validation_script != rhs.f_validation_script)
     {
         return compare_t::COMPARE_SCHEMA_DIFFER;
     }
@@ -782,89 +1065,95 @@ compare_t schema_column::compare(schema_column const & rhs) const
 }
 
 
-schema_table::pointer_t schema_column::table() const
+schema_table::pointer_t schema_column::get_table() const
 {
     return f_schema_table.lock();
 }
 
 
-column_id_t schema_column::column_id() const
+column_id_t schema_column::get_id() const
 {
-    return f_column_id;
+    return f_id;
 }
 
 
-void schema_column::set_column_id(column_id_t id)
+void schema_column::set_id(column_id_t id)
 {
-    if(f_column_id != COLUMN_NULL)
+    if(f_id != COLUMN_NULL)
     {
         throw id_already_assigned(
-                  "This column already has an identifier ("
-                + std::to_string(static_cast<int>(f_column_id))
-                + "). You can't assigned it another one.");
+                  "this column already has an identifier ("
+                + std::to_string(static_cast<int>(f_id))
+                + ").");
     }
 
-    f_column_id = id;
+    f_id = id;
 }
 
 
-std::string schema_column::name() const
+std::string schema_column::get_name() const
 {
     return f_name;
 }
 
 
-struct_type_t schema_column::type() const
+struct_type_t schema_column::get_type() const
 {
     return f_type;
 }
 
 
-flag32_t schema_column::flags() const
+flag32_t schema_column::get_flags() const
 {
     return f_flags;
 }
 
 
-std::string schema_column::encrypt_key_name() const
+std::string schema_column::get_encrypt_key_name() const
 {
     return f_encrypt_key_name;
 }
 
 
-buffer_t schema_column::default_value() const
+std::int32_t schema_column::get_internal_size_limit() const
+{
+    return f_internal_size_limit;
+}
+
+
+buffer_t schema_column::get_default_value() const
 {
     return f_default_value;
 }
 
 
-buffer_t schema_column::minimum_value() const
+buffer_t schema_column::get_minimum_value() const
 {
     return f_minimum_value;
 }
 
 
-buffer_t schema_column::maximum_value() const
+buffer_t schema_column::get_maximum_value() const
 {
     return f_maximum_value;
 }
 
 
-std::uint32_t schema_column::minimum_length() const
+std::uint32_t schema_column::get_minimum_size() const
 {
-    return f_minimum_length;
+    return f_minimum_size;
 }
 
 
-std::uint32_t schema_column::maximum_length() const
+std::uint32_t schema_column::get_maximum_size() const
 {
-    return f_maximum_length;
+    return f_maximum_size;
 }
 
 
-buffer_t schema_column::validation() const
+buffer_t schema_column::get_validation_script() const
 {
-    return f_validation;
+    return f_validation_script;
 }
 
 
@@ -879,65 +1168,113 @@ buffer_t schema_column::validation() const
 
 
 
-void schema_sort_column::from_xml(basic_xml::node::pointer_t sc)
+/** \brief Parse a column definition.
+ *
+ * This function parses the column definition and saves it in this object.
+ * The definition has one required parameters, which is the column name,
+ * all the other parameters are optional:
+ *
+ * 1. the name of column
+ * 2. the length, which is a number written between parenthesis just after
+ *    the column name; it defines a prefix to sort columns against; if not
+ *    defined, the default of 256 is used, which may not work for your
+ *    specific case
+ * 3. "desc" keyword: sort this column in descending order
+ * 4. "nulls_last" keyword: view NULL values as larger than anything else
+ * 5. "without_nulls" keyword: if that column is NULL, filter out the whole
+ *    row
+ *
+ * \code
+ * <column_id>[(length)] [desc] [nulls_last|without_nulls]
+ * \endcode
+ *
+ * \note
+ * The "nulls_last" and "without_nulls" are mutually exclusive.
+ */
+void schema_sort_column::from_config(std::string const & column_definition)
 {
-    f_column_name = sc->attribute("name");
-    if(f_column_name.empty())
-    {
-        throw invalid_xml(
-                  "Sort column in a secondary index must have a name attribute.");
-    }
+    advgetopt::string_list_t parameters;
+    advgetopt::split_string(column_definition, parameters, {" "});
 
-    std::string const direction(sc->attribute("direction"));
-    if(direction == "desc"
-    || direction == "descending")
+    if(parameters.empty())
     {
-        f_flags |= SCHEMA_SORT_COLUMN_DESCENDING;
+        throw invalid_parameter("schema_sort_column::from_config() called with an empty column_definition.");
+    }
+    std::string::size_type const pos(parameters[0].find('('));
+    if(pos == std::string::npos)
+    {
+        f_column_id = convert_to_uint(parameters[0], 16);
     }
     else
     {
-        f_flags &= ~SCHEMA_SORT_COLUMN_DESCENDING;
+        f_column_id = convert_to_uint(parameters[0].substr(0, pos), 16);
+        parameters.insert(parameters.begin() + 1, parameters[0].substr(pos));
     }
 
-    if(sc->attribute("not-null") == "not-null")
+    f_size = SCHEMA_SORT_COLUMN_DEFAULT_SIZE;
+    std::size_t idx(1);
+    if(parameters.size() >= 2
+    && parameters[1][0] == '(')
     {
-        f_flags |= SCHEMA_SORT_COLUMN_NOT_NULL;
-    }
-    else
-    {
-        f_flags &= ~SCHEMA_SORT_COLUMN_NOT_NULL;
-    }
-
-    std::string const code(sc->text());
-    if(!code.empty())
-    {
-        // TODO: looks into implementating that with as2js
-        //f_function = compile_script(code);
-        f_function.clear();
-    }
-    else
-    {
-        f_function.clear();
-    }
-
-    std::string const length(sc->attribute("length"));
-    if(!length.empty())
-    {
-        f_length = convert_to_uint(length, 32);
-        if(f_length <= 0)
+        // we have the length parameter
+        //
+        if(parameters[idx].back() != ')')
         {
-            SNAP_LOG_WARNING
-                << "The length of a sort column must be at least 1. "
-                << f_length
-                << "\" is not acceptable."
-                << SNAP_LOG_SEND;
+            throw invalid_parameter("schema_sort_column::from_config() found a length parameter where the ')' is missing.");
+        }
 
-            f_length = SCHEMA_SORT_COLUMN_DEFAULT_LENGTH;
+        //std::string const size(parameters[1].substr(1, parameters[1].length() - 2));
+        std::string const size(parameters[1].begin() + 1, parameters[1].end() - 1);
+        if(size.empty())
+        {
+            throw invalid_parameter("schema_sort_column::from_config() found a length parameter without an actual length.");
+        }
+
+        f_size = convert_to_uint(size, 32);
+        if(f_size <= 0)
+        {
+            throw invalid_parameter(
+                  "the length of a sort column must be at least 1. \""
+                + size
+                + "\" is not acceptable.");
+        }
+
+        idx = 2;
+    }
+
+    for(; idx < parameters.size(); ++idx)
+    {
+        if(parameters[idx] == "desc")
+        {
+            f_flags |= SCHEMA_SORT_COLUMN_DESCENDING;
+        }
+        else
+        {
+            f_flags &= ~SCHEMA_SORT_COLUMN_DESCENDING;
+        }
+        if(parameters[idx] == "nulls_last")
+        {
+            f_flags |= SCHEMA_SORT_COLUMN_PLACE_NULLS_LAST;
+        }
+        else
+        {
+            f_flags &= ~SCHEMA_SORT_COLUMN_PLACE_NULLS_LAST;
+        }
+        if(parameters[idx] == "without_nulls")
+        {
+            f_flags |= SCHEMA_SORT_COLUMN_WITHOUT_NULLS;
+        }
+        else
+        {
+            f_flags &= ~SCHEMA_SORT_COLUMN_WITHOUT_NULLS;
         }
     }
-    else
+
+    if((f_flags & (SCHEMA_SORT_COLUMN_PLACE_NULLS_LAST | SCHEMA_SORT_COLUMN_WITHOUT_NULLS))
+               == (SCHEMA_SORT_COLUMN_PLACE_NULLS_LAST | SCHEMA_SORT_COLUMN_WITHOUT_NULLS))
     {
-        f_length = SCHEMA_SORT_COLUMN_DEFAULT_LENGTH;
+        throw invalid_parameter(
+              "schema_sort_column::from_config() forbids the use of \"nulls_last\" and \"without_nulls\" at the same time.");
     }
 }
 
@@ -945,13 +1282,6 @@ void schema_sort_column::from_xml(basic_xml::node::pointer_t sc)
 compare_t schema_sort_column::compare(schema_sort_column const & rhs) const
 {
     compare_t result(compare_t::COMPARE_SCHEMA_EQUAL);
-
-    // ignore those, it doesn't get saved, the binary version has an empty
-    // name (you can get the name using the column identifier instead
-    //if(f_column_name != rhs.f_column_name)
-    //{
-    //    return compare_t::COMPARE_SCHEMA_DIFFER;
-    //}
 
     if(f_column_id != rhs.f_column_id)
     {
@@ -963,23 +1293,12 @@ compare_t schema_sort_column::compare(schema_sort_column const & rhs) const
         return compare_t::COMPARE_SCHEMA_DIFFER;
     }
 
-    if(f_length != rhs.f_length)
-    {
-        return compare_t::COMPARE_SCHEMA_DIFFER;
-    }
-
-    if(f_function != rhs.f_function)
+    if(f_size != rhs.f_size)
     {
         return compare_t::COMPARE_SCHEMA_DIFFER;
     }
 
     return result;
-}
-
-
-std::string schema_sort_column::get_column_name() const
-{
-    return f_column_name;
 }
 
 
@@ -1009,37 +1328,31 @@ void schema_sort_column::set_flags(flag32_t flags)
 
 bool schema_sort_column::is_ascending() const
 {
-    return (f_flags & SCHEMA_SORT_COLUMN_DESCENDING) == 0;
+    return (f_flags & SCHEMA_SORT_COLUMN_WITHOUT_NULLS) == 0;
 }
 
 
 bool schema_sort_column::accept_null_columns() const
 {
-    return (f_flags & SCHEMA_SORT_COLUMN_NOT_NULL) == 0;
+    return (f_flags & SCHEMA_SORT_COLUMN_WITHOUT_NULLS) == 0;
 }
 
 
-std::uint32_t schema_sort_column::get_length() const
+bool schema_sort_column::place_nulls_last() const
 {
-    return f_length;
+    return (f_flags & SCHEMA_SORT_COLUMN_PLACE_NULLS_LAST) == 0;
 }
 
 
-void schema_sort_column::set_length(std::uint32_t length)
+std::uint32_t schema_sort_column::get_size() const
 {
-    f_length = length;
+    return f_size;
 }
 
 
-buffer_t schema_sort_column::get_function() const
+void schema_sort_column::set_size(std::uint32_t size)
 {
-    return f_function;
-}
-
-
-void schema_sort_column::set_function(buffer_t const & function)
-{
-    f_function = function;
+    f_size = size;
 }
 
 
@@ -1047,99 +1360,121 @@ void schema_sort_column::set_function(buffer_t const & function)
 
 
 
-void schema_secondary_index::from_xml(basic_xml::node::pointer_t si)
-{
-    f_index_name = si->attribute("name");
 
-    index_type_t const type(index_name_to_index_type(f_index_name));
-    switch(type)
+
+
+
+void schema_secondary_index::from_config(
+      advgetopt::conf_file::pointer_t config
+    , std::string const & index_id)
+{
+    f_id = convert_to_uint(index_id, 32);
+    if(f_id == 0)
     {
-    case index_type_t::INDEX_TYPE_SECONDARY:
-        break;
+        throw invalid_number(
+                  "an index identifier must be a 32 bit number except 0; \""
+                + index_id
+                + "\" is not valid.");
+    }
 
-    case index_type_t::INDEX_TYPE_INVALID:
-        throw invalid_xml(
+    std::string const section_name(g_index_scope + index_id);
+
+    std::string const index_field_name(section_name + "::name");
+    if(!config->has_parameter(index_field_name))
+    {
+        throw missing_parameter(
+                  "a \"name=...\" is mandatory for an index definition (id: "
+                + index_id
+                + ").");
+    }
+    f_name = config->get_parameter(index_field_name);
+    if(!validate_name(f_name))
+    {
+        throw invalid_name(
                   "\""
-                + f_index_name
-                + "\" is not a valid secondary index name.");
+                + f_name
+                + "\" is not a valid index name.");
+    }
+    if(f_name[0] == '_')
+    {
+        throw invalid_name(
+                  "a user defined index name (\""
+                + f_name
+                + "\") cannot start with an underscore. This is reserved for system indexes.");
+    }
 
-    default:
-        // this is very important since we will not otherwise notice
-        // the duplication and it would break the rest of the database
-        // functionality
+    std::string const index_field_description(section_name + "::description");
+    f_description = config->get_parameter(index_field_description);
+
+    std::string const index_field_key_script(section_name + "::key_script");
+    std::string const key_script(config->get_parameter(index_field_key_script));
+    if(!key_script.empty())
+    {
+        // TODO: compile that script with as2js and save that in memory
         //
-        throw invalid_xml(
-                  "\""
-                + f_index_name
-                + "\" is a reserved index name, which can't be used as a secondary index name.");
-
+        //f_key_script = parse(key_script);
+        throw not_yet_implemented("code -> f_key_script not yet implemented");
     }
 
-    std::string const distributed(si->attribute("distributed"));
-    if(distributed.empty() || distributed == "distributed")
+    std::string const index_field_filter_script(section_name + "::filter_script");
+    std::string const filter_script(config->get_parameter(index_field_filter_script));
+    if(!filter_script.empty())
     {
-        f_flags |= SECONDARY_INDEX_FLAG_DISTRIBUTED;
-    }
-    else if(distributed == "one-instance")
-    {
-        f_flags &= ~SECONDARY_INDEX_FLAG_DISTRIBUTED;
-    }
-    else
-    {
-        SNAP_LOG_WARNING
-            << "Unknown distributed attribute value \""
-            << distributed
-            << "\" within a <secondary-index> tag ignored."
-            << SNAP_LOG_SEND;
-
-        // use the default when invalid
+        // TODO: compile that script with as2js and save that in memory
         //
-        f_flags |= SECONDARY_INDEX_FLAG_DISTRIBUTED;
+        //f_filter_script = parse(filter_script);
+        throw not_yet_implemented("code -> f_filter_script not yet implemented");
     }
 
-    for(auto child(si->first_child());
-        child != nullptr;
-        child = child->next())
+    f_flags = 0;
+    std::string const index_field_flags(section_name + "::flags");
+    if(config->has_parameter(index_field_flags))
     {
-        if(child->tag_name() == "order")
+        std::list<std::string> flags;
+        snapdev::tokenize_string(flags, config->get_parameter(index_field_flags), { "," }, true);
+
+        for(auto const & f : flags)
         {
-            for(auto column_names(child->first_child());
-                column_names != nullptr;
-                column_names = column_names->next())
+            if(f == "without_nulls")
             {
-                if(column_names->tag_name() == "column-name")
-                {
-                    schema_sort_column::pointer_t sort_column(std::make_shared<schema_sort_column>());
-                    sort_column->from_xml(column_names);
-                    f_sort_columns.push_back(sort_column); // vector because these are sorted by user
-
-                    //std::string const name(sort_column->get_name());
-                    //if(f_columns_by_name.find(name()) != f_columns_by_name.end())
-                    //{
-                    //    throw invalid_xml(
-                    //              "Column \""
-                    //            + c->name()
-                    //            + "\" not found in index \"");
-                    //            + f_index_name
-                    //            + "\"."
-                    //}
-                }
+                f_flags |= SECONDARY_INDEX_FLAG_WITHOUT_NULLS;
             }
-        }
-        else if(child->tag_name() == "filter")
-        {
-            std::string const code(child->text());
-            if(!code.empty())
+            else if(f == "nulls_not_distinct")
             {
-                // TODO: looks into implementating that with as2js
-                //f_filter = compile_script(code);
-                f_filter.clear();
+                f_flags |= SECONDARY_INDEX_FLAG_NULLS_NOT_DISTINCT;
+            }
+            else if(f == "distributed")
+            {
+                f_flags |= SECONDARY_INDEX_FLAG_DISTRIBUTED;
             }
             else
             {
-                f_filter.clear();
+                throw invalid_name(
+                          "the user defined index \""
+                        + f_name
+                        + "\" includes an unknown flag: \""
+                        + f
+                        + "\".");
             }
         }
+    }
+
+    std::string const index_field_columns(section_name + "::columns");
+    if(!config->has_parameter(index_field_columns))
+    {
+        throw missing_parameter(
+                  "a user defined index name (\""
+                + f_name
+                + "\") must have a columns=... parameter.");
+    }
+
+    advgetopt::string_list_t columns;
+    advgetopt::split_string(config->get_parameter(index_field_columns), columns, {","});
+    for(auto const & c : columns)
+    {
+        schema_sort_column::pointer_t sort_column(std::make_shared<schema_sort_column>());
+        sort_column->from_config(c);
+        f_sort_columns.push_back(sort_column); // vector because these are sorted by user
     }
 }
 
@@ -1148,15 +1483,15 @@ compare_t schema_secondary_index::compare(schema_secondary_index const & rhs) co
 {
     compare_t result(compare_t::COMPARE_SCHEMA_EQUAL);
 
-    if(f_index_name != rhs.f_index_name)
+    if(f_name != rhs.f_name)
     {
         throw logic_error(
                   "the schema_secondary_index::compare() function can only be"
                   " called with two secondary indexes having the same name."
                   " You called it with a column named \""
-                + f_index_name
+                + f_name
                 + "\" and the other \""
-                + rhs.f_index_name
+                + rhs.f_name
                 + "\".");
     }
 
@@ -1194,15 +1529,21 @@ compare_t schema_secondary_index::compare(schema_secondary_index const & rhs) co
 }
 
 
-std::string schema_secondary_index::get_index_name() const
+index_id_t schema_secondary_index::get_id() const
 {
-    return f_index_name;
+    return f_id;
 }
 
 
-void schema_secondary_index::set_index_name(std::string const & index_name)
+std::string schema_secondary_index::get_name() const
 {
-    f_index_name = index_name;
+    return f_name;
+}
+
+
+void schema_secondary_index::set_name(std::string const & name)
+{
+    f_name = name;
 }
 
 
@@ -1248,10 +1589,10 @@ schema_sort_column::pointer_t schema_secondary_index::get_sort_column(int idx) c
     if(static_cast<size_t>(idx) >= f_sort_columns.size())
     {
         throw out_of_range(
-                  "Index ("
+                  "index ("
                 + std::to_string(idx)
                 + ") is too large to pick a sort column from secondary index \""
-                + f_index_name
+                + f_name
                 + "\".");
     }
 
@@ -1289,7 +1630,6 @@ void schema_secondary_index::set_filter(buffer_t const & filter)
 
 schema_table::schema_table()
 {
-    f_block_size = dbfile::get_system_page_size();
 }
 
 
@@ -1299,30 +1639,101 @@ void schema_table::set_complex_types(schema_complex_type::map_pointer_t complex_
 }
 
 
-void schema_table::from_xml(basic_xml::node::pointer_t x)
+void schema_table::from_config(std::string const & name, std::string const & filename)
 {
-    if(x->tag_name() != "table")
+    // the list of sections are:
+    //
+    //    "table"                    from_config_load_table() & from_config_load_primary_key()
+    //    "column::<identifier>"     from_config_load_columns()
+    //    "index::<identifier>"      from_config_load_indexes()
+    //
+    // The table does not include complex type definitions; those are
+    // defined in a separate file which is read prior to loading table
+    // schemata; it is passed to the table by calling set_complex_types()
+    // prior to this call
+    //
+    if(f_complex_types == nullptr)
     {
-        throw invalid_xml(
-                  "A table schema must be a \"keyspaces\" or \"context\". \""
-                + x->tag_name()
-                + "\" is not acceptable.");
+        throw logic_error("from_config() called before set_complex_types().");
     }
 
-    // start at version 1.0
-    //
-    f_version.set_major(1);
+    from_config_name(name);
+    from_config_version(filename);
 
-    f_name = x->attribute("name");
-    if(!validate_name(f_name))
+    advgetopt::conf_file::pointer_t config(from_config_load_config());
+    from_config_load_table(config);
+    from_config_load_columns(config);
+    from_config_load_primary_key(config);       // finishing up load_table() -- this part needs the list of columns
+    from_config_load_indexes(config);
+}
+
+
+void schema_table::from_config_name(std::string const & name)
+{
+    // Note: this is already checked in the table_impl class, but we still
+    //       want to make sure this name is valid
+    //
+    if(!validate_name(name))
     {
-        throw invalid_xml(
+        throw invalid_name(
                   "\""
-                + f_name
+                + name
                 + "\" is not a valid table name.");
     }
+    f_name = name;
+}
 
-    bool drop(x->attribute("drop") == "drop");
+
+void schema_table::from_config_version(std::string const & filename)
+{
+    std::string::size_type const pos(filename.rfind('-'));
+    if(pos == std::string::npos)
+    {
+        throw type_mismatch(
+                  "expected a dash + version in the table filename \""
+                + filename
+                + "\".");
+    }
+    char const * v(filename.c_str() + pos + 1);
+    f_version = 0;
+    while(*v >= '0' && *v <= '9')
+    {
+        f_version *= 10;
+        f_version += *v - '0';
+        ++v;
+    }
+    if(strcmp(v, ".ini") != 0)
+    {
+        throw type_mismatch(
+                  "expected a dash + version followed by \".ini\" in the table filename \""
+                + filename
+                + "\".");
+    }
+    f_filename = filename;
+}
+
+
+advgetopt::conf_file::pointer_t schema_table::from_config_load_config()
+{
+    // load the .ini file
+    //
+    advgetopt::conf_file_setup setup(
+          f_filename
+        , advgetopt::line_continuation_t::line_continuation_unix
+        , advgetopt::ASSIGNMENT_OPERATOR_EQUAL
+        , advgetopt::COMMENT_SHELL
+        , advgetopt::SECTION_OPERATOR_INI_FILE);
+
+    return advgetopt::conf_file::get_conf_file(setup);
+}
+
+
+void schema_table::from_config_load_table(advgetopt::conf_file::pointer_t config)
+{
+#if 0
+    // I don't think this is still required; keeping for now as a reminder
+    //
+    bool const drop(x->attribute("drop") == "drop");
     if(drop)
     {
         // do not ever save a table when the DROP flag is set (actually
@@ -1331,113 +1742,206 @@ void schema_table::from_xml(basic_xml::node::pointer_t x)
         f_flags |= TABLE_FLAG_DROP;
         return;
     }
+#endif
 
-    if(x->attribute("sparse") == "sparse")
+    // NAME
     {
-        f_flags |= TABLE_FLAG_SPARSE;
+        std::string const table_section_name("table::name");
+        if(!config->has_parameter(table_section_name))
+        {
+            throw type_mismatch("the [table] section must have a name=... parameter.");
+        }
+        if(f_name != config->get_parameter(table_section_name))
+        {
+            throw type_mismatch(
+                      "the table directory is \""
+                    + f_name
+                    + "\" and it was expected to match the [table] section name=... field which instead is set to \""
+                    + config->get_parameter(table_section_name)
+                    + "\".");
+        }
     }
 
-    if(x->attribute("secure") == "secure")
+    // VERSION
     {
-        f_flags |= TABLE_FLAG_SECURE;
+        std::string const table_section_version("table::version");
+        if(!config->has_parameter(table_section_version))
+        {
+            throw type_mismatch("the [table] section must have a version=... parameter.");
+        }
+        std::string const ini_version(config->get_parameter(table_section_version));
+        if(f_version != convert_to_uint(ini_version, 32))
+        {
+            throw type_mismatch(
+                      "the table filename is \""
+                    + f_filename
+                    + "\" with version \""
+                    + std::to_string(f_version)
+                    + "\"; found version \""
+                    + ini_version
+                    + "\" in the .ini file; there is a mismatch.");
+        }
     }
 
-    std::string const track(x->attribute("track"));
-    advgetopt::string_list_t track_flags;
-    advgetopt::split_string(track, track_flags, {","});
-    for(auto tf : track_flags)
+    // DESCRIPTION
     {
-        if(tf == "create")
+        std::string const table_section_description("table::description");
+        if(config->has_parameter(table_section_description))
         {
-            f_flags |= TABLE_FLAG_TRACK_CREATE;
-        }
-        else if(tf == "update")
-        {
-            f_flags |= TABLE_FLAG_TRACK_UPDATE;
-        }
-        else if(tf == "delete")
-        {
-            f_flags |= TABLE_FLAG_TRACK_DELETE;
+            f_description = config->has_parameter(table_section_description);
         }
         else
         {
-            SNAP_LOG_WARNING
-                << "Unknown track flag \""
-                << tf
-                << "\" within <table name=\""
-                << f_name
-                << "\" track=\"...\" ...> tag."
-                << SNAP_LOG_SEND;
+            f_description.clear();
         }
     }
 
-    basic_xml::node::deque_t schemata;
-    basic_xml::node::deque_t secondary_indexes;
-
-    f_model = name_to_model(x->attribute("model"));
-
-    // 1. look for block-size, description, schema, and secondary-index tags
-    //
-    // here we only process the block-size and description
-    // the other tags, we just keep a list of them and manage them later
-    //
-    for(auto child(x->first_child()); child != nullptr; child = child->next())
+    // REPLICATION
     {
-        if(child->tag_name() == "block-size")
+        std::string const table_section_replication("table::replication");
+        if(config->has_parameter(table_section_replication))
         {
-            f_block_size = convert_to_uint(child->text(), 32);
-
-            // TBD--we adjust the size in dbfile
-            //size_t const page_size(dbfile::get_system_page_size());
-            //if((f_block_size % page_size) != 0)
-            //{
-            //    throw invalid_xml(
-            //              "Table \""
-            //            + f_name
-            //            + "\" is not compatible, block size "
-            //            + std::to_string(f_block_size)
-            //            + " is not supported because it is not an exact multiple of "
-            //            + std::to_string(page_size)
-            //            + ".");
-            //}
-        }
-        else if(child->tag_name() == "description")
-        {
-            if(!f_description.empty())
+            f_replication = convert_to_uint(config->get_parameter(table_section_replication), 8);
+            if(f_replication == 0)
             {
-                throw invalid_xml(
-                          "Table \""
-                        + f_name
-                        + "\" has two <description> tags, only one is allowed.");
+                throw type_mismatch(
+                          "table \""
+                        + f_filename
+                        + "\" has an invalid replication=... value: \""
+                        + config->get_parameter(table_section_replication)
+                        + "\". It is expected to be an integer from 1 to 255 included.");
             }
-            f_description = child->text();
-        }
-        else if(child->tag_name() == "schema")
-        {
-            schemata.push_back(child);
-        }
-        else if(child->tag_name() == "secondary-index")
-        {
-            secondary_indexes.push_back(child);
         }
         else
         {
-            // generate an error for unknown tags or ignore?
-            //
-            SNAP_LOG_WARNING
-                << "Unknown tag \""
-                << child->tag_name()
-                << "\" within <table name=\""
-                << f_name
-                << "\"> tag ignored."
-                << SNAP_LOG_SEND;
+            f_replication = TABLE_DEFAULT_REPLICATION;
         }
     }
 
-    // 2. add system columns
+    // MODEL
+    {
+        std::string const table_section_model("table::model");
+        if(config->has_parameter(table_section_model))
+        {
+            f_model = name_to_model(config->get_parameter(table_section_model));
+        }
+        else
+        {
+            f_model = model_t::TABLE_MODEL_DEFAULT;
+        }
+    }
+
+    // FLAGS
+    {
+        f_flags = flag64_t();
+        std::string const table_section_flags("table::flags");
+        if(config->has_parameter(table_section_flags))
+        {
+            advgetopt::string_list_t flags;
+            advgetopt::split_string(config->get_parameter(table_section_flags), flags, {","});
+            for(auto const & f : flags)
+            {
+                if(f == "secure")
+                {
+                    f_flags |= TABLE_FLAG_SECURE;
+                }
+                //else if(f == "temporary")
+                //{
+                //    f_flags |= TABLE_FLAG_TEMPORARY;
+                //}
+                else if(f == "translatable")
+                {
+                    f_flags |= TABLE_FLAG_TRANSLATABLE;
+                }
+                else if(f == "unlogged")
+                {
+                    f_flags |= TABLE_FLAG_UNLOGGED;
+                }
+                else
+                {
+                    throw unknown_parameter(
+                              "table \""
+                            + f_filename
+                            + "\" has an unknown flag in its flags=... value: \""
+                            + f
+                            + "\".");
+                }
+            }
+        }
+    }
+
+    // VERSIONED ROWS
+    {
+        std::string const table_section_versioned_rows("table::versioned_rows");
+        if(config->has_parameter(table_section_versioned_rows))
+        {
+            f_versioned_rows = convert_to_uint(config->get_parameter(table_section_versioned_rows), 8);
+            if(f_versioned_rows == 0)
+            {
+                throw type_mismatch(
+                          "the table \""
+                        + f_filename
+                        + "\" has an invalid versioned rows \""
+                        + config->get_parameter(table_section_versioned_rows)
+                        + "\" value (not a number or too small or too large).");
+            }
+        }
+        else
+        {
+            f_versioned_rows = 1;
+        }
+    }
+
+    // BLOB LIMIT
+    {
+        std::string const table_section_blob_limit("table::blob_limit");
+        if(config->has_parameter(table_section_blob_limit))
+        {
+            f_blob_limit = convert_to_uint(config->get_parameter(table_section_blob_limit), 32);
+            if(f_blob_limit != 0 && f_blob_limit < 128)
+            {
+                throw type_mismatch(
+                          "the table \""
+                        + f_filename
+                        + "\" has an invalid blob limit \""
+                        + config->get_parameter(table_section_blob_limit)
+                        + "\" value (not a number or too small).");
+            }
+        }
+        else
+        {
+            f_blob_limit = 0;
+        }
+    }
+}
+
+
+void schema_table::from_config_load_columns(advgetopt::conf_file::pointer_t config)
+{
+    // 2. add system columns (i.e. those columns do not appear in the
+    //    .ini files)
     //
+    //    _schema_version
+    //    _oid
+    //    _created_on
+    //    _created_by
+    //    _last_updated
+    //    _last_updated_by
+    //    _deleted_on
+    //    _deleted_by
+    //    _version
+    //    _language
+    //
+    // _current_version -- this is actually a row parameter... and we are
+    //                     expected to have at least 2 such parameters:
+    //                     the "current version" presented to the user and
+    //                     the "current default version"; on top of that,
+    //                     there should be the "current draft" and
+    //                     "current default draft" entries
 
     // schema version -- to know which schema to use to read the data
+    //
+    // [row specialized field, this is not saved as a column in the data file]
     //
     // this one is managed as a very special case instead; the version
     // is saved as the first 4 bytes of any one row; plus on a read we
@@ -1445,17 +1949,23 @@ void schema_table::from_xml(basic_xml::node::pointer_t x)
     // having such a column would not be useful (i.e. it would always
     // be the exact same value as far as the end user is concerned)
     //
-    //{
-    //    auto c(std::make_shared<schema_column>(
-    //                  shared_from_this()
-    //                , "_schema_version"
-    //                , struct_type_t::STRUCT_TYPE_VERSION
-    //                , COLUMN_FLAG_REQUIRED | COLUMN_FLAG_SYSTEM));
-    //
-    //    f_columns_by_name[c->name()] = c;
-    //}
+    {
+        auto c(std::make_shared<schema_column>(
+                      shared_from_this()
+                    , "_schema_version"
+                    , struct_type_t::STRUCT_TYPE_UINT32
+                    , COLUMN_FLAG_REQUIRED | COLUMN_FLAG_SYSTEM));
 
-    // object identifier -- to place the rows in our indirect index
+        f_columns_by_name[c->get_name()] = c;
+    }
+
+    // object identifier -- to place the rows in our primary index
+    //
+    // [row specialized field, this is not saved as a column in the data file]
+    //
+    // this field is not required here, but by having it, we can lose
+    // the primary index and not lose anything since we have the information
+    // here
     {
         auto c(std::make_shared<schema_column>(
                       shared_from_this()
@@ -1463,76 +1973,12 @@ void schema_table::from_xml(basic_xml::node::pointer_t x)
                     , struct_type_t::STRUCT_TYPE_OID
                     , COLUMN_FLAG_REQUIRED | COLUMN_FLAG_SYSTEM));
 
-        f_columns_by_name[c->name()] = c;
-    }
-
-    // date when the row was created
-    {
-        auto c(std::make_shared<schema_column>(
-                      shared_from_this()
-                    , "_created_on"
-                    , struct_type_t::STRUCT_TYPE_USTIME
-                    , COLUMN_FLAG_SYSTEM));
-
-        f_columns_by_name[c->name()] = c;
-    }
-
-    // when the row was last updated
-    {
-        auto c(std::make_shared<schema_column>(
-                      shared_from_this()
-                    , "_last_updated"
-                    , struct_type_t::STRUCT_TYPE_USTIME
-                    , COLUMN_FLAG_REQUIRED | COLUMN_FLAG_SYSTEM));
-
-        f_columns_by_name[c->name()] = c;
-    }
-
-    // the date when it gets deleted automatically
-    {
-        auto c(std::make_shared<schema_column>(
-                      shared_from_this()
-                    , "_deleted_on"
-                    , struct_type_t::STRUCT_TYPE_USTIME
-                    , COLUMN_FLAG_SYSTEM));
-
-        f_columns_by_name[c->name()] = c;
-    }
-
-    // ID of user who created this row
-    {
-        auto c(std::make_shared<schema_column>(
-                      shared_from_this()
-                    , "_created_by"
-                    , struct_type_t::STRUCT_TYPE_UINT64
-                    , COLUMN_FLAG_SYSTEM));
-
-        f_columns_by_name[c->name()] = c;
-    }
-
-    // ID of user who last updated this row
-    {
-        auto c(std::make_shared<schema_column>(
-                      shared_from_this()
-                    , "_last_updated_by"
-                    , struct_type_t::STRUCT_TYPE_UINT64
-                    , COLUMN_FLAG_SYSTEM));
-
-        f_columns_by_name[c->name()] = c;
-    }
-
-    // ID of user who deleted this row
-    {
-        auto c(std::make_shared<schema_column>(
-                      shared_from_this()
-                    , "_deleted_by"
-                    , struct_type_t::STRUCT_TYPE_UINT64
-                    , COLUMN_FLAG_SYSTEM));
-
-        f_columns_by_name[c->name()] = c;
+        f_columns_by_name[c->get_name()] = c;
     }
 
     // version of the data in this row
+    //
+    // [row specialized field, this is not saved as a column in the data file]
     //
     // --------------------------------------------------------- resume -----
     //
@@ -1544,7 +1990,8 @@ void schema_table::from_xml(basic_xml::node::pointer_t x)
     // fields: one to read a specific version and one to write a revision
     // which would get automatically updated to a new branch and/or revision.
     //
-    // See also:
+    // See also [but that function is wrong because murmur3 cannot include
+    // the version & language]:
     // void row::generate_mumur3(buffer_t & murmur3, version_t version, std::string const language);
     //
     // ------------------------------------------------ long discussion -----
@@ -1588,7 +2035,10 @@ void schema_table::from_xml(basic_xml::node::pointer_t x)
     // **IMPORTANT:** The revision also makes use of a language. If the
     // "_language" column is not defined, then use "xx" as the default.
     //
-    // Implementation Ideas: (right now I think #3 is what we must use)
+    // Implementation Ideas: (right now I think #3 is what we must use
+    // except that it prevents us from having a simple list of
+    // `major:minor:language` sub-indexes which I think we need--so that
+    // means we probably should use #2 instead)
     //
     // 1. add the major version along the column ID when saving a branch
     //    value (ID:major:value); in effect we end up with many more columns
@@ -1612,7 +2062,7 @@ void schema_table::from_xml(basic_xml::node::pointer_t x)
     //
     // The main problem with (1) is that one row will grow tremendously and
     // that will probably be impossible to manage after a while (on reads as
-    // well as cheer size of the row). (2) is great although it certainly
+    // well as sheer size of the row). (2) is great although it certainly
     // requires a lot more specialized management to maintain the arrays.
     // (3) is probably the best since we should be able to reuse much of the
     // code handling indexes which will just be the standard row key plus
@@ -1627,10 +2077,15 @@ void schema_table::from_xml(basic_xml::node::pointer_t x)
                     , struct_type_t::STRUCT_TYPE_VERSION
                     , COLUMN_FLAG_SYSTEM));
 
-        f_columns_by_name[c->name()] = c;
+        f_columns_by_name[c->get_name()] = c;
     }
 
     // language code used in the "body", "title", etc.
+    //
+    // [row specialized field, this is not saved as a column in the data file]
+    //
+    // [IMPORTANT: we use a language identifier to avoid using a string
+    //             which would have a variable size]
     //
     // By default, we use a 2 letter code ISO-639-1 code, but this field
     // allows for any ISO encoding such as "en-us" and any macro language.
@@ -1646,44 +2101,124 @@ void schema_table::from_xml(basic_xml::node::pointer_t x)
         auto c(std::make_shared<schema_column>(
                       shared_from_this()
                     , "_language"
-                    , struct_type_t::STRUCT_TYPE_P8STRING
+                    , struct_type_t::STRUCT_TYPE_UINT16
                     , COLUMN_FLAG_SYSTEM));
 
-        f_columns_by_name[c->name()] = c;
+        f_columns_by_name[c->get_name()] = c;
     }
 
-    // current revision
-    //
-    // this is another entry in link with the branch/revision concept, we
-    // need to display a page, we need to have a current version to display
-    // that page; problem here is we need one such version per language
-    //
-    // in the old Cassandra database we also have a latest version, which
-    // is also per language; this latest version gets used to create new
-    // revisions effectively
-    //
-    // finally, we had a 'last edited version' because if you were to edit
-    // and not save your editing, we wanted to save a version of the page
-    // attached to your user and that was a form of "floating" version
-    // (i.e. it was not yet assigned a full version/language pair)
-    //
-    // for now I leave this at that, but I think we'll need several more
-    // fields to manage the whole set of possibilities (although things
-    // such as the last edited page is per user so we can't just have one
-    // field? well... maybe we track the last 100 edits and delete anything
-    // that's too old and was not properly saved after that) -- the editing
-    // versions can be called "draft"; which could also make use of the
-    // language field to distinguish them: "<major>.<minor>::<language>-draft"
-    //
+    // date when the row was created
     {
         auto c(std::make_shared<schema_column>(
                       shared_from_this()
-                    , "_current_version"
-                    , struct_type_t::STRUCT_TYPE_VERSION
+                    , "_created_on"
+                    , struct_type_t::STRUCT_TYPE_MSTIME
                     , COLUMN_FLAG_SYSTEM));
 
-        f_columns_by_name[c->name()] = c;
+        f_columns_by_name[c->get_name()] = c;
     }
+
+    // when the row was last updated
+    {
+        auto c(std::make_shared<schema_column>(
+                      shared_from_this()
+                    , "_last_updated"
+                    , struct_type_t::STRUCT_TYPE_MSTIME
+                    , COLUMN_FLAG_REQUIRED | COLUMN_FLAG_SYSTEM));
+
+        f_columns_by_name[c->get_name()] = c;
+    }
+
+    // the date when it gets deleted automatically
+    {
+        auto c(std::make_shared<schema_column>(
+                      shared_from_this()
+                    , "_deleted_on"
+                    , struct_type_t::STRUCT_TYPE_MSTIME
+                    , COLUMN_FLAG_SYSTEM));
+
+        f_columns_by_name[c->get_name()] = c;
+    }
+
+    // ID of user who created this row
+    {
+        auto c(std::make_shared<schema_column>(
+                      shared_from_this()
+                    , "_created_by"
+                    , struct_type_t::STRUCT_TYPE_UINT64
+                    , COLUMN_FLAG_SYSTEM));
+
+        f_columns_by_name[c->get_name()] = c;
+    }
+
+    // ID of user who last updated this row
+    {
+        auto c(std::make_shared<schema_column>(
+                      shared_from_this()
+                    , "_last_updated_by"
+                    , struct_type_t::STRUCT_TYPE_UINT64
+                    , COLUMN_FLAG_SYSTEM));
+
+        f_columns_by_name[c->get_name()] = c;
+    }
+
+    // ID of user who deleted this row
+    {
+        auto c(std::make_shared<schema_column>(
+                      shared_from_this()
+                    , "_deleted_by"
+                    , struct_type_t::STRUCT_TYPE_UINT64
+                    , COLUMN_FLAG_SYSTEM));
+
+        f_columns_by_name[c->get_name()] = c;
+    }
+
+// this is not the right place for the current version concept; that would
+// need to be in the corresponding index
+//
+// there are also several important concepts:
+//
+// 1. we have the latest version; usually called the "draft" because it is
+//    likely not publicly available
+//
+// 2. we have the current version which is the public one
+//
+// 3. we also have a similar concept with the default value (i.e. the rows
+//    where the major version is 0); so we have a current default value and
+//    a "draft" (latest) default value
+//
+//    // current version
+//    //
+//    // this is another entry in link with the branch/revision concept, we
+//    // need to display a page, we need to have a current version to display
+//    // that page; problem here is we need one such version per language
+//    //
+//    // in the old Cassandra database we also have a latest version, which
+//    // is also per language; this latest version gets used to create new
+//    // revisions effectively
+//    //
+//    // finally, we had a 'last edited version' because if you were to edit
+//    // and not save your editing, we wanted to save a version of the page
+//    // attached to your user and that was a form of "floating" version
+//    // (i.e. it was not yet assigned a full version/language pair)
+//    //
+//    // for now I leave this at that, but I think we'll need several more
+//    // fields to manage the whole set of possibilities (although things
+//    // such as the last edited page is per user so we can't just have one
+//    // field? well... maybe we track the last 100 edits and delete anything
+//    // that's too old and was not properly saved after that) -- the editing
+//    // versions can be called "draft"; which could also make use of the
+//    // language field to distinguish them: "<major>.<minor>::<language>-draft"
+//    //
+//    {
+//        auto c(std::make_shared<schema_column>(
+//                      shared_from_this()
+//                    , "_current_version"
+//                    , struct_type_t::STRUCT_TYPE_VERSION
+//                    , COLUMN_FLAG_SYSTEM));
+//
+//        f_columns_by_name[c->name()] = c;
+//    }
 
     // "_expiration_date" -- we actually do not need an expiration date
     // column, the user can create his own "expiration_date" column which
@@ -1693,101 +2228,156 @@ void schema_table::from_xml(basic_xml::node::pointer_t x)
     // the precision and what the value should be (it's just like a standard
     // column) -- see is_expiration_date_column()
 
-    // 3. parse user columns
+    // go through and load columns
     //
-
-    // Note: we need all the columns and eventually the schema from the
-    //       existing table before we can assign the column identifiers;
-    //       see the assign_column_ids() function for details
-    //
-    for(auto const & child : schemata)
+    advgetopt::conf_file::sections_t sections(config->get_sections());
+    for(auto s : sections)
     {
-        process_columns(child);
-    }
-
-    // 4. the row-key is transformed in an array of column names
-    //
-    // the parameter in the XML is a string of column names separated
-    // by commas
-    //
-    std::string const row_key_name(x->attribute("row-key"));
-    advgetopt::split_string(row_key_name, f_row_key_names, {","});
-    if(f_row_key_names.empty())
-    {
-        throw invalid_xml(
-                  "A table schema must have a \"row-key\". \""
-                + f_name
-                + "\" is not acceptable.");
-    }
-
-    // 5. handle the secondary indexes
-    //
-    process_secondary_indexes(secondary_indexes);
-}
-
-
-void schema_table::load_extension(basic_xml::node::pointer_t e)
-{
-    basic_xml::node::deque_t secondary_indexes;
-
-    for(auto child(e->first_child()); child != nullptr; child = child->next())
-    {
-        if(child->tag_name() == "schema")
+        if(!s.starts_with(g_column_scope))
         {
-            process_columns(child);
-        }
-        else if(child->tag_name() == "secondary-index")
-        {
-            secondary_indexes.push_back(child);
-        }
-        else
-        {
-            // generate an error for unknown tags or ignore?
-            //
-            SNAP_LOG_WARNING
-                << "Unknown tag \""
-                << child->tag_name()
-                << "\" within a <table-extension> tag ignored."
-                << SNAP_LOG_SEND;
-        }
-    }
-
-    process_secondary_indexes(secondary_indexes);
-}
-
-
-void schema_table::process_columns(basic_xml::node::pointer_t column_definitions)
-{
-    for(auto column(column_definitions->first_child());
-        column != nullptr;
-        column = column->next())
-    {
-        auto c(std::make_shared<schema_column>(shared_from_this(), column));
-        if(f_columns_by_name.find(c->name()) != f_columns_by_name.end())
-        {
-            SNAP_LOG_WARNING
-                << "Column \""
-                << f_name
-                << '.'
-                << c->name()
-                << "\" defined twice. Second definition ignored."
-                << SNAP_LOG_SEND;
             continue;
         }
-        f_columns_by_name[c->name()] = c;
+
+        auto c(std::make_shared<schema_column>(
+                      shared_from_this()
+                    , config
+                    , s.substr(strlen(g_column_scope))));
+
+        f_columns_by_name[c->get_name()] = c;
+        f_columns_by_id[c->get_id()] = c;
     }
 }
 
 
-void schema_table::process_secondary_indexes(basic_xml::node::deque_t secondary_indexes)
+void schema_table::from_config_load_primary_key(advgetopt::conf_file::pointer_t config)
 {
-    for(auto const & si : secondary_indexes)
+    std::string const table_section_primary_key("table::primary_key");
+    if(!config->has_parameter(table_section_primary_key))
     {
-        schema_secondary_index::pointer_t index(std::make_shared<schema_secondary_index>());
-        index->from_xml(si);
-        f_secondary_indexes[index->get_index_name()] = index;
+        throw missing_parameter(
+                  "the table \""
+                + f_filename
+                + "\" must have a primary_key=... parameter defined.");
+    }
+    advgetopt::string_list_t primary_key_values;
+    advgetopt::split_string(config->get_parameter(table_section_primary_key), primary_key_values, { "," });
+    f_primary_key.clear();
+    for(auto const & id : primary_key_values)
+    {
+        column_id_t const column_id(convert_to_uint(id, 16));
+        if(f_columns_by_id.find(column_id) == f_columns_by_id.end())
+        {
+            throw column_not_found(
+                      "the table primary key in \""
+                    + f_filename
+                    + "\" references a column with identifier "
+                    + id
+                    + " which is not defined.");
+        }
+        f_primary_key.push_back(column_id);
     }
 }
+
+
+void schema_table::from_config_load_indexes(advgetopt::conf_file::pointer_t config)
+{
+    advgetopt::conf_file::sections_t sections(config->get_sections());
+    for(auto s : sections)
+    {
+        if(!s.starts_with(g_index_scope))
+        {
+            continue;
+        }
+
+        auto index(std::make_shared<schema_secondary_index>());
+        index->from_config(
+                  config
+                , s.substr(strlen(g_index_scope)));
+
+        std::size_t const max(index->get_column_count());
+        for(std::size_t idx(0); idx < max; ++idx)
+        {
+            schema_sort_column::pointer_t sort_column(index->get_sort_column(idx));
+            column_id_t const column_id(sort_column->get_column_id());
+            if(f_columns_by_id.find(column_id) == f_columns_by_id.end())
+            {
+                throw column_not_found(
+                          "column with identifier \""
+                        + std::to_string(static_cast<int>(column_id))
+                        + "\" not found in table \""
+                        + f_name
+                        + "\".");
+            }
+        }
+
+        f_secondary_indexes[index->get_name()] = index;
+        f_secondary_indexes_by_id[index->get_id()] = index;
+    }
+}
+
+
+//void schema_table::load_extension(advgetopt::conf_file::pointer_t s)
+//{
+//    basic_xml::node::deque_t secondary_indexes;
+//
+//    for(auto child(e->first_child()); child != nullptr; child = child->next())
+//    {
+//        if(child->tag_name() == "schema")
+//        {
+//            process_columns(child);
+//        }
+//        else if(child->tag_name() == "secondary-index")
+//        {
+//            secondary_indexes.push_back(child);
+//        }
+//        else
+//        {
+//            // generate an error for unknown tags or ignore?
+//            //
+//            SNAP_LOG_WARNING
+//                << "unknown tag \""
+//                << child->tag_name()
+//                << "\" within a <table-extension> tag ignored."
+//                << SNAP_LOG_SEND;
+//        }
+//    }
+//
+//    process_secondary_indexes(secondary_indexes);
+//}
+
+
+//void schema_table::process_columns(advgetopt::conf_file::pointer_t column_definitions)
+//{
+//    for(auto column(column_definitions->first_child());
+//        column != nullptr;
+//        column = column->next())
+//    {
+//        auto c(std::make_shared<schema_column>(shared_from_this(), column));
+//        if(f_columns_by_name.find(c->name()) != f_columns_by_name.end())
+//        {
+//            SNAP_LOG_WARNING
+//                << "column \""
+//                << f_name
+//                << '.'
+//                << c->name()
+//                << "\" defined twice. Second definition ignored."
+//                << SNAP_LOG_SEND;
+//            continue;
+//        }
+//        f_columns_by_name[c->name()] = c;
+//    }
+//}
+
+
+//void schema_table::process_secondary_indexes(advgetopt::conf_file::pointer_t secondary_indexes)
+//{
+//    for(auto const & si : secondary_indexes)
+//    {
+//        schema_secondary_index::pointer_t index(std::make_shared<schema_secondary_index>());
+//        index->from_xml(si);
+//        f_secondary_indexes[index->get_name()] = index;
+//    }
+//}
 
 
 /** \brief Compare two schema tables.
@@ -1834,27 +2424,17 @@ compare_t schema_table::compare(schema_table const & rhs) const
         result = compare_t::COMPARE_SCHEMA_UPDATE;
     }
 
-    if(f_block_size != rhs.f_block_size)
-    {
-        throw id_missing(
-              "Block size cannot currently be changed. Please restore to "
-            + std::to_string(f_block_size)
-            + " instead of "
-            + std::to_string(rhs.f_block_size)
-            + ".");
-    }
-
-    if(f_row_key != rhs.f_row_key)
+    if(f_primary_key != rhs.f_primary_key)
     {
         return compare_t::COMPARE_SCHEMA_DIFFER;
     }
 
-    for(schema_secondary_index::map_t::const_iterator
+    for(schema_secondary_index::map_by_name_t::const_iterator
             it(f_secondary_indexes.cbegin());
             it != f_secondary_indexes.cend();
             ++it)
     {
-        schema_secondary_index::pointer_t rhs_secondary_index(rhs.secondary_index(it->first));
+        schema_secondary_index::pointer_t rhs_secondary_index(rhs.get_secondary_index(it->first));
         if(rhs_secondary_index == nullptr)
         {
             return compare_t::COMPARE_SCHEMA_DIFFER;
@@ -1872,27 +2452,26 @@ compare_t schema_table::compare(schema_table const & rhs) const
 
     // loop through the RHS in case we removed a secondary index
     //
-    for(schema_secondary_index::map_t::const_iterator
+    for(schema_secondary_index::map_by_name_t::const_iterator
             it(rhs.f_secondary_indexes.cbegin());
             it != rhs.f_secondary_indexes.cend();
             ++it)
     {
-        if(secondary_index(it->first) == nullptr)
+        if(get_secondary_index(it->first) == nullptr)
         {
             return compare_t::COMPARE_SCHEMA_DIFFER;
         }
     }
 
     //f_columns_by_id -- we only have to compare one map
-    //                   and at this point f_columns_by_id is expected to be
-    //                   empty still
+    //                   so we ignore f_columns_by_id which has the same data
     //
     for(schema_column::map_by_name_t::const_iterator
             it(f_columns_by_name.cbegin());
             it != f_columns_by_name.cend();
             ++it)
     {
-        schema_column::pointer_t rhs_column(rhs.column(it->first));
+        schema_column::pointer_t rhs_column(rhs.get_column(it->first));
         if(rhs_column == nullptr)
         {
             // we could not find that column in the other schema,
@@ -1921,13 +2500,13 @@ compare_t schema_table::compare(schema_table const & rhs) const
             it != rhs.f_columns_by_name.cend();
             ++it)
     {
-        if(column(it->first) == nullptr)
+        if(get_column(it->first) == nullptr)
         {
             // we could not find that column in the new schema,
             // so it's different
             //
             // TODO: make sure "renamed" columns are handled properly
-            //       once we add that feature
+            //       once we add that feature [use IDs instead of names?]
             //
             return compare_t::COMPARE_SCHEMA_DIFFER;
         }
@@ -1939,145 +2518,143 @@ compare_t schema_table::compare(schema_table const & rhs) const
 }
 
 
-void schema_table::from_binary(virtual_buffer::pointer_t b)
-{
-    structure::pointer_t s(std::make_shared<structure>(g_table_description));
-
-    s->set_virtual_buffer(b, 0);
-
-    f_version  = s->get_uinteger("schema_version");
-    f_added_on = s->get_integer("added_on");
-    f_name     = s->get_string("name");
-    f_flags    = s->get_uinteger("flags");
-    f_model    = static_cast<model_t>(s->get_uinteger("model"));
-
-    {
-        auto const field(s->get_field("row_key"));
-        auto const max(field->size());
-        for(std::remove_const<decltype(max)>::type idx(0); idx < max; ++idx)
-        {
-            f_row_key.push_back((*field)[idx]->get_uinteger("column_id"));
-        }
-    }
-
-    {
-        auto const field(s->get_field("secondary_indexes"));
-        auto const max(field->size());
-        for(std::remove_const<decltype(max)>::type idx(0); idx < max; ++idx)
-        {
-            schema_secondary_index::pointer_t secondary_index(std::make_shared<schema_secondary_index>());
-
-            secondary_index->set_index_name((*field)[idx]->get_string("name"));
-            secondary_index->set_flags((*field)[idx]->get_uinteger("flags"));
-
-            auto const columns_field((*field)[idx]->get_field("sort_columns"));
-            auto const columns_max(columns_field->size());
-            for(std::remove_const<decltype(columns_max)>::type j(0); j < columns_max; ++j)
-            {
-                schema_sort_column::pointer_t sc(std::make_shared<schema_sort_column>());
-                sc->set_column_id((*columns_field)[j]->get_uinteger("column_id"));
-                sc->set_flags((*columns_field)[j]->get_uinteger("flags"));
-                sc->set_length((*columns_field)[j]->get_uinteger("length"));
-                sc->set_function((*columns_field)[j]->get_buffer("function"));
-                secondary_index->add_sort_column(sc);
-            }
-
-            secondary_index->set_filter((*field)[idx]->get_buffer("filter"));
-
-            f_secondary_indexes[secondary_index->get_index_name()] = secondary_index;
-        }
-    }
-
-    {
-        auto field(s->get_field("columns"));
-        auto const max(field->size());
-        for(std::remove_const<decltype(max)>::type idx(0); idx < max; ++idx)
-        {
-            schema_column::pointer_t column(std::make_shared<schema_column>(shared_from_this(), (*field)[idx]));
-            if(column->column_id() == 0)
-            {
-                throw id_missing(
-                      "loaded column \""
-                    + column->name()
-                    + "\" from the database and its column identifier is 0.");
-            }
-
-            f_columns_by_name[column->name()] = column;
-            f_columns_by_id[column->column_id()] = column;
-        }
-    }
-}
-
-
-virtual_buffer::pointer_t schema_table::to_binary() const
-{
-    structure::pointer_t s(std::make_shared<structure>(g_table_description));
-    s->init_buffer();
-    s->set_uinteger("schema_version", f_version.to_binary());
-    s->set_integer("added_on", f_added_on);
-    s->set_string("name", f_name);
-    s->set_uinteger("flags", f_flags);
-    s->set_uinteger("block_size", f_block_size);
-    s->set_uinteger("model", static_cast<uint8_t>(f_model));
-
-    {
-        auto const max(f_row_key.size());
-        for(std::remove_const<decltype(max)>::type i(0); i < max; ++i)
-        {
-            structure::pointer_t column_id_structure(s->new_array_item("row_key"));
-            column_id_structure->set_uinteger("column_id", f_row_key[i]);
-        }
-    }
-
-    {
-        for(auto it(f_secondary_indexes.cbegin());
-                 it != f_secondary_indexes.cend();
-                 ++it)
-        {
-            structure::pointer_t secondary_index_structure(s->new_array_item("secondary_indexes"));
-            secondary_index_structure->set_string("name", it->second->get_index_name());
-            secondary_index_structure->set_uinteger("flags", it->second->get_flags());
-            secondary_index_structure->set_buffer("filter", it->second->get_filter());
-
-            auto const jmax(it->second->get_column_count());
-            for(std::remove_const<decltype(jmax)>::type j(0); j < jmax; ++j)
-            {
-                structure::pointer_t sort_column_structure(secondary_index_structure->new_array_item("sort_columns"));
-                schema_sort_column::pointer_t sc(it->second->get_sort_column(j));
-                sort_column_structure->set_uinteger("column_id", sc->get_column_id());
-                sort_column_structure->set_uinteger("flags", sc->get_flags());
-                sort_column_structure->set_uinteger("length", sc->get_length());
-                sort_column_structure->set_buffer("function", sc->get_function());
-            }
-        }
-    }
-
-    {
-        for(auto const & col : f_columns_by_id)
-        {
-            structure::pointer_t column_description(s->new_array_item("columns"));
-            column_description->set_string("name", col.second->name());
-            column_description->set_uinteger("column_id", col.second->column_id());
-            column_description->set_uinteger("type", static_cast<uint16_t>(col.second->type()));
-            column_description->set_uinteger("flags", col.second->flags());
-            column_description->set_string("encrypt_key_name", col.second->encrypt_key_name());
-            column_description->set_buffer("default_value", col.second->default_value());
-            column_description->set_buffer("minimum_value", col.second->minimum_value());
-            column_description->set_buffer("maximum_value", col.second->maximum_value());
-            column_description->set_uinteger("minimum_length", col.second->minimum_length());
-            column_description->set_uinteger("maximum_length", col.second->maximum_length());
-            column_description->set_buffer("validation", col.second->validation());
-        }
-    }
-
-    // we know it is zero so we ignore that one anyay
-    //
-    uint64_t start_offset(0);
-    return s->get_virtual_buffer(start_offset);
-}
+//void schema_table::from_binary(virtual_buffer::pointer_t b)
+//{
+//    structure::pointer_t s(std::make_shared<structure>(g_table_description));
+//
+//    s->set_virtual_buffer(b, 0);
+//
+//    f_version  = s->get_uinteger("schema_version");
+//    f_added_on = s->get_integer("added_on");
+//    f_name     = s->get_string("name");
+//    f_flags    = s->get_uinteger("flags");
+//    f_model    = static_cast<model_t>(s->get_uinteger("model"));
+//
+//    {
+//        auto const field(s->get_field("primary_key"));
+//        auto const max(field->size());
+//        for(std::remove_const<decltype(max)>::type idx(0); idx < max; ++idx)
+//        {
+//            f_primary_key.push_back((*field)[idx]->get_uinteger("column_id"));
+//        }
+//    }
+//
+//    {
+//        auto const field(s->get_field("secondary_indexes"));
+//        auto const max(field->size());
+//        for(std::remove_const<decltype(max)>::type idx(0); idx < max; ++idx)
+//        {
+//            schema_secondary_index::pointer_t secondary_index(std::make_shared<schema_secondary_index>());
+//
+//            secondary_index->set_index_name((*field)[idx]->get_string("name"));
+//            secondary_index->set_flags((*field)[idx]->get_uinteger("flags"));
+//
+//            auto const columns_field((*field)[idx]->get_field("sort_columns"));
+//            auto const columns_max(columns_field->size());
+//            for(std::remove_const<decltype(columns_max)>::type j(0); j < columns_max; ++j)
+//            {
+//                schema_sort_column::pointer_t sc(std::make_shared<schema_sort_column>());
+//                sc->set_column_id((*columns_field)[j]->get_uinteger("column_id"));
+//                sc->set_flags((*columns_field)[j]->get_uinteger("flags"));
+//                sc->set_length((*columns_field)[j]->get_uinteger("length"));
+//                secondary_index->add_sort_column(sc);
+//            }
+//
+//            secondary_index->set_filter((*field)[idx]->get_buffer("filter"));
+//
+//            f_secondary_indexes[secondary_index->get_name()] = secondary_index;
+//        }
+//    }
+//
+//    {
+//        auto field(s->get_field("columns"));
+//        auto const max(field->size());
+//        for(std::remove_const<decltype(max)>::type idx(0); idx < max; ++idx)
+//        {
+//            schema_column::pointer_t column(std::make_shared<schema_column>(shared_from_this(), (*field)[idx]));
+//            if(column->column_id() == 0)
+//            {
+//                throw id_missing(
+//                      "loaded column \""
+//                    + column->name()
+//                    + "\" from the database and its column identifier is 0.");
+//            }
+//
+//            f_columns_by_name[column->name()] = column;
+//            f_columns_by_id[column->column_id()] = column;
+//        }
+//    }
+//}
+//
+//
+//virtual_buffer::pointer_t schema_table::to_binary() const
+//{
+//    structure::pointer_t s(std::make_shared<structure>(g_table_description));
+//    s->init_buffer();
+//    s->set_uinteger("schema_version", f_version.to_binary());
+//    s->set_integer("added_on", f_added_on);
+//    s->set_string("name", f_name);
+//    s->set_uinteger("flags", f_flags);
+//    s->set_uinteger("block_size", f_block_size);
+//    s->set_uinteger("model", static_cast<uint8_t>(f_model));
+//
+//    {
+//        auto const max(f_primary_key.size());
+//        for(std::remove_const<decltype(max)>::type i(0); i < max; ++i)
+//        {
+//            structure::pointer_t column_id_structure(s->new_array_item("primary_key"));
+//            column_id_structure->set_uinteger("column_id", f_primary_key[i]);
+//        }
+//    }
+//
+//    {
+//        for(auto it(f_secondary_indexes.cbegin());
+//                 it != f_secondary_indexes.cend();
+//                 ++it)
+//        {
+//            structure::pointer_t secondary_index_structure(s->new_array_item("secondary_indexes"));
+//            secondary_index_structure->set_string("name", it->second->get_name());
+//            secondary_index_structure->set_uinteger("flags", it->second->get_flags());
+//            secondary_index_structure->set_buffer("filter", it->second->get_filter());
+//
+//            auto const jmax(it->second->get_column_count());
+//            for(std::remove_const<decltype(jmax)>::type j(0); j < jmax; ++j)
+//            {
+//                structure::pointer_t sort_column_structure(secondary_index_structure->new_array_item("sort_columns"));
+//                schema_sort_column::pointer_t sc(it->second->get_sort_column(j));
+//                sort_column_structure->set_uinteger("column_id", sc->get_column_id());
+//                sort_column_structure->set_uinteger("flags", sc->get_flags());
+//                sort_column_structure->set_uinteger("length", sc->get_length());
+//            }
+//        }
+//    }
+//
+//    {
+//        for(auto const & col : f_columns_by_id)
+//        {
+//            structure::pointer_t column_description(s->new_array_item("columns"));
+//            column_description->set_string("name", col.second->name());
+//            column_description->set_uinteger("column_id", col.second->column_id());
+//            column_description->set_uinteger("type", static_cast<uint16_t>(col.second->type()));
+//            column_description->set_uinteger("flags", col.second->flags());
+//            column_description->set_string("encrypt_key_name", col.second->encrypt_key_name());
+//            column_description->set_buffer("default_value", col.second->default_value());
+//            column_description->set_buffer("minimum_value", col.second->minimum_value());
+//            column_description->set_buffer("maximum_value", col.second->maximum_value());
+//            column_description->set_uinteger("minimum_length", col.second->minimum_length());
+//            column_description->set_uinteger("maximum_length", col.second->maximum_length());
+//            column_description->set_buffer("validation", col.second->validation());
+//        }
+//    }
+//
+//    // we know it is zero so we ignore that one anyay
+//    //
+//    uint64_t start_offset(0);
+//    return s->get_virtual_buffer(start_offset);
+//}
 
 
-version_t schema_table::schema_version() const
+schema_version_t schema_table::get_schema_version() const
 {
     return f_version;
 }
@@ -2098,33 +2675,27 @@ version_t schema_table::schema_version() const
  *
  * \param[in] version  The new schema version.
  */
-void schema_table::set_schema_version(version_t version)
+void schema_table::set_schema_version(schema_version_t version)
 {
     f_version = version;
 }
 
 
-time_t schema_table::added_on() const
+time_t schema_table::get_added_on() const
 {
     return f_added_on;
 }
 
 
-std::string schema_table::name() const
+std::string schema_table::get_name() const
 {
     return f_name;
 }
 
 
-model_t schema_table::model() const
+model_t schema_table::get_model() const
 {
     return f_model;
-}
-
-
-bool schema_table::is_sparse() const
-{
-    return (f_flags & TABLE_FLAG_SPARSE) != 0;
 }
 
 
@@ -2134,161 +2705,134 @@ bool schema_table::is_secure() const
 }
 
 
-bool schema_table::track_create() const
+column_ids_t schema_table::get_primary_key() const
 {
-    return (f_flags & TABLE_FLAG_TRACK_CREATE) != 0;
+    return f_primary_key;
 }
 
 
-bool schema_table::track_update() const
-{
-    return (f_flags & TABLE_FLAG_TRACK_UPDATE) != 0;
-}
-
-
-bool schema_table::track_delete() const
-{
-    return (f_flags & TABLE_FLAG_TRACK_DELETE) != 0;
-}
-
-
-column_ids_t schema_table::row_key() const
-{
-    return f_row_key;
-}
-
-
-void schema_table::assign_column_ids(schema_table::pointer_t existing_schema)
-{
-    if(!f_columns_by_id.empty())
-    {
-        return;
-    }
-
-    // if we have an existing schema, the same columns must be given the
-    // exact same identifier or else it would all break
-    //
-    if(existing_schema != nullptr)
-    {
-        for(auto c : f_columns_by_name)
-        {
-            if(c.second->column_id() != 0)
-            {
-                throw logic_error(
-                          "Column \""
-                        + f_name
-                        + "."
-                        + c.second->name()
-                        + "\" was already given an identifier: "
-                        + std::to_string(static_cast<int>(c.second->column_id()))
-                        + ".");
-            }
-
-            schema_column::pointer_t e(existing_schema->column(c.first));
-            if(e != nullptr)
-            {
-                // keep the same identifier as in the source schema
-                //
-                c.second->set_column_id(e->column_id());
-                f_columns_by_id[e->column_id()] = c.second;
-            }
-        }
-    }
-
-    // in case new columns were added, we want to give them a new identifier
-    // also in case old columns were removed, we can reuse their identifier
-    //
-    // Note: that works because each row has a reference to to the schema
-    //       that was used when we created it and that means the column
-    //       identifiers will be attached to the correct column
-    //
-    column_id_t id(1);
-    for(auto c : f_columns_by_name)
-    {
-        if(c.second->column_id() != 0)
-        {
-            continue;
-        }
-
-        while(f_columns_by_id.find(id) != f_columns_by_id.end())
-        {
-            ++id;
-        }
-
-        c.second->set_column_id(id);
-        f_columns_by_id[id] = c.second;
-        ++id;
-    }
-
-    // the identifiers can now be used to define the row keys
-    //
-    for(auto const & n : f_row_key_names)
-    {
-        if(n == g_oid_column)
-        {
-            throw invalid_xml(
-                      "The \""
-                    + n
-                    + "\" column is not acceptable for the primary key since you have no control over its value.");
-        }
-        schema_column::pointer_t c(column(n));
-        if(c == nullptr)
-        {
-            throw invalid_xml(
-                      "A column referenced in the row-key attribute of table \""
-                    + f_name
-                    + "\" must exist. We could not find \""
-                    + f_name
-                    + "."
-                    + n
-                    + "\".");
-        }
-        if(c->column_id() == 0)
-        {
-            throw logic_error(
-                      "Somehow column \""
-                    + f_name
-                    + "."
-                    + n
-                    + "\" still has no identifier.");
-        }
-        f_row_key.push_back(c->column_id());
-    }
-
-    // and the secondary indexes can also be defined
-    //
-    for(auto const & index : f_secondary_indexes)
-    {
-        size_t const max(index.second->get_column_count());
-        for(size_t idx(0); idx < max; ++idx)
-        {
-            schema_sort_column::pointer_t sc(index.second->get_sort_column(idx));
-            std::string const n(sc->get_column_name());
-            schema_column::pointer_t c(column(n));
-            if(c == nullptr)
-            {
-                throw invalid_xml(
-                          "A column referenced in the secondary-index of table \""
-                        + f_name
-                        + "\" must exist. We could not find \""
-                        + f_name
-                        + "."
-                        + n
-                        + "\".");
-            }
-            if(c->column_id() == 0)
-            {
-                throw logic_error(
-                          "Somehow column \""
-                        + f_name
-                        + "."
-                        + n
-                        + "\" still has no identifier.");
-            }
-            sc->set_column_id(c->column_id());
-        }
-    }
-}
+// we now immediately have the IDs and thus there is nothing to assign later
+//void schema_table::assign_column_ids(schema_table::pointer_t existing_schema)
+//{
+//    if(!f_columns_by_id.empty())
+//    {
+//        return;
+//    }
+//
+//    // if we have an existing schema, the same columns must be given the
+//    // exact same identifier or else it would all break
+//    //
+//    if(existing_schema != nullptr)
+//    {
+//        for(auto c : f_columns_by_name)
+//        {
+//            if(c.second->get_id() != 0)
+//            {
+//                throw logic_error(
+//                          "column \""
+//                        + f_name
+//                        + "."
+//                        + c.second->get_name()
+//                        + "\" was already given an identifier: "
+//                        + std::to_string(static_cast<int>(c.second->get_id()))
+//                        + ".");
+//            }
+//
+//            schema_column::pointer_t e(existing_schema->get_column(c.first));
+//            if(e != nullptr)
+//            {
+//                // keep the same identifier as in the source schema
+//                //
+//                c.second->set_id(e->get_id());
+//                f_columns_by_id[e->get_id()] = c.second;
+//            }
+//        }
+//    }
+//
+//    // in case new columns were added, we want to give them a new identifier
+//    // also in case old columns were removed, we can reuse their identifier
+//    //
+//    // Note: that works because each row has a reference to to the schema
+//    //       that was used when we created it and that means the column
+//    //       identifiers will be attached to the correct column
+//    //
+//    column_id_t id(1);
+//    for(auto c : f_columns_by_name)
+//    {
+//        if(c.second->get_id() != 0)
+//        {
+//            continue;
+//        }
+//
+//        while(f_columns_by_id.find(id) != f_columns_by_id.end())
+//        {
+//            ++id;
+//        }
+//
+//        c.second->set_id(id);
+//        f_columns_by_id[id] = c.second;
+//        ++id;
+//    }
+//
+//    // the identifiers can now be used to define the row keys
+//    //
+//    for(auto const & id : f_primary_key)
+//    {
+//        schema_column::pointer_t c(get_column(id));
+//        if(c == nullptr)
+//        {
+//            throw column_not_found(
+//                      "all columns referenced in primary_key=... of table \""
+//                    + f_name
+//                    + "\" must exist. We could not find a column with identifier \""
+//                    + std::to_string(id)
+//                    + "\".");
+//        }
+//        if(c->get_name() == g_oid_column)
+//        {
+//            throw invalid_parameter(
+//                      "the \""
+//                    + c->get_name()
+//                    + "\" column (with id: "
+//                    + std::to_string(id)
+//                    + ") is not acceptable as part of the primary key.");
+//        }
+//    }
+//
+//    // and the secondary indexes can also be defined
+//    //
+//    for(auto const & index : f_secondary_indexes)
+//    {
+//        size_t const max(index.second->get_column_count());
+//        for(size_t idx(0); idx < max; ++idx)
+//        {
+//            schema_sort_column::pointer_t sc(index.second->get_sort_column(idx));
+//            std::string const n(sc->get_column_name());
+//            schema_column::pointer_t c(column(n));
+//            if(c == nullptr)
+//            {
+//                throw invalid_xml(
+//                          "a column referenced in the secondary-index of table \""
+//                        + f_name
+//                        + "\" must exist. We could not find \""
+//                        + f_name
+//                        + "."
+//                        + n
+//                        + "\".");
+//            }
+//            if(c->get_id() == 0)
+//            {
+//                throw logic_error(
+//                          "somehow column \""
+//                        + f_name
+//                        + "."
+//                        + n
+//                        + "\" still has no identifier.");
+//            }
+//            sc->set_id(c->get_id());
+//        }
+//    }
+//}
 
 
 /** \brief Whether this schema includes an expiration date.
@@ -2309,13 +2853,13 @@ bool schema_table::has_expiration_date_column() const
 }
 
 
-schema_column::pointer_t schema_table::expiration_date_column() const
+schema_column::pointer_t schema_table::get_expiration_date_column() const
 {
-    return column(g_expiration_date);
+    return get_column(g_expiration_date);
 }
 
 
-schema_column::pointer_t schema_table::column(std::string const & name) const
+schema_column::pointer_t schema_table::get_column(std::string const & name) const
 {
     auto it(f_columns_by_name.find(name));
     if(it == f_columns_by_name.end())
@@ -2326,7 +2870,7 @@ schema_column::pointer_t schema_table::column(std::string const & name) const
 }
 
 
-schema_column::pointer_t schema_table::column(column_id_t id) const
+schema_column::pointer_t schema_table::get_column(column_id_t id) const
 {
     auto it(f_columns_by_id.find(id));
     if(it == f_columns_by_id.end())
@@ -2337,19 +2881,19 @@ schema_column::pointer_t schema_table::column(column_id_t id) const
 }
 
 
-schema_column::map_by_id_t schema_table::columns_by_id() const
+schema_column::map_by_id_t schema_table::get_columns_by_id() const
 {
     return f_columns_by_id;
 }
 
 
-schema_column::map_by_name_t schema_table::columns_by_name() const
+schema_column::map_by_name_t schema_table::get_columns_by_name() const
 {
     return f_columns_by_name;
 }
 
 
-schema_secondary_index::pointer_t schema_table::secondary_index(std::string const & name) const
+schema_secondary_index::pointer_t schema_table::get_secondary_index(std::string const & name) const
 {
     auto const & it(f_secondary_indexes.find(name));
     if(it != f_secondary_indexes.end())
@@ -2361,7 +2905,7 @@ schema_secondary_index::pointer_t schema_table::secondary_index(std::string cons
 }
 
 
-schema_complex_type::pointer_t schema_table::complex_type(std::string const & name) const
+schema_complex_type::pointer_t schema_table::get_complex_type(std::string const & name) const
 {
     auto const & it(f_complex_types->find(name));
     if(it != f_complex_types->end())
@@ -2373,32 +2917,13 @@ schema_complex_type::pointer_t schema_table::complex_type(std::string const & na
 }
 
 
-std::string schema_table::description() const
+std::string schema_table::get_description() const
 {
     return f_description;
 }
 
 
-std::uint32_t schema_table::block_size() const
-{
-    return f_block_size;
-}
-
-
-void schema_table::schema_offset(reference_t offset)
-{
-    f_schema_offset = offset;
-}
-
-
-reference_t schema_table::schema_offset() const
-{
-    return f_schema_offset;
-}
-
-
-
-std::string const & expiration_date_column_name()
+char const * get_expiration_date_column_name()
 {
     return g_expiration_date;
 }

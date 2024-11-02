@@ -57,7 +57,7 @@ Each row in a journal includes the following columns:
 
 * Insertion Date (Predefined, Type: `time_ms_t`)
 
-  Note: there is an Insert Date in all the rows of all the tables. This
+  Note: there is an Insertion Date in all the rows of all the tables. This
   cell is mandatory.
 
   The Insertion Date is the date whenever the row was created. This date
@@ -66,7 +66,7 @@ Each row in a journal includes the following columns:
 
 * Expiration Date (Predefined, Type: `time_t`)
 
-  Note: there is an Expiration Date in all the rows of all the tables,
+  Note: there can be an `Expiration Date` in all the rows of all the tables,
   although this is not mandatory. If not defined, it does not expire.
 
   A date after which this row is considered _deleted_.
@@ -76,14 +76,14 @@ Each row in a journal includes the following columns:
 
 * Priority (Predefined, Type: `uint8_t`)
 
-  The Priority is used to sort the jobs in a given order. Jobs with an
-  equal priority are sorted by Process Date.
+  The `Priority` is used to sort the jobs in a given order. Jobs with an
+  equal priority are sorted by `Process Date`.
 
   If your journal does not require a priority, use the same value for
-  all the insertions and the entries will automatically be sorted by
-  Process Date.
+  all the insertions and the entries are simply sorted by
+  `Process Date`.
 
-  The items with the smallest Priority are worked on first.
+  The items with the smallest `Priority` are worked on first.
 
   Here are the existing priorities as defined in the specialized journal
   implementation of the list plugin\*:
@@ -105,11 +105,11 @@ Each row in a journal includes the following columns:
   The date when the entry has to be processed. It can be set to _now_
   in which case it will be processed as soon as possible.
 
-  Process Date should always be larger or equal to Insertion Date.
+  `Process Date` should always be larger or equal to `Insertion Date`.
 
 * Status (Predefined, Type: `char`)
 
-  Further, each row includes a status.
+  Each row includes a status.
 
   Possible statuses are:
 
@@ -144,7 +144,7 @@ Each row in a journal includes the following columns:
 
   Counter incremented each time the processing does not end with a
   call to the `Done()` function. This means the process is either
-  taking to long or it crashed.
+  taking too long or is crashing.
 
   If another process checks on this journal row or our database timeout
   tick is received, then we increase this counter and mark the row as
@@ -173,11 +173,15 @@ Each row in a journal includes the following columns:
   The reason for this is to avoid repeating work multiple times on the
   exact same key.
 
+  **Important Note:** If the table is setup to keep all the possible
+  versions of the data, the journal should not be merged since each
+  instance should be saved in the final table.
+
 * User Data (Required, Type: User Defined)
 
-  The `User Data` is the user payload for this journal. In most cases this
-  is a key to the data that requires processing. The user can define
-  whatever fields necessary for his data.
+  The `User Data` is the user payload for this journal enty. In most cases,
+  this is a key to the data that requires processing. The user can define
+  whatever fields necessary for their data.
 
 
 ## Short Lived Tables
@@ -238,17 +242,17 @@ avoid partitioning for both, the data and the index. In other words,
 the journals are not expected to grow horizontally. However, each journal
 table can sit on a different set of N nodes. So if you have N=3, 20 journals,
 and 200 nodes, it is still horizontal because you only need 3 x 20 = 60
-computers to to handle all the journals independently (on separate computers).
+computers to handle all the journals independently (on separate computers).
 
 We need several indexes to allow for all the features to work as expected.
 
 ### Primary Key
 
-The journal Primary Key needs to be the Priority and Process Date.
+The journal Primary Key needs to be the `Priority` and `Process Date`.
 
 **WARNING:** Since it is a primary key, it also needs to be unique. One
-             simple solution is to also add the User Data column to the
-             Primary Key or at least a Murmur3 of that data.
+             simple solution is to also add the `User Data` column to the
+             `Primary Key` or at least a Murmur3 of that data.
 
     <Priority>:<Process Date>:<User Data Murmur3>
 
@@ -259,7 +263,7 @@ next entry which is `WAITING` to be picked up.
 
 TBD: if the processing of all of our journals remains very slow altogether,
      we could also _merge_ all of our journals in one table. All we need
-     to do is add a Journal Name column and use that in our Primary Key:
+     to do is add a `Journal Name` column and use that in our `Primary Key`:
 
     <Journal Name>:<Priority>:<Process Date>:<User Data Murmur3>
 
@@ -274,10 +278,10 @@ This timestemp is used in an index so we can find rows that need to be
 deleted. Along with an Event Dispatcher timeout object, we can very easily
 wake up our process and emit the `DELETE` as required.
 
-Note that a `GET` needs to test the Expiration Date too. If the row has
+Note that a `GET` needs to test the `Expiration Date` too. If the row has
 expired, then the `GET` has to ignore it.
 
-The FILE-FORMAT.md has information about secondary indexes and it
+The `FILE-FORMAT.md` has information about secondary indexes and it
 knows how to handle them. The Journal and other tables do not have to
 replicate that work each and every time. Just the existance of an
 expiration date somewhere is enough for the index to automatically
@@ -285,11 +289,15 @@ get generated.
 
 ### Secondary Index: Key
 
-The Primary Key gives us access to the data by priority and processing date.
+The `Primary Key` gives us access to the data by priority and processing date.
 However, when the user adds a new entry, it may overwrite an existing entry.
-We know that because the user has a Key in his User Data. There can be only
-one entry with that Key. This index can use a Murmur3 of the key so that way
+We know that because the user has a `Key` in his `User Data`. There can be only
+one entry with that `Key`. This index can use a Murmur3 of the key so that way
 the length doesn't vary (16 bytes).
+
+**Note:** This is not 100% true, an `UPDATE` may need to save a different
+          version in the database so each entry must be kept. That means
+          the journal needs to know about the table settings.
 
 So when the user updates the same Key again, the dates are all updated.
 In other words, the Processing Date is likely going to be pushed back a few
@@ -327,8 +335,9 @@ The library needs to support:
 
 * Table Declaration
 
-  The table declaration is an XML file with the list of fields in the
-  table. This is important so we can actually have ?...
+  The table declaration is an INI file with the list of fields in the
+  table. This is important so we can actually test the data before
+  it gets sent to the server.
 
 
 

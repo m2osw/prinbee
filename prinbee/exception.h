@@ -51,6 +51,8 @@ DECLARE_MAIN_EXCEPTION(prinbee_exception);
 DECLARE_EXCEPTION(prinbee_exception, block_not_found);
 DECLARE_EXCEPTION(prinbee_exception, column_not_found);
 DECLARE_EXCEPTION(prinbee_exception, conversion_unavailable);
+DECLARE_EXCEPTION(prinbee_exception, defined_twice);
+DECLARE_EXCEPTION(prinbee_exception, exclusive_fields);
 DECLARE_EXCEPTION(prinbee_exception, field_not_found);
 DECLARE_EXCEPTION(prinbee_exception, file_not_found);
 DECLARE_EXCEPTION(prinbee_exception, file_not_opened);
@@ -64,9 +66,12 @@ DECLARE_EXCEPTION(prinbee_exception, invalid_number);
 DECLARE_EXCEPTION(prinbee_exception, invalid_parameter);
 DECLARE_EXCEPTION(prinbee_exception, invalid_size);
 DECLARE_EXCEPTION(prinbee_exception, invalid_token);
-DECLARE_EXCEPTION(prinbee_exception, invalid_xml);
+DECLARE_EXCEPTION(prinbee_exception, invalid_type);
+//DECLARE_EXCEPTION(prinbee_exception, invalid_xml);
 DECLARE_EXCEPTION(prinbee_exception, io_error);
+DECLARE_EXCEPTION(prinbee_exception, missing_parameter);
 DECLARE_EXCEPTION(prinbee_exception, node_already_in_tree);
+DECLARE_EXCEPTION(prinbee_exception, not_ready);
 DECLARE_EXCEPTION(prinbee_exception, out_of_bounds);
 DECLARE_EXCEPTION(prinbee_exception, page_not_found);
 DECLARE_EXCEPTION(prinbee_exception, row_already_exists);
@@ -76,6 +81,7 @@ DECLARE_EXCEPTION(prinbee_exception, string_not_terminated);
 DECLARE_EXCEPTION(prinbee_exception, type_mismatch);
 DECLARE_EXCEPTION(prinbee_exception, unexpected_eof);
 DECLARE_EXCEPTION(prinbee_exception, unexpected_token);
+DECLARE_EXCEPTION(prinbee_exception, unknown_parameter);
 
 
 

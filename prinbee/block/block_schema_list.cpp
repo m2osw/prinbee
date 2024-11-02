@@ -220,7 +220,7 @@ void block_schema_list::add_schema(schema_table::pointer_t schema)
     // make sure we have a valid version (0.0 is considered invalid here)
     // note that by default a schema is assigned version 1.0
     //
-    if(schema->schema_version() == version_t())
+    if(schema->get_schema_version() == schema_version_t())
     {
         throw logic_error("the add_schema() can't be called with an unversioned schema.");
     }
@@ -252,15 +252,18 @@ void block_schema_list::add_schema(schema_table::pointer_t schema)
     std::uint8_t * buffer(data() + offset);
     std::uint32_t latest_version(0);
     memcpy(&latest_version, buffer, sizeof(latest_version));
-    version_t version(latest_version);
-    version.next_revision();
-    schema->set_schema_version(version);
+    //version_t version(latest_version);
+    //version.next_revision();
+    ++latest_version;
+    schema->set_schema_version(latest_version);
 
     memmove(buffer + (sizeof(latest_version) + sizeof(reference_t)), buffer, count * (sizeof(latest_version) + sizeof(reference_t)));
-    latest_version = version.to_binary();
+    //latest_version = version.to_binary();
     memcpy(buffer, &latest_version, sizeof(latest_version));
-    reference_t schema_offset(schema->schema_offset());
-    memcpy(buffer + sizeof(latest_version), &schema_offset, sizeof(offset));
+    // TODO: the binary version is just used to transfer between nodes, not
+    //       to save in the data file
+    //reference_t schema_offset(schema->schema_offset());
+    //memcpy(buffer + sizeof(latest_version), &schema_offset, sizeof(offset));
 }
 
 

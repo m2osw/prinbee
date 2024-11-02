@@ -19,18 +19,12 @@
 
 
 /** \file
- * \brief Handle a block structure.
+ * \brief A structure handling a signed 512 bit number.
  *
- * Each block contains a structure. The very first four bytes are always the
- * magic characters which define the type of the block. The remained of the
- * block is a _lose_ structure which very often changes in size because it
- * includes parameters such as a string or an array.
+ * This header defines the int512_t number. This allows us to do basic
+ * math over 512 bit numbers.
  *
- * Also in most cases arrays are also themselvess _lose_ structures (a few
- * are just numbers such as column ids or block references.)
- *
- * IMPORTANT: The types defined here are also the types that we accept in
- * a user table. Here we define structures and later tables.
+ * \sa uint512_t
  */
 
 // C++
@@ -71,17 +65,17 @@ struct int512_t
 
     int512_t                        operator - () const;
     int512_t &                      operator += (int512_t const & rhs);
-    int512_t &                      operator += (int64_t rhs);
+    int512_t &                      operator += (std::int64_t rhs);
     int512_t &                      operator -= (int512_t const & rhs);
-    int512_t &                      operator -= (int64_t rhs);
+    int512_t &                      operator -= (std::int64_t rhs);
 
     int512_t &                      operator ++ ();
     int512_t &                      operator -- ();
 
     bool                            operator == (int512_t const & rhs) const;
-    bool                            operator == (int64_t rhs) const;
+    bool                            operator == (std::int64_t rhs) const;
     bool                            operator != (int512_t const & rhs) const;
-    bool                            operator != (int64_t rhs) const;
+    bool                            operator != (std::int64_t rhs) const;
     bool                            operator < (int512_t const & rhs) const;
     bool                            operator < (std::int64_t rhs) const;
     bool                            operator <= (int512_t const & rhs) const;

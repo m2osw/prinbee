@@ -142,7 +142,7 @@ schema_column::pointer_t cell::schema() const
 
 struct_type_t cell::type() const
 {
-    return f_schema_column->type();
+    return f_schema_column->get_type();
 }
 
 
@@ -154,7 +154,7 @@ bool cell::has_fixed_type() const
 
 bool cell::is_void() const
 {
-    return f_schema_column->type() == struct_type_t::STRUCT_TYPE_VOID;
+    return f_schema_column->get_type() == struct_type_t::STRUCT_TYPE_VOID;
 }
 
 
@@ -652,7 +652,7 @@ void cell::set_string(std::string const & value)
 
 void cell::column_id_to_binary(buffer_t & buffer) const
 {
-    column_id_t const id(f_schema_column->column_id());
+    column_id_t const id(f_schema_column->get_id());
 
     // for the actual data, we use big endian so that way we can use memcmp()
     // to compare different values and get the correct results
@@ -669,7 +669,7 @@ column_id_t cell::column_id_from_binary(buffer_t const & buffer, size_t & pos)
 
 void cell::value_to_binary(buffer_t & buffer) const
 {
-    switch(f_schema_column->type())
+    switch(f_schema_column->get_type())
     {
     case struct_type_t::STRUCT_TYPE_VOID:
         // nothing to save for this one
@@ -706,6 +706,7 @@ void cell::value_to_binary(buffer_t & buffer) const
         break;
 
     case struct_type_t::STRUCT_TYPE_BITS128:
+    case struct_type_t::STRUCT_TYPE_NSTIME:
     case struct_type_t::STRUCT_TYPE_UINT128:
     case struct_type_t::STRUCT_TYPE_INT128:
         push_be_uint64(buffer, f_integer.f_value[1]);
@@ -838,8 +839,8 @@ void cell::value_to_binary(buffer_t & buffer) const
     case struct_type_t::STRUCT_TYPE_END:
     case struct_type_t::STRUCT_TYPE_RENAMED:
         throw type_mismatch(
-                  "Unexpected type ("
-                + std::to_string(static_cast<int>(f_schema_column->type()))
+                  "unexpected type ("
+                + std::to_string(static_cast<int>(f_schema_column->get_type()))
                 + ") to convert a cell to binary.");
 
     }
@@ -848,7 +849,7 @@ void cell::value_to_binary(buffer_t & buffer) const
 
 void cell::value_from_binary(buffer_t const & buffer, size_t & pos)
 {
-    switch(f_schema_column->type())
+    switch(f_schema_column->get_type())
     {
     case struct_type_t::STRUCT_TYPE_VOID:
         // nothing to save for this one
@@ -908,6 +909,7 @@ void cell::value_from_binary(buffer_t const & buffer, size_t & pos)
         f_integer.f_value[0] = read_be_uint64(buffer, pos);
         break;
 
+    case struct_type_t::STRUCT_TYPE_NSTIME:
     case struct_type_t::STRUCT_TYPE_INT128:
         f_integer.f_value[1] = read_be_uint64(buffer, pos);
         f_integer.f_value[0] = read_be_uint64(buffer, pos);
@@ -1033,8 +1035,8 @@ void cell::value_from_binary(buffer_t const & buffer, size_t & pos)
     case struct_type_t::STRUCT_TYPE_END:
     case struct_type_t::STRUCT_TYPE_RENAMED:
         throw type_mismatch(
-                  "Unexpected type ("
-                + std::to_string(static_cast<int>(f_schema_column->type()))
+                  "unexpected type ("
+                + std::to_string(static_cast<int>(f_schema_column->get_type()))
                 + ") to convert a cell to binary.");
 
     }
@@ -1043,7 +1045,7 @@ void cell::value_from_binary(buffer_t const & buffer, size_t & pos)
 
 void cell::copy_from(cell const & source)
 {
-    if(f_schema_column->type() == source.f_schema_column->type())
+    if(f_schema_column->get_type() == source.f_schema_column->get_type())
     {
         // no conversion needed, a direct copy will work just fine
         //
@@ -1051,7 +1053,7 @@ void cell::copy_from(cell const & source)
         //       update your schema by adding and removing columns, but
         //       not the type of existing columns
         //
-        switch(source.f_schema_column->type())
+        switch(source.f_schema_column->get_type())
         {
         case struct_type_t::STRUCT_TYPE_VOID:
             // void is an empty string
@@ -1083,6 +1085,7 @@ void cell::copy_from(cell const & source)
         case struct_type_t::STRUCT_TYPE_TIME:
         case struct_type_t::STRUCT_TYPE_MSTIME:
         case struct_type_t::STRUCT_TYPE_USTIME:
+        case struct_type_t::STRUCT_TYPE_NSTIME:
         case struct_type_t::STRUCT_TYPE_VERSION:
             f_integer = source.f_integer;
             break;
@@ -1109,8 +1112,8 @@ void cell::copy_from(cell const & source)
         case struct_type_t::STRUCT_TYPE_END:
         case struct_type_t::STRUCT_TYPE_RENAMED:
             throw type_mismatch(
-                      "Unexpected type ("
-                    + std::to_string(static_cast<int>(f_schema_column->type()))
+                      "unexpected type ("
+                    + std::to_string(static_cast<int>(f_schema_column->get_type()))
                     + ") to convert a cell to another.");
 
         }
@@ -1122,7 +1125,7 @@ void cell::copy_from(cell const & source)
         //       updates their schema
         //
         std::string value;
-        switch(source.f_schema_column->type())
+        switch(source.f_schema_column->get_type())
         {
         case struct_type_t::STRUCT_TYPE_VOID:
             // void is an empty string
@@ -1154,11 +1157,12 @@ void cell::copy_from(cell const & source)
         case struct_type_t::STRUCT_TYPE_TIME:
         case struct_type_t::STRUCT_TYPE_MSTIME:
         case struct_type_t::STRUCT_TYPE_USTIME:
+        case struct_type_t::STRUCT_TYPE_NSTIME:
         case struct_type_t::STRUCT_TYPE_VERSION:
             {
                 buffer_t buf(sizeof(source.f_integer.f_value));
                 std::memcpy(buf.data(), source.f_integer.f_value, sizeof(source.f_integer.f_value));
-                value = typed_buffer_to_string(source.f_schema_column->type(), buf, 16);
+                value = typed_buffer_to_string(source.f_schema_column->get_type(), buf, 16);
             }
             break;
 
@@ -1168,7 +1172,7 @@ void cell::copy_from(cell const & source)
             {
                 buffer_t buf(sizeof(source.f_float_value));
                 memcpy(buf.data(), &source.f_float_value, sizeof(source.f_float_value));
-                value = typed_buffer_to_string(source.f_schema_column->type(), buf, 16);
+                value = typed_buffer_to_string(source.f_schema_column->get_type(), buf, 16);
             }
             break;
 
@@ -1188,13 +1192,13 @@ void cell::copy_from(cell const & source)
         case struct_type_t::STRUCT_TYPE_END:
         case struct_type_t::STRUCT_TYPE_RENAMED:
             throw type_mismatch(
-                      "Unexpected type ("
-                    + std::to_string(static_cast<int>(f_schema_column->type()))
+                      "unexpected type ("
+                    + std::to_string(static_cast<int>(f_schema_column->get_type()))
                     + ") to convert a cell to another.");
 
         }
 
-        switch(f_schema_column->type())
+        switch(f_schema_column->get_type())
         {
         case struct_type_t::STRUCT_TYPE_VOID:
             // void is an empty string
@@ -1218,7 +1222,8 @@ void cell::copy_from(cell const & source)
         case struct_type_t::STRUCT_TYPE_OID:
         case struct_type_t::STRUCT_TYPE_VERSION:
             {
-                buffer_t buf(string_to_typed_buffer(struct_type_t::STRUCT_TYPE_UINT512, value));
+                // unsigned
+                buffer_t const buf(string_to_typed_buffer(struct_type_t::STRUCT_TYPE_UINT512, value));
                 assert(buf.size() == sizeof(source.f_integer));
                 memcpy(f_integer.f_value, buf.data(), sizeof(f_integer.f_value));
             }
@@ -1234,7 +1239,9 @@ void cell::copy_from(cell const & source)
         case struct_type_t::STRUCT_TYPE_TIME:
         case struct_type_t::STRUCT_TYPE_MSTIME:
         case struct_type_t::STRUCT_TYPE_USTIME:
+        case struct_type_t::STRUCT_TYPE_NSTIME:
             {
+                // signed
                 buffer_t const buf(string_to_typed_buffer(struct_type_t::STRUCT_TYPE_INT512, value));
                 assert(buf.size() == sizeof(source.f_integer));
                 memcpy(f_integer.f_value, buf.data(), sizeof(f_integer.f_value));
@@ -1281,8 +1288,8 @@ void cell::copy_from(cell const & source)
         case struct_type_t::STRUCT_TYPE_END:
         case struct_type_t::STRUCT_TYPE_RENAMED:
             throw type_mismatch(
-                      "Unexpected type ("
-                    + std::to_string(static_cast<int>(f_schema_column->type()))
+                      "unexpected type ("
+                    + std::to_string(static_cast<int>(f_schema_column->get_type()))
                     + ") to convert a cell to another.");
 
         }
@@ -1290,7 +1297,7 @@ void cell::copy_from(cell const & source)
 }
 
 
-void cell::set_integer(int64_t value)
+void cell::set_integer(std::int64_t value)
 {
     f_integer.f_value[0] = value;
     f_integer.f_value[1] = value < 0 ? -1 : 0;
@@ -1318,7 +1325,7 @@ void cell::set_uinteger(uint64_t value)
 
 void cell::verify_cell_type(std::vector<struct_type_t> const & expected) const
 {
-    if(std::find(expected.begin(), expected.end(), f_schema_column->type()) == expected.end())
+    if(std::find(expected.begin(), expected.end(), f_schema_column->get_type()) == expected.end())
     {
         std::string names;
         for(auto const & e : expected)
@@ -1330,12 +1337,12 @@ void cell::verify_cell_type(std::vector<struct_type_t> const & expected) const
             names += to_string(e);
         }
         throw type_mismatch(
-              "The call you made to this cell expected "
+              "the call you made to this cell expected "
             + names
             + " type"
             + (expected.size() == 1 ? "" : "s")
             + ", but the schema says this cell is of type "
-            + to_string(f_schema_column->type())
+            + to_string(f_schema_column->get_type())
             + ".");
     }
 }

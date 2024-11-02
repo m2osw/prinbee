@@ -49,13 +49,13 @@ The blob is created using the schema. So if you do something like:
 
 then the system knows that the name "created_on" corresponds to column
 number 5 and the data is timestamp of type "time_ms_t". That can be
-converted to the binary blob in these bytes:
+converted to the binary blob using these bytes:
 
     0x05 0x00 0x05 0x94 0x33 0x8E 0x1C 0x10 0x00
 
 The library takes care of all the conversions between the `set()`/`get()`
 functions and the binary format of the blob. When in memory, the row
-remains in a _more usable_ format, those.
+remains in a _more usable_ format.
 
 Further the blob gets compressed when transferred.
 

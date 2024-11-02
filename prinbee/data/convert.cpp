@@ -21,8 +21,8 @@
  * \brief Various convertions between data types.
  *
  * At this point, we mainly want to convert a structure data type to a string
- * and vice versa. This is useful to convert values defined in the XML file
- * such as the default value.
+ * and vice versa. This is useful to convert values defined in the
+ * configuration file such as the default value.
  *
  * We also have functions to convert strings to integers of 8, 16, 32, 64,
  * 128, 256, and 512 bits.
@@ -1222,9 +1222,9 @@ std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, i
 }
 
 
-int64_t convert_to_int(std::string const & value, size_t max_size, unit_t unit)
+std::int64_t convert_to_int(std::string const & value, size_t max_size, unit_t unit)
 {
-    int512_t n(string_to_int(value, true, unit));
+    int512_t const n(string_to_int(value, true, unit));
 
     if(n.bit_size() > max_size)
     {
@@ -1240,16 +1240,16 @@ int64_t convert_to_int(std::string const & value, size_t max_size, unit_t unit)
 }
 
 
-uint64_t convert_to_uint(std::string const & value, size_t max_size, unit_t unit)
+std::uint64_t convert_to_uint(std::string const & value, size_t max_size, unit_t unit)
 {
-    uint512_t n(string_to_int(value, false, unit));
+    uint512_t const n(string_to_int(value, false, unit));
 
     if(n.bit_size() > max_size)
     {
         throw out_of_range(
                   "number \""
                 + value
-                + "\" too large for a signed "
+                + "\" too large for an unsigned "
                 + std::to_string(max_size)
                 + " bit value.");
     }

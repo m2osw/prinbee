@@ -52,8 +52,14 @@
 #include    "prinbee/file/file_snap_database_table.h"
 
 
+// snaplogger
+//
+#include    <snaplogger/message.h>
+
+
 // snapdev
 //
+#include    <snapdev/glob_to_list.h>
 #include    <snapdev/not_used.h>
 #include    <snapdev/timespec_ex.h>
 
@@ -220,33 +226,32 @@ public:
                                                 table_impl(
                                                       context * c
                                                     , table * t
-                                                    , basic_xml::node::pointer_t x
+                                                    , std::string const & table_dir
                                                     , schema_complex_type::map_pointer_t complex_types);
                                                 table_impl(table_impl const & rhs) = delete;
 
     table_impl                                  operator = (table_impl const & rhs) = delete;
 
-    void                                        load_extension(basic_xml::node::pointer_t e);
+    //void                                        load_extension(advgetopt::config_file::pointer_t e);
 
     dbfile::pointer_t                           get_dbfile() const;
-    version_t                                   schema_version() const;
-    bool                                        is_sparse() const;
+    schema_version_t                            get_schema_version() const;
     bool                                        is_secure() const;
-    std::string                                 name() const;
-    model_t                                     model() const;
-    column_ids_t                                row_key() const;
-    schema_column::pointer_t                    column(std::string const & name, version_t const & version) const;
-    schema_column::pointer_t                    column(column_id_t id, version_t const & version) const;
-    schema_column::map_by_id_t                  columns_by_id(version_t const & version) const;
-    schema_column::map_by_name_t                columns_by_name(version_t const & version) const;
-    std::string                                 description() const;
+    std::string                                 get_name() const;
+    model_t                                     get_model() const;
+    column_ids_t                                get_primary_key() const;
+    schema_column::pointer_t                    get_column(std::string const & name, schema_version_t version) const;
+    schema_column::pointer_t                    get_column(column_id_t id, schema_version_t version) const;
+    schema_column::map_by_id_t                  get_columns_by_id(schema_version_t version) const;
+    schema_column::map_by_name_t                get_columns_by_name(schema_version_t version) const;
+    std::string                                 get_description() const;
     size_t                                      get_size() const;
     size_t                                      get_page_size() const;
     block::pointer_t                            get_block(reference_t offset);
     block::pointer_t                            allocate_new_block(dbtype_t type);
     void                                        free_block(block::pointer_t block, bool clear_block);
-    schema_table::pointer_t                     get_schema(version_t const & version);
-    schema_secondary_index::pointer_t           secondary_index(std::string const & name) const;
+    schema_table::pointer_t                     get_schema(schema_version_t version);
+    schema_secondary_index::pointer_t           get_secondary_index(std::string const & name) const;
     bool                                        row_commit(row_pointer_t row, commit_mode_t mode);
     void                                        row_insert(row::pointer_t row_data, cursor::pointer_t cur);
     void                                        row_update(row::pointer_t row_data, cursor::pointer_t cur);
@@ -268,6 +273,7 @@ private:
 
     context *                                   f_context = nullptr;
     table *                                     f_table = nullptr;
+    std::string                                 f_name = std::string();
     schema_table::pointer_t                     f_schema_table = schema_table::pointer_t();
     schema_table::map_by_version_t              f_schema_table_by_version = schema_table::map_by_version_t();
     dbfile::pointer_t                           f_dbfile = dbfile::pointer_t();
@@ -278,22 +284,56 @@ private:
 table_impl::table_impl(
           context * c
         , table * t
-        , basic_xml::node::pointer_t x
+        , std::string const & table_dir
         , schema_complex_type::map_pointer_t complex_types)
     : f_context(c)
     , f_table(t)
-    , f_schema_table(std::make_shared<schema_table>())
 {
-    f_schema_table->set_complex_types(complex_types);
-    f_schema_table->from_xml(x);
-    f_dbfile = std::make_shared<dbfile>(c->get_path(), f_schema_table->name(), "main");
-    f_dbfile->set_page_size(f_schema_table->block_size());
-}
+    std::string::size_type const pos(table_dir.rfind('/'));
+    if(pos == std::string::npos)
+    {
+        f_name = table_dir;
+    }
+    else
+    {
+        f_name = table_dir.substr(pos + 1);
+    }
 
+    // note: f_name will only be the last segment of the full path
+    //
+    if(!validate_name(f_name))
+    {
+        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+        msg << "Unsupported directory name for a table \""
+            << table_dir
+            << "\".";
+        throw io_error(msg.str());
+    }
 
-void table_impl::load_extension(basic_xml::node::pointer_t e)
-{
-    f_schema_table->load_extension(e);
+    // the table may have any number of versions (well nearly) and we want
+    // to load them all so that way we can read any row
+    //
+    snapdev::glob_to_list<std::set<std::string>> table_schemata;
+    if(!table_schemata.read_path<
+              snapdev::glob_to_list_flag_t::GLOB_FLAG_ONLY_DIRECTORIES
+            , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(table_dir + "/table-*.ini"))
+    {
+        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+        msg << "Could not read directory \""
+            << table_dir
+            << "\" for table schemata.";
+        throw io_error(msg.str());
+    }
+
+    for(auto const & s : table_schemata)
+    {
+        schema_table::pointer_t schema(std::make_shared<schema_table>());
+        schema->set_complex_types(complex_types);
+        schema->from_config(f_name, s);
+        f_schema_table_by_version[schema->get_schema_version()] = schema;
+    }
+
+    f_dbfile = std::make_shared<dbfile>(c->get_path(), f_schema_table->get_name(), "main");
 }
 
 
@@ -303,14 +343,16 @@ dbfile::pointer_t table_impl::get_dbfile() const
 }
 
 
-schema_table::pointer_t table_impl::get_schema(version_t const & version)
+schema_table::pointer_t table_impl::get_schema(schema_version_t version)
 {
+    return f_schema_table_by_version[version];
+#if 0
     // the very first time `get_schema()` is called, `version` must be
-    // set to `0.0` (a.k.a. `version_t()`) which is how the latest schema
+    // set to `0.0` (a.k.a. `schema_version_t()`) which is how the latest schema
     // gets added to the table if necessary
     //
     if(f_schema_table_by_version.empty()
-    && version != version_t())
+    && version != schema_version_t())
     {
         throw logic_error(
                     "table_impl::get_schema() called with a version other"
@@ -335,7 +377,7 @@ schema_table::pointer_t table_impl::get_schema(version_t const & version)
     reference_t schema_offset(sdbt->get_table_definition());
     if(schema_offset == NULL_FILE_ADDR)
     {
-        if(version != version_t()
+        if(version != schema_version_t()
         || !f_schema_table_by_version.empty())
         {
             // this is probably a logic error
@@ -362,7 +404,7 @@ schema_table::pointer_t table_impl::get_schema(version_t const & version)
         sdbt->set_table_definition(schm->get_offset());
         sdbt->sync(true);
 
-        f_schema_table_by_version[f_schema_table->schema_version().to_binary()] = f_schema_table;
+        f_schema_table_by_version[f_schema_table->get_schema_version().to_binary()] = f_schema_table;
 
         return f_schema_table;
     }
@@ -397,7 +439,7 @@ schema_table::pointer_t table_impl::get_schema(version_t const & version)
 
     if(f_schema_table_by_version.empty())
     {
-        if(version != version_t())
+        if(version != schema_version_t())
         {
             // this is probably a logic error since we should not be
             // here if the `version` parameter is not `0.0`
@@ -467,24 +509,19 @@ schema_table::pointer_t table_impl::get_schema(version_t const & version)
 
     f_schema_table_by_version[schema->schema_version().to_binary()] = schema;
     return schema;
+#endif
 }
 
 
-schema_secondary_index::pointer_t table_impl::secondary_index(std::string const & name) const
+schema_secondary_index::pointer_t table_impl::get_secondary_index(std::string const & name) const
 {
-    return f_schema_table->secondary_index(name);
+    return f_schema_table->get_secondary_index(name);
 }
 
 
-version_t table_impl::schema_version() const
+schema_version_t table_impl::get_schema_version() const
 {
-    return f_schema_table->schema_version();
-}
-
-
-bool table_impl::is_sparse() const
-{
-    return f_schema_table->is_sparse();
+    return f_schema_table->get_schema_version();
 }
 
 
@@ -494,51 +531,51 @@ bool table_impl::is_secure() const
 }
 
 
-std::string table_impl::name() const
+std::string table_impl::get_name() const
 {
-    return f_schema_table->name();
+    return f_schema_table->get_name();
 }
 
 
-model_t table_impl::model() const
+model_t table_impl::get_model() const
 {
-    return f_schema_table->model();
+    return f_schema_table->get_model();
 }
 
 
-column_ids_t table_impl::row_key() const
+column_ids_t table_impl::get_primary_key() const
 {
-    return f_schema_table->row_key();
+    return f_schema_table->get_primary_key();
 }
 
 
-schema_column::pointer_t table_impl::column(std::string const & name, version_t const & version) const
+schema_column::pointer_t table_impl::get_column(std::string const & name, schema_version_t version) const
 {
-    return const_cast<table_impl *>(this)->get_schema(version)->column(name);
+    return const_cast<table_impl *>(this)->get_schema(version)->get_column(name);
 }
 
 
-schema_column::pointer_t table_impl::column(column_id_t id, version_t const & version) const
+schema_column::pointer_t table_impl::get_column(column_id_t id, schema_version_t version) const
 {
-    return const_cast<table_impl *>(this)->get_schema(version)->column(id);
+    return const_cast<table_impl *>(this)->get_schema(version)->get_column(id);
 }
 
 
-schema_column::map_by_id_t table_impl::columns_by_id(version_t const & version) const
+schema_column::map_by_id_t table_impl::get_columns_by_id(schema_version_t version) const
 {
-    return const_cast<table_impl *>(this)->get_schema(version)->columns_by_id();
+    return const_cast<table_impl *>(this)->get_schema(version)->get_columns_by_id();
 }
 
 
-schema_column::map_by_name_t table_impl::columns_by_name(version_t const & version) const
+schema_column::map_by_name_t table_impl::get_columns_by_name(schema_version_t version) const
 {
-    return const_cast<table_impl *>(this)->get_schema(version)->columns_by_name();
+    return const_cast<table_impl *>(this)->get_schema(version)->get_columns_by_name();
 }
 
 
-std::string table_impl::description() const
+std::string table_impl::get_description() const
 {
-    return f_schema_table->description();
+    return f_schema_table->get_description();
 }
 
 
@@ -771,7 +808,7 @@ block::pointer_t table_impl::get_block(reference_t offset)
     header->pwrite(d, s->get_size(), 0, true);
     s->set_virtual_buffer(header, 0);
     dbtype_t const type(static_cast<dbtype_t>(s->get_uinteger("magic")));
-    //version_t const version(s->get_uinteger("version"));
+    //schema_version_t const version(s->get_uinteger("version"));
 
     block::pointer_t b(allocate_block(type, offset));
 
@@ -1516,9 +1553,9 @@ throw not_yet_implemented("table: TODO implement read tree");
 
 table::table(
           context * c
-        , basic_xml::node::pointer_t x
+        , std::string const & filename
         , schema_complex_type::map_pointer_t complex_types)
-    : f_impl(std::make_shared<detail::table_impl>(c, this, x, complex_types))
+    : f_impl(std::make_shared<detail::table_impl>(c, this, filename, complex_types))
 {
 }
 
@@ -1535,10 +1572,10 @@ table::pointer_t table::get_pointer()
 }
 
 
-void table::load_extension(basic_xml::node::pointer_t e)
-{
-    f_impl->load_extension(e);
-}
+//void table::load_extension(advgetopt::config_file::pointer_t e)
+//{
+//    f_impl->load_extension(e);
+//}
 
 
 dbfile::pointer_t table::get_dbfile() const
@@ -1547,57 +1584,51 @@ dbfile::pointer_t table::get_dbfile() const
 }
 
 
-version_t table::schema_version() const
+schema_version_t table::get_schema_version() const
 {
-    return f_impl->schema_version();
+    return f_impl->get_schema_version();
 }
 
 
-std::string table::name() const
+std::string table::get_name() const
 {
-    return f_impl->name();
+    return f_impl->get_name();
 }
 
 
-model_t table::model() const
+model_t table::get_model() const
 {
-    return f_impl->model();
+    return f_impl->get_model();
 }
 
 
-column_ids_t table::row_key() const
+column_ids_t table::get_primary_key() const
 {
-    return f_impl->row_key();
+    return f_impl->get_primary_key();
 }
 
 
-schema_column::pointer_t table::column(std::string const & name, version_t const & version) const
+schema_column::pointer_t table::get_column(std::string const & name, schema_version_t version) const
 {
-    return f_impl->column(name, version);
+    return f_impl->get_column(name, version);
 }
 
 
-schema_column::pointer_t table::column(column_id_t id, version_t const & version) const
+schema_column::pointer_t table::get_column(column_id_t id, schema_version_t version) const
 {
-    return f_impl->column(id, version);
+    return f_impl->get_column(id, version);
 }
 
 
-schema_column::map_by_id_t table::columns_by_id(version_t const & version) const
+schema_column::map_by_id_t table::get_columns_by_id(schema_version_t version) const
 {
-    return f_impl->columns_by_id(version);
+    return f_impl->get_columns_by_id(version);
 }
 
 
-schema_column::map_by_name_t table::columns_by_name(version_t const & version) const
+schema_column::map_by_name_t table::get_columns_by_name(schema_version_t version) const
 {
-    return f_impl->columns_by_name(version);
-}
-
-
-bool table::is_sparse() const
-{
-    return f_impl->is_sparse();
+    return f_impl->get_columns_by_name(version);
 }
 
 
@@ -1607,9 +1638,9 @@ bool table::is_secure() const
 }
 
 
-std::string table::description() const
+std::string table::get_description() const
 {
-    return f_impl->description();
+    return f_impl->get_description();
 }
 
 
@@ -1643,7 +1674,7 @@ void table::free_block(block::pointer_t block, bool clear_block)
 }
 
 
-schema_table::pointer_t table::get_schema(version_t const & version)
+schema_table::pointer_t table::get_schema(schema_version_t version)
 {
     return f_impl->get_schema(version);
 }
@@ -1681,14 +1712,14 @@ cursor::pointer_t table::row_select(conditions const & cond)
     schema_secondary_index::pointer_t secondary_index;
     if(index_type == index_type_t::INDEX_TYPE_SECONDARY)
     {
-        secondary_index = f_impl->secondary_index(index_name);
+        secondary_index = f_impl->get_secondary_index(index_name);
         if(secondary_index == nullptr)
         {
             throw invalid_name(
                       "\""
                     + index_name
                     + "\" is not a known system or secondary index in table \""
-                    + name()
+                    + get_name()
                     + "\".");
         }
     }

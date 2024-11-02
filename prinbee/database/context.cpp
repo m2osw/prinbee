@@ -18,10 +18,27 @@
 
 
 /** \file
- * \brief Database file implementation.
+ * \brief The context implementation.
  *
- * Each table uses one or more files. Each file is handled by a dbfile
- * object and a corresponding set of blocks.
+ * A context is a collection of tables. The implementation reads all
+ * the table schemata so the system is ready to accept commands to
+ * read and write data to and from any of the tables.
+ *
+ * By default, it is expected that you only run with one single context
+ * per node. Having more than one context on a single node may cause
+ * issues that you cannot resolve easily (i.e. various types of conflicts
+ * may arise between different contexts). However, there is nothing
+ * preventing you from having more than one context.
+ *
+ * A single project may use multiple contexts because the type of data
+ * found in each context is very different so the nodes will act differently
+ * in each context and having that data separate is the best way to better
+ * manage the data.
+ *
+ * \note
+ * A context is pretty shallow. It manages a set of tables and that's
+ * about it. Details on how the data is replicated, compressed,
+ * compacted, filtered, indexed, etc. is found in a table.
  */
 
 
@@ -75,7 +92,7 @@ namespace detail
 class context_impl
 {
 public:
-                                        context_impl(context *c, advgetopt::getopt::pointer_t opts);
+                                        context_impl(context * c, advgetopt::getopt::pointer_t opts);
                                         context_impl(context_impl const & rhs) = delete;
                                         ~context_impl();
 
@@ -85,15 +102,20 @@ public:
     table::pointer_t                    get_table(std::string const & name) const;
     table::map_t                        list_tables() const;
     std::string                         get_path() const;
-    size_t                              get_config_size(std::string const & name) const;
+    std::size_t                         get_config_size(std::string const & name) const;
     std::string                         get_config_string(std::string const & name, int idx) const;
     long                                get_config_long(std::string const & name, int idx) const;
 
 private:
+    void                                load_complex_types(std::string const & filename);
+    void                                verify_complex_types();
+    void                                find_loop(std::string const & name, schema_complex_type::pointer_t type, std::size_t depth);
+
     context *                           f_context = nullptr;
     advgetopt::getopt::pointer_t        f_opts = advgetopt::getopt::pointer_t();
     std::string                         f_path = std::string();
-    int                                 f_lock = -1;        // TODO: lock the context so only one snapdatabasedaemon can run against it
+    std::string                         f_tables_path = std::string();
+    int                                 f_lock = -1;        // TODO: lock the context so only one prinbee daemon can run against it
     table::map_t                        f_tables = table::map_t();
     schema_complex_type::map_pointer_t  f_complex_types = schema_complex_type::map_pointer_t();
 };
@@ -120,216 +142,217 @@ void context_impl::initialize()
 
     if(f_path.empty())
     {
-        f_path = "/var/lib/snapwebsites/database";
+        f_path = "/var/lib/prinbee/context";
     }
+    f_tables_path = f_path + "/tables";
 
-    SNAP_LOG_NOTICE
+    SNAP_LOG_CONFIGURATION
         << "Initialize context \""
         << f_path
         << "\"."
         << SNAP_LOG_SEND;
-std::cerr << "--- reading XML data from " << f_path << "\n";
+std::cerr << "--- reading table schemata from " << f_path << "/*/table-<version>.ini\n";
 
-    if(snapdev::mkdir_p(f_path, false, 0700, user, group) != 0)
+    if(snapdev::mkdir_p(f_tables_path, false, 0700, user, group) != 0)
     {
         throw io_error(
-              "Could not create or access the context directory \""
-            + f_path
+              "Could not create or access the context tables directory \""
+            + f_tables_path
             + "\".");
     }
 
-    basic_xml::node::deque_t table_extensions;
+    // complex types are common to all tables (so they can appear in any
+    // one of them) so these are saved in a file at the top; it also gets
+    // read first since that list is passed down to each table
+    //
+    load_complex_types(f_path + "/complex-types.ini");
+    verify_complex_types();
 
-    size_t const max(f_opts->size("table_schema_path"));
+    //basic_xml::node::deque_t table_extensions;
 
-    SNAP_LOG_NOTICE
-        << "Reading context "
-        << max
-        << " XML schemata."
-        << SNAP_LOG_SEND;
+    //size_t const max(f_opts->size("table_schema_path"));
 
-    // TODO: this is perfect for workers to distribute the load on many
-    //       threads (and then the creation/loading of each table)
+    //SNAP_LOG_NOTICE
+    //    << "Reading context "
+    //    << max
+    //    << " XML schemata."
+    //    << SNAP_LOG_SEND;
+
+    // TODO: create + load of a table could be done by a worker thread
     //
 
-    basic_xml::xml::map_t xml_files;
+    //basic_xml::xml::map_t xml_files;
 
     // the first loop goes through all the files
     // it reads the XML and parses the complex types
     //
-    for(size_t idx(0); idx < max; ++idx)
+    //for(size_t idx(0); idx < max; ++idx)
+    //{
+        //std::string const path(f_opts->get_string("table_schema_path", idx));
+
+    snapdev::glob_to_list<std::list<std::string>> list;
+    if(!list.read_path<
+              snapdev::glob_to_list_flag_t::GLOB_FLAG_ONLY_DIRECTORIES
+            , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(f_tables_path + "/*"))
     {
-        std::string const path(f_opts->get_string("table_schema_path", idx));
-
-        // WARNING: we use an std::set<> for the list of filenames so that
-        //          way they get sorted in a way which will not change
-        //          between runs; we ignore some definitions, such as a
-        //          second definition of a column, and by making sure we
-        //          always load things in the same order, we limit the number
-        //          of potential problems
-        //
-        //          note that if you add/remove columns with the same name
-        //          then the order will change and the existing tables may
-        //          not be 100% compatible with the new data (the system
-        //          will automatically convert the data, but you may have
-        //          surprises...)
-        //
-        snapdev::glob_to_list<std::set<std::string>> list;
-        if(!list.read_path<
-                  snapdev::glob_to_list_flag_t::GLOB_FLAG_TILDE>(path + "/*.xml"))
-        {
-            SNAP_LOG_WARNING
-                << "Could not read directory \""
-                << path
-                << "\" for XML table declarations."
-                << SNAP_LOG_SEND;
-            continue;
-        }
-
-        if(list.empty())
-        {
-            SNAP_LOG_DEBUG
-                << "Directory \""
-                << path
-                << "\" is empty."
-                << SNAP_LOG_SEND;
-            continue;
-        }
-
-        for(auto const & filename : list)
-        {
-std::cerr << "--- reading table XML " << filename << "\n";
-            basic_xml::xml::pointer_t x(std::make_shared<basic_xml::xml>(filename));
-            xml_files[filename] = x;
-
-            basic_xml::node::pointer_t root(x->root());
-            if(root == nullptr)
-            {
-                SNAP_LOG_WARNING
-                    << filename
-                    << ": Problem reading table schema. The file will be ignored."
-                    << SNAP_LOG_SEND;
-                continue;
-            }
-
-            if(root->tag_name() != "keyspaces"
-            && root->tag_name() != "context")
-            {
-                SNAP_LOG_WARNING
-                    << filename
-                    << ": XML table declarations must be a \"keyspaces\" or \"context\". \""
-                    << root->tag_name()
-                    << "\" is not acceptable."
-                    << SNAP_LOG_SEND;
-                continue;
-            }
-
-            // complex types are defined outside of tables which allows us
-            // to use the same complex types in different tables
-            //
-            for(auto child(root->first_child()); child != nullptr; child = child->next())
-            {
-                if(child->tag_name() == "complex-type")
-                {
-                    std::string const name(child->attribute("name"));
-                    if(name_to_struct_type(name) != INVALID_STRUCT_TYPE)
-                    {
-                        SNAP_LOG_WARNING
-                            << filename
-                            << ": The name of a complex type cannot be the name of a system type. \""
-                            << name
-                            << "\" is not acceptable."
-                            << SNAP_LOG_SEND;
-                        continue;
-                    }
-                    if(f_complex_types->find(name) != f_complex_types->end())
-                    {
-                        SNAP_LOG_WARNING
-                            << filename
-                            << ": The complex type named \""
-                            << name
-                            << "\" is defined twice. Only the very first instance is used."
-                            << SNAP_LOG_SEND;
-                        continue;
-                    }
-                    (*f_complex_types)[name] = std::make_shared<schema_complex_type>(child);
-                }
-            }
-        }
+        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+        msg << "Could not read directory \""
+            << f_tables_path
+            << "\" for table schemata.";
+        throw io_error(msg.str());
     }
 
-    for(auto const & x : xml_files)
+    if(list.empty())
     {
-        for(auto child(x.second->root()->first_child()); child != nullptr; child = child->next())
-        {
-std::cerr << "--- child tag name " << child->tag_name() << "\n";
-            if(child->tag_name() == "table")
-            {
-                table::pointer_t t(std::make_shared<table>(f_context, child, f_complex_types));
-                f_tables[t->name()] = t;
-
-                dbfile::pointer_t dbfile(t->get_dbfile());
-                dbfile->set_table(t);
-                dbfile->set_sparse(t->is_sparse());
-            }
-            else if(child->tag_name() == "table-extension")
-            {
-                // we collect those and process them in a second
-                // pass after we loaded all the XML files because
-                // otherwise the table may still be missing
-                //
-                table_extensions.push_back(child);
-            }
-            else if(child->tag_name() == "complex-type")
-            {
-                // already worked on; ignore in this loop
-            }
-            else
-            {
-                // generate an error for unknown tags or ignore?
-                //
-                SNAP_LOG_WARNING
-                    << "Unknown tag \""
-                    << child->tag_name()
-                    << "\" within a <context> tag ignored."
-                    << SNAP_LOG_SEND;
-            }
-        }
+        SNAP_LOG_DEBUG
+            << "No tables found in context \""
+            << f_tables_path
+            << "\"."
+            << SNAP_LOG_SEND;
     }
-
-    SNAP_LOG_NOTICE
-        << "Adding "
-        << table_extensions.size()
-        << " XML schema extensions."
-        << SNAP_LOG_SEND;
-
-    for(auto const & e : table_extensions)
+    else
     {
-        std::string const name(e->attribute("name"));
-        table::pointer_t t(get_table(name));
-        if(t == nullptr)
+        for(auto const & table_dir : list)
         {
-            SNAP_LOG_WARNING
-                << "Unknown table \""
-                << e->tag_name()
-                << "\" within a <table-extension>, tag ignored."
-                << SNAP_LOG_SEND;
-            continue;
+            table::pointer_t t(std::make_shared<table>(f_context, table_dir, f_complex_types));
+            f_tables[t->get_name()] = t;
         }
-        t->load_extension(e);
-    }
 
-    SNAP_LOG_NOTICE
-        << "Verify "
-        << f_tables.size()
-        << " table schema"
-        << (f_tables.size() == 1 ? "" : "ta")
-        << "."
-        << SNAP_LOG_SEND;
-
-    for(auto & t : f_tables)
-    {
-        t.second->get_schema();
+// old code for reference
+//        for(auto const & filename : list)
+//        {
+//std::cerr << "--- reading table schema " << filename << "\n";
+//            basic_xml::xml::pointer_t x(std::make_shared<basic_xml::xml>(filename));
+//            xml_files[filename] = x;
+//
+//            basic_xml::node::pointer_t root(x->root());
+//            if(root == nullptr)
+//            {
+//                SNAP_LOG_WARNING
+//                    << filename
+//                    << ": Problem reading table schema. The file will be ignored."
+//                    << SNAP_LOG_SEND;
+//                continue;
+//            }
+//
+//            if(root->tag_name() != "keyspaces"
+//            && root->tag_name() != "context")
+//            {
+//                SNAP_LOG_WARNING
+//                    << filename
+//                    << ": XML table declarations must be a \"keyspaces\" or \"context\". \""
+//                    << root->tag_name()
+//                    << "\" is not acceptable."
+//                    << SNAP_LOG_SEND;
+//                continue;
+//            }
+//
+//            // complex types are defined outside of tables which allows us
+//            // to use the same complex types in different tables
+//            //
+//            for(auto child(root->first_child()); child != nullptr; child = child->next())
+//            {
+//                if(child->tag_name() == "complex-type")
+//                {
+//                    std::string const name(child->attribute("name"));
+//                    if(name_to_struct_type(name) != INVALID_STRUCT_TYPE)
+//                    {
+//                        SNAP_LOG_WARNING
+//                            << filename
+//                            << ": The name of a complex type cannot be the name of a system type. \""
+//                            << name
+//                            << "\" is not acceptable."
+//                            << SNAP_LOG_SEND;
+//                        continue;
+//                    }
+//                    if(f_complex_types->find(name) != f_complex_types->end())
+//                    {
+//                        SNAP_LOG_WARNING
+//                            << filename
+//                            << ": The complex type named \""
+//                            << name
+//                            << "\" is defined twice. Only the very first instance is used."
+//                            << SNAP_LOG_SEND;
+//                        continue;
+//                    }
+//                    (*f_complex_types)[name] = std::make_shared<schema_complex_type>(child);
+//                }
+//            }
+//        }
+//
+//        for(auto const & x : xml_files)
+//        {
+//            for(auto child(x.second->root()->first_child()); child != nullptr; child = child->next())
+//            {
+//std::cerr << "--- child tag name " << child->tag_name() << "\n";
+//                if(child->tag_name() == "table")
+//                {
+//                    table::pointer_t t(std::make_shared<table>(f_context, child, f_complex_types));
+//                    f_tables[t->name()] = t;
+//
+//                    dbfile::pointer_t dbfile(t->get_dbfile());
+//                    dbfile->set_table(t);
+//                    dbfile->set_sparse(t->is_sparse());
+//                }
+//                else if(child->tag_name() == "table-extension")
+//                {
+//                    // we collect those and process them in a second
+//                    // pass after we loaded all the XML files because
+//                    // otherwise the table may still be missing
+//                    //
+//                    table_extensions.push_back(child);
+//                }
+//                else if(child->tag_name() == "complex-type")
+//                {
+//                    // already worked on; ignore in this loop
+//                }
+//                else
+//                {
+//                    // generate an error for unknown tags or ignore?
+//                    //
+//                    SNAP_LOG_WARNING
+//                        << "Unknown tag \""
+//                        << child->tag_name()
+//                        << "\" within a <context> tag ignored."
+//                        << SNAP_LOG_SEND;
+//                }
+//            }
+//        }
+//
+//        SNAP_LOG_NOTICE
+//            << "Adding "
+//            << table_extensions.size()
+//            << " XML schema extensions."
+//            << SNAP_LOG_SEND;
+//
+//        for(auto const & e : table_extensions)
+//        {
+//            std::string const name(e->attribute("name"));
+//            table::pointer_t t(get_table(name));
+//            if(t == nullptr)
+//            {
+//                SNAP_LOG_WARNING
+//                    << "Unknown table \""
+//                    << e->tag_name()
+//                    << "\" within a <table-extension>, tag ignored."
+//                    << SNAP_LOG_SEND;
+//                continue;
+//            }
+//            t->load_extension(e);
+//        }
+//
+//        SNAP_LOG_NOTICE
+//            << "Verify "
+//            << f_tables.size()
+//            << " table schema"
+//            << (f_tables.size() == 1 ? "" : "ta")
+//            << "."
+//            << SNAP_LOG_SEND;
+//
+//        for(auto & t : f_tables)
+//        {
+//            t.second->get_schema();
+//        }
     }
 
     SNAP_LOG_INFORMATION
@@ -337,6 +360,166 @@ std::cerr << "--- child tag name " << child->tag_name() << "\n";
         << f_path
         << "\" ready."
         << SNAP_LOG_SEND;
+}
+
+
+/** \brief Read all the complex types in a map.
+ *
+ * This function reads all the complex types defined in a context. All
+ * the complex types are shared between all the tables so we return a
+ * pointer to this map. The map may be empty if not complex type was
+ * defined in this context.
+ *
+ * \exception invalid_name
+ * The function throws an invalid_name exception if the input has a
+ * section which uses a name other than `[type::\<name>]`. This
+ * should not happen since the backend is expected to manage these
+ * files (administrators should not directly edit these .ini files).
+ *
+ * \param[in] filename  The name of the file defining complex types.
+ *
+ * \return A pointer to a map of complex type indexed by complex type names.
+ */
+void context_impl::load_complex_types(std::string const & filename)
+{
+    f_complex_types = std::shared_ptr<schema_complex_type::map_t>();
+
+    advgetopt::conf_file_setup setup(
+          filename
+        , advgetopt::line_continuation_t::line_continuation_unix
+        , advgetopt::ASSIGNMENT_OPERATOR_EQUAL
+        , advgetopt::COMMENT_SHELL
+        , advgetopt::SECTION_OPERATOR_INI_FILE);
+
+    advgetopt::conf_file::pointer_t config(advgetopt::conf_file::get_conf_file(setup));
+
+    // the list of sections is "type::<name>" for each complex type
+    //
+    advgetopt::conf_file::sections_t sections(config->get_sections());
+
+    for(auto s : sections)
+    {
+        advgetopt::string_list_t section_names;
+        advgetopt::split_string(s, section_names, {"::"});
+        if(section_names.size() != 2)
+        {
+            throw invalid_name(
+                    "complex type names must be exactly two segments (type::<name>); \""
+                  + s
+                  + "\" is not valid.");
+        }
+        if(section_names[0] != "type")
+        {
+            throw invalid_name(
+                    "the first segment of a complex type name must be \"type\"; \""
+                  + section_names[0]
+                  + "\" is not valid.");
+        }
+        if(f_complex_types->contains(section_names[1]))
+        {
+            throw invalid_name(
+                    "complex type \""
+                  + section_names[1]
+                  + "\" defined twice.");
+        }
+        schema_complex_type::pointer_t type(std::make_shared<schema_complex_type>(config, section_names[1]));
+        (*f_complex_types)[section_names[1]] = type;
+    }
+
+    // now setup all the "type" fields properly
+    //
+    for(auto & type : *f_complex_types)
+    {
+        if(type.second->is_enum())
+        {
+            continue;
+        }
+
+        std::size_t const size(type.second->get_size());
+        for(std::size_t idx(0); idx < size; ++idx)
+        {
+            std::string const name(type.second->get_type_name(idx));
+            struct_type_t const struct_type(name_to_struct_type(name));
+            if(struct_type != INVALID_STRUCT_TYPE)
+            {
+                type.second->set_type(idx, struct_type);
+            }
+            else if(f_complex_types->contains(name))
+            {
+                // the type is a known complex type
+                //
+                type.second->set_type(idx, struct_type_t::STRUCT_TYPE_STRUCTURE);
+            }
+            else
+            {
+                throw invalid_name(
+                        "basic or complex type named \""
+                      + name
+                      + "\" not known.");
+            }
+        }
+    }
+}
+
+
+void context_impl::verify_complex_types()
+{
+    // in case the user made updates directly in our .ini, we could
+    // have loops, make sure that's not the case
+    //
+    for(auto & type : *f_complex_types)
+    {
+        if(type.second->is_enum())
+        {
+            continue;
+        }
+
+        find_loop(type.first, type.second, 1);
+    }
+}
+
+
+void context_impl::find_loop(std::string const & name, schema_complex_type::pointer_t type, std::size_t depth)
+{
+    if(depth >= MAX_COMPLEX_TYPE_REFERENCE_DEPTH)
+    {
+        throw invalid_name(
+                "too many complex type references from \""
+              + name
+              + "\"; the limit is currently "
+              + std::to_string(MAX_COMPLEX_TYPE_REFERENCE_DEPTH)
+              + ".");
+    }
+
+    std::size_t const size(type->get_size());
+    for(std::size_t idx(0); idx < size; ++idx)
+    {
+        if(type->get_type(idx) != struct_type_t::STRUCT_TYPE_STRUCTURE)
+        {
+            continue;
+        }
+
+        std::string const & field_name(type->get_type_name(idx));
+        if(field_name == name)
+        {
+            throw invalid_name(
+                    "complex type loop found in \""
+                  + type->get_name()
+                  + "\".");
+        }
+
+        auto it(f_complex_types->find(field_name));
+        if(it == f_complex_types->end())
+        {
+            // this should never happen
+            //
+            throw logic_error(
+                    "complex type \""
+                  + field_name
+                  + "\" not found.");
+        }
+        find_loop(name, it->second, depth + 1);
+    }
 }
 
 
@@ -370,9 +553,11 @@ size_t context_impl::get_config_size(std::string const & name) const
 }
 
 
-/** \brief Retrieve a .conf file parameter.
+/** \brief Retrieve a context.conf file parameter.
  *
- * This function is used to access a parameter in the configuration file.
+ * This function is used to access a parameter in the context configuration
+ * file.
+ *
  * For example, we retrieve the murmur3 seed from that file. This way each
  * installation can make use of a different value.
  *

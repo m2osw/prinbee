@@ -45,11 +45,8 @@
 // snapdev
 //
 #include    <snapdev/hexadecimal_string.h>
-
-
-// boost
-//
-#include    <boost/algorithm/string.hpp>
+#include    <snapdev/timespec_ex.h>
+#include    <snapdev/to_upper.h>
 
 
 // C++
@@ -145,49 +142,50 @@ struct field_sizes_t
 #pragma GCC diagnostic ignored "-Wpedantic"
 constexpr field_sizes_t const g_struct_type_sizes[] =
 {
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_END)]          = { INVALID_SIZE,              0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_VOID)]         = { 0,                         0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS8)]        = { sizeof(std::uint8_t),      0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS16)]       = { sizeof(std::uint16_t),     0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS32)]       = { sizeof(std::uint32_t),     0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS64)]       = { sizeof(std::uint64_t),     0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS128)]      = { sizeof(std::uint64_t) * 2, 0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS256)]      = { sizeof(std::uint64_t) * 4, 0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS512)]      = { sizeof(std::uint64_t) * 8, 0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT8)]         = { sizeof(std::int8_t),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT8)]        = { sizeof(std::uint8_t),      0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT16)]        = { sizeof(std::int16_t),      0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT16)]       = { sizeof(std::uint16_t),     0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT32)]        = { sizeof(std::int32_t),      0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT32)]       = { sizeof(std::uint32_t),     0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT64)]        = { sizeof(std::int64_t),      0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT64)]       = { sizeof(std::uint64_t),     0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT128)]       = { sizeof(std::int64_t) * 2,  0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT128)]      = { sizeof(std::uint64_t) * 2, 0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT256)]       = { sizeof(std::int64_t) * 4,  0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT256)]      = { sizeof(std::uint64_t) * 4, 0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT512)]       = { sizeof(std::int64_t) * 8,  0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT512)]      = { sizeof(std::uint64_t) * 8, 0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT32)]      = { sizeof(float),             0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT64)]      = { sizeof(double),            0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT128)]     = { sizeof(long double),       0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_VERSION)]      = { sizeof(std::uint32_t),     0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_TIME)]         = { sizeof(time_t),            0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_MSTIME)]       = { sizeof(std::int64_t),      0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_USTIME)]       = { sizeof(std::int64_t),      0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_P8STRING)]     = { VARIABLE_SIZE,             1 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_P16STRING)]    = { VARIABLE_SIZE,             2 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_P32STRING)]    = { VARIABLE_SIZE,             4 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_STRUCTURE)]    = { VARIABLE_SIZE,             0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY8)]       = { VARIABLE_SIZE,             1 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY16)]      = { VARIABLE_SIZE,             2 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY32)]      = { VARIABLE_SIZE,             4 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER8)]      = { VARIABLE_SIZE,             1 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER16)]     = { VARIABLE_SIZE,             2 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER32)]     = { VARIABLE_SIZE,             4 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_REFERENCE)]    = { sizeof(std::uint64_t),     0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_OID)]          = { sizeof(std::uint64_t),     0 },
-    [static_cast<int>(struct_type_t::STRUCT_TYPE_RENAMED)]      = { INVALID_SIZE,              0 }
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_END)]          = { INVALID_SIZE,                 0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_VOID)]         = { 0,                            0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS8)]        = { sizeof(std::uint8_t),         0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS16)]       = { sizeof(std::uint16_t),        0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS32)]       = { sizeof(std::uint32_t),        0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS64)]       = { sizeof(std::uint64_t),        0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS128)]      = { sizeof(std::uint64_t) * 2,    0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS256)]      = { sizeof(std::uint64_t) * 4,    0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS512)]      = { sizeof(std::uint64_t) * 8,    0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT8)]         = { sizeof(std::int8_t),          0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT8)]        = { sizeof(std::uint8_t),         0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT16)]        = { sizeof(std::int16_t),         0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT16)]       = { sizeof(std::uint16_t),        0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT32)]        = { sizeof(std::int32_t),         0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT32)]       = { sizeof(std::uint32_t),        0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT64)]        = { sizeof(std::int64_t),         0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT64)]       = { sizeof(std::uint64_t),        0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT128)]       = { sizeof(std::int64_t) * 2,     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT128)]      = { sizeof(std::uint64_t) * 2,    0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT256)]       = { sizeof(std::int64_t) * 4,     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT256)]      = { sizeof(std::uint64_t) * 4,    0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_INT512)]       = { sizeof(std::int64_t) * 8,     0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT512)]      = { sizeof(std::uint64_t) * 8,    0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT32)]      = { sizeof(float),                0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT64)]      = { sizeof(double),               0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT128)]     = { sizeof(long double),          0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_VERSION)]      = { sizeof(std::uint32_t),        0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_TIME)]         = { sizeof(time_t),               0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_MSTIME)]       = { sizeof(std::int64_t),         0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_USTIME)]       = { sizeof(std::int64_t),         0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_NSTIME)]       = { sizeof(snapdev::timespec_ex), 0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_P8STRING)]     = { VARIABLE_SIZE,                1 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_P16STRING)]    = { VARIABLE_SIZE,                2 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_P32STRING)]    = { VARIABLE_SIZE,                4 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_STRUCTURE)]    = { VARIABLE_SIZE,                0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY8)]       = { VARIABLE_SIZE,                1 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY16)]      = { VARIABLE_SIZE,                2 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY32)]      = { VARIABLE_SIZE,                4 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER8)]      = { VARIABLE_SIZE,                1 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER16)]     = { VARIABLE_SIZE,                2 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER32)]     = { VARIABLE_SIZE,                4 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_REFERENCE)]    = { sizeof(std::uint64_t),        0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_OID)]          = { sizeof(std::uint64_t),        0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_RENAMED)]      = { INVALID_SIZE,                 0 }
 };
 #pragma GCC diagnostic pop
 
@@ -268,7 +266,7 @@ struct_type_t name_to_struct_type(std::string const & type_name)
     }
 #endif
 
-    std::string const uc(boost::algorithm::to_upper_copy(type_name));
+    std::string const uc(snapdev::to_upper(type_name));
 
     int j(std::size(g_name_to_struct_type));
     int i(0);
@@ -2401,6 +2399,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
         case struct_type_t::STRUCT_TYPE_INT128:
         case struct_type_t::STRUCT_TYPE_UINT128:
         case struct_type_t::STRUCT_TYPE_FLOAT128:
+        case struct_type_t::STRUCT_TYPE_NSTIME:
             f->set_size(16);
             offset += 16;
             break;

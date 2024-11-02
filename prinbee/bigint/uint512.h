@@ -50,6 +50,7 @@ struct uint512_t
                                     uint512_t(uint512_t const & rhs);
                                     uint512_t(int512_t const & rhs);
                                     uint512_t(std::initializer_list<std::uint64_t> rhs);
+                                    uint512_t(std::uint64_t rhs);
 
     uint512_t &                     operator = (uint512_t const & rhs);
     uint512_t &                     operator = (int512_t const & rhs);
@@ -70,11 +71,14 @@ struct uint512_t
     uint512_t                       operator - () const;
     uint512_t                       operator + (uint512_t const & rhs) const;
     uint512_t &                     operator += (uint512_t const & rhs);
+    uint512_t &                     operator += (std::uint64_t const rhs);
     uint512_t                       operator - (uint512_t const & rhs) const;
     uint512_t &                     operator -= (uint512_t const & rhs);
     uint512_t &                     operator *= (uint512_t const & rhs);
+    uint512_t &                     operator *= (std::uint64_t const rhs);
     uint512_t                       operator / (uint512_t const & rhs) const;
     uint512_t &                     operator /= (uint512_t const & rhs);
+    uint512_t &                     operator /= (std::uint64_t const rhs);
     uint512_t &                     operator %= (uint512_t const & rhs);
     uint512_t &                     operator <<= (int shift);
     uint512_t                       operator << (int shift) const;

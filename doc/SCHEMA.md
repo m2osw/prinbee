@@ -10,14 +10,15 @@ We have several parts:
 2. The _table_; which represents a table in SQL 
 3. The _blob_; which is the list of columns and their content
 
-Our tables are a one to one equivalent to an SQL table in concept.
-However, our database does not force you to define all the column in
+In concept, our tables are a one to one equivalent to an SQL table.
+However, our database does not force you to define all the columns in
 each row. When you try to access a column it can be NULL or non-existant
 and the distinction can be important in some cases.
 
 Some columns are important because they are used to index the data, but
 really only the columns used to define the primary index (the columns
-used as the key to this row of data) are mandatory.
+used as the key to this row of data) are mandatory and only if they do
+not have a default value defined.
 
 With the schema definition, the blob is limited to a specific set of
 column names and their values to the specific type that column was

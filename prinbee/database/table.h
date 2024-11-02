@@ -41,9 +41,8 @@
 #include    "prinbee/database/cursor.h"
 
 
-// basic-xml
 //
-#include    <basic-xml/xml.h>
+//#include    "prinbee/database/cursor.h"
 
 
 
@@ -79,7 +78,7 @@ public:
 
                                                 table(
                                                       context * c
-                                                    , basic_xml::node::pointer_t x
+                                                    , std::string const & table_dir
                                                     , schema_complex_type::map_pointer_t complex_types);
 
     pointer_t                                   get_pointer() const;
@@ -88,21 +87,20 @@ public:
 
     // schema management
     //
-    void                                        load_extension(basic_xml::node::pointer_t e);
-    version_t                                   schema_version() const;
-    std::string                                 name() const;
-    model_t                                     model() const;
-    column_ids_t                                row_key() const;
-    schema_column::pointer_t                    column(std::string const & name, version_t const & version = version_t()) const;
-    schema_column::pointer_t                    column(column_id_t id, version_t const & version = version_t()) const;
-    schema_column::map_by_id_t                  columns_by_id(version_t const & version = version_t()) const;
-    schema_column::map_by_name_t                columns_by_name(version_t const & version = version_t()) const;
-    bool                                        is_sparse() const;
+    //void                                        load_extension(advgetopt::conf_file::pointer_t s);
+    schema_version_t                            get_schema_version() const;
+    std::string                                 get_name() const;
+    model_t                                     get_model() const;
+    column_ids_t                                get_primary_key() const;
+    schema_column::pointer_t                    get_column(std::string const & name, schema_version_t version = schema_version_t()) const;
+    schema_column::pointer_t                    get_column(column_id_t id, schema_version_t version = schema_version_t()) const;
+    schema_column::map_by_id_t                  get_columns_by_id(schema_version_t version = schema_version_t()) const;
+    schema_column::map_by_name_t                get_columns_by_name(schema_version_t version = schema_version_t()) const;
     bool                                        is_secure() const;
-    std::string                                 description() const;
+    std::string                                 get_description() const;
     size_t                                      get_size() const; // total size of the file right now
     size_t                                      get_page_size() const; // size of one block in bytes including the magic
-    schema_table::pointer_t                     get_schema(version_t const & version = version_t());
+    schema_table::pointer_t                     get_schema(schema_version_t version = schema_version_t());
 
     // block management
     //

@@ -332,6 +332,7 @@ enum class struct_type_t : uint16_t
     STRUCT_TYPE_TIME,               // UINT64 equivalent to time_t (seconds)
     STRUCT_TYPE_MSTIME,             // UINT64 time in milliseconds
     STRUCT_TYPE_USTIME,             // UINT64 time in microseconds
+    STRUCT_TYPE_NSTIME,             // UINT128 time in nanoseconds (timespec_ex)
 
     STRUCT_TYPE_P8STRING,           // UINT8 for size
     STRUCT_TYPE_P16STRING,          // UINT16 for size

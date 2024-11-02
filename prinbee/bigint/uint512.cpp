@@ -103,6 +103,19 @@ uint512_t::uint512_t(std::initializer_list<std::uint64_t> rhs)
 }
 
 
+uint512_t::uint512_t(std::uint64_t rhs)
+{
+    f_value[0] = rhs;
+    f_value[1] =
+    f_value[2] =
+    f_value[3] =
+    f_value[4] =
+    f_value[5] =
+    f_value[6] =
+    f_value[7] = 0;
+}
+
+
 uint512_t & uint512_t::operator = (uint512_t const & rhs)
 {
     f_value[0] = rhs.f_value[0];
@@ -398,6 +411,13 @@ uint512_t & uint512_t::operator += (uint512_t const & rhs)
 }
 
 
+uint512_t & uint512_t::operator += (std::uint64_t const rhs)
+{
+    uint512_t const b(rhs);
+    return *this += b;
+}
+
+
 uint512_t uint512_t::operator - (uint512_t const & rhs) const
 {
     uint512_t v;
@@ -445,6 +465,13 @@ uint512_t & uint512_t::operator *= (uint512_t const & rhs)
 }
 
 
+uint512_t & uint512_t::operator *= (std::uint64_t const rhs)
+{
+    uint512_t const b(rhs);
+    return *this *= b;
+}
+
+
 uint512_t uint512_t::operator / (uint512_t const & rhs) const
 {
     uint512_t remainder;
@@ -457,6 +484,13 @@ uint512_t & uint512_t::operator /= (uint512_t const & rhs)
 {
     uint512_t remainder;
     return div(rhs, remainder);
+}
+
+
+uint512_t & uint512_t::operator /= (std::uint64_t const rhs)
+{
+    uint512_t const b(rhs);
+    return *this /= b;
 }
 
 

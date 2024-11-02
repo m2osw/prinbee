@@ -44,4 +44,34 @@ install(
         bin
 )
 
+##
+## Tool to generate and further manage languages
+##
+project(language-manager)
+
+add_executable(${PROJECT_NAME}
+    language_manager.cpp
+)
+
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        ${ADVGETOPT_INCLUDE_DIRS}
+        ${ICU_INCLUDE_DIRS}
+        ${SNAPDEV_INCLUDE_DIRS}
+)
+
+target_link_libraries(${PROJECT_NAME}
+    prinbee
+    ${ADVGETOPT_LIBRARIES}
+    ${ICU_LIBRARIES}
+)
+
+install(
+    TARGETS
+        ${PROJECT_NAME}
+
+    DESTINATION
+        bin
+)
+
 # vim: ts=4 sw=4 et

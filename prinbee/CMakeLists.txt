@@ -73,10 +73,17 @@ add_library(${PROJECT_NAME} SHARED
 
     data/dbfile.cpp
     data/convert.cpp
+    data/language.cpp
     data/schema.cpp
     #data/script.cpp
     data/structure.cpp
     data/virtual_buffer.cpp
+
+    pbql/input.cpp
+    pbql/lexer.cpp
+    pbql/location.cpp
+    pbql/node.cpp
+    pbql/parser.cpp
 
     error.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp

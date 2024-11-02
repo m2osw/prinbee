@@ -148,7 +148,7 @@ table_pointer_t block::get_table() const
 {
     if(f_table == nullptr)
     {
-        throw invalid_xml("block::get_table() called before the table was defined.");
+        throw not_ready("block::get_table() called before the table was defined.");
     }
 
     return f_table;
@@ -159,7 +159,7 @@ void block::set_table(table_pointer_t table)
 {
     if(f_table != nullptr)
     {
-        throw invalid_xml("block::set_table() called twice.");
+        throw defined_twice("block::set_table() called twice.");
     }
 
     f_table = table;

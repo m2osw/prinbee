@@ -21,7 +21,7 @@
  * \brief Journal implementation.
  *
  * When the Client Proxy or the Prinbee Server receive a message through
- * their communicatord, it first saves it to a journal then forward it to
+ * their communicatord, it first saves it to a journal then forwards it to
  * the next stage. This implementation handles all the journal support.
  *
  * The message must have a "request_id" field for this to work. Otherwise,
@@ -55,9 +55,9 @@
  * \li Journal "Index"
  *
  * On load, we read the existing Journal A and B files if they exist and
- * build an in memory "index" which we call locations. This index includes
+ * build an in-memory "index" which we call "locations". This index includes
  * each event request identifier, status, and time. It also has the location
- * where that event can be found in Journal A or B. The allows us to go read
+ * where that event can be found in Journal A or B. This allows us to go read
  * the event and return it to the client when necessary.
  *
  * The status is one of:
@@ -83,7 +83,7 @@
  *
  * The journal file format is a small header and then events one after the
  * other. When we reload a journal, we scan the entire file to regenerate
- * the in memory index.
+ * the in-memory index.
  *
  * \code
  *     // file header and set of events
@@ -94,7 +94,7 @@
  *     event_t         f_event[n];   // n is 0 to `f_maximum_events - 1`
  *
  *     // where event_t looks like this
- *     uint8_t         f_magic[2];   // "eve"
+ *     uint8_t         f_magic[2];   // "ev"
  *     uint8_t         f_status;
  *     uint8_t         f_request_id_size;
  *     uint32_t        f_size;       // total size of the event
@@ -111,7 +111,7 @@
  *         struct inline_attachment
  *         {
  *             uint32_t        f_mode : 1;      // = 0 -- inline
- *             uint32_t        f_size : 31;
+ *             uint32_t        f_offset : 31;
  *         };
  *         struct external_attachment
  *         {
@@ -119,13 +119,12 @@
  *             uint32_t        f_identifier : 31;
  *         };
  *     };
- *     // the size of an attachment is defined as f_size[n + 1] - f_size[n]
- *     // the last attachment size uses the event_t.f_size - f_size[n]
- *     // the attachment with an `f_identifier` are skipped to compute the size
- *     
+ *     // an inline attachment has a size of f_attachment_offsets[n + 1].f_offset - f_attachment_offsets[n].f_offset
+ *     // an external file attachment size is 0 bytes (i.e. `sizeof(f_attachment[n]) == 0`)
+ *     // the last attachment size uses the event_t.f_size - f_attachment_offsets[n].f_offset
  * \endcode
  *
- * attachments.f_mode is one of:
+ * `attachments.f_mode` is one of:
  *
  * 0 -- small attachment; saved inline
  * 1 -- large attachment; saved in separate file
@@ -218,7 +217,7 @@ struct event_journal_event_t
     std::uint64_t       f_time[2];
     std::uint8_t        f_attachment_count;
     std::uint8_t        f_pad[7];
-    //std::uint32_t       f_attachment_offsets[f_attachment_count]; -- if bit 15 is set, the offset represents a filename number
+    //std::uint32_t       f_attachment_offsets[f_attachment_count]; -- if bit 31 is set, the offset represents a filename number
     //std::uint8_t        f_request_id[f_request_id_size];
     //std::uint8_t        f_attachments[<index>][<attachment size>]; -- <attachment size> calculated using f_attachment_offsets
 };

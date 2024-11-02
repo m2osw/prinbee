@@ -98,7 +98,7 @@ buffer_t row::to_binary() const
     // data whatever the version
     //
     table::pointer_t t(get_table());
-    push_be_uint32(result, t->schema_version().to_binary());
+    push_be_uint32(result, t->get_schema_version());
 
     // TODO: have several loops:
     //
@@ -135,12 +135,15 @@ buffer_t row::to_binary() const
  * \todo
  * We need to consider looking into not defining all the cells if the user
  * only asked for a few of them. This may actually be a feature to implement
- * in the to_binary() function. In any even if the SELECT only requests
+ * in the to_binary() function. In any event, if a SELECT only requests
  * column "A" then we should only return that one column and not all of them.
  * This will save us a lot of bandwidth, but it also means that the row is
  * incomplete and can't be written back to the database. So we have to have
  * a form of special case. (We also want to support updates without all the
  * data available in the row; i.e. with parts only available on disk...)
+ * i.e. an UPDATE table-name SET column-name = 123 WHERE primary-key = 'abc';
+ * is "complicated" if the column cannot just be overwritten--that is, we
+ * need all the columns to re-write the row somewhere else.
  *
  * \param[in] blob  The blob to extract to this row object.
  */
@@ -148,8 +151,8 @@ void row::from_binary(buffer_t const & blob)
 {
     table::pointer_t t(f_table.lock());
     size_t pos(0);
-    version_t const version(read_be_uint32(blob, pos));
-    if(version != t->schema_version())
+    schema_version_t const version(read_be_uint32(blob, pos));
+    if(version != t->get_schema_version())
     {
         // the schema changed, make sure to
         //
@@ -160,22 +163,22 @@ void row::from_binary(buffer_t const & blob)
         while(pos < blob.size())
         {
             column_id_t const column_id(cell::column_id_from_binary(blob, pos));
-            schema_column::pointer_t exist_schema(t->column(column_id, version));
+            schema_column::pointer_t exist_schema(t->get_column(column_id, version));
             if(exist_schema == nullptr)
             {
                 throw column_not_found(
-                          "Column with identifier "
+                          "column with identifier "
                         + std::to_string(static_cast<int>(column_id))
                         + " does not exist in \""
-                        + get_table()->name()
+                        + get_table()->get_name()
                         + "\" schema version "
-                        + version.to_string()
+                        + std::to_string(version)
                         + " (from_binary).");
             }
             cell::pointer_t c(std::make_shared<cell>(exist_schema));
             c->value_from_binary(blob, pos); // we MUST read or skip that data, so make sure to do that
 
-            schema_column::pointer_t current_schema(t->column(exist_schema->name()));
+            schema_column::pointer_t current_schema(t->get_column(exist_schema->get_name()));
             if(current_schema != nullptr)
             {
                 cell::pointer_t cell(get_cell(column_id, true));
@@ -212,14 +215,14 @@ cell::pointer_t row::get_cell(column_id_t const & column_id, bool create)
             return it->second;
     }
 
-    schema_column::pointer_t column(get_table()->column(column_id));
+    schema_column::pointer_t column(get_table()->get_column(column_id));
     if(column == nullptr)
     {
         throw column_not_found(
                   "Column with identifier "
                 + std::to_string(static_cast<int>(column_id))
                 + " does not exist in \""
-                + get_table()->name()
+                + get_table()->get_name()
                 + "\" (get_cell).");
     }
 
@@ -236,18 +239,18 @@ cell::pointer_t row::get_cell(column_id_t const & column_id, bool create)
 
 cell::pointer_t row::get_cell(std::string const & column_name, bool create)
 {
-    schema_column::pointer_t column(get_table()->column(column_name));
+    schema_column::pointer_t column(get_table()->get_column(column_name));
     if(column == nullptr)
     {
         throw column_not_found(
                   "Column \""
                 + column_name
                 + "\" does not exist in \""
-                + get_table()->name()
+                + get_table()->get_name()
                 + "\".");
     }
 
-    auto it(f_cells.find(column->column_id()));
+    auto it(f_cells.find(column->get_id()));
     if(it != f_cells.end())
     {
             return it->second;
@@ -259,7 +262,7 @@ cell::pointer_t row::get_cell(std::string const & column_name, bool create)
     }
 
     cell::pointer_t c(std::make_shared<cell>(column));
-    f_cells[column->column_id()] = c;
+    f_cells[column->get_id()] = c;
     return c;
 }
 
@@ -276,18 +279,18 @@ void row::delete_cell(column_id_t const & column_id)
 
 void row::delete_cell(std::string const & column_name)
 {
-    schema_column::pointer_t column(get_table()->column(column_name));
+    schema_column::pointer_t column(get_table()->get_column(column_name));
     if(column == nullptr)
     {
         throw column_not_found(
                   "Column \""
                 + column_name
                 + "\" does not exist in \""
-                + get_table()->name()
+                + get_table()->get_name()
                 + "\".");
     }
 
-    delete_cell(column->column_id());
+    delete_cell(column->get_id());
 }
 
 
@@ -348,7 +351,10 @@ bool row::update()
  * create the rows and also have secondary indexes to do sorted searches of
  * revisions.
  *
- * \param[in] murmur3  The buffer where the hash gets saved.
+ * \exception column_not_found
+ * If a cell is missing data for the primary key, then this 
+ *
+ * \param[out] murmur3  The buffer where the hash gets saved.
  * \param[in] version  The branch & revision version.
  * \param[in] language  The language of the revision.
  */
@@ -358,7 +364,7 @@ void row::generate_mumur3(buffer_t & murmur3, version_t version, std::string con
     //
     buffer_t key;
     table::pointer_t table(get_table());
-    column_ids_t const ids(table->row_key());
+    column_ids_t const ids(table->get_primary_key());
     bool add_separator(false);
     for(auto id : ids)
     {
@@ -370,23 +376,34 @@ void row::generate_mumur3(buffer_t & murmur3, version_t version, std::string con
             // maybe we could support a default in a primary key column
             //
             throw column_not_found(
-                      "Column with ID #"
-                    + table->column(id, false)->name()
-                    + " is not set, but it is mandatory to search the primary key of table \""
-                    + table->name()
+                      "the mandatory column with ID #"
+                    + table->get_column(id, false)->get_name()
+                    + " is not set yet it is required for the primary key of table \""
+                    + table->get_name()
                     + "\".");
         }
 
         if(add_separator)
         {
             // we add the separator only if necessary (i.e. when more data
-            // follows that column)
+            // follows that column and the colunm is not using a fixed data
+            // type)
             //
             push_uint8(key, 255);
         }
         cell->value_to_binary(key);
         add_separator = !cell->has_fixed_type();
     }
+
+// TODO:
+// the murmur3 has to be the key as generated so far (see above)
+// the major.minor version and language represent a sub-index
+// which we need to be able to list to be able to access either
+// one; so we need to find a way to generate such a list (and
+// this is why we have a max. number of versions and that should
+// remain fairly small)
+//
+throw not_yet_implemented("we have to fix the version/language usage: i.e. it's a sub-index, not part of the primary index");
     if(!version.is_null())
     {
         // at least we have a branch, maybe a revision too
@@ -397,14 +414,11 @@ void row::generate_mumur3(buffer_t & murmur3, version_t version, std::string con
         }
         push_be_uint16(key, version.get_major());
         //add_separator = false;
+        push_be_uint16(key, version.get_minor());
 
         if(!language.empty())
         {
-            // we also have a revision
-            //
-            push_be_uint16(key, version.get_minor());
-
-            uint8_t const * s(reinterpret_cast<uint8_t const *>(language.c_str()));
+            std::uint8_t const * s(reinterpret_cast<std::uint8_t const *>(language.c_str()));
             key.insert(key.end(), s, s + language.length());
             //add_separator = true;
         }
