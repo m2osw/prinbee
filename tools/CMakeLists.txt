@@ -57,6 +57,7 @@ target_include_directories(${PROJECT_NAME}
     PUBLIC
         ${ADVGETOPT_INCLUDE_DIRS}
         ${ICU_INCLUDE_DIRS}
+        ${LIBUTF8_INCLUDE_DIRS}
         ${SNAPDEV_INCLUDE_DIRS}
 )
 
@@ -64,6 +65,7 @@ target_link_libraries(${PROJECT_NAME}
     prinbee
     ${ADVGETOPT_LIBRARIES}
     ${ICU_LIBRARIES}
+    ${LIBUTF8_LIBRARIES}
 )
 
 install(

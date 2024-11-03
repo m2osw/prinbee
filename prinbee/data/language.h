@@ -29,10 +29,6 @@
  * Unicode library is updated.
  */
 
-// self
-//
-//#include    "prinbee/data/structure.h"
-
 
 // C++
 //
@@ -57,9 +53,11 @@ class language
 public:
     typedef std::shared_ptr<language>           pointer_t;
     typedef std::map<language_id_t, pointer_t>  map_t;
+    typedef std::map<std::string, pointer_t>    map_by_code_t; // key is the language + country code (i.e. "en_US") as available
 
     void                    set_id(language_id_t id);
     language_id_t           get_id() const;
+    std::string             get_key() const;
 
     void                    set_country(std::string const & country);
     std::string             get_country() const;
@@ -67,9 +65,11 @@ public:
     void                    set_language(std::string const & l);
     std::string             get_language() const;
 
+    bool                    has_country_2_letters() const;
     void                    set_country_2_letters(std::string const & country);
     std::string             get_country_2_letters() const;
 
+    bool                    has_language_2_letters() const;
     void                    set_language_2_letters(std::string const & l);
     std::string             get_language_2_letters() const;
 
@@ -86,9 +86,21 @@ private:
 };
 
 
-char const *        get_language_filename();
-void                load_languages(std::string const & filename);
-language::map_t     get_all_languages();
+char const *            get_language_filename();
+void                    load_languages(std::string const & filename);
+language::map_t         get_all_languages();
+void                    display_languages(prinbee::language::map_t const & languages);
+
+enum class duplicate_t
+{
+    DUPLICATE_FORBIDDEN,
+    DUPLICATE_SILENT,
+    DUPLICATE_VERBOSE,
+};
+
+language::map_by_code_t languages_by_code(
+          language::map_t const & languages
+        , duplicate_t duplicates_handling = duplicate_t::DUPLICATE_FORBIDDEN);
 
 
 

@@ -65,6 +65,11 @@
 #include    <snaplogger/message.h>
 
 
+// libutf8
+//
+#include    <libutf8/libutf8.h>
+
+
 // snapdev
 //
 #include    <snapdev/to_upper.h>
@@ -73,7 +78,8 @@
 
 // C++
 //
-//#include    <iostream>
+#include    <iomanip>
+#include    <iostream>
 //#include    <type_traits>
 
 
@@ -124,6 +130,59 @@ language_id_t language::get_id() const
 }
 
 
+/** \brief Compute the key of a Prinbee language.
+ *
+ * The language makes use of the standard language key which in general
+ * is defined as "2 letter language abbreviation", an underscore, and
+ * the "2 letter country abbreviation".
+ *
+ * The 2 letter language abbreviation is not always available. In that
+ * case we make use of the 3 letter language abbreviation.
+ *
+ * Further, the country may not be defined either. i.e. a form of
+ * language that is not tightly bound to a region. This is generally
+ * the default for a language (i.e. French, in general, is the same in
+ * countries where it is spoken; the region is important if you want
+ * to use specifics to that region which may not be understandable by
+ * people from another region).
+ *
+ * As a result, they function generates one of these:
+ *
+ * \code
+ *     <2 letter language> + '_' + <2 letter country>
+ *     <3 letter language> + '_' + <2 letter country>
+ *     <2 letter language>
+ *     <3 letter language>
+ * \endcode
+ *
+ * The language manager used to generate our list of Prinbee supported
+ * languages makes sure that all the languages have a unique key.
+ *
+ * \return The key for this language (i.e. "en_US", "fr_CA", etc.)
+ */
+std::string language::get_key() const
+{
+    std::string key;
+
+    if(has_language_2_letters())
+    {
+        key += get_language_2_letters();
+    }
+    else
+    {
+        key += get_language_3_letters();
+    }
+
+    if(has_country_2_letters())
+    {
+        key += '_';
+        key += get_country_2_letters();
+    }
+
+    return key;
+}
+
+
 void language::set_country(std::string const & country)
 {
     f_country = country;
@@ -148,6 +207,12 @@ std::string language::get_language() const
 }
 
 
+bool language::has_country_2_letters() const
+{
+    return f_country_2_letters[0] != '?' && f_country_2_letters[1] != '?';
+}
+
+
 void language::set_country_2_letters(std::string const & country)
 {
     if(country.length() != 2)
@@ -164,6 +229,12 @@ void language::set_country_2_letters(std::string const & country)
 std::string language::get_country_2_letters() const
 {
     return std::string(f_country_2_letters, 2);
+}
+
+
+bool language::has_language_2_letters() const
+{
+    return f_language_2_letters[0] != '?' && f_language_2_letters[1] != '?';
 }
 
 
@@ -224,21 +295,23 @@ void load_languages(std::string const & filename)
         , advgetopt::line_continuation_t::line_continuation_unix
         , advgetopt::ASSIGNMENT_OPERATOR_EQUAL
         , advgetopt::COMMENT_SHELL
-        , advgetopt::SECTION_OPERATOR_INI_FILE);
+        , advgetopt::SECTION_OPERATOR_INI_FILE | advgetopt::SECTION_OPERATOR_CPP);
 
     advgetopt::conf_file::pointer_t config(advgetopt::conf_file::get_conf_file(setup));
+
+    g_languages.clear();
 
     advgetopt::conf_file::sections_t sections(config->get_sections());
     for(auto s : sections)
     {
-        if(!s.starts_with("l"))
+        if(!s.starts_with("l::"))
         {
             // ??? -- should we error on such?
             continue;
         }
 
         std::int64_t id(0);
-        if(!advgetopt::validator_integer::convert_string(s.c_str() + 1, id))
+        if(!advgetopt::validator_integer::convert_string(s.c_str() + 3, id))
         {
             throw invalid_number(
                       "invalid language identifier \""
@@ -258,7 +331,12 @@ void load_languages(std::string const & filename)
 
         l->set_country(config->get_parameter(s + "::country"));
         l->set_language(config->get_parameter(s + "::language"));
-        l->set_country_2_letters(config->get_parameter(s + "::country_2_letters"));
+
+        std::string const country2(config->get_parameter(s + "::country_2_letters"));
+        if(!country2.empty())
+        {
+            l->set_country_2_letters(country2);
+        }
 
         std::string const lang2(config->get_parameter(s + "::language_2_letters"));
         if(!lang2.empty())
@@ -280,6 +358,100 @@ void load_languages(std::string const & filename)
 language::map_t get_all_languages()
 {
     return g_languages;
+}
+
+
+void display_languages(prinbee::language::map_t const & languages)
+{
+    if(languages.empty())
+    {
+        std::cout << "warning: no languages availables.\n";
+        return;
+    }
+
+    std::size_t max_country_length(7);
+    std::size_t max_language_length(8);
+    for(auto const & l : languages)
+    {
+        max_country_length = std::max(max_country_length, libutf8::u8length(l.second->get_country()));
+        max_language_length = std::max(max_language_length, libutf8::u8length(l.second->get_language()));
+    }
+    std::stringstream ss;
+    ss  << "+-------+---------" << std::string(max_country_length - 7, '-')
+                          << "+----------" << std::string(max_language_length - 8, '-')
+                                     << "+----+----+-----+--------+\n";
+    std::cout << ss.str()
+        << "| ID    | Country " << std::string(max_country_length - 7, ' ')
+                          << "| Language " << std::string(max_language_length - 8, ' ')
+                                     << "| C2 | L2 | L3  | Key    |\n"
+              << ss.str();
+    for(auto const & l : languages)
+    {
+        std::cout
+            << "| "
+            << std::setw(5) << std::right << l.second->get_id() << std::left
+            << " | "
+            // there is a "bug" in the setw() code as it does not take UTF-8 in account
+            << std::setw(max_country_length + l.second->get_country().length() - libutf8::u8length(l.second->get_country())) << l.second->get_country()
+            << " | "
+            << std::setw(max_language_length + l.second->get_language().length() - libutf8::u8length(l.second->get_language())) << l.second->get_language()
+            << " | "
+            << l.second->get_country_2_letters()
+            << " | "
+            << l.second->get_language_2_letters()
+            << " | "
+            << l.second->get_language_3_letters()
+            << " | "
+            << std::setw(6) << l.second->get_key()
+            << " |\n";
+    }
+    std::cout << ss.str();
+}
+
+
+language::map_by_code_t languages_by_code(language::map_t const & languages, duplicate_t duplicates_handling)
+{
+    language::map_by_code_t result;
+    language::map_t duplicates;
+    std::size_t count_duplicates(0);
+    for(auto const & l : languages)
+    {
+        std::string const key(l.second->get_key());
+        auto it(result.find(key));
+        if(it != result.end())
+        {
+            switch(duplicates_handling)
+            {
+            case duplicate_t::DUPLICATE_FORBIDDEN:
+                throw invalid_entity("the input languages includes duplicates.");
+
+            case duplicate_t::DUPLICATE_SILENT:
+                break;
+
+            case duplicate_t::DUPLICATE_VERBOSE:
+                ++count_duplicates;
+                duplicates[l.second->get_id()] = l.second;
+                duplicates[it->second->get_id()] = it->second;
+                break;
+
+            }
+        }
+        else
+        {
+            result[key] = l.second;
+        }
+    }
+
+    if(!duplicates.empty())
+    {
+        std::cout
+            << "prinbee: found "
+            << count_duplicates
+            << " duplicated languages by key:\n";
+        display_languages(duplicates);
+    }
+
+    return result;
 }
 
 
