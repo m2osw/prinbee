@@ -37,9 +37,6 @@ namespace pbql
 
 
 
-constexpr char32_t const    END_OF_INPUT = -1;
-
-
 class location
 {
 public:

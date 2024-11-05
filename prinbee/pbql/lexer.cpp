@@ -50,15 +50,6 @@
 //
 #include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/not_reached.h>
-//#include    <snapdev/pathinfo.h>
-//#include    <snapdev/stream_fd.h>
-//#include    <snapdev/unique_number.h>
-
-
-//// C
-////
-//#include    <linux/fs.h>
-//#include    <sys/ioctl.h>
 
 
 // last include
@@ -102,7 +93,6 @@ node::pointer_t lexer::get_next_token()
             // skip white space silently
             break;
 
-        case '#':
         case '%':
         case '&':
         case '(':
@@ -110,7 +100,6 @@ node::pointer_t lexer::get_next_token()
         case '*':
         case '+':
         case ',':
-        case '-':
         case '/':
         case ';':
         case '@':
@@ -121,6 +110,65 @@ node::pointer_t lexer::get_next_token()
                 node::pointer_t n(std::make_shared<node>(static_cast<token_t>(c), l));
                 return n;
             }
+
+        case '#':
+            if(l.get_line() == 1
+            && l.get_column() == 1)
+            {
+                // if the '#' start the first line, view it as a comment
+                //
+                // in this case, we allow further lines to also use the '#'
+                // to start a comment
+                //
+                for(;;)
+                {
+                    for(;;)
+                    {
+                        c = f_input->getc();
+                        if(c == '\n' || c == libutf8::EOS)
+                        {
+                            break;
+                        }
+                    }
+                    c = f_input->getc();
+                    if(c != '#')
+                    {
+                        f_input->ungetc(c);
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                // this is an operator
+                //
+                node::pointer_t n(std::make_shared<node>(static_cast<token_t>(c), l));
+                return n;
+            }
+            break;
+
+        case '-':
+            c = f_input->getc();
+            if(c == '-')
+            {
+                // this is a comment, skip everything up to the next newline
+                //
+                for(;;)
+                {
+                    c = f_input->getc();
+                    if(c == '\n' || c == libutf8::EOS)
+                    {
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                f_input->ungetc(c);
+                node::pointer_t n(std::make_shared<node>(token_t::TOKEN_LESS, l));
+                return n;
+            }
+            break;
 
         case '<':
             c = f_input->getc();
@@ -355,6 +403,7 @@ node::pointer_t lexer::get_next_token()
                     << ").";
                 throw unexpected_token(msg.str());
             }
+            break;
 
         }
     }

@@ -10,6 +10,17 @@ to be fixed (i.e. use the more complex but much faster algorithms available).
 Another library we should probably use is GMP:
 https://gmplib.org/
 
+# Languages
+
+Whenever we do a query, we want to have a list of languages to query in a
+specific order.
+
+The concept is simple. If you ask for `fr_CA` and that specific French entry
+does not exist, then try again with `fr`. If that fails, then try with any
+region (i.e. `fr_FR`, `fr_BE`, etc.) If all of those fail, try again with
+the same mechanism using the default language of the website. If that also
+fails, return the first entry that exist in the database.
+
 # Dependencies
 
 These need to be installed properly using the corresponding variables

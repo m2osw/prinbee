@@ -37,31 +37,9 @@
 #include    "prinbee/exception.h"
 
 
-
-//// advgetopt
-////
-//#include    <advgetopt/conf_file.h>
-//#include    <advgetopt/validator_integer.h>
-//
-//
-//// snaplogger
-////
-//#include    <snaplogger/message.h>
-
-
 // snapdev
 //
 #include    <snapdev/file_contents.h>
-//#include    <snapdev/mkdir_p.h>
-//#include    <snapdev/pathinfo.h>
-//#include    <snapdev/stream_fd.h>
-//#include    <snapdev/unique_number.h>
-//
-//
-//// C
-////
-//#include    <linux/fs.h>
-//#include    <sys/ioctl.h>
 
 
 // last include
@@ -119,7 +97,7 @@ char32_t input::getc()
 
 void input::ungetc(char32_t c)
 {
-    if(c == END_OF_INPUT)
+    if(c == libutf8::EOS)
     {
         return;
     }

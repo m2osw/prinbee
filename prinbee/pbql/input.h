@@ -34,24 +34,9 @@
 #include    <libutf8/iterator.h>
 
 
-//// snaplogger
-////
-//#include    <snaplogger/message.h>
-//
-//
-//// snapdev
-////
-//#include    <snapdev/hexadecimal_string.h>
-//#include    <snapdev/mkdir_p.h>
-//#include    <snapdev/pathinfo.h>
-//#include    <snapdev/stream_fd.h>
-//#include    <snapdev/unique_number.h>
-
-
 // C++
 //
 #include    <memory>
-//#include    <sys/ioctl.h>
 
 
 

@@ -36,32 +36,6 @@
 
 
 
-//// advgetopt
-////
-//#include    <advgetopt/conf_file.h>
-//#include    <advgetopt/validator_integer.h>
-//
-//
-//// snaplogger
-////
-//#include    <snaplogger/message.h>
-
-
-// snapdev
-//
-//#include    <snapdev/file_contents.h>
-//#include    <snapdev/mkdir_p.h>
-//#include    <snapdev/pathinfo.h>
-//#include    <snapdev/stream_fd.h>
-//#include    <snapdev/unique_number.h>
-
-
-//// C
-////
-//#include    <linux/fs.h>
-//#include    <sys/ioctl.h>
-
-
 // last include
 //
 #include    <snapdev/poison.h>

@@ -1722,7 +1722,7 @@ advgetopt::conf_file::pointer_t schema_table::from_config_load_config()
         , advgetopt::line_continuation_t::line_continuation_unix
         , advgetopt::ASSIGNMENT_OPERATOR_EQUAL
         , advgetopt::COMMENT_SHELL
-        , advgetopt::SECTION_OPERATOR_INI_FILE);
+        , advgetopt::SECTION_OPERATOR_INI_FILE | advgetopt::SECTION_OPERATOR_CPP);
 
     return advgetopt::conf_file::get_conf_file(setup);
 }
