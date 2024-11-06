@@ -88,12 +88,18 @@ int location::get_line() const
 
 std::string location::get_location() const
 {
-    return f_filename
-         + ':'
-         + std::to_string(f_line)
-         + ':'
-         + std::to_string(f_column)
-         + ": ";
+    std::string result(f_filename);
+
+    if(!result.empty())
+    {
+        result += ':';
+    }
+    result += std::to_string(f_line);
+    result += ':';
+    result += std::to_string(f_column);
+    result += ": ";
+
+    return result;
 }
 
 

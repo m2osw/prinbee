@@ -16,15 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// prinbee
+//
+#include    <prinbee/data/convert.h>
+
+#include    <prinbee/exception.h>
+
+
 // self
 //
 #include    "catch_main.h"
-
-
-// prinbee
-//
-#include    <prinbee/exception.h>
-#include    <prinbee/data/convert.h>
 
 
 // snapdev
