@@ -165,7 +165,7 @@ node::pointer_t lexer::get_next_token()
             else
             {
                 f_input->ungetc(c);
-                node::pointer_t n(std::make_shared<node>(token_t::TOKEN_LESS, l));
+                node::pointer_t n(std::make_shared<node>(token_t::TOKEN_MINUS, l));
                 return n;
             }
             break;
@@ -233,13 +233,13 @@ node::pointer_t lexer::get_next_token()
                 else
                 {
                     f_input->ungetc(c);
-
                     node::pointer_t n(std::make_shared<node>(token_t::TOKEN_STRING_CONCAT, l));
                     return n;
                 }
             }
             else
             {
+                f_input->ungetc(c);
                 node::pointer_t n(std::make_shared<node>(token_t::TOKEN_BITWISE_OR, l));
                 return n;
             }
