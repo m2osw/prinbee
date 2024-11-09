@@ -100,7 +100,7 @@ std::string location::get_location() const
     result += ": ";
 
     return result;
-}
+} // LCOV_EXCL_LINE
 
 
 

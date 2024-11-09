@@ -31,7 +31,7 @@
 
 // self
 //
-#include    "prinbee/pbql/lexer.h"
+#include    "prinbee/pbql/node.h"
 
 #include    "prinbee/exception.h"
 
@@ -53,6 +53,49 @@ node::node(token_t token, location const & l)
     : f_token(token)
     , f_location(l)
 {
+    switch(f_token)
+    {
+    case token_t::TOKEN_EOF:
+    case token_t::TOKEN_BITWISE_XOR:
+    case token_t::TOKEN_MODULO:
+    case token_t::TOKEN_BITWISE_AND:
+    case token_t::TOKEN_OPEN_PARENTHESIS:
+    case token_t::TOKEN_CLOSE_PARENTHESIS:
+    case token_t::TOKEN_MULTIPLY:
+    case token_t::TOKEN_PLUS:
+    case token_t::TOKEN_COMMA:
+    case token_t::TOKEN_MINUS:
+    case token_t::TOKEN_PERIOD:
+    case token_t::TOKEN_DIVIDE:
+    case token_t::TOKEN_SEMI_COLON:
+    case token_t::TOKEN_EQUAL:
+    case token_t::TOKEN_ABSOLUTE_VALUE:
+    case token_t::TOKEN_POWER:
+    case token_t::TOKEN_BITWISE_OR:
+    case token_t::TOKEN_BITWISE_NOT:
+    case token_t::TOKEN_IDENTIFIER:
+    case token_t::TOKEN_STRING:
+    case token_t::TOKEN_INTEGER:
+    case token_t::TOKEN_FLOATING_POINT:
+    case token_t::TOKEN_NOT_EQUAL:
+    case token_t::TOKEN_LESS:
+    case token_t::TOKEN_LESS_EQUAL:
+    case token_t::TOKEN_GREATER:
+    case token_t::TOKEN_GREATER_EQUAL:
+    case token_t::TOKEN_SQUARE_ROOT:
+    case token_t::TOKEN_CUBE_ROOT:
+    case token_t::TOKEN_SHIFT_LEFT:
+    case token_t::TOKEN_SHIFT_RIGHT:
+    case token_t::TOKEN_STRING_CONCAT:
+        break;
+
+    default:
+        throw invalid_token(
+              "node created with an invalid token ("
+            + std::to_string(static_cast<int>(f_token))
+            + ").");
+
+    }
 }
 
 
@@ -106,7 +149,7 @@ long double node::get_floating_point()
 
 node::pointer_t node::get_parent() const
 {
-    return f_parent;
+    return f_parent.lock();
 }
 
 
@@ -140,6 +183,7 @@ void node::insert_child(int position, pointer_t child)
     //
     if(static_cast<std::size_t>(position) == f_children.size())
     {
+        child->f_parent = shared_from_this();
         f_children.insert(f_children.end(), child);
         return;
     }
@@ -151,6 +195,7 @@ void node::insert_child(int position, pointer_t child)
         throw out_of_range("child " + std::to_string(position) + " does not exist.");
     }
 
+    child->f_parent = shared_from_this();
     f_children.insert(std::next(f_children.begin(), position), child);
 }
 

@@ -31,6 +31,11 @@
 #include    <advgetopt/options.h>
 
 
+// last include
+//
+#include    <snapdev/poison.h>
+
+
 
 namespace
 {

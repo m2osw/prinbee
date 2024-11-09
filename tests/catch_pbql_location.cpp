@@ -16,16 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// self
-//
-#include    "catch_main.h"
-
-
 // prinbee
 //
 #include    <prinbee/pbql/location.h>
 
-//#include    <prinbee/exception.h>
+
+
+// self
+//
+#include    "catch_main.h"
 
 
 // snaplogger
@@ -33,40 +32,9 @@
 #include    <snaplogger/message.h>
 
 
-// snapdev
-//
-//#include    <snapdev/hexadecimal_string.h>
-//#include    <snapdev/math.h>
-//#include    <snapdev/ostream_int128.h>
-
-
-// C++
-//
-//#include    <bitset>
-//#include    <fstream>
-//#include    <iomanip>
-
-
-// C
-//
-//#include    <sys/stat.h>
-//#include    <sys/types.h>
-
-
 // last include
 //
 #include    <snapdev/poison.h>
-
-
-
-namespace
-{
-
-
-
-
-
-} // no name namespace
 
 
 
@@ -131,17 +99,6 @@ CATCH_TEST_CASE("location", "[location] [pbql]")
         }
     }
     CATCH_END_SECTION()
-
-//    void                set_filename(std::string const & filename);
-//    std::string const & get_filename() const;
-//
-//    void                next_column();
-//    void                next_line();
-//
-//    int                 get_column() const;
-//    int                 get_line() const;
-//
-//    std::string         get_location() const;
 }
 
 

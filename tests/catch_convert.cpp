@@ -2934,7 +2934,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
                     , Catch::Matchers::ExceptionMessage(
                               "out_of_range: number \""
                             + s
-                            + "\" too large for a signed "
+                            + "\" too large for an unsigned "
                             + std::to_string(i)
                             + " bit value."));
         }

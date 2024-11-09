@@ -22,6 +22,7 @@
  *
  * This file implements the node which holds a token and its value when
  * necessary (i.e. identifier name, string, integer, floating point, etc.)
+ * Nodes can be organized in a tree, useful for expression execution.
  */
 
 // self
@@ -59,6 +60,7 @@ enum class token_t
     TOKEN_PLUS              = '+',
     TOKEN_COMMA             = ',',
     TOKEN_MINUS             = '-',
+    TOKEN_PERIOD            = '.',
     TOKEN_DIVIDE            = '/',
     TOKEN_SEMI_COLON        = ';',
     TOKEN_EQUAL             = '=',
@@ -85,106 +87,18 @@ enum class token_t
     TOKEN_SHIFT_RIGHT,
     TOKEN_STRING_CONCAT,
 
-//    TOKEN_ALTER,
-//    TOKEN_AND,
-//    TOKEN_AS,
-//    TOKEN_ASC,
-//    TOKEN_BEGIN,
-//    TOKEN_BY,
-//    TOKEN_CHECK,
-//    //TOKEN_COMMENT,
-//    TOKEN_COMMIT,
-//    TOKEN_CONFIG,
-//    TOKEN_CREATE,
-//    TOKEN_DEFAULT,
-//    TOKEN_DELETE,
-//    TOKEN_DESC,
-//    TOKEN_DISTINCT,
-//    TOKEN_DROP,
-//    TOKEN_ENUM,
-//    TOKEN_EXISTS,
-//    TOKEN_FIRST,
-//    TOKEN_FROM,
-//    TOKEN_HIDDEN,
-//    TOKEN_IF,
-//    TOKEN_INDEX,
-//    TOKEN_INSERT,
-//    TOKEN_IN,
-//    TOKEN_INTO,
-//    TOKEN_KEY,
-//    TOKEN_LAST,
-//    TOKEN_LIMIT,
-//    TOKEN_LOCK,
-//    TOKEN_LOGGED,
-//    TOKEN_MODE,
-//    TOKEN_NOT,
-//    TOKEN_NULL,
-//    TOKEN_NULLS,
-//    TOKEN_MAXIMUM,
-//    TOKEN_OR,
-//    TOKEN_ORDER,
-//    TOKEN_OVERWRITTEN,
-//    TOKEN_PRECISION,
-//    TOKEN_PRIMARY,
-//    TOKEN_ROLLBACK,
-//    TOKEN_SECURE,
-//    TOKEN_SELECT,
-//    TOKEN_SET,
-//    TOKEN_SIZE,
-//    TOKEN_SPARSE,
-//    TOKEN_TABLE,
-//    TOKEN_TEMPORARY,
-//    TOKEN_TRANSACTION,
-//    TOKEN_TYPE,
-//    TOKEN_UNIQUE,
-//    TOKEN_UNLOGGED,
-//    TOKEN_UPDATE,
-//    TOKEN_USING,
-//    TOKEN_VALUES,
-//    TOKEN_VERSIONED,
-//    TOKEN_VISIBLE,
-//    TOKEN_WHERE,
-//    TOKEN_WITH,
-//    TOKEN_WITHOUT,
-//    TOKEN_WORK,
-
-    // types are identifiers, not keywords; also some system types make use
-    // of multiple identifiers: TIMESTAMP WITH TIMEZONE, UNSIGNED INT, ...
-    //
-    //TOKEN_BIGINT,
-    //TOKEN_BOOLEAN,
-    //TOKEN_BYTEA,
-    //TOKEN_CHAR,
-    //TOKEN_DOUBLE,
-    //TOKEN_EMAIL,
-    //TOKEN_FLOAT2,
-    //TOKEN_FLOAT4,
-    //TOKEN_FLOAT8,
-    //TOKEN_FLOAT10,
-    //TOKEN_INET,
-    //TOKEN_INT,
-    //TOKEN_INT1,
-    //TOKEN_INT16,
-    //TOKEN_INT2,
-    //TOKEN_INT32,
-    //TOKEN_INT4,
-    //TOKEN_INT64,
-    //TOKEN_INT8,
-    //TOKEN_INTEGER,
-    //TOKEN_REAL,
-    //TOKEN_SMALINT,
-    //TOKEN_TEXT,
-    //TOKEN_TIMESTAMP,
-    //TOKEN_TIMEZONE,
-    //TOKEN_UNSIGNED,
-    //TOKEN_UUID,
+    TOKEN_max // create all tokens before this one
 };
 
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
 class node
+    : public std::enable_shared_from_this<node>
 {
 public:
     typedef std::shared_ptr<node>   pointer_t;
+    typedef std::weak_ptr<node>     weak_ptr_t;
     typedef std::vector<pointer_t>  vector_t;
 
                         node(token_t token, location const & l);
@@ -212,9 +126,10 @@ private:
     uint512_t           f_integer = uint512_t();
     long double         f_floating_point = 0.0;
 
-    pointer_t           f_parent = pointer_t();
+    weak_ptr_t          f_parent = weak_ptr_t();
     vector_t            f_children = vector_t();
 };
+#pragma GCC diagnostic pop
 
 
 

@@ -46,6 +46,7 @@ install(
 
 ##
 ## Tool to generate and further manage languages
+## This is for developers only, so it does not get installed
 ##
 project(language-manager)
 
@@ -66,14 +67,6 @@ target_link_libraries(${PROJECT_NAME}
     ${ADVGETOPT_LIBRARIES}
     ${ICU_LIBRARIES}
     ${LIBUTF8_LIBRARIES}
-)
-
-install(
-    TARGETS
-        ${PROJECT_NAME}
-
-    DESTINATION
-        bin
 )
 
 # vim: ts=4 sw=4 et

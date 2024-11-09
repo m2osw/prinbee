@@ -42,6 +42,11 @@
 #include    <snapdev/file_contents.h>
 
 
+// snaplogger
+//
+#include    <snaplogger/message.h>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
@@ -71,7 +76,10 @@ char32_t input::getc()
         return f_ungetc[f_ungetc_pos];
     }
     char32_t c(*f_input);
-    f_location.next_column();
+    if(c != libutf8::EOS)
+    {
+        f_location.next_column();
+    }
     ++f_input;
     if(c == '\r')
     {
@@ -82,7 +90,6 @@ char32_t input::getc()
         }
         else
         {
-            ungetc(c);
             c = '\n';
         }
     }
@@ -121,7 +128,9 @@ input::pointer_t create_input(std::string const & filename)
     snapdev::file_contents file(filename);
     if(!file.read_all())
     {
-        throw file_not_found("could not read " + filename);
+        // "not found" may be wrong (i.e. it could be a permission error)
+        //
+        throw file_not_found("could not read \"" + filename + "\".");
     }
     return std::make_shared<input>(file.contents(), filename);
 }

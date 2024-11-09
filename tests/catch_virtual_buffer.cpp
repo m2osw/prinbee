@@ -31,6 +31,10 @@
 #include    <advgetopt/options.h>
 
 
+// last include
+//
+#include    <snapdev/poison.h>
+
 
 
 CATCH_TEST_CASE("virtual_buffer", "[virtual-buffer]")

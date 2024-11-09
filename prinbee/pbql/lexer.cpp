@@ -73,6 +73,13 @@ void lexer::set_input(input::pointer_t & in)
 
 node::pointer_t lexer::get_next_token()
 {
+    if(f_input == nullptr)
+    {
+        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+        msg << "input missing.";
+        throw logic_error(msg.str());
+    }
+
     for(;;)
     {
         location const l(f_input->get_location());
@@ -100,6 +107,7 @@ node::pointer_t lexer::get_next_token()
         case '*':
         case '+':
         case ',':
+        case '.':
         case '/':
         case ';':
         case '@':
@@ -261,7 +269,7 @@ node::pointer_t lexer::get_next_token()
                         msg << "unclosed string.";
                         throw invalid_token(msg.str());
                     }
-                    if(c == '\r' || c == '\n')
+                    if(c == '\n')
                     {
                         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
                         msg << "string cannot include a newline or carriage return character.";
@@ -299,7 +307,7 @@ node::pointer_t lexer::get_next_token()
                         for(;;)
                         {
                             c = f_input->getc();
-                            if(snapdev::is_hexdigit(c))
+                            if(!snapdev::is_hexdigit(c))
                             {
                                 f_input->ungetc(c);
                                 break;
@@ -341,16 +349,32 @@ node::pointer_t lexer::get_next_token()
                         c = f_input->getc();
                         if(c < '0' || c > '9')
                         {
-                            f_input->ungetc(c);
                             break;
                         }
                         number += static_cast<char>(c);
                     }
+                    if(c == 'e' || c == 'E')
+                    {
+                        number += 'e';
+                        c = f_input->getc();
+                        if(c == '+' || c == '-')
+                        {
+                            number += static_cast<char>(c);
+                            c = f_input->getc();
+                        }
+                        while(c >= '0' && c <= '9')
+                        {
+                            number += static_cast<char>(c);
+                            c = f_input->getc();
+                        }
+                    }
+                    f_input->ungetc(c);
                     node::pointer_t n(std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, l));
                     char * e(nullptr);
                     errno = 0;
                     long double fp(strtold(number.c_str(), &e));
-                    if(errno != 0)
+                    if(errno != 0 
+                    || (e != nullptr && *e != '\0'))
                     {
                         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
                         msg << "invalid floating point number ("
@@ -391,7 +415,7 @@ node::pointer_t lexer::get_next_token()
                    || c == '_');
                 f_input->ungetc(c);
 
-                node::pointer_t n(std::make_shared<node>(token_t::TOKEN_INTEGER, l));
+                node::pointer_t n(std::make_shared<node>(token_t::TOKEN_IDENTIFIER, l));
                 n->set_string(identifier);
                 return n;
             }

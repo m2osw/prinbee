@@ -1115,7 +1115,7 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
                           "*unknown struct type ("
                         + std::to_string(static_cast<int>(bad_type))
                         + ")*"
-                          ", max: 43).")); // this number is not defined otherwise...
+                          ", max: 44).")); // this number is not defined otherwise...
 
         CATCH_REQUIRE_THROWS_MATCHES(
                   f->type_field_size()
@@ -1125,7 +1125,7 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
                           "*unknown struct type ("
                         + std::to_string(static_cast<int>(bad_type))
                         + ")*"
-                          ", max: 43).")); // this number is not defined otherwise...
+                          ", max: 44).")); // this number is not defined otherwise...
     }
     CATCH_END_SECTION()
 

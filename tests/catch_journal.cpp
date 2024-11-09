@@ -44,6 +44,11 @@
 #include    <advgetopt/conf_file.h>
 
 
+// last include
+//
+#include    <snapdev/poison.h>
+
+
 
 namespace
 {
