@@ -48,7 +48,36 @@
 
 namespace prinbee
 {
+namespace
+{
 
+
+
+constexpr char const * const    g_default_context_path = "/var/lib/prinbee/context";
+constexpr char const * const    g_prinbee_name = "prinbee";
+
+
+
+} // no name namespace
+
+
+
+char const * get_default_context_path()
+{
+    return g_default_context_path;
+}
+
+
+char const * get_prinbee_group()
+{
+    return g_prinbee_name;
+}
+
+
+char const * get_prinbee_user()
+{
+    return g_prinbee_name;
+}
 
 
 bool validate_name(std::string const & name, size_t const max_length)

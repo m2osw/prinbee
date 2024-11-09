@@ -55,7 +55,11 @@ constexpr std::uint64_t divide_rounded_up(std::uint64_t value, std::uint64_t mul
 }
 
 
-bool        validate_name(std::string const & name, size_t const max_length = 255);
+char const *    get_default_context_path();
+char const *    get_prinbee_group();
+char const *    get_prinbee_user();
+
+bool            validate_name(std::string const & name, size_t const max_length = 255);
 
 
 } // namespace prinbee

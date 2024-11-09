@@ -87,12 +87,10 @@ namespace detail
 
 
 
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Weffc++"
 class context_impl
 {
 public:
-                                        context_impl(context * c, advgetopt::getopt::pointer_t opts);
+                                        context_impl(context * c, context_setup const & setup);
                                         context_impl(context_impl const & rhs) = delete;
                                         ~context_impl();
 
@@ -100,11 +98,11 @@ public:
 
     void                                initialize();
     table::pointer_t                    get_table(std::string const & name) const;
-    table::map_t                        list_tables() const;
-    std::string                         get_path() const;
-    std::size_t                         get_config_size(std::string const & name) const;
-    std::string                         get_config_string(std::string const & name, int idx) const;
-    long                                get_config_long(std::string const & name, int idx) const;
+    table::map_t const &                list_tables() const;
+    std::string const &                 get_path() const;
+    //std::size_t                         get_config_size(std::string const & name) const;
+    //std::string                         get_config_string(std::string const & name, int idx) const;
+    //long                                get_config_long(std::string const & name, int idx) const;
 
 private:
     void                                load_complex_types(std::string const & filename);
@@ -112,19 +110,17 @@ private:
     void                                find_loop(std::string const & name, schema_complex_type::pointer_t type, std::size_t depth);
 
     context *                           f_context = nullptr;
-    advgetopt::getopt::pointer_t        f_opts = advgetopt::getopt::pointer_t();
-    std::string                         f_path = std::string();
+    context_setup                       f_setup = context_setup();
     std::string                         f_tables_path = std::string();
     int                                 f_lock = -1;        // TODO: lock the context so only one prinbee daemon can run against it
     table::map_t                        f_tables = table::map_t();
     schema_complex_type::map_pointer_t  f_complex_types = schema_complex_type::map_pointer_t();
 };
-//#pragma GCC diagnostic pop
 
 
-context_impl::context_impl(context * c, advgetopt::getopt::pointer_t opts)
+context_impl::context_impl(context * c, context_setup const & setup)
     : f_context(c)
-    , f_opts(opts)
+    , f_setup(setup)
 {
 }
 
@@ -136,36 +132,31 @@ context_impl::~context_impl()
 
 void context_impl::initialize()
 {
-    f_path = f_opts->get_string("context");
-    std::string const user(f_opts->get_string("user"));
-    std::string const group(f_opts->get_string("group"));
-
-    if(f_path.empty())
-    {
-        f_path = "/var/lib/prinbee/context";
-    }
-    f_tables_path = f_path + "/tables";
+    f_tables_path = f_setup.get_path() + "/tables";
 
     SNAP_LOG_CONFIGURATION
         << "Initialize context \""
-        << f_path
+        << f_setup.get_path()
         << "\"."
         << SNAP_LOG_SEND;
-std::cerr << "--- reading table schemata from " << f_path << "/*/table-<version>.ini\n";
 
-    if(snapdev::mkdir_p(f_tables_path, false, 0700, user, group) != 0)
+    if(snapdev::mkdir_p(f_tables_path
+            , false
+            , 0700
+            , f_setup.get_user()
+            , f_setup.get_group()) != 0)
     {
         throw io_error(
-              "Could not create or access the context tables directory \""
+              "Could not create or access the context table directory \""
             + f_tables_path
             + "\".");
     }
 
     // complex types are common to all tables (so they can appear in any
     // one of them) so these are saved in a file at the top; it also gets
-    // read first since that list is passed down to each table
+    // read first since that list is passed down to each table object
     //
-    load_complex_types(f_path + "/complex-types.ini");
+    load_complex_types(f_setup.get_path() + "/complex-types.ini");
     verify_complex_types();
 
     //basic_xml::node::deque_t table_extensions;
@@ -357,7 +348,7 @@ std::cerr << "--- reading table schemata from " << f_path << "/*/table-<version>
 
     SNAP_LOG_INFORMATION
         << "Context \""
-        << f_path
+        << f_setup.get_path()
         << "\" ready."
         << SNAP_LOG_SEND;
 }
@@ -535,22 +526,22 @@ table::pointer_t context_impl::get_table(std::string const & name) const
 }
 
 
-table::map_t context_impl::list_tables() const
+table::map_t const & context_impl::list_tables() const
 {
     return f_tables;
 }
 
 
-std::string context_impl::get_path() const
+std::string const & context_impl::get_path() const
 {
-    return f_path;
+    return f_setup.get_path();
 }
 
 
-size_t context_impl::get_config_size(std::string const & name) const
-{
-    return f_opts->size(name);
-}
+//size_t context_impl::get_config_size(std::string const & name) const
+//{
+//    return f_opts->size(name);
+//}
 
 
 /** \brief Retrieve a context.conf file parameter.
@@ -566,16 +557,16 @@ size_t context_impl::get_config_size(std::string const & name) const
  *
  * \return The parameter's value as a string.
  */
-std::string context_impl::get_config_string(std::string const & name, int idx) const
-{
-    return f_opts->get_string(name, idx);
-}
+//std::string context_impl::get_config_string(std::string const & name, int idx) const
+//{
+//    return f_opts->get_string(name, idx);
+//}
 
 
-long context_impl::get_config_long(std::string const & name, int idx) const
-{
-    return f_opts->get_long(name, idx);
-}
+//long context_impl::get_config_long(std::string const & name, int idx) const
+//{
+//    return f_opts->get_long(name, idx);
+//}
 
 
 
@@ -583,8 +574,81 @@ long context_impl::get_config_long(std::string const & name, int idx) const
 
 
 
-context::context(advgetopt::getopt::pointer_t opts)
-    : f_impl(std::make_unique<detail::context_impl>(this, opts))
+
+
+
+
+
+
+
+
+context_setup::context_setup()
+{
+}
+
+
+context_setup::context_setup(std::string const & path)
+    : f_path(path)
+{
+}
+
+
+void context_setup::set_path(std::string const & path)
+{
+    if(path.empty())
+    {
+        f_path = get_default_context_path();
+    }
+    else
+    {
+        f_path = path;
+    }
+}
+
+
+std::string const & context_setup::get_path() const
+{
+    return f_path;
+}
+
+
+void context_setup::set_user(std::string const & user)
+{
+    f_user = user;
+}
+
+
+std::string const & context_setup::get_user() const
+{
+    return f_user;
+}
+
+
+void context_setup::set_group(std::string const & group)
+{
+    f_group = group;
+}
+
+
+std::string const & context_setup::get_group() const
+{
+    return f_group;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+context::context(context_setup const & setup)
+    : f_impl(std::make_unique<detail::context_impl>(this, setup))
 {
 }
 
@@ -595,18 +659,18 @@ context::~context()
 }
 
 
-context::pointer_t context::create_context(advgetopt::getopt::pointer_t opts)
+context::pointer_t context::create_context(context_setup const & setup)
 {
-    pointer_t c(new context(opts));
-    c->initialize();
+    pointer_t c(new context(setup));
+    c->f_impl->initialize();
     return c;
 }
 
 
-void context::initialize()
-{
-    f_impl->initialize();
-}
+//void context::initialize()
+//{
+//    f_impl->initialize();
+//}
 
 
 table::pointer_t context::get_table(std::string const & name) const
@@ -615,13 +679,13 @@ table::pointer_t context::get_table(std::string const & name) const
 }
 
 
-table::map_t context::list_tables() const
+table::map_t const & context::list_tables() const
 {
     return f_impl->list_tables();
 }
 
 
-std::string context::get_path() const
+std::string const & context::get_path() const
 {
     return f_impl->get_path();
 }
@@ -635,28 +699,31 @@ std::string context::get_path() const
  *
  * \note
  * The memory manager runs in a separate thread.
+ *
+ * \todo
+ * Actually implement the function.
  */
 void context::limit_allocated_memory()
 {
 }
 
 
-size_t context::get_config_size(std::string const & name) const
-{
-    return f_impl->get_config_size(name);
-}
-
-
-std::string context::get_config_string(std::string const & name, int idx) const
-{
-    return f_impl->get_config_string(name, idx);
-}
-
-
-long context::get_config_long(std::string const & name, int idx) const
-{
-    return f_impl->get_config_long(name, idx);
-}
+//std::size_t context::get_config_size(std::string const & name) const
+//{
+//    return f_impl->get_config_size(name);
+//}
+//
+//
+//std::string context::get_config_string(std::string const & name, int idx) const
+//{
+//    return f_impl->get_config_string(name, idx);
+//}
+//
+//
+//long context::get_config_long(std::string const & name, int idx) const
+//{
+//    return f_impl->get_config_long(name, idx);
+//}
 
 
 

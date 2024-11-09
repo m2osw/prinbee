@@ -30,6 +30,7 @@
 // self
 //
 #include    "prinbee/database/table.h"
+#include    "prinbee/utils.h"
 
 
 // advgetopt
@@ -49,12 +50,27 @@ class context_impl;
 }
 
 
+class context_setup
+{
+public:
+                                            context_setup();
+                                            context_setup(std::string const & path);
 
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Weffc++"
-//#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+    void                                    set_path(std::string const & path);
+    std::string const &                     get_path() const;
+    void                                    set_user(std::string const & user);
+    std::string const &                     get_user() const;
+    void                                    set_group(std::string const & group);
+    std::string const &                     get_group() const;
+
+private:
+    std::string                             f_path = get_default_context_path();
+    std::string                             f_user = get_prinbee_user();
+    std::string                             f_group = get_prinbee_group();
+};
+
+
 class context
-    //: public std::enable_shared_from_this<context>
 {
 public:
     typedef std::shared_ptr<context>        pointer_t;
@@ -62,23 +78,22 @@ public:
 
                                             ~context();
 
-    static pointer_t                        create_context(advgetopt::getopt::pointer_t opts);
+    static pointer_t                        create_context(context_setup const & setup);
 
-    void                                    initialize();
     table::pointer_t                        get_table(std::string const & name) const;
-    table::map_t                            list_tables() const;
-    std::string                             get_path() const;
+    table::map_t const &                    list_tables() const;
+    std::string const &                     get_path() const;
     void                                    limit_allocated_memory();
-    size_t                                  get_config_size(std::string const & name) const;
-    std::string                             get_config_string(std::string const & name, int idx) const;
-    long                                    get_config_long(std::string const & name, int idx) const;
+    //std::size_t                             get_config_size(std::string const & name) const;
+    //std::string                             get_config_string(std::string const & name, int idx) const;
+    //long                                    get_config_long(std::string const & name, int idx) const;
 
 private:
-                                            context(advgetopt::getopt::pointer_t opts);
+                                            context(context_setup const & setup);
+    //void                                    initialize();
 
     std::unique_ptr<detail::context_impl>   f_impl;
 };
-//#pragma GCC diagnostic pop
 
 
 
