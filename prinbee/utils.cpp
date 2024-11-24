@@ -28,16 +28,7 @@
 //
 #include    "prinbee/utils.h"
 
-
-// snaplogger
-//
-//#include    <snaplogger/message.h>
-
-
-// C++
-//
-//#include    <iostream>
-//#include    <type_traits>
+#include    "prinbee/exception.h"
 
 
 // last include
@@ -77,42 +68,6 @@ char const * get_prinbee_group()
 char const * get_prinbee_user()
 {
     return g_prinbee_name;
-}
-
-
-bool validate_name(std::string const & name, size_t const max_length)
-{
-    if(name.empty())
-    {
-        return false;
-    }
-    if(name.length() > max_length)
-    {
-        return false;
-    }
-
-    char c(name[0]);
-    if((c < 'a' || c > 'z')
-    && (c < 'A' || c > 'Z')
-    && c != '_')
-    {
-        return false;
-    }
-
-    auto const max(name.length());
-    for(std::remove_const<decltype(max)>::type idx(1); idx < max; ++idx)
-    {
-        c = name[idx];
-        if((c < 'a' || c > 'z')
-        && (c < 'A' || c > 'Z')
-        && (c < '0' || c > '9')
-        && c != '_')
-        {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 

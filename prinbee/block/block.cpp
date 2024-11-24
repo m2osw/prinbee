@@ -66,43 +66,33 @@ constexpr char const * g_errmsg_exception = "block::~block() tried to release th
 
 
 
-block::block(descriptions_by_version_t const * structure_descriptions, dbfile::pointer_t f, reference_t offset)
+block::block(struct_description_t const * descriptions, dbfile::pointer_t f, reference_t offset)
     : f_file(f)
-    , f_structure_descriptions(structure_descriptions)
     , f_offset(offset)
 {
 #ifdef _DEBUG
-    // verify that the versions are in order
+    // verify that the start of the descriptions is valid
     //
-    descriptions_by_version_t const * p(nullptr);
-    descriptions_by_version_t const * d = f_structure_descriptions;
-    for(; d->f_description != nullptr; ++d)
+    if(descriptions == nullptr
+    && descriptions[0].f_type != struct_type_t::STRUCT_TYPE_END)
     {
-        if(p != nullptr)
-        {
-            if(p->f_version <= d->f_version)
-            {
-                throw logic_error(
-                          "The versions in a structure definition array must be in order ("
-                        + p->f_version.to_string()
-                        + " <= "
-                        + d->f_version.to_string()
-                        + " when it should be '>').");
-            }
-        }
-        p = d;
-    }
-    if(d == f_structure_descriptions)
-    {
-        throw logic_error("The array of structure descriptions cannot be empty.");
+        throw logic_error("the array of structure descriptions cannot be empty.");
     }
 #endif
 
-    // create the structure we want to use in memory
+    if(descriptions[0].f_type != struct_type_t::STRUCT_TYPE_MAGIC
+    && descriptions[1].f_type != struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+    {
+        throw logic_error("the structure description must start with a MAGIC and STRUCTURE_VERSION.");
+    }
+
+    // create the structure
     //
-    // this may not be the one used when loading data from a file.
+    f_structure = std::make_shared<structure>(descriptions);
+
+    // get the current version
     //
-    f_structure = std::make_shared<structure>(f_structure_descriptions->f_description);
+    //f_version = f_structure->get_version("_structure_version");
 }
 
 
@@ -172,30 +162,32 @@ structure::pointer_t block::get_structure() const
 }
 
 
-structure::pointer_t block::get_structure(version_t version) const
-{
-    for(descriptions_by_version_t const * d = f_structure_descriptions;
-                                          d->f_description != nullptr;
-                                          ++d)
-    {
-        if(d->f_version == version)
-        {
-            return std::make_shared<structure>(f_structure_descriptions->f_description);
-        }
-    }
-
-    throw logic_error(
-              "Block of type \""
-            + to_string(get_dbtype())
-            + "\" has no structure version "
-            + version.to_string()
-            + ".");
-}
+// version is now integrated (burned) in the description
+//
+//structure::pointer_t block::get_structure(version_t version) const
+//{
+//    for(descriptions_by_version_t const * d = f_structure_descriptions;
+//                                          d->f_description != nullptr;
+//                                          ++d)
+//    {
+//        if(d->f_version == version)
+//        {
+//            return std::make_shared<structure>(f_structure_descriptions->f_description);
+//        }
+//    }
+//
+//    throw logic_error(
+//              "Block of type \""
+//            + to_string(get_dbtype())
+//            + "\" has no structure version "
+//            + version.to_string()
+//            + ".");
+//}
 
 
 void block::clear_block()
 {
-    reference_t const offset(f_structure->get_size());
+    reference_t const offset(f_structure->get_static_size());
 #ifdef _DEBUG
     if(offset == 0)
     {
@@ -223,7 +215,7 @@ void block::set_dbtype(dbtype_t type)
     {
         *reinterpret_cast<dbtype_t *>(data(0)) = type;
 
-        reference_t const size(f_structure->get_size());
+        reference_t const size(f_structure->get_static_size());
         memset(data(sizeof(dbtype_t))
              , 0
              , size - sizeof(dbtype_t));
@@ -233,18 +225,18 @@ void block::set_dbtype(dbtype_t type)
 
 version_t block::get_structure_version() const
 {
-    return version_t(static_cast<std::uint32_t>(f_structure->get_uinteger("header.version")));
+    //return f_version;
+    return version_t();
 }
 
 
 void block::set_structure_version()
 {
-    // avoid a write if not required
+    // TODO: this is not available in the newer version, we have to always
+    //       use the latest on a write... a read is a TODO at the moment
     //
-    if(get_structure_version() != f_structure_descriptions->f_version)
-    {
-        f_structure->set_uinteger("header.version", f_structure_descriptions->f_version.to_binary());
-    }
+    //f_structure->set_version("_structure_version", f_version);
+    f_structure->set_version(g_system_field_name_structure_version, version_t());
 }
 
 
@@ -297,7 +289,8 @@ void block::sync(bool immediate)
 void block::from_current_file_version()
 {
     version_t current_version(get_structure_version());
-    if(f_structure_descriptions->f_version == current_version)
+    // TODO: the version is not managed that way anymore
+    if(/*f_structure_descriptions->f_version*/ version_t() == current_version)
     {
         // same version, no conversion necessary
         //

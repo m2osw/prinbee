@@ -24,7 +24,7 @@
  * A row is composed of cells. Whenever you access the database, you create
  * rows and add cells to it.
  *
- * Note that a cell must be defned in the schema of a table to be allowed
+ * Note that a cell must be defined in the schema of a table to be allowed
  * in a row.
  */
 

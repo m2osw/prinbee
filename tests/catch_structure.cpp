@@ -33,6 +33,7 @@
 
 // snapdev
 //
+#include    <snapdev/enum_class_math.h>
 #include    <snapdev/not_reached.h>
 
 
@@ -52,15 +53,38 @@ namespace
 
 
 
+constexpr prinbee::struct_description_t g_description1_buffer_size_renamed[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("size")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+};
+
+
+// static size is:
+//   0 + 4 + 4 + 4 + 1 + 8 + 8 = 29
+//
 constexpr prinbee::struct_description_t g_description1[] =
 {
     prinbee::define_description(
-          prinbee::FieldName("magic")
-        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_BLOB))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(0, 1)
     ),
     prinbee::define_description(
           prinbee::FieldName("count")
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("buffer_size")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_RENAMED)
+        , prinbee::FieldSubDescription(g_description1_buffer_size_renamed)
     ),
     prinbee::define_description(
           prinbee::FieldName("size")
@@ -69,6 +93,7 @@ constexpr prinbee::struct_description_t g_description1[] =
     prinbee::define_description(
           prinbee::FieldName("change")
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT8) // -100 to +100
+        , prinbee::FieldVersion(3, 2, 11, 24)
     ),
     prinbee::define_description(
           prinbee::FieldName("next")
@@ -83,11 +108,19 @@ constexpr prinbee::struct_description_t g_description1[] =
 
 
 
+// static size is 0 (at least because of the name which is a P8STRING)
+//
 constexpr prinbee::struct_description_t g_description2[] =
 {
     prinbee::define_description(
-          prinbee::FieldName("magic")
-        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_BLOOM_FILTER))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(15, 10231)
     ),
     prinbee::define_description(
           prinbee::FieldName("flags")
@@ -110,6 +143,242 @@ constexpr prinbee::struct_description_t g_description2[] =
 
 
 
+constexpr prinbee::struct_description_t g_description3_sub1[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("major")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("minor")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("release")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("build")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+// static size is:
+//     0 + 4 + 4 + 64 + 16 + 1 = 89
+//                      ^--- sub-structure
+//
+constexpr prinbee::struct_description_t g_description3[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_FREE_SPACE))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(25, 312)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("sub_field")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("data")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT512)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("software_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE)
+        , prinbee::FieldSubDescription(g_description3_sub1)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("eight_bits=null/advance:4/performent:2/sign")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS8)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+
+constexpr prinbee::struct_description_t g_description4a[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_PRIMARY_INDEX))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("missing_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_NSTIME)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+
+constexpr prinbee::struct_description_t g_description4b[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(45, 12'231)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("missing_magic=16")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+
+constexpr prinbee::struct_description_t g_description5_sub1[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("size")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT8)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("parts")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BUFFER8)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+// not static (but static up to the sub-structure so that is the one
+// that breaks the static-ness)
+//
+// dynamic size on initialization:
+//  _magic                   4
+//  _structure_version       4
+//  sub_field                8
+//  data                    16
+//  early_version.size       1
+//  early_version.parts      1 + 0
+//  sixteen_bits             2
+//  tag                     15      (the current value does not chnage this size)
+//  name                     1
+//                   ---------
+//  total                   52
+//
+constexpr prinbee::struct_description_t g_description5[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(405, 119)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("sub_field")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT64)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("data")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT128)
+    ),
+    // WARNING: the order here is ignored when computing the static size,
+    //          instead it goes through the sorted field names, so we
+    //          make sure that this one (early_version) is before any other 
+    //          variable field
+    //
+    prinbee::define_description(
+          prinbee::FieldName("early_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE)
+        , prinbee::FieldSubDescription(g_description5_sub1)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("sixteen_bits=bulk:4/more:4/raise/signal:7")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS16)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("tag=15")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+        , prinbee::FieldDefaultValue("image")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("name")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+constexpr prinbee::struct_description_t g_description6_rename[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("essay")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_VOID)
+    ),
+};
+
+
+// the structure is dynamic since it includes P-strings
+//
+// the default size, because it has default strings is a little more
+// complicated than the simple size of each field
+//    _magic                 4
+//    _structure_version     4
+//    name                   1 +  5
+//    description            2 + 62
+//    essay                  4 + 98
+//    tag                   15
+//    renamed                0
+//                        ----------
+//    total                197
+//
+constexpr prinbee::struct_description_t g_description6[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(15'345, 2'341)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("name")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+        , prinbee::FieldDefaultValue("Henri")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("description")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P16STRING)
+        , prinbee::FieldDefaultValue("King who fell from a horse and had a rotting foot as a result.")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("essay")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P32STRING)
+        , prinbee::FieldDefaultValue("King who killed his wife to marry another. Later wives were lucky that the divorce was \"invented\".")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("tag=15")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+        , prinbee::FieldDefaultValue("king")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("dissertation")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_RENAMED)
+        , prinbee::FieldSubDescription(g_description6_rename)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+
+
+
 struct fixed_size_t
 {
     prinbee::struct_type_t  f_type = prinbee::INVALID_STRUCT_TYPE;
@@ -119,6 +388,7 @@ struct fixed_size_t
 std::vector<fixed_size_t> const g_fixed_sizes{
     { prinbee::struct_type_t::STRUCT_TYPE_END, true },
     { prinbee::struct_type_t::STRUCT_TYPE_VOID, true },
+    { prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION, true },
     { prinbee::struct_type_t::STRUCT_TYPE_BITS8, true },
     { prinbee::struct_type_t::STRUCT_TYPE_BITS16, true },
     { prinbee::struct_type_t::STRUCT_TYPE_BITS32, true },
@@ -147,6 +417,7 @@ std::vector<fixed_size_t> const g_fixed_sizes{
     { prinbee::struct_type_t::STRUCT_TYPE_TIME, true },
     { prinbee::struct_type_t::STRUCT_TYPE_MSTIME, true },
     { prinbee::struct_type_t::STRUCT_TYPE_USTIME, true },
+    { prinbee::struct_type_t::STRUCT_TYPE_NSTIME, true },
     { prinbee::struct_type_t::STRUCT_TYPE_P8STRING, false },
     { prinbee::struct_type_t::STRUCT_TYPE_P16STRING, false },
     { prinbee::struct_type_t::STRUCT_TYPE_P32STRING, false },
@@ -276,12 +547,13 @@ bool is_valid_type(prinbee::struct_type_t type)
 // no name namespace
 
 
-CATCH_TEST_CASE("structure_type_name", "[structure] [type] [valid]")
+CATCH_TEST_CASE("structure_type_name", "[structure][type][valid]")
 {
     CATCH_START_SECTION("structure_type_name: name from type")
     {
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_END) == "END");
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_VOID) == "VOID");
+        CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION) == "STRUCTURE_VERSION");
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS8) == "BITS8");
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS16) == "BITS16");
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS32) == "BITS32");
@@ -310,6 +582,7 @@ CATCH_TEST_CASE("structure_type_name", "[structure] [type] [valid]")
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_TIME) == "TIME");
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_MSTIME) == "MSTIME");
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_USTIME) == "USTIME");
+        CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_NSTIME) == "NSTIME");
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_P8STRING) == "P8STRING");
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_P16STRING) == "P16STRING");
         CATCH_REQUIRE(prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_P32STRING) == "P32STRING");
@@ -330,6 +603,7 @@ CATCH_TEST_CASE("structure_type_name", "[structure] [type] [valid]")
     {
         CATCH_REQUIRE(prinbee::name_to_struct_type("END") == prinbee::struct_type_t::STRUCT_TYPE_END);
         CATCH_REQUIRE(prinbee::name_to_struct_type("VOID") == prinbee::struct_type_t::STRUCT_TYPE_VOID);
+        CATCH_REQUIRE(prinbee::name_to_struct_type("STRUCTURE_VERSION") == prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION);
         CATCH_REQUIRE(prinbee::name_to_struct_type("BITS8") == prinbee::struct_type_t::STRUCT_TYPE_BITS8);
         CATCH_REQUIRE(prinbee::name_to_struct_type("BITS16") == prinbee::struct_type_t::STRUCT_TYPE_BITS16);
         CATCH_REQUIRE(prinbee::name_to_struct_type("BITS32") == prinbee::struct_type_t::STRUCT_TYPE_BITS32);
@@ -358,6 +632,7 @@ CATCH_TEST_CASE("structure_type_name", "[structure] [type] [valid]")
         CATCH_REQUIRE(prinbee::name_to_struct_type("TIME") == prinbee::struct_type_t::STRUCT_TYPE_TIME);
         CATCH_REQUIRE(prinbee::name_to_struct_type("MSTIME") == prinbee::struct_type_t::STRUCT_TYPE_MSTIME);
         CATCH_REQUIRE(prinbee::name_to_struct_type("USTIME") == prinbee::struct_type_t::STRUCT_TYPE_USTIME);
+        CATCH_REQUIRE(prinbee::name_to_struct_type("NSTIME") == prinbee::struct_type_t::STRUCT_TYPE_NSTIME);
         CATCH_REQUIRE(prinbee::name_to_struct_type("P8STRING") == prinbee::struct_type_t::STRUCT_TYPE_P8STRING);
         CATCH_REQUIRE(prinbee::name_to_struct_type("P16STRING") == prinbee::struct_type_t::STRUCT_TYPE_P16STRING);
         CATCH_REQUIRE(prinbee::name_to_struct_type("P32STRING") == prinbee::struct_type_t::STRUCT_TYPE_P32STRING);
@@ -376,7 +651,7 @@ CATCH_TEST_CASE("structure_type_name", "[structure] [type] [valid]")
 }
 
 
-CATCH_TEST_CASE("structure_type_name_invalid", "[structure] [type] [invalid]")
+CATCH_TEST_CASE("structure_type_name_invalid", "[structure][type][invalid]")
 {
     CATCH_START_SECTION("structure_type_name_invalid: unknown")
     {
@@ -422,12 +697,21 @@ CATCH_TEST_CASE("structure_type_name_invalid", "[structure] [type] [invalid]")
 }
 
 
-CATCH_TEST_CASE("structure_type_metadata", "[structure] [type] [valid]")
+CATCH_TEST_CASE("structure_type_metadata", "[structure][type][valid]")
 {
     CATCH_START_SECTION("structure_type_metadata: fixed size")
     {
         for(auto const & f : g_fixed_sizes)
         {
+            if(f.f_fixed != prinbee::type_with_fixed_size(f.f_type))
+            {
+                SNAP_LOG_FATAL
+                    << "type "
+                    << prinbee::to_string(f.f_type)
+                    << (f.f_fixed ? " was" : " is not")
+                    << " expected to be fixed."
+                    << SNAP_LOG_SEND;
+            }
             CATCH_REQUIRE(f.f_fixed == prinbee::type_with_fixed_size(f.f_type));
         }
     }
@@ -435,7 +719,7 @@ CATCH_TEST_CASE("structure_type_metadata", "[structure] [type] [valid]")
 }
 
 
-CATCH_TEST_CASE("structure_version_basics", "[structure] [version]")
+CATCH_TEST_CASE("structure_version_basics", "[structure][version]")
 {
     CATCH_START_SECTION("structure_version_basics: default version")
     {
@@ -537,7 +821,7 @@ CATCH_TEST_CASE("structure_version_basics", "[structure] [version]")
 }
 
 
-CATCH_TEST_CASE("structure_version_compare", "[structure] [version]")
+CATCH_TEST_CASE("structure_version_compare", "[structure][version]")
 {
     CATCH_START_SECTION("structure_version_compare: compare")
     {
@@ -577,7 +861,7 @@ CATCH_TEST_CASE("structure_version_compare", "[structure] [version]")
 }
 
 
-CATCH_TEST_CASE("structure_version_overflow", "[structure] [version] [invalid]")
+CATCH_TEST_CASE("structure_version_overflow", "[structure][version][invalid]")
 {
     CATCH_START_SECTION("structure_version_overflow: version overflow")
     {
@@ -608,20 +892,20 @@ CATCH_TEST_CASE("structure_version_overflow", "[structure] [version] [invalid]")
 }
 
 
-CATCH_TEST_CASE("structure_min_max_version", "[structure] [version] [valid]")
+CATCH_TEST_CASE("structure_min_max_version", "[structure][version][valid]")
 {
     CATCH_START_SECTION("structure_min_max_version: default")
     {
         prinbee::version_t version = prinbee::version_t();
-        prinbee::min_max_version_t zero;
-        CATCH_REQUIRE(version == zero.min());
-        CATCH_REQUIRE(version == zero.max());
+        prinbee::min_max_version_t full_range;
+        CATCH_REQUIRE(version == full_range.min());
+        CATCH_REQUIRE(prinbee::max_version() == full_range.max());
     }
     CATCH_END_SECTION()
 }
 
 
-CATCH_TEST_CASE("structure_flag_definitions", "[structure] [flags] [valid]")
+CATCH_TEST_CASE("structure_flag_definitions", "[structure][flags][valid]")
 {
     CATCH_START_SECTION("structure_flag_definitions: all positions")
     {
@@ -647,7 +931,7 @@ CATCH_TEST_CASE("structure_flag_definitions", "[structure] [flags] [valid]")
 }
 
 
-CATCH_TEST_CASE("structure_flag_definitions_incorrect_construction", "[structure] [flags] [invalid]")
+CATCH_TEST_CASE("structure_flag_definitions_incorrect_construction", "[structure][flags][invalid]")
 {
     CATCH_START_SECTION("structure_flag_definitions_incorrect_construction: missing name(s)")
     {
@@ -740,7 +1024,7 @@ CATCH_TEST_CASE("structure_flag_definitions_incorrect_construction", "[structure
 }
 
 
-CATCH_TEST_CASE("structure_field", "[structure] [valid]")
+CATCH_TEST_CASE("structure_field", "[structure][valid]")
 {
     CATCH_START_SECTION("structure_field: check description of all different database types")
     {
@@ -748,18 +1032,57 @@ CATCH_TEST_CASE("structure_field", "[structure] [valid]")
         {
             prinbee::field_t::field_flags_t flags((rand() & 1) != 0 ? 0 : prinbee::STRUCT_DESCRIPTION_FLAG_OPTIONAL);
             prinbee::struct_type_t const type(prinbee::name_to_struct_type(info.f_type_name));
-            prinbee::struct_description_t description =
+            std::shared_ptr<prinbee::struct_description_t> description;
+            std::string name(info.f_type_name);
+            switch(type)
             {
-                prinbee::define_description(
-                      prinbee::FieldName(info.f_type_name)
-                    , prinbee::FieldType(type)
-                    , prinbee::FieldFlags(flags)
-                ),
-            };
+            case prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE:
+            case prinbee::struct_type_t::STRUCT_TYPE_ARRAY8:
+            case prinbee::struct_type_t::STRUCT_TYPE_ARRAY16:
+            case prinbee::struct_type_t::STRUCT_TYPE_ARRAY32:
+            case prinbee::struct_type_t::STRUCT_TYPE_RENAMED:
+                description.reset(new prinbee::struct_description_t{
+                        prinbee::define_description(
+                              prinbee::FieldName(name.c_str())
+                            , prinbee::FieldType(type)
+                            , prinbee::FieldFlags(flags)
+                            , prinbee::FieldSubDescription(g_description3)
+                        ),
+                    });
+                break;
 
-            prinbee::field_t::const_pointer_t f(std::make_shared<prinbee::field_t>(&description));
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS8:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS16:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS32:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS64:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS128:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS256:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS512:
+                name += "=flag";
+                description.reset(new prinbee::struct_description_t{
+                        prinbee::define_description(
+                              prinbee::FieldName(name.c_str())
+                            , prinbee::FieldType(type)
+                            , prinbee::FieldFlags(flags)
+                        ),
+                    });
+                break;
 
-            CATCH_REQUIRE(&description == f->description());
+            default:
+                description.reset(new prinbee::struct_description_t{
+                        prinbee::define_description(
+                              prinbee::FieldName(name.c_str())
+                            , prinbee::FieldType(type)
+                            , prinbee::FieldFlags(flags)
+                        ),
+                    });
+                break;
+
+            }
+
+            prinbee::field_t::const_pointer_t f(std::make_shared<prinbee::field_t>(description.get()));
+
+            CATCH_REQUIRE(description.get() == f->description());
             CATCH_REQUIRE(nullptr == f->next());
             CATCH_REQUIRE(nullptr == f->previous());
             CATCH_REQUIRE(f == f->first());
@@ -813,7 +1136,7 @@ CATCH_TEST_CASE("structure_field", "[structure] [valid]")
         prinbee::struct_description_t description =
         {
             prinbee::define_description(
-                  prinbee::FieldName("flags")
+                  prinbee::FieldName("flags=big:60/small:3/tiny")
                 , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS64)
             ),
         };
@@ -875,7 +1198,7 @@ CATCH_TEST_CASE("structure_field", "[structure] [valid]")
                 , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT64)
             ),
             prinbee::define_description(
-                  prinbee::FieldName("tail")
+                  prinbee::FieldName("tail=fish:10/fin:2/gill/bones:3")
                 , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS16)
             ),
         };
@@ -948,7 +1271,7 @@ CATCH_TEST_CASE("structure_field", "[structure] [valid]")
                 , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_REFERENCE)
             ),
             prinbee::define_description(
-                  prinbee::FieldName("tail")
+                  prinbee::FieldName("tail=mask:13/size:3")
                 , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS16)
             ),
         };
@@ -1055,17 +1378,19 @@ CATCH_TEST_CASE("structure_field", "[structure] [valid]")
 
     CATCH_START_SECTION("structure_field: sub-structures")
     {
-        prinbee::struct_description_t description =
+        prinbee::struct_description_t description[] =
         {
             prinbee::define_description(
                   prinbee::FieldName("structure")
                 , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE)
+                , prinbee::FieldSubDescription(g_description1)
             ),
         };
 
-        prinbee::field_t::pointer_t f(std::make_shared<prinbee::field_t>(&description));
+        prinbee::field_t::pointer_t f(std::make_shared<prinbee::field_t>(description));
 
         prinbee::structure::pointer_t s(std::make_shared<prinbee::structure>(g_description1));
+        CATCH_REQUIRE(s->get_static_size() == 33);
         f->sub_structures().push_back(s);
         CATCH_REQUIRE((*f)[0] == s);
 
@@ -1085,7 +1410,7 @@ CATCH_TEST_CASE("structure_field", "[structure] [valid]")
 }
 
 
-CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
+CATCH_TEST_CASE("structure_invalid_field", "[structure][valid]")
 {
     CATCH_START_SECTION("structure_invalid_field: check description of all different database types")
     {
@@ -1097,12 +1422,24 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
         {
             bad_type = static_cast<prinbee::struct_type_t>(rand());
         }
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("INVALID")
+                      , prinbee::FieldType(bad_type)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage("prinbee_exception: the specified structure field type was not recognized."));
+
         prinbee::struct_description_t description =
         {
-            prinbee::define_description(
-                  prinbee::FieldName("INVALID")
-                , prinbee::FieldType(bad_type)
-            ),
+            .f_field_name =          "INVALID",
+            .f_type =                bad_type,
+            .f_flags =               0,
+            .f_default_value =       nullptr,
+            .f_min_version =         prinbee::version_t(),
+            .f_max_version =         prinbee::version_t(),
+            .f_sub_description =     nullptr,
         };
 
         prinbee::field_t::const_pointer_t f(std::make_shared<prinbee::field_t>(&description));
@@ -1115,7 +1452,7 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
                           "*unknown struct type ("
                         + std::to_string(static_cast<int>(bad_type))
                         + ")*"
-                          ", max: 44).")); // this number is not defined otherwise...
+                          ", max: 47).")); // this number is not defined otherwise...
 
         CATCH_REQUIRE_THROWS_MATCHES(
                   f->type_field_size()
@@ -1125,7 +1462,7 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
                           "*unknown struct type ("
                         + std::to_string(static_cast<int>(bad_type))
                         + ")*"
-                          ", max: 44).")); // this number is not defined otherwise...
+                          ", max: 47).")); // this number is not defined otherwise...
     }
     CATCH_END_SECTION()
 
@@ -1135,7 +1472,7 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
         {
             prinbee::define_description(
                   prinbee::FieldName("not_renamed")
-                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY8) // <- wrong type
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BUFFER8) // <- wrong type
             ),
         };
 
@@ -1151,16 +1488,29 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
 
     CATCH_START_SECTION("structure_invalid_field: new name without a sub-description")
     {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("no_link")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_RENAMED)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure field must have a sub-description field."));
+
+        // in case someone creates a description manually, make sure we also
+        // catch that error
+        //
         prinbee::struct_description_t description =
         {
-            prinbee::define_description(
-                  prinbee::FieldName("no_link")
-                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_RENAMED)
-            ),
+            .f_field_name =          "no_link",
+            .f_type =                prinbee::struct_type_t::STRUCT_TYPE_RENAMED,
+            .f_flags =               0,
+            .f_default_value =       nullptr,
+            .f_min_version =         prinbee::version_t(),
+            .f_max_version =         prinbee::version_t(),
+            .f_sub_description =     nullptr,
         };
-
         prinbee::field_t::pointer_t f(std::make_shared<prinbee::field_t>(&description));
-
         CATCH_REQUIRE_THROWS_MATCHES(
                   f->new_name()
                 , prinbee::logic_error
@@ -1175,7 +1525,7 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
         {
             prinbee::define_description(
                   prinbee::FieldName(nullptr)
-                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT512)
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_END) // the type is not checked with the RENAMED although it probably should be!
             ),
         };
 
@@ -1203,7 +1553,7 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
         prinbee::struct_description_t description =
         {
             prinbee::define_description(
-                  prinbee::FieldName("flags")
+                  prinbee::FieldName("flags=some_flag/another/foo/bar")
                 , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS16)
             ),
         };
@@ -1220,12 +1570,24 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
 
     CATCH_START_SECTION("structure_invalid_field: sub-structure indexing out of range")
     {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("structure")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure field must have a sub-description field."));
+
         prinbee::struct_description_t description =
         {
-            prinbee::define_description(
-                  prinbee::FieldName("structure")
-                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE)
-            ),
+            .f_field_name =          "structure",
+            .f_type =                prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE,
+            .f_flags =               0,
+            .f_default_value =       nullptr,
+            .f_min_version =         prinbee::version_t(),
+            .f_max_version =         prinbee::version_t(),
+            .f_sub_description =     nullptr,
         };
 
         prinbee::field_t::pointer_t f(std::make_shared<prinbee::field_t>(&description));
@@ -1247,41 +1609,181 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
     }
     CATCH_END_SECTION()
 
-#ifdef _DEBUG
-    // these throw ... only happen when debug is turned on
-    //
-    // i.e. with `mk -t -r` command line option (Release mode),
-    // it does not include debug core
-    //
-    CATCH_START_SECTION("structure_invalid_field: validity verifications in contructor")
+    CATCH_START_SECTION("structure_invalid_field: field does not support a sub-structure")
     {
-        prinbee::struct_description_t name_missing =
+        for(prinbee::struct_type_t type(prinbee::struct_type_t::STRUCT_TYPE_END);
+            type <= prinbee::struct_type_t::STRUCT_TYPE_RENAMED;
+            ++type)
         {
-            prinbee::define_description(
-                  prinbee::FieldName(nullptr)
-                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT512)
-            ),
-        };
+            switch(type)
+            {
+            case prinbee::struct_type_t::STRUCT_TYPE_MAGIC:
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          prinbee::define_description(
+                                prinbee::FieldName("_magic")
+                              , prinbee::FieldType(type)
+                              , prinbee::FieldSubDescription(g_description1)
+                          )
+                        , prinbee::invalid_parameter
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: this structure field cannot have a sub-description field."));
+                break;
+
+            case prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          prinbee::define_description(
+                                prinbee::FieldName("_structure_version")
+                              , prinbee::FieldType(type)
+                              , prinbee::FieldSubDescription(g_description1)
+                          )
+                        , prinbee::invalid_parameter
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: this structure field cannot have a sub-description field."));
+                break;
+
+            case prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE:
+            case prinbee::struct_type_t::STRUCT_TYPE_ARRAY8:
+            case prinbee::struct_type_t::STRUCT_TYPE_ARRAY16:
+            case prinbee::struct_type_t::STRUCT_TYPE_ARRAY32:
+            case prinbee::struct_type_t::STRUCT_TYPE_RENAMED:
+                break;
+
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS8:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS16:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS32:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS64:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS128:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS256:
+            case prinbee::struct_type_t::STRUCT_TYPE_BITS512:
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          prinbee::define_description(
+                                prinbee::FieldName("field=bits:3")
+                              , prinbee::FieldType(type)
+                              , prinbee::FieldSubDescription(g_description1)
+                          )
+                        , prinbee::invalid_parameter
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: this structure field cannot have a sub-description field."));
+                break;
+
+            case prinbee::struct_type_t::STRUCT_TYPE_CHAR:
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          prinbee::define_description(
+                                prinbee::FieldName("field=1001")
+                              , prinbee::FieldType(type)
+                              , prinbee::FieldSubDescription(g_description1)
+                          )
+                        , prinbee::invalid_parameter
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: this structure field cannot have a sub-description field."));
+                break;
+
+            default:
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          prinbee::define_description(
+                                prinbee::FieldName(type == prinbee::struct_type_t::STRUCT_TYPE_END ? nullptr : "field")
+                              , prinbee::FieldType(type)
+                              , prinbee::FieldSubDescription(g_description1)
+                          )
+                        , prinbee::invalid_parameter
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: this structure field cannot have a sub-description field."));
+                break;
+
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid_field: name field")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("unwanted_name")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_END)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: the END structure field cannot have a field name."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid_field: name field")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::define_description(
+                    prinbee::FieldName("inverted_version")
+                  , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT32)
+                  , prinbee::FieldVersion(15, 255, 15, 254)
+              )
+            , prinbee::invalid_parameter
+            , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure field must have a minimum version which is smaller or equal to the maximum version."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid_field: structure version missing or invalid")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::define_description(
+                    prinbee::FieldName("_structure_version")
+                  , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+              )
+            , prinbee::invalid_parameter
+            , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure field must have a version."));
 
         CATCH_REQUIRE_THROWS_MATCHES(
-                  std::make_shared<prinbee::field_t>(&name_missing)
-                , prinbee::logic_error
-                , Catch::Matchers::ExceptionMessage(
-                          "logic_error: a field must have a name, `nullptr` is not valid."));
-
-        prinbee::struct_description_t name_empty =
-        {
-            prinbee::define_description(
-                  prinbee::FieldName("")
-                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT512)
-            ),
-        };
+              prinbee::define_description(
+                    prinbee::FieldName("_structure_version")
+                  , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                  , prinbee::FieldVersion(0, 0, 65535, 65535) // explicit (same as unspecified); invalid min.
+              )
+            , prinbee::invalid_parameter
+            , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure field must have a version."));
 
         CATCH_REQUIRE_THROWS_MATCHES(
-                  std::make_shared<prinbee::field_t>(&name_empty)
-                , prinbee::logic_error
+              prinbee::define_description(
+                    prinbee::FieldName("_structure_version")
+                  , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                  , prinbee::FieldVersion(3, 7, 123, 456) // invalid max.
+              )
+            , prinbee::invalid_parameter
+            , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure field must have a version."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              prinbee::define_description(
+                    prinbee::FieldName("_structure_version")
+                  , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                  , prinbee::FieldVersion(0, 0, 123, 456) // invalid min. & max.
+              )
+            , prinbee::invalid_parameter
+            , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure field must have a version."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid_field: field validity verifications in define_description() [compile time if defined constexpr]")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName(nullptr)
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT512)
+                  )
+                , prinbee::invalid_parameter
                 , Catch::Matchers::ExceptionMessage(
-                          "logic_error: a field must have a name, an empty string (\"\") is not valid."));
+                          "prinbee_exception: this structure field must have a field name."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT512)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure field name is not considered valid."));
 
         for(int i(0); i < 100; ++i)
         {
@@ -1340,21 +1842,100 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
                 }
             }
 
-            prinbee::struct_description_t name_invalid =
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      prinbee::define_description(
+                            prinbee::FieldName(name)
+                          , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT512)
+                      )
+                    , prinbee::invalid_parameter
+                    , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this structure field name is not considered valid."));
+        }
+    }
+    CATCH_END_SECTION()
+
+#ifdef _DEBUG
+    // these throw ... only happen when debug is turned on
+    //
+    // i.e. with `mk -t -r` command line option (Release mode),
+    // it does not include debug core
+    //
+    CATCH_START_SECTION("structure_invalid_field: validity verifications in contructor")
+    {
+        {
+            prinbee::struct_description_t name_missing =
             {
-                prinbee::define_description(
-                      prinbee::FieldName(name)
-                    , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT512)
-                ),
+                .f_field_name =          nullptr,
+                .f_type =                prinbee::struct_type_t::STRUCT_TYPE_INT512,
+                .f_flags =               0,
+                .f_default_value =       nullptr,
+                .f_min_version =         prinbee::version_t(),
+                .f_max_version =         prinbee::version_t(),
+                .f_sub_description =     nullptr,
             };
 
             CATCH_REQUIRE_THROWS_MATCHES(
-                      std::make_shared<prinbee::field_t>(&name_invalid)
+                      std::make_shared<prinbee::field_t>(&name_missing)
                     , prinbee::logic_error
                     , Catch::Matchers::ExceptionMessage(
-                              std::string("logic_error: field name \"")
-                            + name
-                            + "\" is not valid (unsupported characters)."));
+                              "logic_error: a field must have a name, null is not valid."));
+        }
+
+        {
+            prinbee::struct_description_t empty_name =
+            {
+                .f_field_name =          "",
+                .f_type =                prinbee::struct_type_t::STRUCT_TYPE_INT512,
+                .f_flags =               0,
+                .f_default_value =       nullptr,
+                .f_min_version =         prinbee::version_t(),
+                .f_max_version =         prinbee::version_t(),
+                .f_sub_description =     nullptr,
+            };
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      std::make_shared<prinbee::field_t>(&empty_name)
+                    , prinbee::logic_error
+                    , Catch::Matchers::ExceptionMessage(
+                              "logic_error: a field must have a name, an empty string (\"\") is not valid."));
+        }
+
+        {
+            prinbee::struct_description_t missing_flags =
+            {
+                .f_field_name =          "foo",
+                .f_type =                prinbee::struct_type_t::STRUCT_TYPE_BITS8,
+                .f_flags =               0,
+                .f_default_value =       nullptr,
+                .f_min_version =         prinbee::version_t(),
+                .f_max_version =         prinbee::version_t(),
+                .f_sub_description =     nullptr,
+            };
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      std::make_shared<prinbee::field_t>(&missing_flags)
+                    , prinbee::logic_error
+                    , Catch::Matchers::ExceptionMessage(
+                              "logic_error: bit field name & definition \"foo\" are not valid."));
+        }
+
+        {
+            prinbee::struct_description_t bad_name =
+            {
+                .f_field_name =          "3_bad_names",
+                .f_type =                prinbee::struct_type_t::STRUCT_TYPE_INT32,
+                .f_flags =               0,
+                .f_default_value =       nullptr,
+                .f_min_version =         prinbee::version_t(),
+                .f_max_version =         prinbee::version_t(),
+                .f_sub_description =     nullptr,
+            };
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      std::make_shared<prinbee::field_t>(&bad_name)
+                    , prinbee::logic_error
+                    , Catch::Matchers::ExceptionMessage(
+                              "logic_error: field name \"3_bad_names\" is not valid (unsupported characters)."));
         }
     }
     CATCH_END_SECTION()
@@ -1362,9 +1943,7 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure] [valid]")
 }
 
 
-
-
-CATCH_TEST_CASE("structure", "[structure] [valid]")
+CATCH_TEST_CASE("structure", "[structure][valid]")
 {
     CATCH_START_SECTION("structure: simple structure (fixed size)")
     {
@@ -1372,12 +1951,10 @@ CATCH_TEST_CASE("structure", "[structure] [valid]")
 
         description->init_buffer();
 
-        description->set_uinteger("magic", static_cast<uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_BLOB));
-
         std::uint32_t const count(123);
         description->set_uinteger("count", count);
 
-        std::uint32_t const size(900000);
+        std::uint32_t const size(900'000);
         description->set_uinteger("size", size);
 
         std::int32_t const change(-55);
@@ -1389,7 +1966,8 @@ CATCH_TEST_CASE("structure", "[structure] [valid]")
         prinbee::reference_t const previous(0xff11ff11ff11);
         description->set_uinteger("previous", previous);
 
-        CATCH_REQUIRE(description->get_uinteger("magic") == static_cast<uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_BLOB));
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_BLOB);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(0, 1));
         CATCH_REQUIRE(description->get_uinteger("count") == count);
         CATCH_REQUIRE(description->get_uinteger("size") == size);
         CATCH_REQUIRE(description->get_integer("change") == change);
@@ -1402,9 +1980,11 @@ CATCH_TEST_CASE("structure", "[structure] [valid]")
     {
         prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description2));
 
+        CATCH_REQUIRE(description->get_static_size() == 0);
+
         description->init_buffer();
 
-        description->set_uinteger("magic", static_cast<uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_DATA));
+        //description->set_uinteger("_magic", static_cast<uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_DATA));
 
         std::uint32_t flags(0x100105);
         description->set_uinteger("flags", flags);
@@ -1418,14 +1998,325 @@ CATCH_TEST_CASE("structure", "[structure] [valid]")
         uint16_t model(33);
         description->set_uinteger("model", model);
 
-        CATCH_REQUIRE(description->get_uinteger("magic") == static_cast<uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_DATA));
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::FILE_TYPE_BLOOM_FILTER);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(15, 10231));
         CATCH_REQUIRE(description->get_uinteger("flags") == flags);
         CATCH_REQUIRE(description->get_string("name") == name);
         CATCH_REQUIRE(description->get_uinteger("size") == size);
         CATCH_REQUIRE(description->get_uinteger("model") == model);
     }
     CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure: structure with a bit field")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description3));
+
+        CATCH_REQUIRE(description->get_static_size() == 93);
+
+        description->init_buffer();
+
+        //description->set_uinteger("magic", static_cast<std::uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_DATA));
+
+        std::uint32_t sub_field(SNAP_CATCH2_NAMESPACE::rand32());
+        description->set_uinteger("sub_field", sub_field);
+
+        prinbee::int512_t large_number;
+        SNAP_CATCH2_NAMESPACE::rand512(large_number);
+        description->set_large_integer("data", large_number);
+
+        std::uint32_t major(SNAP_CATCH2_NAMESPACE::rand32());
+        std::uint32_t minor(SNAP_CATCH2_NAMESPACE::rand32());
+        std::uint32_t release(SNAP_CATCH2_NAMESPACE::rand32());
+        std::uint32_t build(SNAP_CATCH2_NAMESPACE::rand32());
+        description->set_uinteger("software_version.major", major);
+        description->set_uinteger("software_version.minor", minor);
+        description->set_uinteger("software_version.release", release);
+        description->set_uinteger("software_version.build", build);
+
+        std::uint32_t const null_value(rand() & 1);
+        description->set_bits("eight_bits.null", null_value);
+
+        std::uint32_t const advance_value(rand() & 15);
+        description->set_bits("eight_bits.advance", advance_value);
+
+        std::uint32_t const performent_value(rand() & 3);
+        description->set_bits("eight_bits.performent", performent_value);
+
+        std::uint32_t const sign_value(rand() & 1);
+        description->set_bits("eight_bits.sign", sign_value);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_FREE_SPACE);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(25, 312));
+        CATCH_REQUIRE(description->get_uinteger("_structure_version") == prinbee::version_t(25, 312));
+        CATCH_REQUIRE(description->get_uinteger("sub_field") == sub_field);
+        CATCH_REQUIRE(description->get_large_integer("data") == large_number);
+        CATCH_REQUIRE(description->get_uinteger("software_version.major") == major);
+        CATCH_REQUIRE(description->get_uinteger("software_version.minor") == minor);
+        CATCH_REQUIRE(description->get_uinteger("software_version.release") == release);
+        CATCH_REQUIRE(description->get_uinteger("software_version.build") == build);
+        CATCH_REQUIRE(description->get_bits("eight_bits.null") == null_value);
+        CATCH_REQUIRE(description->get_bits("eight_bits.advance") == advance_value);
+        CATCH_REQUIRE(description->get_bits("eight_bits.performent") == performent_value);
+        CATCH_REQUIRE(description->get_bits("eight_bits.sign") == sign_value);
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure: structure with a variable sub-structure")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description5));
+
+        // uninitialized structures have no buffer
+        //
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_field("name")
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage(
+                    "logic_error: trying to access a structure field when the f_buffer pointer is still null."));
+
+        // the BUFFER8 in the sub-structure makes this structure dynamic
+        // (and later the P8STRING too)
+        //
+        CATCH_REQUIRE(description->get_static_size() == 0UL);
+        CATCH_REQUIRE(description->get_current_size() == 52UL);
+
+        description->init_buffer();
+
+        // to change a VERSION type, we use the set_uinteger() function
+        // but we must make sure that the structure version cannot be
+        // updated (this is a read-only field)
+        //
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->set_uinteger("_structure_version", SNAP_CATCH2_NAMESPACE::rand32())
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                    "prinbee_exception: this description type is \"STRUCTURE_VERSION\""
+                    " but we expected one of \"BITS8, BITS16, BITS32, BITS64, UINT8, UINT16, UINT32, VERSION, UINT64, REFERENCE, OID\"."));
+
+        std::int64_t const sub_field(SNAP_CATCH2_NAMESPACE::rand64());
+        description->set_integer("sub_field", sub_field);
+        CATCH_REQUIRE(description->get_current_size() == 52UL);
+
+        prinbee::int512_t large_number;
+        SNAP_CATCH2_NAMESPACE::rand512(large_number);
+        if((large_number.f_value[1] & (1UL << 63)) == 0)
+        {
+            large_number.f_value[2] = 0;
+            large_number.f_value[3] = 0;
+            large_number.f_value[4] = 0;
+            large_number.f_value[5] = 0;
+            large_number.f_value[6] = 0;
+            large_number.f_high_value = 0;
+        }
+        else
+        {
+            large_number.f_value[2] = -1;
+            large_number.f_value[3] = -1;
+            large_number.f_value[4] = -1;
+            large_number.f_value[5] = -1;
+            large_number.f_value[6] = -1;
+            large_number.f_high_value = -1;
+        }
+        description->set_large_integer("data", large_number);
+        CATCH_REQUIRE(description->get_current_size() == 52UL);
+
+        std::uint8_t const version_size((rand() & 7) + 1);
+        prinbee::buffer_t version_parts(version_size);
+        for(std::uint8_t idx(0); idx < version_size; ++idx)
+        {
+            version_parts[idx] = rand();
+        }
+        description->set_uinteger("early_version.size", version_size);
+        CATCH_REQUIRE(description->get_current_size() == 52UL);
+        description->set_buffer("early_version.parts", version_parts);
+        CATCH_REQUIRE(description->get_current_size() == 52UL + version_size);
+
+        std::uint32_t const bulk_value(rand() & 15);
+        description->set_bits("sixteen_bits.bulk", bulk_value);
+        CATCH_REQUIRE(description->get_current_size() == 52UL + version_size);
+
+        std::uint32_t const more_value(rand() & 15);
+        description->set_bits("sixteen_bits.more", more_value);
+        CATCH_REQUIRE(description->get_current_size() == 52UL + version_size);
+
+        std::uint32_t const raise_value(rand() & 1);
+        description->set_bits("sixteen_bits.raise", raise_value);
+        CATCH_REQUIRE(description->get_current_size() == 52UL + version_size);
+
+        std::uint32_t const signal_value(rand() & 127);
+        description->set_bits("sixteen_bits.signal", signal_value);
+        CATCH_REQUIRE(description->get_current_size() == 52UL + version_size);
+
+        //description->set_string("tag", ...); -- keep the default value instead
+
+        std::string const name(SNAP_CATCH2_NAMESPACE::random_string(1, 255));
+        description->set_string("name", name);
+        CATCH_REQUIRE(description->get_current_size() == 52UL + version_size + name.length());
+
+        // field must be given a name
+        //
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_uinteger(std::string())
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage(
+                    "logic_error: called get_field() with an empty field name."));
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(405, 119));
+        CATCH_REQUIRE(description->get_integer("sub_field") == sub_field);
+        CATCH_REQUIRE(description->get_large_integer("data") == large_number);
+        CATCH_REQUIRE(description->get_uinteger("early_version.size") == version_size);
+        CATCH_REQUIRE(description->get_buffer("early_version.parts") == version_parts);
+        CATCH_REQUIRE(description->get_bits("sixteen_bits.bulk") == bulk_value);
+        CATCH_REQUIRE(description->get_bits("sixteen_bits.more") == more_value);
+        CATCH_REQUIRE(description->get_bits("sixteen_bits.raise") == raise_value);
+        CATCH_REQUIRE(description->get_bits("sixteen_bits.signal") == signal_value);
+        CATCH_REQUIRE(description->get_string("tag") == "image"); // from the default value
+        CATCH_REQUIRE(description->get_string("name") == name);
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure: structure with four types of strings")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description6));
+
+        // the strings make this structure dynamic
+        //
+        CATCH_REQUIRE(description->get_static_size() == 0UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + 0UL + 2UL + 0UL + 4 + 0UL + 15UL);
+
+        description->init_buffer();
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + 5UL + 2UL + 62UL + 4 + 98UL + 15UL);
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->set_uinteger("_magic", SNAP_CATCH2_NAMESPACE::rand32())
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                    "prinbee_exception: this description type is \"MAGIC\""
+                    " but we expected one of \"BITS8, BITS16, BITS32, BITS64, UINT8, UINT16, UINT32, VERSION, UINT64, REFERENCE, OID\"."));
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(15'345, 2'341));
+
+        CATCH_REQUIRE(description->get_string("name") == "Henri");
+        std::string const name(SNAP_CATCH2_NAMESPACE::random_string(1, 255));
+        description->set_string("name", name);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + 62UL + 4 + 98UL + 15UL);
+        CATCH_REQUIRE(description->get_string("name") == name);
+
+        CATCH_REQUIRE(description->get_string("description") == "King who fell from a horse and had a rotting foot as a result.");
+        std::string const description_field(SNAP_CATCH2_NAMESPACE::random_string(256, 3'000));
+        description->set_string("description", description_field);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4 + 98UL + 15UL);
+        CATCH_REQUIRE(description->get_string("description") == description_field);
+
+        CATCH_REQUIRE(description->get_string("essay") == "King who killed his wife to marry another. Later wives were lucky that the divorce was \"invented\".");
+        CATCH_REQUIRE(description->get_string("dissertation") == "King who killed his wife to marry another. Later wives were lucky that the divorce was \"invented\".");
+        std::string const essay(SNAP_CATCH2_NAMESPACE::random_string(1'000, 250'000));
+SNAP_LOG_WARNING << "--- random essay length is " << essay.length() << SNAP_LOG_SEND;
+        description->set_string("essay", essay);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4 + essay.length() + 15UL);
+        CATCH_REQUIRE(description->get_string("essay") == essay);
+        CATCH_REQUIRE(description->get_string("dissertation") == essay);
+
+        std::string const dissertation(SNAP_CATCH2_NAMESPACE::random_string(1'000, 250'000));
+SNAP_LOG_WARNING << "--- random dissertation length is " << dissertation.length() << SNAP_LOG_SEND;
+        description->set_string("dissertation", dissertation);
+SNAP_LOG_WARNING << "--- dissertation set_string() returned... verify" << SNAP_LOG_SEND;
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4 + dissertation.length() + 15UL);
+        CATCH_REQUIRE(description->get_string("dissertation") == dissertation);
+        CATCH_REQUIRE(description->get_string("essay") == dissertation);
+
+SNAP_LOG_WARNING << "--- now do a set of the kingdom..." << SNAP_LOG_SEND;
+        description->set_string("tag", "kingdom");
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4 + dissertation.length() + 15UL);
+        CATCH_REQUIRE(description->get_string("tag") == "kingdom");
+    }
+    CATCH_END_SECTION()
 }
+
+
+CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
+{
+    CATCH_START_SECTION("structure_invalid: missing description (nullptr)")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  new prinbee::structure(nullptr)
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage("logic_error: the description parameter of a structure object cannot be null."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: missing description (empty)")
+    {
+        prinbee::struct_description_t description[] =
+        {
+            prinbee::end_descriptions()
+        };
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  new prinbee::structure(description)
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage("logic_error: the root description of a structure must start with a magic field followed by a structure version."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure: structure version missing in description")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  std::make_shared<prinbee::structure>(g_description4a)
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage("logic_error: the root description of a structure must start with a magic field followed by a structure version."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure: magic missing in description")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  std::make_shared<prinbee::structure>(g_description4b)
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage("logic_error: the root description of a structure must start with a magic field followed by a structure version."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure: invalid CHAR size (missing equal)")
+    {
+        prinbee::struct_description_t description = {
+            .f_field_name = "char123",
+            .f_type = prinbee::struct_type_t::STRUCT_TYPE_CHAR,
+        };
+
+#ifdef _DEBUG
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  std::make_shared<prinbee::field_t>(&description)
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage("logic_error: char field name & length \"char123\" are not valid."));
+#else
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  std::make_shared<prinbee::field_t>(&description)
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: the name of a field of type CHAR must have a size"
+                          " defined as in \"foo=123\"; \"char123\" is missing an equal (=) character."));
+#endif
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure: invalid CHAR size (size too large)")
+    {
+        prinbee::struct_description_t description = {
+            .f_field_name = "char=9999999999999999999",
+            .f_type = prinbee::struct_type_t::STRUCT_TYPE_CHAR,
+        };
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  std::make_shared<prinbee::field_t>(&description)
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                        "prinbee_exception: the size in field"
+                        " \"char=9999999999999999999\" must be a valid decimal number."));
+    }
+    CATCH_END_SECTION()
+}
+
 
 
 // vim: ts=4 sw=4 et

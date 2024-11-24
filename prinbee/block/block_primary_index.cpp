@@ -62,18 +62,17 @@
 //
 #include    "prinbee/block/block_primary_index.h"
 
-#include    "prinbee/block/block_header.h"
 #include    "prinbee/database/table.h"
-#include    "prinbee/file/file_snap_database_table.h"
+#include    "prinbee/file/file_table.h"
 #include    "prinbee/utils.h"
 
 
-// snapdev lib
+// snapdev
 //
 #include    <snapdev/log2.h>
 
 
-// C++ lib
+// C++
 //
 #include    <iostream>
 
@@ -100,9 +99,14 @@ namespace
 constexpr struct_description_t g_description[] =
 {
     define_description(
-          FieldName("header")
-        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE)
-        , FieldSubDescription(detail::g_block_header)
+          FieldName(g_system_field_name_magic)
+        , FieldType(struct_type_t::STRUCT_TYPE_MAGIC)
+        , FieldDefaultValue(to_string(dbtype_t::FILE_TYPE_PRIMARY_INDEX))
+    ),
+    define_description(
+          FieldName(g_system_field_name_structure_version)
+        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , FieldVersion(0, 1)
     ),
     // all the space gets used, no room for an array here
     //define_description(
@@ -114,16 +118,6 @@ constexpr struct_description_t g_description[] =
 };
 
 
-constexpr descriptions_by_version_t const g_descriptions_by_version[] =
-{
-    define_description_by_version(
-        DescriptionVersion(0, 1),
-        DescriptionDescription(g_description)
-    ),
-    end_descriptions_by_version()
-};
-
-
 
 }
 // no name namespace
@@ -132,7 +126,7 @@ constexpr descriptions_by_version_t const g_descriptions_by_version[] =
 
 
 block_primary_index::block_primary_index(dbfile::pointer_t f, reference_t offset)
-    : block(g_descriptions_by_version, f, offset)
+    : block(g_description, f, offset)
 {
 }
 
@@ -150,12 +144,12 @@ std::uint32_t block_primary_index::key_to_index(buffer_t key) const
 {
     // retrieve `size` bits from the end of key
     //
-    // note: at this time we conside that the maximum number of bits
+    // note: at this time we consider that the maximum number of bits
     //       is going to be 20, so we can use 32 bit numbers
     //
     std::uint8_t const size(get_size());
     std::uint32_t bytes(divide_rounded_up(size, 8));
-    size_t idx(key.size());
+    std::size_t idx(key.size());
     if(bytes > idx)
     {
         bytes = idx;
@@ -184,7 +178,7 @@ reference_t block_primary_index::get_top_index(buffer_t const & key) const
         // this position is where we have the header and version for this
         // block so we have to use a different location, we use the header
         //
-        file_snap_database_table::pointer_t header(std::static_pointer_cast<file_snap_database_table>(get_table()->get_block(0)));
+        file_table::pointer_t header(std::static_pointer_cast<file_table>(get_table()->get_block(0)));
         return header->get_primary_index_reference_zero();
     }
     else
@@ -202,7 +196,7 @@ void block_primary_index::set_top_index(buffer_t const & key, reference_t offset
         // this position is where we have the header and version for this
         // block so we have to use a different location, we use the header
         //
-        file_snap_database_table::pointer_t header(std::static_pointer_cast<file_snap_database_table>(get_table()->get_block(0)));
+        file_table::pointer_t header(std::static_pointer_cast<file_table>(get_table()->get_block(0)));
         header->set_primary_index_reference_zero(offset);
     }
     else

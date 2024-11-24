@@ -80,9 +80,14 @@ namespace
 constexpr struct_description_t g_description[] =
 {
     define_description(
-          FieldName("header")
-        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE)
-        , FieldSubDescription(detail::g_block_header)
+          FieldName(g_system_field_name_magic)
+        , FieldType(struct_type_t::STRUCT_TYPE_MAGIC)
+        , FieldDefaultValue(to_string(dbtype_t::BLOCK_TYPE_ENTRY_INDEX))
+    ),
+    define_description(
+          FieldName(g_system_field_name_structure_version)
+        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , FieldVersion(0, 1)
     ),
     define_description(
           FieldName("count")
@@ -109,15 +114,6 @@ constexpr struct_description_t g_description[] =
 };
 
 
-constexpr descriptions_by_version_t const g_descriptions_by_version[] =
-{
-    define_description_by_version(
-        DescriptionVersion(0, 1),
-        DescriptionDescription(g_description)
-    ),
-    end_descriptions_by_version()
-};
-
 
 
 }
@@ -127,14 +123,14 @@ constexpr descriptions_by_version_t const g_descriptions_by_version[] =
 
 
 block_entry_index::block_entry_index(dbfile::pointer_t f, reference_t offset)
-    : block(g_descriptions_by_version, f, offset)
+    : block(g_description, f, offset)
 {
 }
 
 
 std::uint32_t block_entry_index::get_count() const
 {
-    return static_cast<uint32_t>(f_structure->get_uinteger("count"));
+    return static_cast<std::uint32_t>(f_structure->get_uinteger("count"));
 }
 
 
@@ -146,7 +142,7 @@ void block_entry_index::set_count(std::uint32_t count)
 
 std::uint32_t block_entry_index::get_size() const
 {
-    return static_cast<uint32_t>(f_structure->get_uinteger("size"));
+    return static_cast<std::uint32_t>(f_structure->get_uinteger("size"));
 }
 
 
@@ -219,7 +215,7 @@ std::cerr << " " << std::hex << static_cast<int>(key[k]) << std::dec;
 }
 std::cerr << "\n";
 
-    std::uint8_t const * buffer(data(f_structure->get_size()));
+    std::uint8_t const * buffer(data(f_structure->get_static_size()));
     std::uint32_t const size(get_size());
     std::uint32_t const length(std::min(size - sizeof(std::uint8_t) - sizeof(reference_t), key.size()));
     std::uint32_t i(0);
@@ -298,7 +294,7 @@ void block_entry_index::add_entry(buffer_t const & key, oid_t position_oid, std:
     // no alignment requirements since we use memcmp() and memcpy()
     // and that way the size can be anything
     //
-    std::uint8_t * buffer(data(f_structure->get_size()));
+    std::uint8_t * buffer(data(f_structure->get_static_size()));
     std::uint32_t const count(get_count());
 std::cerr << "add_entry() starting with count = " << count << "and OID=" << position_oid << "\n";
     std::uint32_t const size(get_size());
@@ -353,7 +349,7 @@ throw not_yet_implemented("block EIDX non-unique case");
     }
 
     size_t const page_size(get_table()->get_page_size());
-    size_t const max_count((page_size - f_structure->get_size()) / size);
+    size_t const max_count((page_size - f_structure->get_static_size()) / size);
     if(count >= max_count)
     {
         // here the close_position value can't be negative

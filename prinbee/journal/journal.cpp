@@ -18,14 +18,14 @@
 
 
 /** \file
- * \brief Journal implementation.
+ * \brief The Prinbee Journal implementation.
  *
- * When the Client Proxy or the Prinbee Server receive a message through
- * their communicatord, it first saves it to a journal then forwards it to
- * the next stage. This implementation handles all the journal support.
+ * When the Client Proxy or the Prinbee Server receive an event, they first
+ * save it to a journal for safe keeping. Then they forward it to the next
+ * stage. This file implements that file based journal.
  *
- * The message must have a "request_id" field for this to work. Otherwise,
- * the journal refuses the message. The "request_id" is used to find the
+ * The event must have a "request_id" field for this to work. Otherwise,
+ * the journal refuses the event. The "request_id" is used to find the
  * entry later and mark it as complete (properly acknowledged) or in
  * progress (sent, was not able to forward yet, etc.) or failed (the
  * message was abandonned).

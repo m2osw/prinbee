@@ -48,8 +48,8 @@
 #include    "prinbee/block/block_top_index.h"
 #include    "prinbee/block/block_top_indirect_index.h"
 #include    "prinbee/file/file_bloom_filter.h"
-#include    "prinbee/file/file_external_index.h"
-#include    "prinbee/file/file_snap_database_table.h"
+#include    "prinbee/file/file_index.h"
+#include    "prinbee/file/file_table.h"
 
 
 // snaplogger
@@ -82,9 +82,6 @@ namespace prinbee
 
 namespace detail
 {
-
-
-
 
 
 
@@ -301,7 +298,7 @@ table_impl::table_impl(
 
     // note: f_name will only be the last segment of the full path
     //
-    if(!validate_name(f_name))
+    if(!validate_name(f_name.c_str()))
     {
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
         msg << "Unsupported directory name for a table \""
@@ -608,7 +605,7 @@ block::pointer_t table_impl::allocate_block(dbtype_t type, reference_t offset)
         {
             throw logic_error(
                       "allocate_block() called a non-free block type trying to allocate a non-free block ("
-                    + to_string(type)
+                    + std::string(to_name(type))
                     + "). You can go from a free to non-free and non-free to free only.");
         }
         //it->second->replacing(); -- this won't work right at this time TODO...
@@ -618,16 +615,24 @@ block::pointer_t table_impl::allocate_block(dbtype_t type, reference_t offset)
     block::pointer_t b;
     switch(type)
     {
-    case dbtype_t::FILE_TYPE_SNAP_DATABASE_TABLE:
-        b = std::make_shared<file_snap_database_table>(f_dbfile, offset);
+    case dbtype_t::FILE_TYPE_TABLE:
+        b = std::make_shared<file_table>(f_dbfile, offset);
         break;
 
-    case dbtype_t::FILE_TYPE_EXTERNAL_INDEX:
-        b = std::make_shared<file_external_index>(f_dbfile, offset);
+    case dbtype_t::FILE_TYPE_INDEX:
+        b = std::make_shared<file_index>(f_dbfile, offset);
         break;
 
     case dbtype_t::FILE_TYPE_BLOOM_FILTER:
         b = std::make_shared<file_bloom_filter>(f_dbfile, offset);
+        break;
+
+    case dbtype_t::FILE_TYPE_PRIMARY_INDEX:
+        b = std::make_shared<block_primary_index>(f_dbfile, offset);
+        break;
+
+    case dbtype_t::FILE_TYPE_SCHEMA:
+        b = std::make_shared<block_schema>(f_dbfile, offset);
         break;
 
     case dbtype_t::BLOCK_TYPE_BLOB:
@@ -659,16 +664,8 @@ block::pointer_t table_impl::allocate_block(dbtype_t type, reference_t offset)
         b = std::make_shared<block_indirect_index>(f_dbfile, offset);
         break;
 
-    case dbtype_t::BLOCK_TYPE_PRIMARY_INDEX:
-        b = std::make_shared<block_primary_index>(f_dbfile, offset);
-        break;
-
     case dbtype_t::BLOCK_TYPE_SECONDARY_INDEX:
         b = std::make_shared<block_secondary_index>(f_dbfile, offset);
-        break;
-
-    case dbtype_t::BLOCK_TYPE_SCHEMA:
-        b = std::make_shared<block_schema>(f_dbfile, offset);
         break;
 
     case dbtype_t::BLOCK_TYPE_TOP_INDEX:
@@ -682,7 +679,7 @@ block::pointer_t table_impl::allocate_block(dbtype_t type, reference_t offset)
     default:
         throw logic_error(
                   "allocate_block() called with an unknown dbtype_t value ("
-                + to_string(type)
+                + std::string(to_name(type))
                 + ").");
 
     }
@@ -753,7 +750,7 @@ void table_impl::start_update_process(bool restart)
     //
     if(restart)
     {
-        file_snap_database_table::pointer_t header(std::static_pointer_cast<file_snap_database_table>(get_block(0)));
+        file_table::pointer_t header(std::static_pointer_cast<file_table>(get_block(0)));
         header->set_update_oid(1);
         header->set_update_last_oid(header->get_last_oid());
     }
@@ -800,12 +797,12 @@ block::pointer_t table_impl::get_block(reference_t offset)
     data_t d(f_dbfile->data(offset));
     virtual_buffer::pointer_t header(std::make_shared<virtual_buffer>());
 #ifdef _DEBUG
-    if(s->get_size() != BLOCK_HEADER_SIZE)
+    if(s->get_static_size() != BLOCK_HEADER_SIZE)
     {
         throw logic_error("sizeof(g_block_header) != BLOCK_HEADER_SIZE");
     }
 #endif
-    header->pwrite(d, s->get_size(), 0, true);
+    header->pwrite(d, s->get_static_size(), 0, true);
     s->set_virtual_buffer(header, 0);
     dbtype_t const type(static_cast<dbtype_t>(s->get_uinteger("magic")));
     //schema_version_t const version(s->get_uinteger("version"));
@@ -837,15 +834,15 @@ block::pointer_t table_impl::allocate_new_block(dbtype_t type)
     {
         switch(type)
         {
-        case dbtype_t::FILE_TYPE_SNAP_DATABASE_TABLE:
-        case dbtype_t::FILE_TYPE_EXTERNAL_INDEX:
+        case dbtype_t::FILE_TYPE_TABLE:
+        case dbtype_t::FILE_TYPE_INDEX:
         case dbtype_t::FILE_TYPE_BLOOM_FILTER:
             break;
 
         default:
             throw logic_error(
                       "a new file can't be created with type \""
-                    + to_string(type)
+                    + std::string(to_name(type))
                     + "\".");
 
         }
@@ -853,7 +850,7 @@ block::pointer_t table_impl::allocate_new_block(dbtype_t type)
         // this is a new file, create 16 `FREE` blocks
         //
         f_dbfile->append_free_block(NULL_FILE_ADDR);
-        size_t const page_size(f_dbfile->get_page_size());
+        std::size_t const page_size(f_dbfile->get_page_size());
         reference_t next(page_size * 2);
         for(int idx(0); idx < 14; ++idx, next += page_size)
         {
@@ -867,12 +864,12 @@ block::pointer_t table_impl::allocate_new_block(dbtype_t type)
     {
         switch(type)
         {
-        case dbtype_t::FILE_TYPE_SNAP_DATABASE_TABLE:
-        case dbtype_t::FILE_TYPE_EXTERNAL_INDEX:
+        case dbtype_t::FILE_TYPE_TABLE:
+        case dbtype_t::FILE_TYPE_INDEX:
         case dbtype_t::FILE_TYPE_BLOOM_FILTER:
             throw logic_error(
                       "a file type such as \""
-                    + to_string(type)
+                    + std::string(to_name(type))
                     + "\" is only for when you create a file.");
 
         default:
@@ -882,13 +879,13 @@ block::pointer_t table_impl::allocate_new_block(dbtype_t type)
 
         // get next free block from the header
         //
-        file_snap_database_table::pointer_t header(std::static_pointer_cast<file_snap_database_table>(get_block(0)));
+        file_table::pointer_t header(std::static_pointer_cast<file_table>(get_block(0)));
         offset = header->get_first_free_block();
         if(offset == NULL_FILE_ADDR)
         {
             offset = f_dbfile->append_free_block(NULL_FILE_ADDR);
 
-            size_t const page_size(f_dbfile->get_page_size());
+            std::size_t const page_size(f_dbfile->get_page_size());
             reference_t next(offset + page_size * 2);
             for(int idx(0); idx < 14; ++idx, next += page_size)
             {
@@ -937,7 +934,7 @@ void table_impl::free_block(block::pointer_t block, bool clear_block)
         p->clear_block();
     }
 
-    file_snap_database_table::pointer_t header(std::static_pointer_cast<file_snap_database_table>(get_block(0)));
+    file_table::pointer_t header(std::static_pointer_cast<file_table>(get_block(0)));
     reference_t const next_offset(header->get_first_free_block());
     p->set_next_free_block(next_offset);
     header->set_first_free_block(offset);
@@ -998,7 +995,7 @@ void table_impl::row_insert(row::pointer_t row_data, cursor::pointer_t cur)
 {
     // if inserting, we first need to allocation this row's OID
     //
-    file_snap_database_table::pointer_t header(std::static_pointer_cast<file_snap_database_table>(get_block(0)));
+    file_table::pointer_t header(std::static_pointer_cast<file_table>(get_block(0)));
     oid_t oid(header->get_first_free_oid());
     bool const must_exist(oid != NULL_OID);
     if(!must_exist)
@@ -1102,7 +1099,7 @@ std::cerr << "+++ GET REFERENCE FROM SUB-OID: " << offset << " from " << positio
             {
                 throw type_mismatch(
                           "expected block of type INDIRECT INDEX (INDR) (got \""
-                        + to_string(block->get_dbtype())
+                        + std::string(to_name(block->get_dbtype()))
                         + "\" instead).");
             }
             indr = std::static_pointer_cast<block_indirect_index>(block);
@@ -1254,14 +1251,14 @@ block_primary_index::pointer_t table_impl::get_primary_index_block(bool create)
 {
     block_primary_index::pointer_t primary_index;
 
-    file_snap_database_table::pointer_t header(std::static_pointer_cast<file_snap_database_table>(get_block(0)));
+    file_table::pointer_t header(std::static_pointer_cast<file_table>(get_block(0)));
     reference_t const index_block_offset(header->get_primary_index_block());
     if(index_block_offset == NULL_FILE_ADDR)
     {
         if(create)
         {
             primary_index = std::static_pointer_cast<block_primary_index>(
-                        allocate_new_block(dbtype_t::BLOCK_TYPE_PRIMARY_INDEX));
+                        allocate_new_block(dbtype_t::FILE_TYPE_PRIMARY_INDEX));
 
             header->set_primary_index_block(primary_index->get_offset());
         }
@@ -1308,7 +1305,7 @@ reference_t table_impl::get_indirect_reference(oid_t oid)
     //       now each OID accessor is optimized but that means we end up doing
     //       the search multiple times
     //
-    file_snap_database_table::pointer_t header(std::static_pointer_cast<file_snap_database_table>(get_block(0)));
+    file_table::pointer_t header(std::static_pointer_cast<file_table>(get_block(0)));
     reference_t offset(header->get_indirect_index());
     if(offset == NULL_FILE_ADDR)
     {
@@ -1335,7 +1332,7 @@ reference_t table_impl::get_indirect_reference(oid_t oid)
     {
         throw type_mismatch(
                   "expected block of type INDIRECT INDEX (INDR), got \""
-                + to_string(block->get_dbtype())
+                + std::string(to_name(block->get_dbtype()))
                 + "\" instead.");
     }
 
@@ -1408,7 +1405,7 @@ throw not_yet_implemented("table: TODO implement read secondary");
 
 void table_impl::read_indirect(cursor_data & data)
 {
-    file_snap_database_table::pointer_t header(std::static_pointer_cast<file_snap_database_table>(get_block(0)));
+    file_table::pointer_t header(std::static_pointer_cast<file_table>(get_block(0)));
     reference_t tref(header->get_indirect_index());
     if(tref == NULL_FILE_ADDR)
     {
@@ -1496,9 +1493,9 @@ std::cerr << "read_primary: top index has null reference!?\n";
     {
         throw type_mismatch(
                   "Found unexpected block of type \""
-                + to_string(block->get_dbtype())
+                + std::string(to_name(block->get_dbtype()))
                 + "\". Expected an  \""
-                + to_string(dbtype_t::BLOCK_TYPE_ENTRY_INDEX)
+                + to_name(dbtype_t::BLOCK_TYPE_ENTRY_INDEX)
                 + "\".");
     }
 

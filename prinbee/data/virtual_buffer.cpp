@@ -21,9 +21,9 @@
  * \brief The virtual buffer implementation.
  *
  * The virtual buffer allows us to access data which is not defined in one
- * straight memory buffer but instead scattered between blocks and memory
- * buffers (when the amount of data increases we allocate temporary memory
- * buffers until we flush the data to file).
+ * straight memory buffer but instead scattered between blocks on disk and
+ * memory buffers (when the amount of data increases we allocate temporary
+ * memory buffers until we flush the data to file).
  */
 
 // self
@@ -31,6 +31,11 @@
 #include    "prinbee/data/virtual_buffer.h"
 
 #include    "prinbee/exception.h"
+
+
+// snaplogger
+//
+#include    <snaplogger/message.h>
 
 
 // C++
@@ -80,7 +85,7 @@ void virtual_buffer::add_buffer(block::pointer_t b, std::uint64_t offset, std::u
     if(f_modified)
     {
         throw logic_error(
-                "Virtual buffer was already modified, you can't add"
+                "virtual buffer was already modified, you can't add"
                 " another buffer until you commit this virtual buffer.");
     }
 
@@ -126,7 +131,7 @@ int virtual_buffer::pread(void * buf, std::uint64_t size, std::uint64_t offset, 
     && !is_data_available(offset, size))
     {
         throw invalid_size(
-                "Not enough data to read from virtual buffer. Requested to read "
+                "not enough data to read from virtual buffer. Requested to read "
                 + std::to_string(size)
                 + " bytes at "
                 + std::to_string(offset)
@@ -188,9 +193,9 @@ int virtual_buffer::pwrite(void const * buf, std::uint64_t size, std::uint64_t o
     && !is_data_available(offset, size))
     {
         throw invalid_size(
-                  "Not enough space to write to virtual buffer. Requested to write "
+                  "not enough space to write to virtual buffer. Requested to write "
                 + std::to_string(size)
-                + " bytes at "
+                + " bytes at offset "
                 + std::to_string(offset)
                 + ", when the buffer is "
                 + std::to_string(f_total_size)
@@ -244,7 +249,7 @@ int virtual_buffer::pwrite(void const * buf, std::uint64_t size, std::uint64_t o
         }
     }
 
-    // this can happen if the caller calls us with an empty buffer
+    // TBD: this should never happen
     //
     if(size == 0)
     {
@@ -278,12 +283,15 @@ int virtual_buffer::pwrite(void const * buf, std::uint64_t size, std::uint64_t o
 
     // TBD: we may want to allocate multiple buffers of 4Kb instead of
     //      a buffer large enough for this data? At the same time, we
-    //      can't save exactly 4Kb of data in the blocks anyway...
+    //      can't always save exactly 4Kb of data in the blocks anyway...
+    //      but with each block having the same size, we could have a
+    //      vector to access any one block (perase() and pinsert() are
+    //      a bigger issue in that case, though)
     //
     //      however, we could probably use a form of binary search to
-    //      reduce the number iterations; however, after _many_ insertions
+    //      reduce the number of iterations; yet, after _many_ insertions
     //      it is likely that such a search would not be working very well
-    //      and either way we'd need to update offsets though the entire
+    //      and either way we'd need to update offsets through the entire
     //      list of items
     //
     //      on the other hand maybe we could use a larger buffer such
@@ -387,7 +395,7 @@ int virtual_buffer::pinsert(void const * buf, std::uint64_t size, std::uint64_t 
     }
 
     throw logic_error(
-              "Reached the end of the pinsert() function. Offset should be 0, it is "
+              "reached the end of the pinsert() function. Offset should be 0, it is "
             + std::to_string(offset)
             + " instead, which should never happen.");
 }
@@ -397,11 +405,13 @@ int virtual_buffer::perase(std::uint64_t size, std::uint64_t offset)
 {
     if(size == 0)
     {
+SNAP_LOG_ERROR << "--- perase CASE 1 -- size == 0" << SNAP_LOG_SEND;
         return 0;
     }
 
     if(offset >= f_total_size)
     {
+SNAP_LOG_ERROR << "--- perase CASE 2 -- offset >= total size" << SNAP_LOG_SEND;
         return 0;
     }
 
@@ -409,6 +419,7 @@ int virtual_buffer::perase(std::uint64_t size, std::uint64_t offset)
     //
     if(size > f_total_size - offset)
     {
+SNAP_LOG_ERROR << "--- perase CASE 3 -- adjust size" << SNAP_LOG_SEND;
         size = f_total_size - offset;
     }
 
@@ -421,29 +432,36 @@ int virtual_buffer::perase(std::uint64_t size, std::uint64_t offset)
         auto next(it + 1);
         if(offset >= it->f_size)
         {
+//SNAP_LOG_ERROR << "--- perase CASE 4 -- skip early block" << SNAP_LOG_SEND;
             offset -= it->f_size;
         }
         else
         {
-            if(size >= it->f_size)
+            if(offset + size >= it->f_size)
             {
                 if(offset == 0)
                 {
+SNAP_LOG_ERROR << "--- perase CASE 5 -- delete whole block" << SNAP_LOG_SEND;
                     // remove this entry entirely
                     //
                     size -= it->f_size;
                     f_total_size -= it->f_size;
                     bytes_erased += it->f_size;
-                    f_buffers.erase(it);
+                    next = f_buffers.erase(it);
+//if(it != next)
+//{
+//throw logic_error("it != next after a buffer erase?!");
+//}
                 }
                 else
                 {
+SNAP_LOG_ERROR << "--- perase CASE 6 -- delete end of data" << SNAP_LOG_SEND;
                     // remove end of this block
                     //
                     std::uint64_t const sz(it->f_size - offset);
                     it->f_size = offset;
-                    f_total_size -= sz;
                     size -= sz;
+                    f_total_size -= sz;
                     bytes_erased += sz;
                     offset = 0;
                 }
@@ -456,13 +474,19 @@ int virtual_buffer::perase(std::uint64_t size, std::uint64_t offset)
                     //
                     if(it->f_block != nullptr)
                     {
+SNAP_LOG_ERROR << "--- perase CASE 7 -- block involved?!?" << SNAP_LOG_SEND;
                         it->f_offset += size;
                     }
                     else
                     {
-                        it->f_data.erase(it->f_data.begin(), it->f_data.begin() + size);
+SNAP_LOG_ERROR << "--- perase CASE 8 -- delete start of data size=" << size << " vs f_size=" << it->f_size << " vs data.size=" << it->f_data.size() << SNAP_LOG_SEND;
+                        //it->f_data.erase(it->f_data.begin(), it->f_data.begin() + size); -- this is much heavier if the implementation decides to realloc()
+                        memmove(it->f_data.data(), it->f_data.data() + size, it->f_size - size);
                     }
                     it->f_size -= size;
+                    f_total_size -= size;
+                    bytes_erased += size;
+                    size = 0;
                 }
                 else
                 {
@@ -472,11 +496,13 @@ int virtual_buffer::perase(std::uint64_t size, std::uint64_t offset)
                     {
                         if(offset + size >= it->f_size)
                         {
+SNAP_LOG_ERROR << "--- perase CASE 9 -- block involved?!?" << SNAP_LOG_SEND;
                             it->f_offset += offset;
                             it->f_size -= size;
                         }
                         else
                         {
+SNAP_LOG_ERROR << "--- perase CASE 10 -- block involved?!?" << SNAP_LOG_SEND;
                             vbuf_t append;
                             append.f_block = it->f_block;
                             append.f_size = it->f_size - size - offset;
@@ -488,14 +514,24 @@ int virtual_buffer::perase(std::uint64_t size, std::uint64_t offset)
                     }
                     else
                     {
-                        it->f_data.erase(it->f_data.begin() + offset, it->f_data.begin() + offset + size);
+SNAP_LOG_ERROR << "--- perase CASE 11 -- delete inside of block: offset=" << offset << ", offset+size=" << offset + size << ", data size=" << it->f_data.size() << SNAP_LOG_SEND;
+                        //it->f_data.erase(it->f_data.begin() + offset, it->f_data.begin() + offset + size);
+                        memmove(it->f_data.data() + offset, it->f_data.data() + offset + size, it->f_size - offset - size);
                         it->f_size -= size;
+                        f_total_size -= size;
+                        bytes_erased += size;
+                        size = 0;
                     }
                 }
-                f_total_size -= size;
-                bytes_erased += size;
-                f_modified = bytes_erased != 0;
-                return bytes_erased;
+                // here size is always zero since
+                //
+#ifdef _DEBUG
+                if(size != 0)
+                {
+                    throw logic_error("size != 0 -- there is a bug in perase().");
+                }
+#endif
+                break;
             }
         }
         it = next;

@@ -292,7 +292,7 @@ index_type_t index_name_to_index_type(std::string const & name)
 
     }
 
-    return validate_name(name)
+    return validate_name(name.c_str())
                 ? index_type_t::INDEX_TYPE_SECONDARY
                 : index_type_t::INDEX_TYPE_INVALID;
 }
@@ -734,7 +734,7 @@ schema_column::schema_column(
                 + ").");
     }
     f_name = config->get_parameter(column_field_name);
-    if(!validate_name(f_name))
+    if(!validate_name(f_name.c_str()))
     {
         throw invalid_name(
                   "\""
@@ -1388,7 +1388,7 @@ void schema_secondary_index::from_config(
                 + ").");
     }
     f_name = config->get_parameter(index_field_name);
-    if(!validate_name(f_name))
+    if(!validate_name(f_name.c_str()))
     {
         throw invalid_name(
                   "\""
@@ -1673,7 +1673,7 @@ void schema_table::from_config_name(std::string const & name)
     // Note: this is already checked in the table_impl class, but we still
     //       want to make sure this name is valid
     //
-    if(!validate_name(name))
+    if(!validate_name(name.c_str()))
     {
         throw invalid_name(
                   "\""

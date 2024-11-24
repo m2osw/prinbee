@@ -26,7 +26,7 @@
  * block is a _lose_ structure which very often changes in size because it
  * includes parameters such as a string or an array.
  *
- * Also in most cases arrays are also themselvess _lose_ structures (a few
+ * Also in most cases arrays are also themselves _lose_ structures (a few
  * are just numbers such as column ids or block references.)
  *
  * IMPORTANT: The types defined here are also the types that we accept in

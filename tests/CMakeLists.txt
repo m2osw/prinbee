@@ -39,6 +39,7 @@ if(SnapCatch2_FOUND)
         catch_pbql_location.cpp
         catch_pbql_node.cpp
         catch_structure.cpp
+        catch_utils.cpp
         catch_version.cpp
         catch_virtual_buffer.cpp
     )

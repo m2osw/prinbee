@@ -19,25 +19,85 @@
 
 
 /** \file
- * \brief Handle a block structure.
+ * \brief Handle a binary structure.
  *
- * Each block contains a structure. The very first four bytes are always the
- * magic characters which define the type of the block. The remained of the
- * block is a _lose_ structure which very often changes in size because it
- * includes parameters such as a string or an array.
+ * A file starts with a well defined prinbee structure. The very first
+ * four bytes of that structure are always the magic characters which define
+ * the type of the file (or a section within that file). The remainder of the
+ * file depends on the format of that file (schema, table, index, bloom filter,
+ * etc.) In general, it is a set of structures of variable sizes, possibly
+ * created dynamically (i.e. a row uses a dynamically created structure to
+ * generate the binary data to save on disk).
  *
- * Also in most cases arrays are also themselvess _lose_ structures (a few
- * are just numbers such as column ids or block references.)
+ * In most cases, arrays are structures of variable size (a few
+ * are just numbers such as column ids or block references).
  *
- * IMPORTANT: The types defined here are also the types that we accept in
- * a user table. Here we define structures and later tables.
+ * **IMPORTANT:** The types defined here are also the types that we accept in
+ *                a user table. Here we define structures and later tables.
+ *
+ * \h2 Versions
+ *
+ * There are many versions handling variations in the data which we want to
+ * talk about here.
+ *
+ * \li Structure Version
+ *
+ * The structure itself has a version. This is what allows us to define
+ * fields starting at a given version, remove them at another, etc.
+ * It uses the type STRUCT_TYPE_STRUCTURE_VERSION.
+ *
+ * This version is mandatory and cannot be set to zero. It has to be at
+ * least 0.1. This version is the one used against the _versioned fields_.
+ *
+ * The version defined here is saved in the `f_min_version` field.
+ * The maximum (`f_max_version`) but be set to its default, a.k.a.
+ * what max_version() returns, which is 65535.65535.
+ *
+ * \li Version Field
+ *
+ * There is a STRUCT_TYPE_VERSION type which allows you to include a version
+ * field in your data. This is not used by the structure implementation. It's
+ * viewed as a 32 bit unsigned number and handled as such in binary. On your
+ * end, you can use it as a version_t structure.
+ *
+ * \li Versioned Field
+ *
+ * A field can appear at a specific version. Say, for example, to describe
+ * the schema of a table, we want to add a "reversed" field in the columns.
+ * The current version of the schema structure was 1.3. Now we create version
+ * 1.4 and mark the "reversed" field with a minimum version of 1.4.
+ *
+ * Use the FieldVersion() function to define the version like so:
+ *
+ * \code
+ *    FieldName("reversed"),
+ *    FieldVersion(1, 3),
+ * \endcode
+ *
+ * When a field is removed at a given version, then you can define the
+ * second version (i.e. maximum). So to continue with our example above,
+ * when going to, for example, version 2.0, you remove that field. You
+ * now have:
+ *
+ * \code
+ *    FieldName("reversed"),
+ *    FieldVersion(1, 3, 1, 65535),
+ * \endcode
+ *
+ * _(1.65535 is the largest version just before version 2.0, if you used
+ * versions up to, for example, 1.11, then you could also use that version.)_
+ *
+ * \note
+ * The minimum and maximum versions are inclusive.
  */
 
 // self
 //
-#include    "prinbee/exception.h"
-#include    "prinbee/data/virtual_buffer.h"
 #include    "prinbee/bigint/uint512.h"
+#include    "prinbee/data/virtual_buffer.h"
+#include    "prinbee/data/dbtype.h"
+#include    "prinbee/exception.h"
+#include    "prinbee/utils.h"
 
 
 // snapdev
@@ -55,6 +115,9 @@ namespace prinbee
 {
 
 
+
+constexpr char const * const    g_system_field_name_magic = "_magic";
+constexpr char const * const    g_system_field_name_structure_version = "_structure_version";
 
 constexpr   std::uint16_t                   STRUCTURE_VERSION_MAJOR = 0;
 constexpr   std::uint16_t                   STRUCTURE_VERSION_MINOR = 1;
@@ -109,9 +172,9 @@ public:
 
     std::string     to_string() const
                     {
-                        return std::to_string(static_cast<uint32_t>(f_major))
+                        return std::to_string(static_cast<std::uint32_t>(f_major))
                              + "."
-                             + std::to_string(static_cast<uint32_t>(f_minor));
+                             + std::to_string(static_cast<std::uint32_t>(f_minor));
                     }
 
     std::uint32_t   to_binary() const
@@ -125,56 +188,62 @@ public:
                         f_minor = v;
                     }
 
-    bool            is_null() const             { return f_major == 0 && f_minor == 0; }
+    bool            is_null() const { return f_major == 0 && f_minor == 0; }
 
-    std::uint16_t   get_major() const           { return f_major; }
-    void            set_major(uint16_t major)   { f_major = major; }
-    std::uint16_t   get_minor() const           { return f_minor; }
-    void            set_minor(uint16_t minor)   { f_minor = minor; }
+    std::uint16_t   get_major() const              { return f_major; }
+    void            set_major(std::uint16_t major) { f_major = major; }
+    std::uint16_t   get_minor() const              { return f_minor; }
+    void            set_minor(std::uint16_t minor) { f_minor = minor; }
 
-    void            next_branch()               { ++f_major; f_minor = 0; }
-    void            next_revision()             { ++f_minor; if(f_minor == 0) ++f_major; }
+    void            next_branch() { ++f_major; f_minor = 0; }
+    void            next_revision() { ++f_minor; if(f_minor == 0) ++f_major; }
 
-    bool            operator == (version_t const & rhs) const
+    constexpr bool  operator == (version_t const & rhs) const
                     {
                         return f_major == rhs.f_major
                             && f_minor == rhs.f_minor;
                     }
-    bool            operator != (version_t const & rhs) const
+    constexpr bool  operator != (version_t const & rhs) const
                     {
                         return f_major != rhs.f_major
                             || f_minor != rhs.f_minor;
                     }
-    bool            operator < (version_t const & rhs) const
+    constexpr bool  operator < (version_t const & rhs) const
                     {
                         return f_major < rhs.f_major
                             || (f_major == rhs.f_major && f_minor < rhs.f_minor);
                     }
-    bool            operator <= (version_t const & rhs) const
+    constexpr bool  operator <= (version_t const & rhs) const
                     {
                         return f_major < rhs.f_major
                             || (f_major == rhs.f_major && f_minor <= rhs.f_minor);
                     }
-    bool            operator > (version_t const & rhs) const
+    constexpr bool  operator > (version_t const & rhs) const
                     {
                         return f_major > rhs.f_major
                             || (f_major == rhs.f_major && f_minor > rhs.f_minor);
                     }
-    bool            operator >= (version_t const & rhs) const
+    constexpr bool  operator >= (version_t const & rhs) const
                     {
                         return f_major > rhs.f_major
                             || (f_major == rhs.f_major && f_minor >= rhs.f_minor);
                     }
 
 private:
-    uint16_t        f_major = 0;
-    uint16_t        f_minor = 0;
+    std::uint16_t   f_major = 0;
+    std::uint16_t   f_minor = 0;
 };
+
+
+inline constexpr version_t max_version()
+{
+    return version_t(65535, 65535);
+}
 
 
 struct min_max_version_t
 {
-    constexpr       min_max_version_t(int min_major = 0, int min_minor = 0, int max_major = 0, int max_minor = 0)
+    constexpr       min_max_version_t(int min_major = 0, int min_minor = 0, int max_major = 65535, int max_minor = 65535)
                         : f_min_version(min_major, min_minor)
                         , f_max_version(max_major, max_minor)
                     {
@@ -184,7 +253,7 @@ struct min_max_version_t
     constexpr version_t       max() const { return f_max_version; }
 
     version_t const f_min_version = version_t();
-    version_t const f_max_version = version_t();
+    version_t const f_max_version = max_version();
 };
 
 
@@ -327,6 +396,8 @@ enum class struct_type_t : uint16_t
     STRUCT_TYPE_FLOAT64,
     STRUCT_TYPE_FLOAT128,
 
+    STRUCT_TYPE_MAGIC,              // CHAR=4
+    STRUCT_TYPE_STRUCTURE_VERSION,  // UINT16:UINT16 (Major:Minor) -- version of the structure.cpp/h description
     STRUCT_TYPE_VERSION,            // UINT16:UINT16 (Major:Minor)
 
     STRUCT_TYPE_TIME,               // UINT64 equivalent to time_t (seconds)
@@ -334,6 +405,7 @@ enum class struct_type_t : uint16_t
     STRUCT_TYPE_USTIME,             // UINT64 time in microseconds
     STRUCT_TYPE_NSTIME,             // UINT128 time in nanoseconds (timespec_ex)
 
+    STRUCT_TYPE_CHAR,               // fixed size defined in field name as in "name=128"
     STRUCT_TYPE_P8STRING,           // UINT8 for size
     STRUCT_TYPE_P16STRING,          // UINT16 for size
     STRUCT_TYPE_P32STRING,          // UINT32 for size
@@ -372,7 +444,7 @@ bool                                type_with_fixed_size(struct_type_t type);
 
 
 
-typedef uint16_t                            struct_description_flags_t;
+typedef std::uint16_t                       struct_description_flags_t;
 
 constexpr struct_description_flags_t        STRUCT_DESCRIPTION_FLAG_NONE         = 0x0000;
 constexpr struct_description_flags_t        STRUCT_DESCRIPTION_MASK_OPTIONAL_BIT = 0x003F;  // use a field named "flags"
@@ -385,9 +457,9 @@ struct struct_description_t
     struct_type_t const                     f_type = struct_type_t::STRUCT_TYPE_VOID;
     struct_description_flags_t const        f_flags = 0;
     char const * const                      f_default_value = nullptr;
-    version_t const                         f_min_version = version_t();
-    version_t const                         f_max_version = version_t();
-    struct_description_t const * const      f_sub_description = nullptr;       // i.e. for an array, the type of the items
+    version_t const                         f_min_version = version_t();        // if version being read is smaller, ignore that field
+    version_t const                         f_max_version = version_t();        // if version being read or written is larger, ignore that field
+    struct_description_t const * const      f_sub_description = nullptr;        // i.e. for an array, the type of the items
 };
 
 
@@ -449,7 +521,7 @@ public:
     }
 
     constexpr FieldDefaultValue(char const * default_value)
-        : snapdev::StructureValue<char const *>(default_value)
+        : snapdev::StructureValue<char const *>(default_value == nullptr || *default_value == '\0' ? nullptr : default_value)
     {
     }
 };
@@ -464,7 +536,7 @@ public:
     {
     }
 
-    constexpr FieldVersion(int min_major, int min_minor, int max_major, int max_minor)
+    constexpr FieldVersion(int min_major, int min_minor, int max_major = 65535, int max_minor = 65535)
         : snapdev::StructureValue<min_max_version_t>(min_max_version_t(min_major, min_minor, max_major, max_minor))
     {
     }
@@ -490,32 +562,228 @@ public:
 template<class ...ARGS>
 constexpr struct_description_t define_description(ARGS ...args)
 {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
     struct_description_t s =
     {
         .f_field_name =          snapdev::find_field<FieldName          >(args...),        // no default, mandatory
         .f_type =                snapdev::find_field<FieldType          >(args...),        // no default, mandatory
         .f_flags =               static_cast<struct_description_flags_t>(
-                                    snapdev::find_field<FieldFlags         >(args..., FieldFlags())),
+                                    snapdev::find_field<FieldFlags      >(args..., FieldFlags())),
         .f_default_value =       snapdev::find_field<FieldDefaultValue  >(args..., FieldDefaultValue()),
         .f_min_version =         snapdev::find_field<FieldVersion       >(args..., FieldVersion()).min(),
         .f_max_version =         snapdev::find_field<FieldVersion       >(args..., FieldVersion()).max(),
         .f_sub_description =     snapdev::find_field<FieldSubDescription>(args..., FieldSubDescription()),
     };
-#pragma GCC diagnostic pop
 
     // TODO: once possible (C++17/20?) add verification tests here
 
     // whether a sub-description is allowed or not varies depending on the type
-    //if(f_sub_description == nullptr)
-    //{
-    //}
-    //else
-    //{
-    //}
+    constexpr std::uint32_t FIELD_MUST_HAVE_A_NAME              = 0x0001;
+    constexpr std::uint32_t FIELD_MUST_HAVE_SUB_DESCRIPTION     = 0x0002;
+    constexpr std::uint32_t FIELD_MUST_HAVE_VERSION             = 0x0004;
+    constexpr std::uint32_t FIELD_IS_A_BIT_FIELD                = 0x0008;
+    constexpr std::uint32_t FIELD_IS_A_CHAR_FIELD               = 0x0010;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+    constexpr std::uint32_t const verifications[static_cast<int>(struct_type_t::STRUCT_TYPE_RENAMED) + 1] =
+    {
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_END)] =
+            0,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_VOID)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS8)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_IS_A_BIT_FIELD,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS16)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_IS_A_BIT_FIELD,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS32)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_IS_A_BIT_FIELD,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS64)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_IS_A_BIT_FIELD,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS128)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_IS_A_BIT_FIELD,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS256)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_IS_A_BIT_FIELD,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_BITS512)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_IS_A_BIT_FIELD,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_INT8)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT8)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_INT16)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT16)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_INT32)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT32)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_INT64)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT64)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_INT128)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT128)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_INT256)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT256)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_INT512)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UINT512)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT32)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT64)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_FLOAT128)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_MAGIC)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_VERSION,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_VERSION)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_TIME)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_MSTIME)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_USTIME)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_NSTIME)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_CHAR)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_IS_A_CHAR_FIELD,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_P8STRING)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_P16STRING)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_P32STRING)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_STRUCTURE)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_DESCRIPTION,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY8)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_DESCRIPTION,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY16)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_DESCRIPTION,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY32)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_DESCRIPTION,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER8)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER16)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER32)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_REFERENCE)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_OID)] =
+            FIELD_MUST_HAVE_A_NAME,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_RENAMED)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_DESCRIPTION,
+    };
+#pragma GCC diagnostic pop
 
-    //if(f_min_version > f_max_version) ...
+    // TYPE
+    //
+    if(static_cast<std::size_t>(s.f_type) >= std::size(verifications))
+    {
+        throw invalid_parameter("the specified structure field type was not recognized.");
+    }
+
+    // NAME
+    //
+    if((verifications[static_cast<int>(s.f_type)] & FIELD_MUST_HAVE_A_NAME) == 0)
+    {
+        if(s.f_field_name != nullptr)
+        {
+            throw invalid_parameter("the END structure field cannot have a field name.");
+        }
+    }
+    else
+    {
+        if(s.f_field_name == nullptr)
+        {
+            throw invalid_parameter("this structure field must have a field name.");
+        }
+
+        if((verifications[static_cast<int>(s.f_type)] & FIELD_IS_A_CHAR_FIELD) != 0)
+        {
+            if(!validate_char_field_name(s.f_field_name))
+            {
+                throw invalid_parameter("this structure char field name is not considered valid.");
+            }
+        }
+        else if((verifications[static_cast<int>(s.f_type)] & FIELD_IS_A_BIT_FIELD) != 0)
+        {
+            if(!validate_bit_field_name(s.f_field_name))
+            {
+                throw invalid_parameter("this structure bit field name or definition is not considered valid.");
+            }
+        }
+        else
+        {
+            if(!validate_name(s.f_field_name))
+            {
+                throw invalid_parameter("this structure field name is not considered valid.");
+            }
+        }
+
+        switch(s.f_type)
+        {
+        case struct_type_t::STRUCT_TYPE_MAGIC:
+            if(strcmp(s.f_field_name, g_system_field_name_magic) != 0)
+            {
+                throw invalid_parameter("the MAGIC structure field must be named \"_magic\".");
+            }
+            break;
+
+        case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
+            if(strcmp(s.f_field_name, g_system_field_name_structure_version) != 0)
+            {
+                throw invalid_parameter("the STRUCTURE_VERSION field must be named \"_structure_version\".");
+            }
+            break;
+
+        default:
+            break;
+
+        }
+    }
+
+    // SUB_DESCRIPTION
+    //
+    if((verifications[static_cast<int>(s.f_type)] & FIELD_MUST_HAVE_SUB_DESCRIPTION) == 0)
+    {
+        if(s.f_sub_description != nullptr)
+        {
+            throw invalid_parameter("this structure field cannot have a sub-description field.");
+        }
+    }
+    else
+    {
+        if(s.f_sub_description == nullptr)
+        {
+            throw invalid_parameter("this structure field must have a sub-description field.");
+        }
+    }
+
+    // FULL RANGE VERSION
+    //
+    if((verifications[static_cast<int>(s.f_type)] & FIELD_MUST_HAVE_VERSION) != 0)
+    {
+        if(s.f_min_version == version_t()
+        || s.f_max_version != max_version())
+        {
+            throw invalid_parameter("this structure field must have a version.");
+        }
+    }
+
+    // MIN/MAX VERSIONS
+    //
+    if(s.f_min_version > s.f_max_version)
+    {
+        throw invalid_parameter("this structure field must have a minimum version which is smaller or equal to the maximum version.");
+    }
 
     return s;
 }
@@ -531,77 +799,6 @@ constexpr struct_description_t end_descriptions()
 
 
 
-struct descriptions_by_version_t
-{
-    version_t                       f_version = version_t();
-    struct_description_t const *    f_description = nullptr;
-};
-
-
-
-class DescriptionVersion
-    : public snapdev::StructureValue<version_t>
-{
-public:
-    constexpr DescriptionVersion()
-        : snapdev::StructureValue<version_t>(version_t())
-    {
-    }
-
-    constexpr DescriptionVersion(int major, int minor)
-        : snapdev::StructureValue<version_t>(version_t(major, minor))
-    {
-    }
-};
-
-
-class DescriptionDescription
-    : public snapdev::StructureValue<struct_description_t const *>
-{
-public:
-    constexpr DescriptionDescription()
-        : snapdev::StructureValue<struct_description_t const *>(nullptr)
-    {
-    }
-
-    constexpr DescriptionDescription(struct_description_t const * description)
-        : snapdev::StructureValue<struct_description_t const *>(description)
-    {
-    }
-};
-
-
-template<class ...ARGS>
-constexpr descriptions_by_version_t define_description_by_version(ARGS ...args)
-{
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-    descriptions_by_version_t d =
-    {
-        .f_version =         snapdev::find_field<DescriptionVersion       >(args...),         // no default, mandatory
-        .f_description =     snapdev::find_field<DescriptionDescription   >(args...),         // no default, mandatory
-    };
-#pragma GCC diagnostic pop
-
-    // TODO: once possible (C++17/20?) add verification tests here
-
-    // either both are null or both are defined
-    //if((f_description == nullptr) ^ f_version.zero())
-    //{
-    //     throw ...
-    //}
-
-    return d;
-}
-
-
-constexpr descriptions_by_version_t end_descriptions_by_version()
-{
-    return define_description_by_version(
-              DescriptionVersion(0, 0)
-            , DescriptionDescription(nullptr)
-        );
-}
 
 
 
@@ -693,6 +890,7 @@ private:
     weak_pointer_t                          f_next = weak_pointer_t();
     weak_pointer_t                          f_previous = weak_pointer_t();
     struct_description_t const *            f_description = nullptr;
+    std::size_t                             f_field_name_len = 0;
     std::uint32_t                           f_size = 0;
     field_flags_t                           f_flags = 0;
     std::uint64_t                           f_offset = 0;
@@ -724,8 +922,8 @@ public:
                                                 , std::uint64_t start_offset);
     virtual_buffer::pointer_t               get_virtual_buffer(reference_t & start_offset) const;
 
-    size_t                                  get_size() const;
-    size_t                                  get_current_size() const;
+    std::size_t                             get_static_size() const;
+    std::size_t                             get_current_size() const;
 
     pointer_t                               parent() const;
     field_t::pointer_t                      get_field(
@@ -742,8 +940,14 @@ public:
     std::uint64_t                           get_uinteger(std::string const & field_name) const;
     void                                    set_uinteger(std::string const & field_name, std::uint64_t value);
 
-    uint64_t                                get_bits(std::string const & flag_name) const;
+    std::uint64_t                           get_bits(std::string const & flag_name) const;
     void                                    set_bits(std::string const & flag_name, std::uint64_t value);
+
+    dbtype_t                                get_magic() const;
+    void                                    set_magic(dbtype_t const & magic);
+
+    version_t                               get_version(std::string const & field_name) const;
+    void                                    set_version(std::string const & field_name, version_t const & version);
 
     // bits, int/uint, all sizes up to 512 bits
     int512_t                                get_large_integer(std::string const & field_name) const;
@@ -767,11 +971,11 @@ public:
     void                                    set_string(std::string const & field_name, std::string const & value);
 
     structure::pointer_t                    get_structure(std::string const & field_name) const;
-    void                                    set_structure(std::string const & field_name, structure::pointer_t & value);
+    void                                    set_structure(std::string const & field_name, pointer_t & value);
 
     structure::vector_t                     get_array(std::string const & field_name) const;
     structure::pointer_t                    new_array_item(std::string const & field_name);
-    void                                    set_array(std::string const & field_name, structure::vector_t const & value);
+    void                                    set_array(std::string const & field_name, vector_t const & value);
 
     buffer_t                                get_buffer(std::string const & field_name) const;
     void                                    set_buffer(std::string const & field_name, buffer_t const & value);

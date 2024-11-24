@@ -28,7 +28,6 @@
 //
 #include    "prinbee/file/file_bloom_filter.h"
 
-#include    "prinbee/block/block_header.h"
 
 
 // last include
@@ -51,21 +50,16 @@ namespace
 constexpr struct_description_t g_description[] =
 {
     define_description(
-          FieldName("header")
-        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE)
-        , FieldSubDescription(detail::g_block_header)
+          FieldName(g_system_field_name_magic)
+        , FieldType(struct_type_t::STRUCT_TYPE_MAGIC)
+        , FieldDefaultValue(to_string(dbtype_t::FILE_TYPE_BLOOM_FILTER))
+    ),
+    define_description(
+          FieldName(g_system_field_name_structure_version)
+        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , FieldVersion(0, 1)
     ),
     end_descriptions()
-};
-
-
-constexpr descriptions_by_version_t const g_descriptions_by_version[] =
-{
-    define_description_by_version(
-        DescriptionVersion(0, 1),
-        DescriptionDescription(g_description)
-    ),
-    end_descriptions_by_version()
 };
 
 
@@ -77,7 +71,7 @@ constexpr descriptions_by_version_t const g_descriptions_by_version[] =
 
 
 file_bloom_filter::file_bloom_filter(dbfile::pointer_t f, reference_t offset)
-    : block(g_descriptions_by_version, f, offset)
+    : block(g_description, f, offset)
 {
 }
 

@@ -61,9 +61,12 @@ bool is_valid_type(prinbee::dbtype_t type)
     switch(type)
     {
     case prinbee::dbtype_t::DBTYPE_UNKNOWN:
-    case prinbee::dbtype_t::FILE_TYPE_SNAP_DATABASE_TABLE:
-    case prinbee::dbtype_t::FILE_TYPE_EXTERNAL_INDEX:
+    case prinbee::dbtype_t::FILE_TYPE_TABLE:
+    case prinbee::dbtype_t::FILE_TYPE_INDEX:
     case prinbee::dbtype_t::FILE_TYPE_BLOOM_FILTER:
+    case prinbee::dbtype_t::FILE_TYPE_SCHEMA:
+    case prinbee::dbtype_t::FILE_TYPE_PRIMARY_INDEX:
+    case prinbee::dbtype_t::FILE_TYPE_COMPLEX_TYPE:
     case prinbee::dbtype_t::BLOCK_TYPE_BLOB:
     case prinbee::dbtype_t::BLOCK_TYPE_DATA:
     case prinbee::dbtype_t::BLOCK_TYPE_ENTRY_INDEX:
@@ -71,9 +74,7 @@ bool is_valid_type(prinbee::dbtype_t type)
     case prinbee::dbtype_t::BLOCK_TYPE_FREE_SPACE:
     case prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS:
     case prinbee::dbtype_t::BLOCK_TYPE_INDIRECT_INDEX:
-    case prinbee::dbtype_t::BLOCK_TYPE_PRIMARY_INDEX:
     case prinbee::dbtype_t::BLOCK_TYPE_SECONDARY_INDEX:
-    case prinbee::dbtype_t::BLOCK_TYPE_SCHEMA:
     case prinbee::dbtype_t::BLOCK_TYPE_SCHEMA_LIST:
     case prinbee::dbtype_t::BLOCK_TYPE_TOP_INDEX:
     case prinbee::dbtype_t::BLOCK_TYPE_TOP_INDIRECT_INDEX:
@@ -92,25 +93,49 @@ bool is_valid_type(prinbee::dbtype_t type)
 
 CATCH_TEST_CASE("dbfile_dbtype", "[dbfile] [valid]")
 {
+    CATCH_START_SECTION("dbfile_dbtype: to_name()")
+    {
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::DBTYPE_UNKNOWN)) == "Unknown");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::FILE_TYPE_TABLE)) == "Prinbee Table (PTBL)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::FILE_TYPE_INDEX)) == "Index (INDX)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::FILE_TYPE_BLOOM_FILTER)) == "Bloom Filter (BLMF)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::FILE_TYPE_PRIMARY_INDEX)) == "Primary Index (PIDX)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::FILE_TYPE_SCHEMA)) == "Schema (SCHM)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::FILE_TYPE_COMPLEX_TYPE)) == "Complex Type (CXTP)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_BLOB)) == "Blob (BLOB)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_DATA)) == "Data (DATA)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_ENTRY_INDEX)) == "Entry Index (EIDX)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_FREE_BLOCK)) == "Free Block (FREE)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_FREE_SPACE)) == "Free Space (FSPC)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS)) == "Index Pointer (IDXP)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_INDIRECT_INDEX)) == "Indirect Index (INDR)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_SECONDARY_INDEX)) == "Secondary Index (SIDX)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_SCHEMA_LIST)) == "Schema List (SCHL)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_TOP_INDEX)) == "Top Index (TIDX)");
+        CATCH_REQUIRE(std::string(prinbee::to_name(prinbee::dbtype_t::BLOCK_TYPE_TOP_INDIRECT_INDEX)) == "Top Indirect Index (TIND)");
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("dbfile_dbtype: to_string()")
     {
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::DBTYPE_UNKNOWN) == "Unknown");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_SNAP_DATABASE_TABLE) == "Snap Database Type (SDBT)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_EXTERNAL_INDEX) == "External Index File (INDX)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_BLOOM_FILTER) == "Bloom Filter File (BLMF)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_BLOB) == "Blob Block (BLOB)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_DATA) == "Data Block (DATA)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_ENTRY_INDEX) == "Entry Index Block (EIDX)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_FREE_BLOCK) == "Free Block (FREE)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_FREE_SPACE) == "Free Space Block (FSPC)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS) == "Index Pointer Block (IDXP)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDIRECT_INDEX) == "Indirect Index Block (INDR)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_PRIMARY_INDEX) == "Primary Index Block (PIDX)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_SECONDARY_INDEX) == "Secondary Index Block (SIDX)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_SCHEMA) == "Schema Block (SCHM)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_SCHEMA_LIST) == "Schema List Block (SCHL)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_TOP_INDEX) == "Top Index Block (TIDX)");
-        CATCH_REQUIRE(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_TOP_INDIRECT_INDEX) == "Top Indirect Index Block (TIND)");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::DBTYPE_UNKNOWN)) == "????");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_TABLE)) == "PTBL");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_INDEX)) == "INDX");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_BLOOM_FILTER)) == "BLMF");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_PRIMARY_INDEX)) == "PIDX");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_SCHEMA)) == "SCHM");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_COMPLEX_TYPE)) == "CXTP");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_BLOB)) == "BLOB");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_DATA)) == "DATA");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_ENTRY_INDEX)) == "EIDX");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_FREE_BLOCK)) == "FREE");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_FREE_SPACE)) == "FSPC");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS)) == "IDXP");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDIRECT_INDEX)) == "INDR");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_SECONDARY_INDEX)) == "SIDX");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_SCHEMA_LIST)) == "SCHL");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_TOP_INDEX)) == "TIDX");
+        CATCH_REQUIRE(std::string(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_TOP_INDIRECT_INDEX)) == "TIND");
     }
     CATCH_END_SECTION()
 
@@ -127,7 +152,8 @@ CATCH_TEST_CASE("dbfile_dbtype", "[dbfile] [valid]")
             }
             while(is_valid_type(type));
 
-            CATCH_REQUIRE(prinbee::to_string(type) == "Invalid");
+            CATCH_REQUIRE(std::string(prinbee::to_name(type)) == "Invalid");
+            CATCH_REQUIRE(std::string(prinbee::to_string(type)) == "INVL");
         }
     }
     CATCH_END_SECTION()

@@ -45,7 +45,6 @@
 #include    "prinbee/block/block_free_space.h"
 
 #include    "prinbee/block/block_data.h"
-#include    "prinbee/block/block_header.h"
 #include    "prinbee/data/dbfile.h"
 #include    "prinbee/data/dbtype.h"
 #include    "prinbee/database/table.h"
@@ -121,9 +120,10 @@ static_assert((SPACE_BITS + FLAGS_BITS) == 32
 //
 // bits 4 to 7 are used by the other blocks (just the DATA block at this point),
 // these other bits are defined in the header since they need to be accessible
-// from te outside
+// from the outside
 //
 constexpr std::uint32_t     FREE_SPACE_FLAG_ALLOCATED = 0x01;
+
 
 /** \brief Free space meta data.
  *
@@ -607,9 +607,14 @@ namespace
 constexpr struct_description_t g_description[] =
 {
     define_description(
-          FieldName("header")
-        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE)
-        , FieldSubDescription(detail::g_block_header)
+          FieldName(g_system_field_name_magic)
+        , FieldType(struct_type_t::STRUCT_TYPE_MAGIC)
+        , FieldDefaultValue(to_string(dbtype_t::BLOCK_TYPE_FREE_SPACE))
+    ),
+    define_description(
+          FieldName(g_system_field_name_structure_version)
+        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , FieldVersion(0, 1)
     ),
     // TBD: it may be useful to determine a minimum size larger than
     //      sizeof(free_space_link_t) for some tables and use that to
@@ -627,16 +632,6 @@ constexpr struct_description_t g_description[] =
 };
 
 
-constexpr descriptions_by_version_t const g_descriptions_by_version[] =
-{
-    define_description_by_version(
-        DescriptionVersion(0, 1),
-        DescriptionDescription(g_description)
-    ),
-    end_descriptions_by_version()
-};
-
-
 
 }
 // no name namespace
@@ -645,7 +640,7 @@ constexpr descriptions_by_version_t const g_descriptions_by_version[] =
 
 
 block_free_space::block_free_space(dbfile::pointer_t f, reference_t offset)
-    : block(g_descriptions_by_version, f, offset)
+    : block(g_description, f, offset)
     , f_impl(std::make_unique<detail::block_free_space_impl>(*this))
 {
 }

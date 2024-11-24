@@ -58,8 +58,8 @@ add_library(${PROJECT_NAME} SHARED
     block/block_top_indirect_index.cpp
 
     file/file_bloom_filter.cpp
-    file/file_external_index.cpp
-    file/file_snap_database_table.cpp
+    file/file_index.cpp
+    file/file_table.cpp
     file/hash.cpp
 
     journal/journal.cpp
@@ -198,8 +198,8 @@ install(
 install(
     FILES
         file/file_bloom_filter.h
-        file/file_external_index.h
-        file/file_snap_database_table.h
+        file/file_index.h
+        file/file_table.h
         file/hash.h
 
     DESTINATION

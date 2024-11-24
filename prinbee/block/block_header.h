@@ -51,6 +51,9 @@ namespace detail
 // version to the new version automatically and if a change is made,
 // it gets saved (otherwise the change only happens in memory)
 //
+// TODO: remove the need for this definition (i.e. we have a definition
+//       for each file already with their own header)
+//
 constexpr struct_description_t g_block_header[] =
 {
     define_description(
@@ -65,7 +68,7 @@ constexpr struct_description_t g_block_header[] =
 };
 
 
-}
+} // namespace detail
 
 } // namespace prinbee
 // vim: ts=4 sw=4 et

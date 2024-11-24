@@ -21,7 +21,8 @@
  * \brief Cell file implementation.
  *
  * When handling a row, it has a set of cells. The set may change between
- * calls. To the minimum, though, a row should at least have one cell.
+ * calls. To the minimum, a row must at least have the cells that compose
+ * the primary key.
  */
 
 // self
@@ -750,8 +751,8 @@ void cell::value_to_binary(buffer_t & buffer) const
     case struct_type_t::STRUCT_TYPE_FLOAT64:
         {
             union fi {
-                uint64_t    f_int = 0;
-                double      f_float;
+                std::uint64_t   f_int = 0;
+                double          f_float;
             };
             fi value;
             value.f_float = f_float_value;
@@ -762,7 +763,7 @@ void cell::value_to_binary(buffer_t & buffer) const
     case struct_type_t::STRUCT_TYPE_FLOAT128:
         {
             union fi {
-                uint64_t        f_int[2] = { 0, 0 };
+                std::uint64_t   f_int[2] = { 0, 0 };
                 long double     f_float;
             };
             fi const * value(reinterpret_cast<fi const *>(&f_float_value));
@@ -772,9 +773,29 @@ void cell::value_to_binary(buffer_t & buffer) const
         }
         break;
 
+    case struct_type_t::STRUCT_TYPE_CHAR:
+        {
+            // Note: the CHAR size is fixed so the minimum & maximum are the same
+            //
+            std::size_t const size(f_schema_column->get_minimum_size());
+            if(size > 0)
+            {
+                std::uint8_t const * s(reinterpret_cast<std::uint8_t const *>(f_string.c_str()));
+                buffer.insert(buffer.end(), s, s + f_string.length());
+                if(f_string.length() < size)
+                {
+                    // if the string is shorter than the CHAR field, then
+                    // fill the rest with '\0'
+                    //
+                    buffer.insert(buffer.end(), size - f_string.length(), 0);
+                }
+            }
+        }
+        break;
+
     case struct_type_t::STRUCT_TYPE_P8STRING:
         {
-            size_t const size(f_string.length());
+            std::size_t const size(f_string.length());
             if(size > 255)
             {
                 throw out_of_bounds(
@@ -785,7 +806,7 @@ void cell::value_to_binary(buffer_t & buffer) const
             push_uint8(buffer, size);
             if(size > 0)
             {
-                uint8_t const * s(reinterpret_cast<uint8_t const *>(f_string.c_str()));
+                std::uint8_t const * s(reinterpret_cast<std::uint8_t const *>(f_string.c_str()));
                 buffer.insert(buffer.end(), s, s + size);
             }
         }
@@ -793,7 +814,7 @@ void cell::value_to_binary(buffer_t & buffer) const
 
     case struct_type_t::STRUCT_TYPE_P16STRING:
         {
-            size_t const size(f_string.length());
+            std::size_t const size(f_string.length());
             if(size > 65535)
             {
                 throw out_of_bounds(
@@ -804,7 +825,7 @@ void cell::value_to_binary(buffer_t & buffer) const
             push_be_uint16(buffer, size);
             if(size > 0)
             {
-                uint8_t const * s(reinterpret_cast<uint8_t const *>(f_string.c_str()));
+                std::uint8_t const * s(reinterpret_cast<std::uint8_t const *>(f_string.c_str()));
                 buffer.insert(buffer.end(), s, s + size);
             }
         }
@@ -812,7 +833,7 @@ void cell::value_to_binary(buffer_t & buffer) const
 
     case struct_type_t::STRUCT_TYPE_P32STRING:
         {
-            size_t const size(f_string.length());
+            std::size_t const size(f_string.length());
             if(size > 4294967295)
             {
                 throw out_of_bounds(
@@ -823,12 +844,14 @@ void cell::value_to_binary(buffer_t & buffer) const
             push_be_uint32(buffer, size);
             if(size > 0)
             {
-                uint8_t const * s(reinterpret_cast<uint8_t const *>(f_string.c_str()));
+                std::uint8_t const * s(reinterpret_cast<std::uint8_t const *>(f_string.c_str()));
                 buffer.insert(buffer.end(), s, s + size);
             }
         }
         break;
 
+    case struct_type_t::STRUCT_TYPE_MAGIC:
+    case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
     case struct_type_t::STRUCT_TYPE_STRUCTURE:
     case struct_type_t::STRUCT_TYPE_ARRAY8:
     case struct_type_t::STRUCT_TYPE_ARRAY16:
@@ -847,7 +870,7 @@ void cell::value_to_binary(buffer_t & buffer) const
 }
 
 
-void cell::value_from_binary(buffer_t const & buffer, size_t & pos)
+void cell::value_from_binary(buffer_t const & buffer, std::size_t & pos)
 {
     switch(f_schema_column->get_type())
     {
@@ -976,8 +999,8 @@ void cell::value_from_binary(buffer_t const & buffer, size_t & pos)
     case struct_type_t::STRUCT_TYPE_FLOAT64:
         {
             union fi {
-                uint64_t    f_int = 0;
-                double      f_float;
+                std::uint64_t   f_int = 0;
+                double          f_float;
             };
             fi value;
             value.f_int = read_be_uint64(buffer, pos);
@@ -988,7 +1011,7 @@ void cell::value_from_binary(buffer_t const & buffer, size_t & pos)
     case struct_type_t::STRUCT_TYPE_FLOAT128:
         {
             union fi {
-                uint64_t        f_int[2] = { 0, 0 };
+                std::uint64_t   f_int[2] = { 0, 0 };
                 long double     f_float;
             };
             fi value;
@@ -998,9 +1021,27 @@ void cell::value_from_binary(buffer_t const & buffer, size_t & pos)
         }
         break;
 
+    case struct_type_t::STRUCT_TYPE_CHAR:
+        {
+            // Note: the CHAR size is fixed so the minimum & maximum are the same
+            //
+            std::size_t const size(f_schema_column->get_minimum_size());
+            f_string.resize(size);
+            memcpy(&f_string[0], buffer.data() + pos, size);
+
+            // in case the string was shorter than the full length, we may have
+            // some '\0' at the end, trim them
+            //
+            std::size_t const len(strnlen(f_string.c_str(), size));
+            f_string.resize(len);
+
+            pos += size;
+        }
+        break;
+
     case struct_type_t::STRUCT_TYPE_P8STRING:
         {
-            size_t const size(read_uint8(buffer, pos));
+            std::size_t const size(read_uint8(buffer, pos));
             f_string.resize(size);
             memcpy(&f_string[0], buffer.data() + pos, size);
             pos += size;
@@ -1025,6 +1066,8 @@ void cell::value_from_binary(buffer_t const & buffer, size_t & pos)
         }
         break;
 
+    case struct_type_t::STRUCT_TYPE_MAGIC:
+    case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
     case struct_type_t::STRUCT_TYPE_STRUCTURE:
     case struct_type_t::STRUCT_TYPE_ARRAY8:
     case struct_type_t::STRUCT_TYPE_ARRAY16:
@@ -1096,12 +1139,15 @@ void cell::copy_from(cell const & source)
             f_float_value = source.f_float_value;
             break;
 
+        case struct_type_t::STRUCT_TYPE_CHAR:
         case struct_type_t::STRUCT_TYPE_P8STRING:
         case struct_type_t::STRUCT_TYPE_P16STRING:
         case struct_type_t::STRUCT_TYPE_P32STRING:
             f_string = source.f_string;
             break;
 
+        case struct_type_t::STRUCT_TYPE_MAGIC:
+        case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
         case struct_type_t::STRUCT_TYPE_STRUCTURE:
         case struct_type_t::STRUCT_TYPE_ARRAY8:
         case struct_type_t::STRUCT_TYPE_ARRAY16:
@@ -1176,12 +1222,15 @@ void cell::copy_from(cell const & source)
             }
             break;
 
+        case struct_type_t::STRUCT_TYPE_CHAR:
         case struct_type_t::STRUCT_TYPE_P8STRING:
         case struct_type_t::STRUCT_TYPE_P16STRING:
         case struct_type_t::STRUCT_TYPE_P32STRING:
             value = source.f_string;
             break;
 
+        case struct_type_t::STRUCT_TYPE_MAGIC:
+        case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
         case struct_type_t::STRUCT_TYPE_STRUCTURE:
         case struct_type_t::STRUCT_TYPE_ARRAY8:
         case struct_type_t::STRUCT_TYPE_ARRAY16:
@@ -1272,12 +1321,15 @@ void cell::copy_from(cell const & source)
             }
             break;
 
+        case struct_type_t::STRUCT_TYPE_CHAR:
         case struct_type_t::STRUCT_TYPE_P8STRING:
         case struct_type_t::STRUCT_TYPE_P16STRING:
         case struct_type_t::STRUCT_TYPE_P32STRING:
             f_string = value;
             break;
 
+        case struct_type_t::STRUCT_TYPE_MAGIC:
+        case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
         case struct_type_t::STRUCT_TYPE_STRUCTURE:
         case struct_type_t::STRUCT_TYPE_ARRAY8:
         case struct_type_t::STRUCT_TYPE_ARRAY16:

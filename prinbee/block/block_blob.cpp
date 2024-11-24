@@ -28,7 +28,6 @@
 //
 #include    "prinbee/block/block_blob.h"
 
-#include    "prinbee/block/block_header.h"
 
 
 // last include
@@ -51,9 +50,14 @@ namespace
 constexpr struct_description_t g_description[] =
 {
     define_description(
-          FieldName("header")
-        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE)
-        , FieldSubDescription(detail::g_block_header)
+          FieldName(g_system_field_name_magic)
+        , FieldType(struct_type_t::STRUCT_TYPE_MAGIC)
+        , FieldDefaultValue(to_string(dbtype_t::BLOCK_TYPE_BLOB))
+    ),
+    define_description(
+          FieldName(g_system_field_name_structure_version)
+        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , FieldVersion(0, 1)
     ),
     define_description(
           FieldName("size")
@@ -67,16 +71,6 @@ constexpr struct_description_t g_description[] =
 };
 
 
-constexpr descriptions_by_version_t const g_descriptions_by_version[] =
-{
-    define_description_by_version(
-        DescriptionVersion(0, 1),
-        DescriptionDescription(g_description)
-    ),
-    end_descriptions_by_version()
-};
-
-
 
 }
 // no name namespace
@@ -85,18 +79,18 @@ constexpr descriptions_by_version_t const g_descriptions_by_version[] =
 
 
 block_blob::block_blob(dbfile::pointer_t f, reference_t offset)
-    : block(g_descriptions_by_version, f, offset)
+    : block(g_description, f, offset)
 {
 }
 
 
-uint32_t block_blob::get_size()
+std::uint32_t block_blob::get_size()
 {
-    return static_cast<uint32_t>(f_structure->get_uinteger("size"));
+    return static_cast<std::uint32_t>(f_structure->get_uinteger("size"));
 }
 
 
-void block_blob::set_size(uint32_t size)
+void block_blob::set_size(std::uint32_t size)
 {
     f_structure->set_uinteger("size", size);
 }

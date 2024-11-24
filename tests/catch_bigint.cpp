@@ -1160,6 +1160,46 @@ CATCH_TEST_CASE("bigint", "[bigint] [valid]")
     }
     CATCH_END_SECTION()
 
+    CATCH_START_SECTION("bigint: division by 64 bit number")
+    {
+        for(int count(0); count < 10; ++count)
+        {
+            prinbee::uint512_t a;
+            std::int64_t b(0);
+            prinbee::uint512_t c;
+            prinbee::uint512_t d;
+
+            for(int n(0); n < 10; ++n)
+            {
+                SNAP_CATCH2_NAMESPACE::rand512(a);
+                SNAP_CATCH2_NAMESPACE::random(b);
+
+                c = a;
+                c /= b;
+
+                d = a / b;
+                CATCH_REQUIRE(c == d);
+
+                Num na(a.f_value, a.f_value + 8);
+                Num nb(1, b, false);
+                Num nd(na / nb);
+
+                int idx(0);
+                while(idx < static_cast<int>(nd.words.size()))
+                {
+                    CATCH_REQUIRE(nd.words[idx] == c.f_value[idx]);
+                    ++idx;
+                }
+                while(idx < 8) // the rest must be zeroes
+                {
+                    CATCH_REQUIRE(0 == c.f_value[idx]);
+                    ++idx;
+                }
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("bigint: division")
     {
         for(int count(0); count < 10; ++count)

@@ -33,12 +33,18 @@
 #include    "prinbee/data/convert.h"
 
 
+// snaplogger
+//
+#include    <snaplogger/message.h>
+
+
 // snapdev
 //
 #include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/math.h>
 #include    <snapdev/to_upper.h>
-#include    <snapdev/timestamp.h>
+//#include    <snapdev/timestamp.h>
+#include    <snapdev/timespec_ex.h>
 #include    <snapdev/trim_string.h>
 
 
@@ -72,14 +78,14 @@ enum class number_type_t
 
 struct name_to_size_multiplicator_t
 {
-    char const *        f_name = nullptr;
-    uint512_t           f_multiplicator = uint512_t();
+    char const * const  f_name = nullptr;
+    std::uint64_t const f_multiplicator[2] = {};
 };
 
 #define NAME_TO_SIZE_MULTIPLICATOR(name, lo, hi) \
-                        { name, { lo, hi, 0, 0, 0, 0, 0, 0 } }
+                        { name, { lo, hi } }
 
-name_to_size_multiplicator_t const g_size_name_to_multiplicator[] =
+constexpr name_to_size_multiplicator_t const g_size_name_to_multiplicator[] =
 {
     // WARNING: Keep in alphabetical order
     //
@@ -129,23 +135,29 @@ uint512_t size_to_multiplicator(char const * s)
 {
 #ifdef _DEBUG
     // verify in debug because if not in order we can't do a binary search
-    for(size_t idx(1);
-        idx < sizeof(g_size_name_to_multiplicator) / sizeof(g_size_name_to_multiplicator[0]);
-        ++idx)
+    //
+    static int g_checked = false;
+    if(!g_checked)
     {
-        if(strcmp(g_size_name_to_multiplicator[idx - 1].f_name
-                , g_size_name_to_multiplicator[idx].f_name) >= 0)
+        g_checked = true;
+        for(size_t idx(1);
+            idx < sizeof(g_size_name_to_multiplicator) / sizeof(g_size_name_to_multiplicator[0]);
+            ++idx)
         {
-            // LCOV_EXCL_START
-            throw logic_error(
-                      "names in g_name_to_struct_type area not in alphabetical order: "
-                    + std::string(g_size_name_to_multiplicator[idx - 1].f_name)
-                    + " >= "
-                    + g_size_name_to_multiplicator[idx].f_name
-                    + " (position: "
-                    + std::to_string(idx)
-                    + ").");
-            // LCOV_EXCL_STOP
+            if(strcmp(g_size_name_to_multiplicator[idx - 1].f_name
+                    , g_size_name_to_multiplicator[idx].f_name) >= 0)
+            {
+                // LCOV_EXCL_START
+                throw logic_error(
+                          "names in g_name_to_struct_type area not in alphabetical order: "
+                        + std::string(g_size_name_to_multiplicator[idx - 1].f_name)
+                        + " >= "
+                        + g_size_name_to_multiplicator[idx].f_name
+                        + " (position: "
+                        + std::to_string(idx)
+                        + ").");
+                // LCOV_EXCL_STOP
+            }
         }
     }
 #endif
@@ -184,7 +196,16 @@ uint512_t size_to_multiplicator(char const * s)
             }
             else
             {
-                return g_size_name_to_multiplicator[p].f_multiplicator;
+                return uint512_t{
+                        g_size_name_to_multiplicator[p].f_multiplicator[0],
+                        g_size_name_to_multiplicator[p].f_multiplicator[1],
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    };
             }
         }
     }
@@ -288,12 +309,12 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
         }
     }
 
+    uint512_t digit;
     switch(t)
     {
     case number_type_t::NUMBER_TYPE_BINARY:
         while(*n >= '0' && *n <= '1')
         {
-            uint512_t digit;
             digit.f_value[0] = *n - '0';
 
             // do `result * 2` with one add
@@ -307,7 +328,6 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
     case number_type_t::NUMBER_TYPE_OCTAL:
         while(*n >= '0' && *n <= '7')
         {
-            uint512_t digit;
             digit.f_value[0] = *n - '0';
 
             // do `result * 8` with a few adds
@@ -323,7 +343,6 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
     case number_type_t::NUMBER_TYPE_DECIMAL:
         while(*n >= '0' && *n <= '9')
         {
-            uint512_t digit;
             digit.f_value[0] = *n - '0';
 
             // do `result * 10` with a few adds
@@ -341,7 +360,6 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
     case number_type_t::NUMBER_TYPE_HEXADECIMAL:
         for(;;)
         {
-            uint512_t digit;
             if(*n >= '0' && *n <= '9')
             {
                 digit.f_value[0] = *n - '0';
@@ -409,7 +427,7 @@ uint512_t string_to_int(std::string const & number, bool accept_negative_values,
 }
 
 
-buffer_t string_to_uinteger(std::string const & value, size_t max_size)
+buffer_t string_to_uinteger(std::string const & value, std::size_t max_size)
 {
     buffer_t result;
     uint512_t const n(string_to_int(value, false, unit_t::UNIT_NONE));
@@ -459,7 +477,7 @@ std::string uinteger_to_string(buffer_t const & value, int bytes_for_size, int b
 }
 
 
-buffer_t string_to_integer(std::string const & value, size_t max_size)
+buffer_t string_to_integer(std::string const & value, std::size_t max_size)
 {
     buffer_t result;
     int512_t const n(string_to_int(value, true, unit_t::UNIT_NONE));
@@ -526,7 +544,7 @@ buffer_t string_to_integer(std::string const & value, size_t max_size)
                 break;
 
             default:                                        // LCOV_EXCL_LINE
-                throw logic_error("unexpected bit size");   // LCOV_EXCL_LINE
+                throw logic_error("unexpected bit size.");  // LCOV_EXCL_LINE
 
             }
         }
@@ -542,8 +560,8 @@ buffer_t string_to_integer(std::string const & value, size_t max_size)
     }
 
     result.insert(result.end()
-                , reinterpret_cast<uint8_t const *>(&n.f_value)
-                , reinterpret_cast<uint8_t const *>(&n.f_value) + max_size / 8);
+                , reinterpret_cast<std::uint8_t const *>(&n.f_value)
+                , reinterpret_cast<std::uint8_t const *>(&n.f_value) + max_size / 8);
 
     return result;
 }
@@ -610,7 +628,7 @@ buffer_t string_to_float(std::string const & value, std::function<T(char const *
     buffer_t result;
     char * e(nullptr);
     errno = 0;
-    T r(f(value.c_str(), &e));
+    T const r(f(value.c_str(), &e));
     if(errno == ERANGE)
     {
         throw out_of_range(
@@ -635,9 +653,25 @@ buffer_t string_to_float(std::string const & value, std::function<T(char const *
     }
 
     result.insert(result.end()
-                , reinterpret_cast<uint8_t *>(&r)
-                , reinterpret_cast<uint8_t *>(&r) + sizeof(r));
+                , reinterpret_cast<std::uint8_t const *>(&r)
+                , reinterpret_cast<std::uint8_t const *>(&r) + sizeof(r));
 
+    return result;
+}
+
+
+buffer_t string_to_dbtype(std::string const & value)
+{
+    if(value.length() != sizeof(dbtype_t))
+    {
+        throw invalid_type("dbtype must be exactly 4 characters.");
+    }
+
+    buffer_t result(4);
+    result[0] = value[0];
+    result[1] = value[1];
+    result[2] = value[2];
+    result[3] = value[3];
     return result;
 }
 
@@ -658,6 +692,23 @@ std::string float_to_string(buffer_t const & value)
     std::ostringstream ss;
     ss << *reinterpret_cast<T const *>(value.data());
     return ss.str();
+}
+
+
+std::string dbtype_to_string(buffer_t const & value)
+{
+    if(value.size() != sizeof(dbtype_t))
+    {
+        throw out_of_range(
+                  "value buffer has an unexpected size ("
+                + std::to_string(value.size())
+                + ") for this field (expected magic size: "
+                + std::to_string(sizeof(dbtype_t))
+                + ").");
+    }
+    dbtype_t type(dbtype_t::DBTYPE_UNKNOWN);
+    memcpy(&type, value.data(), sizeof(dbtype_t));
+    return to_string(type);
 }
 
 
@@ -759,6 +810,23 @@ std::string version_to_string(buffer_t const & value)
 //}
 
 
+buffer_t char_to_buffer(std::string const & value, std::size_t size)
+{
+    if(size == 0)
+    {
+        throw out_of_range("char_to_buffer(): size out of range, it must be 1 or more.");
+    }
+
+    buffer_t result(size);
+    memcpy(result.data(), value.data(), value.length());
+    if(value.length() < size)
+    {
+        memset(result.data() + value.length(), 0, size - value.length());
+    }
+    return result;
+}
+
+
 buffer_t string_to_buffer(std::string const & value, std::size_t bytes_for_size)
 {
 #ifdef _DEBUG
@@ -770,12 +838,11 @@ buffer_t string_to_buffer(std::string const & value, std::size_t bytes_for_size)
         break;
 
     default:                                                                                    // LCOV_EXCL_LINE
-        throw logic_error("string_to_buffer(): bytes_for_size must be one of 1, 2, or 4");      // LCOV_EXCL_LINE
+        throw logic_error("string_to_buffer(): bytes_for_size must be one of 1, 2, or 4.");     // LCOV_EXCL_LINE
 
     }
 #endif
 
-    buffer_t result;
     std::uint32_t size(value.length());
 
     std::uint64_t const max_size(1ULL << bytes_for_size * 8);
@@ -792,6 +859,7 @@ buffer_t string_to_buffer(std::string const & value, std::size_t bytes_for_size)
 
     // WARNING: this copy works in Little Endian only
     //
+    buffer_t result;
     result.insert(
               result.end()
             , reinterpret_cast<uint8_t *>(&size)
@@ -800,6 +868,25 @@ buffer_t string_to_buffer(std::string const & value, std::size_t bytes_for_size)
     result.insert(result.end(), value.begin(), value.end());
 
     return result;
+}
+
+
+std::string buffer_to_char(buffer_t const & value, std::size_t size)
+{
+    if(value.size() < size)
+    {
+        throw out_of_range(
+                  "buffer too small for the CHAR string (size: "
+                + std::to_string(size)
+                + ", character bytes in buffer: "
+                + std::to_string(value.size())
+                + ").");
+    }
+
+    // field may have zeroes if string is smaller than size
+    //
+    std::size_t const len(strnlen(reinterpret_cast<char const *>(value.data()), size));
+    return std::string(value.data(), value.data() + len);
 }
 
 
@@ -908,7 +995,14 @@ buffer_t string_to_unix_time(std::string const & value, std::uint32_t fraction_e
 }
 
 
-std::string unix_time_to_string(buffer_t const & value, int fraction)
+buffer_t string_to_ns_time(std::string const & value)
+{
+    snapdev::timespec_ex time(value);
+    return buffer_t(reinterpret_cast<std::uint8_t const *>(&time), reinterpret_cast<std::uint8_t const *>(&time + 1));
+}
+
+
+std::string unix_time_to_string(buffer_t const & value, std::int64_t fraction)
 {
     std::uint64_t time;
     if(value.size() != sizeof(time))
@@ -941,6 +1035,23 @@ std::string unix_time_to_string(buffer_t const & value, int fraction)
     }
 
     return result + "+0000";
+}
+
+
+std::string ns_time_to_string(buffer_t const & value)
+{
+    snapdev::timespec_ex time;
+    if(value.size() != sizeof(time))
+    {
+        throw out_of_range(
+                  "buffer size is invalid for a time value with nanoseconds (size: "
+                + std::to_string(value.size())
+                + ", expected size: "
+                + std::to_string(sizeof(time))
+                + ").");
+    }
+    memcpy(static_cast<timespec *>(&time), value.data(), sizeof(time));
+    return time.to_timestamp(true);
 }
 
 
@@ -1000,7 +1111,7 @@ std::string pbuffer_to_string(buffer_t const & value, std::size_t bytes_for_size
 
 
 
-buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
+buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value, std::size_t size)
 {
     switch(type)
     {
@@ -1064,6 +1175,10 @@ buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
     case struct_type_t::STRUCT_TYPE_FLOAT128:
         return string_to_float<long double>(value, std::strtold);
 
+    case struct_type_t::STRUCT_TYPE_MAGIC:
+        return string_to_dbtype(value);
+
+    case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
     case struct_type_t::STRUCT_TYPE_VERSION:
         return string_to_version(value);
 
@@ -1075,6 +1190,12 @@ buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
 
     case struct_type_t::STRUCT_TYPE_USTIME:
         return string_to_unix_time(value, 6);
+
+    case struct_type_t::STRUCT_TYPE_NSTIME:
+        return string_to_ns_time(value);
+
+    case struct_type_t::STRUCT_TYPE_CHAR:
+        return char_to_buffer(value, size);
 
     case struct_type_t::STRUCT_TYPE_P8STRING:
         return string_to_buffer(value, 1);
@@ -1105,66 +1226,66 @@ buffer_t string_to_typed_buffer(struct_type_t type, std::string const & value)
         throw logic_error(
               "unexpected structure type ("
             + std::to_string(static_cast<int>(type))
-            + ") to convert a string to a buffer");
+            + ") to convert a string to a buffer.");
 
     }
 }
 
 
-std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, int base)
+std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, int base_or_size)
 {
     switch(type)
     {
     case struct_type_t::STRUCT_TYPE_BITS8:
     case struct_type_t::STRUCT_TYPE_UINT8:
-        return uinteger_to_string(value, 1, base);
+        return uinteger_to_string(value, 1, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_BITS16:
     case struct_type_t::STRUCT_TYPE_UINT16:
-        return uinteger_to_string(value, 2, base);
+        return uinteger_to_string(value, 2, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_BITS32:
     case struct_type_t::STRUCT_TYPE_UINT32:
-        return uinteger_to_string(value, 4, base);
+        return uinteger_to_string(value, 4, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_BITS64:
     case struct_type_t::STRUCT_TYPE_UINT64:
     case struct_type_t::STRUCT_TYPE_REFERENCE:
     case struct_type_t::STRUCT_TYPE_OID:
-        return uinteger_to_string(value, 8, base);
+        return uinteger_to_string(value, 8, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_BITS128:
     case struct_type_t::STRUCT_TYPE_UINT128:
-        return uinteger_to_string(value, 16, base);
+        return uinteger_to_string(value, 16, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_BITS256:
     case struct_type_t::STRUCT_TYPE_UINT256:
-        return uinteger_to_string(value, 32, base);
+        return uinteger_to_string(value, 32, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_BITS512:
     case struct_type_t::STRUCT_TYPE_UINT512:
-        return uinteger_to_string(value, 64, base);
+        return uinteger_to_string(value, 64, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_INT8:
-        return integer_to_string(value, 1, base);
+        return integer_to_string(value, 1, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_INT16:
-        return integer_to_string(value, 2, base);
+        return integer_to_string(value, 2, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_INT32:
-        return integer_to_string(value, 4, base);
+        return integer_to_string(value, 4, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_INT64:
-        return integer_to_string(value, 8, base);
+        return integer_to_string(value, 8, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_INT128:
-        return integer_to_string(value, 16, base);
+        return integer_to_string(value, 16, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_INT256:
-        return integer_to_string(value, 32, base);
+        return integer_to_string(value, 32, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_INT512:
-        return integer_to_string(value, 64, base);
+        return integer_to_string(value, 64, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_FLOAT32:
         return float_to_string<float>(value);
@@ -1175,6 +1296,10 @@ std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, i
     case struct_type_t::STRUCT_TYPE_FLOAT128:
         return float_to_string<long double>(value);
 
+    case struct_type_t::STRUCT_TYPE_MAGIC:
+        return dbtype_to_string(value);
+
+    case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
     case struct_type_t::STRUCT_TYPE_VERSION:
         return version_to_string(value);
 
@@ -1186,6 +1311,12 @@ std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, i
 
     case struct_type_t::STRUCT_TYPE_USTIME:
         return unix_time_to_string(value, 1'000'000);
+
+    case struct_type_t::STRUCT_TYPE_NSTIME:
+        return ns_time_to_string(value);
+
+    case struct_type_t::STRUCT_TYPE_CHAR:
+        return buffer_to_char(value, base_or_size);
 
     case struct_type_t::STRUCT_TYPE_P8STRING:
         return buffer_to_string(value, 1);
@@ -1216,7 +1347,7 @@ std::string typed_buffer_to_string(struct_type_t type, buffer_t const & value, i
         throw logic_error(
               "unexpected structure type ("
             + std::to_string(static_cast<int>(type))
-            + ") to convert a string to a buffer");
+            + ") to convert a string to a buffer.");
 
     }
 }

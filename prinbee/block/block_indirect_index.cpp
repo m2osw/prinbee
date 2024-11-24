@@ -28,7 +28,6 @@
 //
 #include    "prinbee/block/block_indirect_index.h"
 
-#include    "prinbee/block/block_header.h"
 #include    "prinbee/block/block_top_indirect_index.h"
 #include    "prinbee/database/table.h"
 #include    "prinbee/utils.h"
@@ -59,9 +58,14 @@ namespace
 struct_description_t g_description[] =
 {
     define_description(
-          FieldName("header")
-        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE)
-        , FieldSubDescription(detail::g_block_header)
+          FieldName(g_system_field_name_magic)
+        , FieldType(struct_type_t::STRUCT_TYPE_MAGIC)
+        , FieldDefaultValue(to_string(dbtype_t::BLOCK_TYPE_INDIRECT_INDEX))
+    ),
+    define_description(
+          FieldName(g_system_field_name_structure_version)
+        , FieldType(struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , FieldVersion(0, 1)
     ),
     // we assume that the entire block is used, by default the unused OIDs
     // are null (0); that's all but the array is always considered full and
@@ -74,16 +78,6 @@ struct_description_t g_description[] =
 };
 
 
-constexpr descriptions_by_version_t const g_descriptions_by_version[] =
-{
-    define_description_by_version(
-        DescriptionVersion(0, 1),
-        DescriptionDescription(g_description)
-    ),
-    end_descriptions_by_version()
-};
-
-
 
 }
 // no name namespace
@@ -91,7 +85,7 @@ constexpr descriptions_by_version_t const g_descriptions_by_version[] =
 
 
 block_indirect_index::block_indirect_index(dbfile::pointer_t f, reference_t offset)
-    : block(g_descriptions_by_version, f, offset)
+    : block(g_description, f, offset)
 {
 }
 
@@ -99,7 +93,7 @@ block_indirect_index::block_indirect_index(dbfile::pointer_t f, reference_t offs
 size_t block_indirect_index::get_start_offset()
 {
     structure::pointer_t structure(std::make_shared<structure>(g_description));
-    return round_up(structure->get_size(), sizeof(reference_t));
+    return round_up(structure->get_static_size(), sizeof(reference_t));
 }
 
 
@@ -116,7 +110,7 @@ size_t block_indirect_index::get_max_count() const
         // WARNING: if the size of that structure changes, then an existing
         //          database may not be compatible at all anymore
         //
-        f_start_offset = std::max(round_up(f_structure->get_size(), sizeof(reference_t))
+        f_start_offset = std::max(round_up(f_structure->get_static_size(), sizeof(reference_t))
                                 , block_top_indirect_index::get_start_offset());
         size_t const page_size(get_table()->get_page_size());
         size_t const available_size(page_size - f_start_offset);

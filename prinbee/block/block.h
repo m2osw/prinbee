@@ -30,7 +30,7 @@
 #include    "prinbee/data/dbfile.h"
 
 
-// C++ lib
+// C++
 //
 #include    <map>
 
@@ -44,7 +44,7 @@ typedef std::shared_ptr<table>      table_pointer_t;
 
 class version_t;
 
-struct descriptions_by_version_t;
+struct struct_description_t;
 
 class structure;
 typedef std::shared_ptr<structure>  structure_pointer_t;
@@ -66,7 +66,6 @@ public:
     table_pointer_t             get_table() const;
     void                        set_table(table_pointer_t table);
     structure_pointer_t         get_structure() const;
-    structure_pointer_t         get_structure(version_t version) const;
     void                        clear_block();
 
     dbtype_t                    get_dbtype() const;
@@ -82,13 +81,12 @@ public:
     void                        from_current_file_version();
 
 protected:
-                                block(descriptions_by_version_t const * structure_descriptions, dbfile::pointer_t f, reference_t offset);
+                                block(struct_description_t const * structure_description, dbfile::pointer_t f, reference_t offset);
 
     table_pointer_t             f_table = table_pointer_t(); // TODO: we probably need a weak pointer here
     dbfile::pointer_t           f_file = dbfile::pointer_t();
-    descriptions_by_version_t const *
-                                f_structure_descriptions = nullptr;
     structure_pointer_t         f_structure = structure_pointer_t();        // newest version (i.e. max(version) from all available descriptions)
+    //version_t                   f_structure_version = version_t(); -- at the moment, this creates a loop
     reference_t                 f_offset = reference_t();
 
     mutable data_t              f_data = nullptr;

@@ -34,13 +34,13 @@ namespace prinbee
 
 
 
-class file_external_index
+class file_index
     : public block
 {
 public:
-    typedef std::shared_ptr<file_external_index>       pointer_t;
+    typedef std::shared_ptr<file_index>       pointer_t;
 
-                                file_external_index(dbfile::pointer_t f, reference_t offset);
+                                file_index(dbfile::pointer_t f, reference_t offset);
 
 private:
 };

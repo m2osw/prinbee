@@ -49,6 +49,9 @@ namespace SNAP_CATCH2_NAMESPACE
 std::string setup_context(std::string const & path, std::vector<std::string> const & xmls);
 
 
+
+// TODO: replace with the snapcatch2 versions
+
 inline char32_t rand_char(bool full_range = false)
 {
     // -1 so we can avoid '\0' which in most cases is not useful
@@ -112,7 +115,7 @@ inline void rand512(prinbee::uint512_t & a)
 {
     for(std::size_t i(0); i < 8; ++i)
     {
-        a.f_value[i] = SNAP_CATCH2_NAMESPACE::rand64();
+        SNAP_CATCH2_NAMESPACE::random(a.f_value[i]);
     }
 }
 
@@ -121,9 +124,9 @@ inline void rand512(prinbee::int512_t & a)
 {
     for(std::size_t i(0); i < 7; ++i)
     {
-        a.f_value[i] = SNAP_CATCH2_NAMESPACE::rand64();
+        SNAP_CATCH2_NAMESPACE::random(a.f_value[i]);
     }
-    a.f_high_value = SNAP_CATCH2_NAMESPACE::rand64();
+    SNAP_CATCH2_NAMESPACE::random(a.f_high_value);
 }
 
 

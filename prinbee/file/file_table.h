@@ -86,11 +86,11 @@ namespace prinbee
  *     deletes.
  *
  *     Note that if the counter reaches the maximum (255 for us since we
- *     plane to use 8 bits for each counter), you have a similar problem
+ *     use 8 bits for each counter), you have a similar problem
  *     as with the Bits version above. You have to reference the
  *     entire filter with a large Bloom Filter.
  */
-enum class bloom_filter_algorithm_t : uint8_t
+enum class bloom_filter_algorithm_t : std::uint8_t
 {
     BLOOM_FILTER_ALGORITHM_NONE          = 0,
     BLOOM_FILTER_ALGORITHM_ONE_BITS      = 1,
@@ -101,13 +101,13 @@ enum class bloom_filter_algorithm_t : uint8_t
 
 
 
-class file_snap_database_table
+class file_table
     : public block
 {
 public:
-    typedef std::shared_ptr<file_snap_database_table>       pointer_t;
+    typedef std::shared_ptr<file_table>       pointer_t;
 
-                                file_snap_database_table(dbfile::pointer_t f, reference_t offset);
+                                file_table(dbfile::pointer_t f, reference_t offset);
 
     version_t                   get_file_version() const;
     void                        set_file_version(version_t v);

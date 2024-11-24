@@ -21,12 +21,14 @@
 /** \file
  * \brief This file defines a journal.
  *
- * A journal is a basic system that saves messages in a journal (a file)
- * before forwarding it to the next systems.
+ * A journal is a basic system that saves events in a journal (a file)
+ * before forwarding them to the next systems. This is used to make sure
+ * that the data does not get lost. If the next system does not acknowledge
+ * receiving an event, the journal keeps it in its file until it does.
  *
- * This implementation is specific to the eventdispatcher in that is knows
- * about the `ed::message` structure which is serialize to save it in the
- * journal.
+ * The implementation makes use of two event classes: in_event and out_event.
+ * The data is passed as event attachments. Each event is given a request
+ * identifier, a status, and a timestamp.
  *
  * Additional information can be found in the implementation file (.cpp).
  */

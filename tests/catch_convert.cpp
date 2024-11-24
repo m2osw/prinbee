@@ -3637,7 +3637,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
                 , Catch::Matchers::ExceptionMessage(
                       "logic_error: unexpected structure type ("
                     + std::to_string(static_cast<int>(t))
-                    + ") to convert a string to a buffer"));
+                    + ") to convert a string to a buffer."));
 
             prinbee::buffer_t ignored;
             CATCH_REQUIRE_THROWS_MATCHES(
@@ -3646,7 +3646,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
                 , Catch::Matchers::ExceptionMessage(
                       "logic_error: unexpected structure type ("
                     + std::to_string(static_cast<int>(t))
-                    + ") to convert a string to a buffer"));
+                    + ") to convert a string to a buffer."));
         }
     }
     CATCH_END_SECTION()

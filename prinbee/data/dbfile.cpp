@@ -29,7 +29,7 @@
 #include    "prinbee/data/dbfile.h"
 
 #include    "prinbee/exception.h"
-#include    "prinbee/file/file_snap_database_table.h"
+#include    "prinbee/file/file_table.h"
 #include    "prinbee/database/table.h"
 
 
@@ -290,8 +290,8 @@ int dbfile::open_file()
         //
         version_t v(STRUCTURE_VERSION_MAJOR, STRUCTURE_VERSION_MINOR);
 
-        file_snap_database_table::pointer_t sdbt(std::static_pointer_cast<file_snap_database_table>(
-                    f_table->allocate_new_block(dbtype_t::FILE_TYPE_SNAP_DATABASE_TABLE)));
+        file_table::pointer_t sdbt(std::static_pointer_cast<file_table>(
+                    f_table->allocate_new_block(dbtype_t::FILE_TYPE_TABLE)));
 
         sdbt->set_first_free_block(page_size);
         sdbt->set_block_size(page_size);
@@ -492,65 +492,70 @@ void dbfile::write_data(void const * ptr, size_t size)
 }
 
 
-std::string to_string(dbtype_t type)
+char const * to_name(dbtype_t type)
 {
     switch(type)
     {
     case dbtype_t::DBTYPE_UNKNOWN:
-        return std::string("Unknown");
+        return "Unknown";
 
-    case dbtype_t::FILE_TYPE_SNAP_DATABASE_TABLE:
-        return std::string("Snap Database Type (SDBT)");
+    case dbtype_t::FILE_TYPE_TABLE:
+        return "Prinbee Table (PTBL)";
 
-    case dbtype_t::FILE_TYPE_EXTERNAL_INDEX:
-        return std::string("External Index File (INDX)");
+    case dbtype_t::FILE_TYPE_INDEX:
+        return "Index (INDX)";
 
     case dbtype_t::FILE_TYPE_BLOOM_FILTER:
-        return std::string("Bloom Filter File (BLMF)");
+        return "Bloom Filter (BLMF)";
+
+    case dbtype_t::FILE_TYPE_PRIMARY_INDEX:
+        return "Primary Index (PIDX)";
+
+    case dbtype_t::FILE_TYPE_SCHEMA:
+        return "Schema (SCHM)";
+
+    case dbtype_t::FILE_TYPE_COMPLEX_TYPE:
+        return "Complex Type (CXTP)";
 
     case dbtype_t::BLOCK_TYPE_BLOB:
-        return std::string("Blob Block (BLOB)");
+        return "Blob (BLOB)";
 
     case dbtype_t::BLOCK_TYPE_DATA:
-        return std::string("Data Block (DATA)");
+        return "Data (DATA)";
 
     case dbtype_t::BLOCK_TYPE_ENTRY_INDEX:
-        return std::string("Entry Index Block (EIDX)");
+        return "Entry Index (EIDX)";
 
     case dbtype_t::BLOCK_TYPE_FREE_BLOCK:
-        return std::string("Free Block (FREE)");
+        return "Free Block (FREE)";
 
     case dbtype_t::BLOCK_TYPE_FREE_SPACE:
-        return std::string("Free Space Block (FSPC)");
+        return "Free Space (FSPC)";
 
     case dbtype_t::BLOCK_TYPE_INDEX_POINTERS:
-        return std::string("Index Pointer Block (IDXP)");
+        return "Index Pointer (IDXP)";
 
     case dbtype_t::BLOCK_TYPE_INDIRECT_INDEX:
-        return std::string("Indirect Index Block (INDR)");
-
-    case dbtype_t::BLOCK_TYPE_PRIMARY_INDEX:
-        return std::string("Primary Index Block (PIDX)");
+        return "Indirect Index (INDR)";
 
     case dbtype_t::BLOCK_TYPE_SECONDARY_INDEX:
-        return std::string("Secondary Index Block (SIDX)");
-
-    case dbtype_t::BLOCK_TYPE_SCHEMA:
-        return std::string("Schema Block (SCHM)");
+        return "Secondary Index (SIDX)";
 
     case dbtype_t::BLOCK_TYPE_SCHEMA_LIST:
-        return std::string("Schema List Block (SCHL)");
+        return "Schema List (SCHL)";
 
     case dbtype_t::BLOCK_TYPE_TOP_INDEX:
-        return std::string("Top Index Block (TIDX)");
+        return "Top Index (TIDX)";
 
     case dbtype_t::BLOCK_TYPE_TOP_INDIRECT_INDEX:
-        return std::string("Top Indirect Index Block (TIND)");
+        return "Top Indirect Index (TIND)";
 
     }
 
-    return std::string("Invalid");
+    return "Invalid";
 }
+
+
 
 
 
