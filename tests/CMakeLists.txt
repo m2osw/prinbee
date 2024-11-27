@@ -68,38 +68,10 @@ add_subdirectory(bloomfilter)
 
 if(SnapCatch2_FOUND)
 
-    project(rununittests)
-
-    set(UNITTEST_RAN ${PROJECT_BINARY_DIR}/unittest-ran)
-
-    add_custom_command(
-        OUTPUT
-            ${UNITTEST_RAN}
-
-        COMMAND
-            "unittest"
-                "--colour-mode"
-                    "ansi"
-                "--tmp-dir"
-                    "${CMAKE_BINARY_DIR}/tmp"
-                "--binary-dir"
-                    "${CMAKE_BINARY_DIR}"
-                "--dist-dir"
-                    "${CMAKE_BINARY_DIR}/../../dist"
-                "--source-dir"
-                    "${CMAKE_SOURCE_DIR}"
-                "--progress"
-
-        WORKING_DIRECTORY
-            ${CMAKE_BINARY_DIR}
-
-        DEPENDS
-            unittest
-    )
-
-    add_custom_target(${PROJECT_NAME}
-        DEPENDS
-            ${UNITTEST_RAN}
+    find_package(SnapTestRunner)
+    AddUnitTestsTarget(
+        PROJECT_NAME
+            rununittests
     )
 
 endif(SnapCatch2_FOUND)
