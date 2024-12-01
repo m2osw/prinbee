@@ -75,4 +75,6 @@ if(SnapCatch2_FOUND)
     )
 
 endif(SnapCatch2_FOUND)
+
+
 # vim: ts=4 sw=4 et
