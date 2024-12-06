@@ -917,6 +917,7 @@ public:
                                                 , std::uint64_t offset
                                                 , std::uint64_t size);
     void                                    init_buffer();
+    void                                    set_defaults();
     void                                    set_virtual_buffer(
                                                   virtual_buffer::pointer_t buffer
                                                 , std::uint64_t start_offset);
@@ -983,6 +984,7 @@ public:
     void                                    adjust_offsets(
                                                       reference_t offset_cutoff
                                                     , std::int64_t diff);
+    void                                    display_offsets() const;
 
 private:
     std::uint64_t                           parse() const;

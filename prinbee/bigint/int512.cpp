@@ -201,6 +201,139 @@ std::size_t int512_t::bit_size() const
 }
 
 
+void int512_t::lsl(int count)
+{
+    if(count < 0)
+    {
+        throw out_of_range(
+                  "lsl() cannot be called with a negative value ("
+                + std::to_string(count)
+                + ").");
+    }
+
+    // note: with a processor, the count is truncated to the total number of
+    //       bits available -- wondering we should be doing the same here
+    //
+    if(count >= 512)
+    {
+        zero();
+        return;
+    }
+
+    if(count == 0)
+    {
+        // nothing to do
+        //
+        return;
+    }
+
+    int move(count / 64);
+    int const shift(count % 64);
+    if(move > 0)
+    {
+        // WARNING: the following moves the f_high_value as well
+        //
+        int const pos(8 - move);
+        if(move < 8)
+        {
+            memmove(f_value + move, f_value, pos * 8);
+        }
+        memset(f_value, 0, move * 8);
+    }
+    if(shift != 0)
+    {
+        int remainder(64 - shift);
+
+        std::uint64_t extra(0);
+        while(move < 7)
+        {
+            std::uint64_t const next(f_value[move] >> remainder);
+            f_value[move] = (f_value[move] << shift) | extra;
+            extra = next;
+            ++move;
+        }
+        f_high_value = (f_high_value << shift) | extra;
+    }
+}
+
+
+void int512_t::asr(int count)
+{
+    if(count < 0)
+    {
+        throw out_of_range(
+                  "asr() cannot be called with a negative value ("
+                + std::to_string(count)
+                + ").");
+    }
+
+    // note: with a processor, the count is truncated to the total number of
+    //       bits available -- wondering we should be doing the same here
+    //
+    bool const negative(is_negative());
+    if(count >= 512)
+    {
+        if(negative)
+        {
+            memset(f_value, -1, sizeof(f_value));
+            f_high_value = -1;
+        }
+        else
+        {
+            zero();
+        }
+        return;
+    }
+
+    if(count == 0)
+    {
+        // nothing to do
+        //
+        return;
+    }
+
+    int const move(count / 64);
+    int const shift(count % 64);
+    int pos(8 - move);
+    if(move > 0)
+    {
+        // WARNING: the following moves the f_high_value as well
+        //
+        if(move < 8)
+        {
+            memmove(f_value, f_value + move, pos * 8);
+        }
+        if(negative)
+        {
+            memset(f_value + pos, -1, move * 8);
+        }
+        else
+        {
+            memset(f_value + pos, 0, move * 8);
+        }
+    }
+    if(shift != 0)
+    {
+        int remainder(64 - shift);
+
+        std::uint64_t extra(0);
+        if(pos == 7)
+        {
+            --pos;
+            extra = f_high_value << remainder;
+            f_high_value = f_high_value >> shift;
+        }
+        while(pos > 0)
+        {
+            --pos;
+            std::uint64_t const next(f_value[pos] << remainder);
+            f_value[pos] = (f_value[pos] >> shift) | extra;
+            extra = next;
+        }
+    }
+}
+
+
 int512_t int512_t::operator - () const
 {
     int512_t neg;
@@ -237,6 +370,111 @@ int512_t & int512_t::operator -= (std::int64_t rhs)
 }
 
 
+int512_t & int512_t::operator <<= (int shift)
+{
+    lsl(shift);
+    return *this;
+}
+
+
+int512_t int512_t::operator << (int shift) const
+{
+    int512_t result(*this);
+    result.lsl(shift);
+    return result;
+}
+
+
+int512_t & int512_t::operator >>= (int shift)
+{
+    asr(shift);
+    return *this;
+}
+
+
+int512_t int512_t::operator >> (int shift) const
+{
+    int512_t result(*this);
+    result.asr(shift);
+    return result;
+}
+
+
+int512_t int512_t::operator & (int512_t const & rhs) const
+{
+    int512_t r(*this);
+    return r &= rhs;
+}
+
+
+int512_t int512_t::operator & (std::int64_t rhs) const
+{
+    int512_t r(*this);
+    return r &= rhs;
+}
+
+
+int512_t & int512_t::operator &= (int512_t const & rhs)
+{
+    for(int i(0); i < 7; ++i)
+    {
+        f_value[i] &= rhs.f_value[i];
+    }
+    f_high_value &= rhs.f_high_value;
+    return *this;
+}
+
+
+int512_t int512_t::operator | (int512_t const & rhs) const
+{
+    int512_t r(*this);
+    return r |= rhs;
+}
+
+
+int512_t int512_t::operator | (std::int64_t rhs) const
+{
+    int512_t r(*this);
+    return r |= rhs;
+}
+
+
+int512_t & int512_t::operator |= (int512_t const & rhs)
+{
+    for(int i(0); i < 7; ++i)
+    {
+        f_value[i] |= rhs.f_value[i];
+    }
+    f_high_value |= rhs.f_high_value;
+    return *this;
+}
+
+
+int512_t int512_t::operator ^ (int512_t const & rhs) const
+{
+    int512_t r(*this);
+    return r |= rhs;
+}
+
+
+int512_t int512_t::operator ^ (std::int64_t rhs) const
+{
+    int512_t r(*this);
+    return r |= rhs;
+}
+
+
+int512_t & int512_t::operator ^= (int512_t const & rhs)
+{
+    for(int i(0); i < 7; ++i)
+    {
+        f_value[i] ^= rhs.f_value[i];
+    }
+    f_high_value ^= rhs.f_high_value;
+    return *this;
+}
+
+
 int512_t & int512_t::operator ++ ()
 {
     return *this += 1;
@@ -262,7 +500,7 @@ bool int512_t::operator == (int512_t const & rhs) const
 }
 
 
-bool int512_t::operator == (int64_t rhs) const
+bool int512_t::operator == (std::int64_t rhs) const
 {
     if(rhs < 0)
     {
@@ -302,7 +540,7 @@ bool int512_t::operator != (int512_t const & rhs) const
 }
 
 
-bool int512_t::operator != (int64_t rhs) const
+bool int512_t::operator != (std::int64_t rhs) const
 {
     if(rhs < 0)
     {

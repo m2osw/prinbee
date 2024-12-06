@@ -195,7 +195,7 @@ constexpr prinbee::struct_description_t g_description3[] =
         , prinbee::FieldSubDescription(g_description3_sub1)
     ),
     prinbee::define_description(
-          prinbee::FieldName("eight_bits=null/advance:4/performent:2/sign")
+          prinbee::FieldName("eight_bits=null/advance:4/efficient:2/sign")
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS8)
     ),
     prinbee::end_descriptions()
@@ -374,6 +374,235 @@ constexpr prinbee::struct_description_t g_description6[] =
     ),
     prinbee::end_descriptions()
 };
+
+
+
+
+
+constexpr prinbee::struct_description_t g_description7_column[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("colname")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+        , prinbee::FieldDefaultValue("_undefined")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("max_size")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT16)
+        , prinbee::FieldDefaultValue("256")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("type")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT16)
+        , prinbee::FieldDefaultValue("14")
+    ),
+    prinbee::end_descriptions()
+};
+
+
+// the structure is dynamic (P-strings + arrays)
+//
+//    _magic                 4
+//    _structure_version     4
+//    name                  32
+//    columns                1
+//    comment                4 + 43
+//                        ----------
+//    total                 45 + 88
+//
+constexpr prinbee::struct_description_t g_description7[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(1, 2)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("name=32")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+        , prinbee::FieldDefaultValue("users")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("columns")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY8)
+        , prinbee::FieldSubDescription(g_description7_column)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("comment")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P32STRING)
+        , prinbee::FieldDefaultValue("This represents a form of table definition.")
+    ),
+    prinbee::end_descriptions()
+};
+
+
+
+constexpr prinbee::struct_description_t g_description8_column[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("colname")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+        , prinbee::FieldDefaultValue("_undefined")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("max_size")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT16)
+        , prinbee::FieldDefaultValue("256")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("type")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT16)
+        , prinbee::FieldDefaultValue("14")
+    ),
+    prinbee::end_descriptions()
+};
+
+
+// the structure is dynamic (P-strings + arrays)
+//
+//    _magic                 4
+//    _structure_version     4
+//    name                   4 + 5
+//    columns                2
+//    comment                4 + 33
+//                        ----------
+//    total                 18 + 56
+//
+constexpr prinbee::struct_description_t g_description8[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(1, 2)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("name")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P32STRING)
+        , prinbee::FieldDefaultValue("users")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("columns")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY16)
+        , prinbee::FieldSubDescription(g_description7_column)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("comment")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P32STRING)
+        , prinbee::FieldDefaultValue("Another form of table definition.")
+    ),
+    prinbee::end_descriptions()
+};
+
+
+
+
+
+constexpr prinbee::struct_description_t g_description9_column[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("colname")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P16STRING)
+        , prinbee::FieldDefaultValue("_undefined")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("max_size")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT16)
+        , prinbee::FieldDefaultValue("256")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("type")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT16)
+        , prinbee::FieldDefaultValue("14")
+    ),
+    prinbee::end_descriptions()
+};
+
+
+// the structure is dynamic (P-strings + arrays)
+//
+//    _magic                 4
+//    _structure_version     4
+//    name                   1 + 4
+//    columns                4
+//    comment                2 + 56
+//                        ----------
+//    total                 15 + 75
+//
+constexpr prinbee::struct_description_t g_description9[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(1, 2)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("name")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+        , prinbee::FieldDefaultValue("page")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("columns")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY32)
+        , prinbee::FieldSubDescription(g_description7_column)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("comment")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P16STRING)
+        , prinbee::FieldDefaultValue("Table with a number of columns that can go to 4 billion.")
+    ),
+    prinbee::end_descriptions()
+};
+
+
+
+constexpr prinbee::struct_description_t g_description10_buffer_size_renamed[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("unknown")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+};
+
+
+// rename has "unknown" field
+//
+constexpr prinbee::struct_description_t g_description10[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_BLOB))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(0, 1)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("buffer_size")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_RENAMED)
+        , prinbee::FieldSubDescription(g_description10_buffer_size_renamed)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+
 
 
 
@@ -2039,8 +2268,8 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
         std::uint32_t const advance_value(rand() & 15);
         description->set_bits("eight_bits.advance", advance_value);
 
-        std::uint32_t const performent_value(rand() & 3);
-        description->set_bits("eight_bits.performent", performent_value);
+        std::uint32_t const efficient_value(rand() & 3);
+        description->set_bits("eight_bits.efficient", efficient_value);
 
         std::uint32_t const sign_value(rand() & 1);
         description->set_bits("eight_bits.sign", sign_value);
@@ -2056,8 +2285,17 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
         CATCH_REQUIRE(description->get_uinteger("software_version.build") == build);
         CATCH_REQUIRE(description->get_bits("eight_bits.null") == null_value);
         CATCH_REQUIRE(description->get_bits("eight_bits.advance") == advance_value);
-        CATCH_REQUIRE(description->get_bits("eight_bits.performent") == performent_value);
+        CATCH_REQUIRE(description->get_bits("eight_bits.efficient") == efficient_value);
         CATCH_REQUIRE(description->get_bits("eight_bits.sign") == sign_value);
+
+        // the get_field() allows you to search for a specific flag in a field and
+        // you get the field pointer--not too sure that makes sense, but it works...
+        //
+        prinbee::field_t::pointer_t eight_bits(description->get_field("eight_bits"));
+        CATCH_REQUIRE(description->get_field("eight_bits.null") == eight_bits);
+        CATCH_REQUIRE(description->get_field("eight_bits.advance") == eight_bits);
+        CATCH_REQUIRE(description->get_field("eight_bits.efficient") == eight_bits);
+        CATCH_REQUIRE(description->get_field("eight_bits.sign") == eight_bits);
     }
     CATCH_END_SECTION()
 
@@ -2090,7 +2328,7 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
                 , prinbee::type_mismatch
                 , Catch::Matchers::ExceptionMessage(
                     "prinbee_exception: this description type is \"STRUCTURE_VERSION\""
-                    " but we expected one of \"BITS8, BITS16, BITS32, BITS64, UINT8, UINT16, UINT32, VERSION, UINT64, REFERENCE, OID\"."));
+                    " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
 
         std::int64_t const sub_field(SNAP_CATCH2_NAMESPACE::rand64());
         description->set_integer("sub_field", sub_field);
@@ -2158,7 +2396,7 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
                   description->get_uinteger(std::string())
                 , prinbee::logic_error
                 , Catch::Matchers::ExceptionMessage(
-                    "logic_error: called get_field() with an empty field name."));
+                    "logic_error: called structure::get_field() with an empty field name."));
 
         CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
         CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(405, 119));
@@ -2182,17 +2420,17 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
         // the strings make this structure dynamic
         //
         CATCH_REQUIRE(description->get_static_size() == 0UL);
-        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + 0UL + 2UL + 0UL + 4 + 0UL + 15UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + 0UL + 2UL + 0UL + 4UL + 0UL + 15UL);
 
         description->init_buffer();
-        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + 5UL + 2UL + 62UL + 4 + 98UL + 15UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + 5UL + 2UL + 62UL + 4UL + 98UL + 15UL);
 
         CATCH_REQUIRE_THROWS_MATCHES(
                   description->set_uinteger("_magic", SNAP_CATCH2_NAMESPACE::rand32())
                 , prinbee::type_mismatch
                 , Catch::Matchers::ExceptionMessage(
                     "prinbee_exception: this description type is \"MAGIC\""
-                    " but we expected one of \"BITS8, BITS16, BITS32, BITS64, UINT8, UINT16, UINT32, VERSION, UINT64, REFERENCE, OID\"."));
+                    " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
 
         CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
         CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(15'345, 2'341));
@@ -2200,13 +2438,13 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
         CATCH_REQUIRE(description->get_string("name") == "Henri");
         std::string const name(SNAP_CATCH2_NAMESPACE::random_string(1, 255));
         description->set_string("name", name);
-        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + 62UL + 4 + 98UL + 15UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + 62UL + 4UL + 98UL + 15UL);
         CATCH_REQUIRE(description->get_string("name") == name);
 
         CATCH_REQUIRE(description->get_string("description") == "King who fell from a horse and had a rotting foot as a result.");
         std::string const description_field(SNAP_CATCH2_NAMESPACE::random_string(256, 3'000));
         description->set_string("description", description_field);
-        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4 + 98UL + 15UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4UL + 98UL + 15UL);
         CATCH_REQUIRE(description->get_string("description") == description_field);
 
         CATCH_REQUIRE(description->get_string("essay") == "King who killed his wife to marry another. Later wives were lucky that the divorce was \"invented\".");
@@ -2214,7 +2452,7 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
         std::string const essay(SNAP_CATCH2_NAMESPACE::random_string(1'000, 250'000));
 SNAP_LOG_WARNING << "--- random essay length is " << essay.length() << SNAP_LOG_SEND;
         description->set_string("essay", essay);
-        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4 + essay.length() + 15UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4UL + essay.length() + 15UL);
         CATCH_REQUIRE(description->get_string("essay") == essay);
         CATCH_REQUIRE(description->get_string("dissertation") == essay);
 
@@ -2222,14 +2460,1498 @@ SNAP_LOG_WARNING << "--- random essay length is " << essay.length() << SNAP_LOG_
 SNAP_LOG_WARNING << "--- random dissertation length is " << dissertation.length() << SNAP_LOG_SEND;
         description->set_string("dissertation", dissertation);
 SNAP_LOG_WARNING << "--- dissertation set_string() returned... verify" << SNAP_LOG_SEND;
-        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4 + dissertation.length() + 15UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4UL + dissertation.length() + 15UL);
         CATCH_REQUIRE(description->get_string("dissertation") == dissertation);
         CATCH_REQUIRE(description->get_string("essay") == dissertation);
 
 SNAP_LOG_WARNING << "--- now do a set of the kingdom..." << SNAP_LOG_SEND;
         description->set_string("tag", "kingdom");
-        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4 + dissertation.length() + 15UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4UL + dissertation.length() + 15UL);
         CATCH_REQUIRE(description->get_string("tag") == "kingdom");
+    }
+    CATCH_END_SECTION()
+}
+
+
+CATCH_TEST_CASE("structure_get_set", "[structure][valid]")
+{
+    CATCH_START_SECTION("structure: structure get/set functions")
+    {
+        typedef std::uint32_t           valid_func_t;
+
+        constexpr valid_func_t          VALID_FUNC_FLAG             = 0x0001;
+        constexpr valid_func_t          VALID_FUNC_BITS             = 0x0002;
+        constexpr valid_func_t          VALID_FUNC_INTEGER          = 0x0004;
+        constexpr valid_func_t          VALID_FUNC_UINTEGER         = 0x0008;
+        constexpr valid_func_t          VALID_FUNC_LARGE_INTEGER    = 0x0010;
+        constexpr valid_func_t          VALID_FUNC_LARGE_UINTEGER   = 0x0020;
+        constexpr valid_func_t          VALID_FUNC_FLOAT32          = 0x0040;
+        constexpr valid_func_t          VALID_FUNC_FLOAT64          = 0x0080;
+        constexpr valid_func_t          VALID_FUNC_FLOAT128         = 0x0100;
+
+        struct type_to_test_t
+        {
+            valid_func_t                f_valid_func = 0;
+            prinbee::struct_type_t      f_type = prinbee::struct_type_t::STRUCT_TYPE_VOID;
+            std::uint16_t               f_mask_size = 512;
+        };
+
+        type_to_test_t const type_to_test[] =
+        {
+            {
+                .f_valid_func = 0,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_VOID,
+                .f_mask_size = 512,
+            },
+            {
+                .f_valid_func = VALID_FUNC_FLAG | VALID_FUNC_BITS | VALID_FUNC_UINTEGER | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_BITS8,
+                .f_mask_size = 8,
+            },
+            {
+                .f_valid_func = VALID_FUNC_FLAG | VALID_FUNC_BITS | VALID_FUNC_UINTEGER | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_BITS16,
+                .f_mask_size = 16,
+            },
+            {
+                .f_valid_func = VALID_FUNC_FLAG | VALID_FUNC_BITS | VALID_FUNC_UINTEGER | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_BITS32,
+                .f_mask_size = 32,
+            },
+            {
+                .f_valid_func = VALID_FUNC_FLAG | VALID_FUNC_BITS | VALID_FUNC_UINTEGER | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_BITS64,
+                .f_mask_size = 64,
+            },
+            {
+                .f_valid_func = VALID_FUNC_FLAG | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_BITS128,
+                .f_mask_size = 128,
+            },
+            {
+                .f_valid_func = VALID_FUNC_FLAG | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_BITS256,
+                .f_mask_size = 256,
+            },
+            {
+                .f_valid_func = VALID_FUNC_FLAG | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_BITS512,
+                .f_mask_size = 512,
+            },
+            {
+                .f_valid_func = VALID_FUNC_INTEGER | VALID_FUNC_LARGE_INTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_INT8,
+                .f_mask_size = 8,
+            },
+            {
+                .f_valid_func = VALID_FUNC_UINTEGER | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_UINT8,
+                .f_mask_size = 8,
+            },
+            {
+                .f_valid_func = VALID_FUNC_INTEGER | VALID_FUNC_LARGE_INTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_INT16,
+                .f_mask_size = 16,
+            },
+            {
+                .f_valid_func = VALID_FUNC_UINTEGER | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_UINT16,
+                .f_mask_size = 16,
+            },
+            {
+                .f_valid_func = VALID_FUNC_INTEGER | VALID_FUNC_LARGE_INTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_INT32,
+                .f_mask_size = 32,
+            },
+            {
+                .f_valid_func = VALID_FUNC_UINTEGER | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_UINT32,
+                .f_mask_size = 32,
+            },
+            {
+                .f_valid_func = VALID_FUNC_INTEGER | VALID_FUNC_LARGE_INTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_INT64,
+                .f_mask_size = 64,
+            },
+            {
+                .f_valid_func = VALID_FUNC_UINTEGER | VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_UINT64,
+                .f_mask_size = 64,
+            },
+            {
+                .f_valid_func = VALID_FUNC_LARGE_INTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_INT128,
+                .f_mask_size = 128,
+            },
+            {
+                .f_valid_func = VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_UINT128,
+                .f_mask_size = 128,
+            },
+            {
+                .f_valid_func = VALID_FUNC_LARGE_INTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_INT256,
+                .f_mask_size = 256,
+            },
+            {
+                .f_valid_func = VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_UINT256,
+                .f_mask_size = 256,
+            },
+            {
+                .f_valid_func = VALID_FUNC_LARGE_INTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_INT512,
+                .f_mask_size = 512,
+            },
+            {
+                .f_valid_func = VALID_FUNC_LARGE_UINTEGER,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_UINT512,
+                .f_mask_size = 512,
+            },
+            {
+                .f_valid_func = VALID_FUNC_FLOAT32,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_FLOAT32,
+                .f_mask_size = 32,
+            },
+            {
+                .f_valid_func = VALID_FUNC_FLOAT64,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_FLOAT64,
+                .f_mask_size = 64,
+            },
+            {
+                .f_valid_func = VALID_FUNC_FLOAT128,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_FLOAT128,
+                .f_mask_size = 128,
+            },
+        };
+//    STRUCT_TYPE_MAGIC,              // CHAR=4
+//    STRUCT_TYPE_STRUCTURE_VERSION,  // UINT16:UINT16 (Major:Minor) -- version of the structure.cpp/h description
+//    STRUCT_TYPE_VERSION,            // UINT16:UINT16 (Major:Minor)
+//
+//    STRUCT_TYPE_REFERENCE,          // UINT64 to another location in the file (offset 0 is start of file)
+//    STRUCT_TYPE_OID,                // UINT64 similar to a REFERENCE, but points to the TIND/INDR blocks (sizeof(OID) == sizeof(REFERENCE) must be true)
+
+        for(auto const & t : type_to_test)
+        {
+            //prinbee::int512_t integer;
+            //SNAP_CATCH2_NAMESPACE::rand512(integer);
+            //std::string string(SNAP_CATCH2_NAMESPACE::random_string(1, 255));
+            //long double floating_point(drand48() * 1000.0L);
+
+            char const * field_name = "test_field";
+            if((t.f_valid_func & VALID_FUNC_FLAG) != 0)
+            {
+                field_name = "test_field=on/color:3/valid/side:2";
+            }
+
+SNAP_LOG_WARNING << "--- testing [" << prinbee::to_string(t.f_type)
+<< "] - " << t.f_valid_func
+<< " -> " << field_name
+<< SNAP_LOG_SEND;
+            prinbee::struct_description_t field_descriptions[] =
+            {
+                {
+                    .f_field_name = "_magic",
+                    .f_type = prinbee::struct_type_t::STRUCT_TYPE_MAGIC,
+                    .f_flags = 0,
+                    .f_default_value = prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_BLOB),
+                    .f_min_version = prinbee::version_t(),
+                    .f_max_version = prinbee::max_version(),
+                    .f_sub_description = nullptr,
+                },
+                {
+                    .f_field_name = "_structure_version",
+                    .f_type = prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION,
+                    .f_flags = 0,
+                    .f_default_value = nullptr,
+                    .f_min_version = prinbee::version_t(3, 7),
+                    .f_max_version = prinbee::max_version(),
+                    .f_sub_description = nullptr,
+                },
+                {
+                    .f_field_name = field_name,
+                    .f_type = t.f_type,
+                    .f_flags = 0,
+                    .f_default_value = nullptr,
+                    .f_min_version = prinbee::version_t(),
+                    .f_max_version = prinbee::max_version(),
+                    .f_sub_description = nullptr,
+                },
+                {
+                    .f_field_name = nullptr,
+                    .f_type = prinbee::struct_type_t::STRUCT_TYPE_END,
+                    .f_flags = 0,
+                    .f_default_value = nullptr,
+                    .f_min_version = prinbee::version_t(),
+                    .f_max_version = prinbee::version_t(),
+                    .f_sub_description = nullptr,
+                },
+            };
+
+            prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(field_descriptions));
+            description->init_buffer();
+
+            CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_BLOB);
+            CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(3, 7));
+
+            // get_flag() function
+            //
+            prinbee::field_t::pointer_t f;
+            if((t.f_valid_func & VALID_FUNC_FLAG) != 0)
+            {
+                prinbee::flag_definition::pointer_t flag(description->get_flag("test_field.on", f));
+                CATCH_REQUIRE(flag->full_name() == "test_field.on");
+                CATCH_REQUIRE(flag->field_name() == "test_field");
+                CATCH_REQUIRE(flag->flag_name() == "on");
+                CATCH_REQUIRE(flag->pos() == 0);
+                CATCH_REQUIRE(flag->size() == 1);
+                CATCH_REQUIRE(flag->mask() == 1);
+
+                flag = description->get_flag("test_field.color", f);
+                CATCH_REQUIRE(flag->full_name() == "test_field.color");
+                CATCH_REQUIRE(flag->field_name() == "test_field");
+                CATCH_REQUIRE(flag->flag_name() == "color");
+                CATCH_REQUIRE(flag->pos() == 1);
+                CATCH_REQUIRE(flag->size() == 3);
+                CATCH_REQUIRE(flag->mask() == 0xe);
+
+                flag = description->get_flag("test_field.valid", f);
+                CATCH_REQUIRE(flag->full_name() == "test_field.valid");
+                CATCH_REQUIRE(flag->field_name() == "test_field");
+                CATCH_REQUIRE(flag->flag_name() == "valid");
+                CATCH_REQUIRE(flag->pos() == 4);
+                CATCH_REQUIRE(flag->size() == 1);
+                CATCH_REQUIRE(flag->mask() == 0x10);
+
+                flag = description->get_flag("test_field.side", f);
+                CATCH_REQUIRE(flag->full_name() == "test_field.side");
+                CATCH_REQUIRE(flag->field_name() == "test_field");
+                CATCH_REQUIRE(flag->flag_name() == "side");
+                CATCH_REQUIRE(flag->pos() == 5);
+                CATCH_REQUIRE(flag->size() == 2);
+                CATCH_REQUIRE(flag->mask() == 0x60);
+            }
+            else
+            {
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_flag(field_name, f)
+                        , prinbee::field_not_found
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: flag named \"test_field\" must at least include a field name and a flag name."));
+            }
+
+            // get_bits()/set_bits() functions
+            //
+            if((t.f_valid_func & VALID_FUNC_FLAG) != 0)
+            {
+                if((t.f_valid_func & VALID_FUNC_BITS) != 0)
+                {
+                    for(int v(0); v < 8; ++v)
+                    {
+                        description->set_bits("test_field.on", v & 1);
+                        CATCH_REQUIRE(description->get_bits("test_field.on") == (v & 1));
+
+                        description->set_bits("test_field.color", v & 7);
+                        CATCH_REQUIRE(description->get_bits("test_field.color") == (v & 7));
+
+                        description->set_bits("test_field.valid", v & 1);
+                        CATCH_REQUIRE(description->get_bits("test_field.valid") == (v & 1));
+
+                        description->set_bits("test_field.side", v & 3);
+                        CATCH_REQUIRE(description->get_bits("test_field.side") == (v & 3));
+                    }
+                }
+                else
+                {
+                    // these BITSxxx are not yet fully implemented
+                    // (i.e. bits in large integers)
+                    //
+                    CATCH_REQUIRE_THROWS_MATCHES(
+                              description->set_bits("test_field.on", rand() & 1)
+                            , prinbee::type_mismatch
+                            , Catch::Matchers::ExceptionMessage(
+                                "prinbee_exception: this description type is \""
+                              + prinbee::to_string(t.f_type)
+                              + "\" but we expected one of"
+                                " \"BITS8, BITS16, BITS32, BITS64\"."));
+
+                    CATCH_REQUIRE_THROWS_MATCHES(
+                              description->get_bits("test_field.on")
+                            , prinbee::type_mismatch
+                            , Catch::Matchers::ExceptionMessage(
+                                "prinbee_exception: this description type is \""
+                              + prinbee::to_string(t.f_type)
+                              + "\" but we expected one of"
+                                " \"BITS8, BITS16, BITS32, BITS64\"."));
+                }
+            }
+            else
+            {
+SNAP_LOG_WARNING << "--- set_bits() ..." << SNAP_LOG_SEND;
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_bits(field_name, rand())
+                        , prinbee::field_not_found
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: flag named \"test_field\" must at least include a field name and a flag name."));
+
+SNAP_LOG_WARNING << "--- get_bits() ..." << SNAP_LOG_SEND;
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_bits(field_name)
+                        , prinbee::field_not_found
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: flag named \"test_field\" must at least include a field name and a flag name."));
+            }
+
+            // get_uinteger()/set_uinteger()
+            //
+            if((t.f_valid_func & VALID_FUNC_UINTEGER) != 0)
+            {
+                for(int count(0); count < 10; ++count)
+                {
+                    std::uint64_t v(0);
+                    SNAP_CATCH2_NAMESPACE::random(v);
+                    description->set_uinteger(field_name, v);
+                    std::uint64_t const r(v & (((static_cast<std::uint64_t>(1) << (t.f_mask_size - 1)) << 1) - 1));
+                    CATCH_REQUIRE(description->get_uinteger(field_name) == r);
+                }
+            }
+            else
+            {
+                std::uint64_t v(0);
+                SNAP_CATCH2_NAMESPACE::random(v);
+SNAP_LOG_WARNING << "--- set_uinteger() ..." << SNAP_LOG_SEND;
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_uinteger(field_name, v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this description type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\""
+                            " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
+
+SNAP_LOG_WARNING << "--- get_uinteger() ..." << SNAP_LOG_SEND;
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_uinteger(field_name)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this description type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\""
+                            " but we expected one of \"BITS8, BITS16, BITS32, BITS64, MAGIC, OID, REFERENCE, STRUCTURE_VERSION, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
+            }
+
+            // get_integer()/set_integer()
+            //
+            if((t.f_valid_func & VALID_FUNC_INTEGER) != 0)
+            {
+                for(int count(0); count < 10; ++count)
+                {
+                    std::int64_t v(0);
+                    SNAP_CATCH2_NAMESPACE::random(v);
+                    description->set_integer(field_name, v);
+                    std::int64_t r(v & (((static_cast<std::uint64_t>(1) << (t.f_mask_size - 1)) << 1) - 1));
+                    if(t.f_mask_size != 64
+                    && (r & (static_cast<std::uint64_t>(1) << (t.f_mask_size - 1))) != 0)
+                    {
+                        // sign extend the value if less than 64 bits
+                        //
+                        r |= static_cast<std::int64_t>(-1) << t.f_mask_size;
+                    }
+                    CATCH_REQUIRE(description->get_integer(field_name) == r);
+                }
+            }
+            else
+            {
+                std::int64_t v(0);
+                SNAP_CATCH2_NAMESPACE::random(v);
+SNAP_LOG_WARNING << "--- set_integer() ..." << SNAP_LOG_SEND;
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_integer(field_name, v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this description type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\""
+                            " but we expected one of \"INT8, INT16, INT32, INT64, MSTIME, TIME, USTIME\"."));
+
+SNAP_LOG_WARNING << "--- get_integer() ..." << SNAP_LOG_SEND;
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_integer(field_name)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this description type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\""
+                            " but we expected one of \"INT8, INT16, INT32, INT64, MSTIME, TIME, USTIME\"."));
+SNAP_LOG_WARNING << "--- something else? ..." << SNAP_LOG_SEND;
+            }
+
+            // get_large_uinteger()/set_large_uinteger()
+            //
+            if((t.f_valid_func & VALID_FUNC_LARGE_UINTEGER) != 0)
+            {
+                for(int count(0); count < 10; ++count)
+                {
+                    prinbee::uint512_t v(0);
+                    SNAP_CATCH2_NAMESPACE::rand512(v);
+SNAP_LOG_WARNING << "--- first do set_large_uinteger()..." << SNAP_LOG_SEND;
+                    description->set_large_uinteger(field_name, v);
+                    prinbee::uint512_t r(v);
+                    if(t.f_mask_size != 512)
+                    {
+                        prinbee::uint512_t mask(0);
+                        prinbee::uint512_t one(1);
+                        mask -= one;
+                        mask >>= 512 - t.f_mask_size;
+                        r &= mask;
+                    }
+SNAP_LOG_WARNING << "--- " << count << ". get_large_uinteger() without protection ..." << SNAP_LOG_SEND;
+                    CATCH_REQUIRE(description->get_large_uinteger(field_name) == r);
+SNAP_LOG_WARNING << "--- got the large integer get_large_uinteger() ..." << SNAP_LOG_SEND;
+                }
+SNAP_LOG_WARNING << "--- done with loop..." << SNAP_LOG_SEND;
+            }
+            else
+            {
+                prinbee::uint512_t v(0);
+                SNAP_CATCH2_NAMESPACE::rand512(v);
+SNAP_LOG_WARNING << "--- set_large_uinteger() ..." << SNAP_LOG_SEND;
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_large_uinteger(field_name, v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this description type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\""
+                            " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, UINT128, UINT256, UINT512, VERSION\"."));
+
+SNAP_LOG_WARNING << "--- get_large_uinteger() ..." << SNAP_LOG_SEND;
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_large_uinteger(field_name)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this description type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\""
+                            " but we expected one of \"BITS8, BITS16, BITS32, BITS64, MAGIC, OID, REFERENCE, STRUCTURE_VERSION, UINT8, UINT16, UINT32, UINT64, UINT128, UINT256, UINT512, VERSION\"."));
+            }
+
+            // get_integer()/set_integer()
+            //
+SNAP_LOG_WARNING << "--- large int?..." << SNAP_LOG_SEND;
+            if((t.f_valid_func & VALID_FUNC_LARGE_INTEGER) != 0)
+            {
+SNAP_LOG_WARNING << "--- loop over large int?..." << SNAP_LOG_SEND;
+                for(int count(0); count < 10; ++count)
+                {
+                    prinbee::int512_t v(0);
+                    SNAP_CATCH2_NAMESPACE::rand512(v);
+SNAP_LOG_WARNING << "--- set large int... inside loop" << SNAP_LOG_SEND;
+                    description->set_large_integer(field_name, v);
+
+                    prinbee::int512_t r(v);
+                    if(t.f_mask_size != 512)
+                    {
+                        prinbee::int512_t const one(1);
+                        prinbee::int512_t const sign(one << (t.f_mask_size - 1));
+                        if((r & sign) == 0)
+                        {
+                            // positive number, clear upper bits
+                            //
+                            prinbee::uint512_t mask(0);
+                            mask -= one;
+                            mask >>= 512 - t.f_mask_size;
+                            r &= mask;
+                        }
+                        else
+                        {
+                            // negative number, set upper bits to all ones
+                            //
+                            prinbee::int512_t mask(0);
+                            mask -= one;
+                            mask <<= t.f_mask_size;
+                            r |= mask;
+                        }
+                    }
+SNAP_LOG_WARNING << "--- " << count << ". get_large_integer() without protection ..." << SNAP_LOG_SEND;
+                    CATCH_REQUIRE(description->get_large_integer(field_name) == r);
+SNAP_LOG_WARNING << "--- got the get_large_integer() ..." << SNAP_LOG_SEND;
+                }
+            }
+            else
+            {
+SNAP_LOG_WARNING << "--- random int512_t problem???..." << SNAP_LOG_SEND;
+                prinbee::int512_t v(0);
+                SNAP_CATCH2_NAMESPACE::rand512(v);
+SNAP_LOG_WARNING << "--- set_large_integer() ..." << SNAP_LOG_SEND;
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_large_integer(field_name, v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this description type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\""
+                            " but we expected one of \"INT8, INT16, INT32, INT64, INT128, INT256, INT512, MSTIME, NSTIME, TIME, USTIME\"."));
+
+SNAP_LOG_WARNING << "--- get_large_integer() ..." << SNAP_LOG_SEND;
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_large_integer(field_name)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this description type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\""
+                            " but we expected one of \"INT8, INT16, INT32, INT64, INT128, INT256, INT512, MSTIME, NSTIME, TIME, USTIME\"."));
+            }
+        }
+    }
+    CATCH_END_SECTION()
+}
+
+
+
+CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
+{
+    CATCH_START_SECTION("structure: structure with an ARRAY8")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description7));
+
+        // the strings make this structure dynamic
+        //
+        CATCH_REQUIRE(description->get_static_size() == 0UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL + 1UL + 4UL);
+
+        description->init_buffer();
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL + 1UL + 4UL + 43UL);
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->set_uinteger("_magic", SNAP_CATCH2_NAMESPACE::rand32())
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                    "prinbee_exception: this description type is \"MAGIC\""
+                    " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+
+        CATCH_REQUIRE(description->get_string("name") == "users");
+        std::string const name("different_name");
+        description->set_string("name", name);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL + 1UL + 4UL + 43UL);
+        CATCH_REQUIRE(description->get_string("name") == name);
+
+        CATCH_REQUIRE(description->get_string("comment") == "This represents a form of table definition.");
+        std::string const comment_field(rand() % 1 == 0 ? "Short comment." : "This is a longer comment so we may test the pinsert() as well once in a while, but random is complicated to view the data.");
+        description->set_string("comment", comment_field);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL + 1UL + 4UL + comment_field.length());
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        // now create column definitions, one at a time and add them to
+        // the array
+        //
+        prinbee::structure::pointer_t column1(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column1->get_string("colname") == "_undefined");
+        std::string const column1_name("col1");
+        column1->set_string("colname", column1_name);
+        CATCH_REQUIRE(column1->get_string("colname") == column1_name);
+
+        CATCH_REQUIRE(column1->get_uinteger("max_size") == 256);
+        std::uint16_t column1_max_size(0);
+        SNAP_CATCH2_NAMESPACE::random(column1_max_size);
+        column1->set_uinteger("max_size", column1_max_size);
+        CATCH_REQUIRE(column1->get_uinteger("max_size") == column1_max_size);
+
+        CATCH_REQUIRE(column1->get_uinteger("type") == 14);
+        std::uint16_t column1_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column1_type);
+        column1->set_uinteger("type", column1_type);
+        CATCH_REQUIRE(column1->get_uinteger("type") == column1_type);
+
+        // make sure the root was not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        prinbee::structure::vector_t array(description->get_array("columns"));
+        CATCH_REQUIRE(array.size() == 1);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL
+                + 1UL + 1UL + column1_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // column #2
+        //
+        prinbee::structure::pointer_t column2(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column2->get_string("colname") == "_undefined");
+        std::string const column2_name("col2_long_name_here");
+        column2->set_string("colname", column2_name);
+        CATCH_REQUIRE(column2->get_string("colname") == column2_name);
+
+        CATCH_REQUIRE(column2->get_uinteger("max_size") == 256);
+        std::uint16_t column2_max_size(0);
+        SNAP_CATCH2_NAMESPACE::random(column2_max_size);
+        column2->set_uinteger("max_size", column2_max_size);
+        CATCH_REQUIRE(column2->get_uinteger("max_size") == column2_max_size);
+
+        CATCH_REQUIRE(column2->get_uinteger("type") == 14);
+        std::uint16_t column2_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column2_type);
+        column2->set_uinteger("type", column2_type);
+        CATCH_REQUIRE(column2->get_uinteger("type") == column2_type);
+
+        // make sure the root & column1 were not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL
+                + 1UL + 1UL + column1_name.length() + 2UL + 2UL
+                      + 1UL + column2_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // column #3
+        //
+        prinbee::structure::pointer_t column3(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column3->get_string("colname") == "_undefined");
+        std::string const column3_name("col3__here");
+        column3->set_string("colname", column3_name);
+        CATCH_REQUIRE(column3->get_string("colname") == column3_name);
+
+        CATCH_REQUIRE(column3->get_uinteger("max_size") == 256);
+        std::uint16_t column3_max_size(0);
+        SNAP_CATCH2_NAMESPACE::random(column3_max_size);
+        column3->set_uinteger("max_size", column3_max_size);
+        CATCH_REQUIRE(column3->get_uinteger("max_size") == column3_max_size);
+
+        CATCH_REQUIRE(column3->get_uinteger("type") == 14);
+        std::uint16_t column3_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column3_type);
+        column3->set_uinteger("type", column3_type);
+        CATCH_REQUIRE(column3->get_uinteger("type") == column3_type);
+
+        // make sure the root & column 1/2 are not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 3);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(column1->get_string("colname") == column1_name);
+        CATCH_REQUIRE(column1->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(column1->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(column2->get_string("colname") == column2_name);
+        CATCH_REQUIRE(column2->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(column2->get_uinteger("type") == column2_type);
+        CATCH_REQUIRE(array[2] == column3);
+        CATCH_REQUIRE(column3->get_string("colname") == column3_name);
+        CATCH_REQUIRE(column3->get_uinteger("max_size") == column3_max_size);
+        CATCH_REQUIRE(column3->get_uinteger("type") == column3_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL
+                + 1UL + 1UL + column1_name.length() + 2UL + 2UL
+                      + 1UL + column2_name.length() + 2UL + 2UL
+                      + 1UL + column3_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+//{
+//prinbee::reference_t start_offset(0);
+//prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+//std::cout << std::flush << "column3 at the end -- buffer start offset: " << start_offset << "\n" << *buffer << std::endl;
+//description->display_offsets();
+//}
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure: structure with an ARRAY16")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description8));
+
+        // the strings make this structure dynamic
+        //
+        CATCH_REQUIRE(description->get_static_size() == 0UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + 2UL + 4UL);
+
+        description->init_buffer();
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + 5UL + 2UL + 4UL + 33UL);
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->set_uinteger("_magic", SNAP_CATCH2_NAMESPACE::rand32())
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                    "prinbee_exception: this description type is \"MAGIC\""
+                    " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+
+        CATCH_REQUIRE(description->get_string("name") == "users");
+        std::string name("different_name");
+        description->set_string("name", name);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length() + 2UL + 4UL + 33UL);
+        CATCH_REQUIRE(description->get_string("name") == name);
+
+        CATCH_REQUIRE(description->get_string("comment") == "Another form of table definition.");
+        std::string comment_field(rand() % 1 == 0 ? "Perfect table." : "This is a longer comment so we may test the pinsert() as well once in a while, but random is complicated to view the data.");
+        description->set_string("comment", comment_field);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length() + 2UL + 4UL + comment_field.length());
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        // now create column definitions, one at a time and add them to
+        // the array
+        //
+        prinbee::structure::pointer_t column1(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column1->get_string("colname") == "_undefined");
+        std::string column1_name("wide_col1");
+        column1->set_string("colname", column1_name);
+        CATCH_REQUIRE(column1->get_string("colname") == column1_name);
+
+        CATCH_REQUIRE(column1->get_uinteger("max_size") == 256);
+        std::uint16_t column1_max_size(0);
+        SNAP_CATCH2_NAMESPACE::random(column1_max_size);
+        column1->set_uinteger("max_size", column1_max_size);
+        CATCH_REQUIRE(column1->get_uinteger("max_size") == column1_max_size);
+
+        CATCH_REQUIRE(column1->get_uinteger("type") == 14);
+        std::uint16_t column1_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column1_type);
+        column1->set_uinteger("type", column1_type);
+        CATCH_REQUIRE(column1->get_uinteger("type") == column1_type);
+
+        // make sure the root was not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        prinbee::structure::vector_t array(description->get_array("columns"));
+        CATCH_REQUIRE(array.size() == 1);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column1_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // now change the root structure (name) and make sure that column #1 is still fine
+        //
+        name = "change_the_name_to_a_longer_one";
+        description->set_string("name", name);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 1);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+
+        // change the root structure again (comment) and make sure that column #1 is still fine
+        //
+        comment_field = "Just another comment to stick at the end.";
+        description->set_string("comment", comment_field);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 1);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column1_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // also test changing the 1st column name
+        //
+        column1_name = "renamed_column1_to_make_sure_we_can_do_that";
+        column1->set_string("colname", column1_name);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 1);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column1_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // column #2
+        //
+        prinbee::structure::pointer_t column2(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column2->get_string("colname") == "_undefined");
+        std::string column2_name("wide_col2_long_name_here");
+        column2->set_string("colname", column2_name);
+        CATCH_REQUIRE(column2->get_string("colname") == column2_name);
+
+        CATCH_REQUIRE(column2->get_uinteger("max_size") == 256);
+        std::uint16_t column2_max_size(0);
+        SNAP_CATCH2_NAMESPACE::random(column2_max_size);
+        column2->set_uinteger("max_size", column2_max_size);
+        CATCH_REQUIRE(column2->get_uinteger("max_size") == column2_max_size);
+
+        CATCH_REQUIRE(column2->get_uinteger("type") == 14);
+        std::uint16_t column2_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column2_type);
+        column2->set_uinteger("type", column2_type);
+        CATCH_REQUIRE(column2->get_uinteger("type") == column2_type);
+
+        // make sure the root & column1 were not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column1_name.length() + 2UL + 2UL
+                      + 1UL + column2_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // now change the root structure (name) and make sure that column #1 is still fine
+        //
+        name = "smaller_name_this_time";
+        description->set_string("name", name);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+
+        // change the root structure again (comment) and make sure that column #1 is still fine
+        //
+        comment_field = "So many ALTER happening here!";
+        description->set_string("comment", comment_field);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column1_name.length() + 2UL + 2UL
+                      + 1UL + column2_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // also test changing the 1st & 2nd column names
+        //
+        column1_name = "renamed_column1_to_make_sure_we_can_do_that";
+        column1->set_string("colname", column1_name);
+        column2_name = "col2";
+        column2->set_string("colname", column2_name);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column1_name.length() + 2UL + 2UL
+                      + 1UL + column2_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // column #3
+        //
+        prinbee::structure::pointer_t column3(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column3->get_string("colname") == "_undefined");
+        std::string column3_name("col3__here");
+        column3->set_string("colname", column3_name);
+        CATCH_REQUIRE(column3->get_string("colname") == column3_name);
+
+        CATCH_REQUIRE(column3->get_uinteger("max_size") == 256);
+        std::uint16_t column3_max_size(0);
+        SNAP_CATCH2_NAMESPACE::random(column3_max_size);
+        column3->set_uinteger("max_size", column3_max_size);
+        CATCH_REQUIRE(column3->get_uinteger("max_size") == column3_max_size);
+
+        CATCH_REQUIRE(column3->get_uinteger("type") == 14);
+        std::uint16_t column3_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column3_type);
+        column3->set_uinteger("type", column3_type);
+        CATCH_REQUIRE(column3->get_uinteger("type") == column3_type);
+
+        // make sure the root & column 1/2 are not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 3);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(column1->get_string("colname") == column1_name);
+        CATCH_REQUIRE(column1->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(column1->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(column2->get_string("colname") == column2_name);
+        CATCH_REQUIRE(column2->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(column2->get_uinteger("type") == column2_type);
+        CATCH_REQUIRE(array[2] == column3);
+        CATCH_REQUIRE(column3->get_string("colname") == column3_name);
+        CATCH_REQUIRE(column3->get_uinteger("max_size") == column3_max_size);
+        CATCH_REQUIRE(column3->get_uinteger("type") == column3_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column1_name.length() + 2UL + 2UL
+                      + 1UL + column2_name.length() + 2UL + 2UL
+                      + 1UL + column3_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // now change the root structure (name) and make sure that column #1 is still fine
+        //
+        name = "final_name";
+        description->set_string("name", name);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 3);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+        CATCH_REQUIRE(array[2] == column3);
+        CATCH_REQUIRE(array[2]->get_string("colname") == column3_name);
+        CATCH_REQUIRE(array[2]->get_uinteger("max_size") == column3_max_size);
+        CATCH_REQUIRE(array[2]->get_uinteger("type") == column3_type);
+
+        // change the root structure again (comment) and make sure that column #1 is still fine
+        //
+        comment_field = "Final comment.";
+        description->set_string("comment", comment_field);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 3);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+        CATCH_REQUIRE(array[2] == column3);
+        CATCH_REQUIRE(array[2]->get_string("colname") == column3_name);
+        CATCH_REQUIRE(array[2]->get_uinteger("max_size") == column3_max_size);
+        CATCH_REQUIRE(array[2]->get_uinteger("type") == column3_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column1_name.length() + 2UL + 2UL
+                      + 1UL + column2_name.length() + 2UL + 2UL
+                      + 1UL + column3_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // also test changing the 1st & 2nd column names
+        //
+        column1_name = "changing_again";
+        column1->set_string("colname", column1_name);
+        column2_name = "col2_final_name";
+        column2->set_string("colname", column2_name);
+        column3_name = "col3_new_name";
+        column3->set_string("colname", column3_name);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 3);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+        CATCH_REQUIRE(array[2] == column3);
+        CATCH_REQUIRE(array[2]->get_string("colname") == column3_name);
+        CATCH_REQUIRE(array[2]->get_uinteger("max_size") == column3_max_size);
+        CATCH_REQUIRE(array[2]->get_uinteger("type") == column3_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column1_name.length() + 2UL + 2UL
+                      + 1UL + column2_name.length() + 2UL + 2UL
+                      + 1UL + column3_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+//{
+//prinbee::reference_t start_offset(0);
+//prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+//std::cout << std::flush << "column3 at the end -- buffer start offset: " << start_offset << "\n" << *buffer << std::endl;
+//description->display_offsets();
+//}
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure: structure with an ARRAY32")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description9));
+
+        // the strings make this structure dynamic
+        //
+        CATCH_REQUIRE(description->get_static_size() == 0UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + 4UL + 2UL);
+
+        description->init_buffer();
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + 4UL + 4UL + 2UL + 56UL);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+
+        CATCH_REQUIRE(description->get_string("name") == "page");
+        std::string name("thirty_two_bits");
+        description->set_string("name", name);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 4UL + 2UL + 56UL);
+        CATCH_REQUIRE(description->get_string("name") == name);
+
+        CATCH_REQUIRE(description->get_string("comment") == "Table with a number of columns that can go to 4 billion.");
+        std::string comment_field(rand() % 1 == 0 ? "Randomly small comment." : "This one's small too...");
+        description->set_string("comment", comment_field);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 4UL + 2UL + comment_field.length());
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        // now create column definitions, one at a time and add them to
+        // the array
+        //
+        prinbee::structure::pointer_t column1(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column1->get_string("colname") == "_undefined");
+        std::string const column1_name("wide_col1");
+        column1->set_string("colname", column1_name);
+        CATCH_REQUIRE(column1->get_string("colname") == column1_name);
+
+        CATCH_REQUIRE(column1->get_uinteger("max_size") == 256);
+        std::uint16_t column1_max_size(0);
+        SNAP_CATCH2_NAMESPACE::random(column1_max_size);
+        column1->set_uinteger("max_size", column1_max_size);
+        CATCH_REQUIRE(column1->get_uinteger("max_size") == column1_max_size);
+
+        CATCH_REQUIRE(column1->get_uinteger("type") == 14);
+        std::uint16_t column1_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column1_type);
+        column1->set_uinteger("type", column1_type);
+        CATCH_REQUIRE(column1->get_uinteger("type") == column1_type);
+
+        // make sure the root was not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        prinbee::structure::vector_t array(description->get_array("columns"));
+        CATCH_REQUIRE(array.size() == 1);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+
+        // now change the root structure (name) and make sure that column #1 is still fine
+        //
+        name = "we_want_to_test_with_a_very_long_name";
+        description->set_string("name", name);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 1);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+
+        // change the root structure again (comment) and make sure that column #1 is still fine
+        //
+        comment_field = "Just another comment to stick at the end.";
+        description->set_string("comment", comment_field);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 1);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+
+        {
+            prinbee::reference_t start_offset(0);
+            prinbee::virtual_buffer::pointer_t b(description->get_virtual_buffer(start_offset));
+            CATCH_REQUIRE(b != nullptr);
+            CATCH_REQUIRE(b->size() == description->get_current_size());
+
+            prinbee::buffer_t buffer(b->size());
+            CATCH_REQUIRE(b->pread(buffer.data(), buffer.size(), 0) == static_cast<int>(buffer.size()));
+
+            prinbee::virtual_buffer::pointer_t n(std::make_shared<prinbee::virtual_buffer>());
+            n->pwrite(buffer.data(), buffer.size(), 0, true);
+
+            prinbee::structure::pointer_t d(std::make_shared<prinbee::structure>(g_description9));
+            d->set_virtual_buffer(n, 0);
+
+            CATCH_REQUIRE(d->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+            CATCH_REQUIRE(d->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+            CATCH_REQUIRE(d->get_string("name") == name);
+            CATCH_REQUIRE(d->get_string("comment") == comment_field);
+
+            array = d->get_array("columns");
+            CATCH_REQUIRE(array.size() == 1);
+            CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+            CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+            CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        }
+
+        // column #2
+        //
+        prinbee::structure::pointer_t column2(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column2->get_string("colname") == "_undefined");
+        std::string const column2_name("wide_col2_long_name_here");
+        column2->set_string("colname", column2_name);
+        CATCH_REQUIRE(column2->get_string("colname") == column2_name);
+
+        CATCH_REQUIRE(column2->get_uinteger("max_size") == 256);
+        std::uint16_t column2_max_size(0);
+        SNAP_CATCH2_NAMESPACE::random(column2_max_size);
+        column2->set_uinteger("max_size", column2_max_size);
+        CATCH_REQUIRE(column2->get_uinteger("max_size") == column2_max_size);
+
+        CATCH_REQUIRE(column2->get_uinteger("type") == 14);
+        std::uint16_t column2_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column2_type);
+        column2->set_uinteger("type", column2_type);
+        CATCH_REQUIRE(column2->get_uinteger("type") == column2_type);
+
+        // make sure the root & column1 were not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+
+        // now change the root structure (name) and make sure that column #1 is still fine
+        //
+        name = "smaller_name_this_time";
+        description->set_string("name", name);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+
+        // change the root structure again (comment) and make sure that column #1 is still fine
+        //
+        comment_field = "So many ALTER happening here! I just can't believe it's all working.";
+        description->set_string("comment", comment_field);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+
+        {
+            prinbee::reference_t start_offset(0);
+            prinbee::virtual_buffer::pointer_t b(description->get_virtual_buffer(start_offset));
+            CATCH_REQUIRE(b != nullptr);
+            CATCH_REQUIRE(b->size() == description->get_current_size());
+
+            prinbee::buffer_t buffer(b->size());
+            CATCH_REQUIRE(b->pread(buffer.data(), buffer.size(), 0) == static_cast<int>(buffer.size()));
+
+            prinbee::virtual_buffer::pointer_t n(std::make_shared<prinbee::virtual_buffer>());
+            n->pwrite(buffer.data(), buffer.size(), 0, true);
+
+            prinbee::structure::pointer_t d(std::make_shared<prinbee::structure>(g_description9));
+            d->set_virtual_buffer(n, 0);
+
+            CATCH_REQUIRE(d->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+            CATCH_REQUIRE(d->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+            CATCH_REQUIRE(d->get_string("name") == name);
+            CATCH_REQUIRE(d->get_string("comment") == comment_field);
+
+            array = d->get_array("columns");
+            CATCH_REQUIRE(array.size() == 2);
+            CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+            CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+            CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+            CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+            CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+            CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+        }
+
+        // column #3
+        //
+        prinbee::structure::pointer_t column3(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column3->get_string("colname") == "_undefined");
+        std::string const column3_name("col3__here");
+        column3->set_string("colname", column3_name);
+        CATCH_REQUIRE(column3->get_string("colname") == column3_name);
+
+        CATCH_REQUIRE(column3->get_uinteger("max_size") == 256);
+        std::uint16_t column3_max_size(0);
+        SNAP_CATCH2_NAMESPACE::random(column3_max_size);
+        column3->set_uinteger("max_size", column3_max_size);
+        CATCH_REQUIRE(column3->get_uinteger("max_size") == column3_max_size);
+
+        CATCH_REQUIRE(column3->get_uinteger("type") == 14);
+        std::uint16_t column3_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column3_type);
+        column3->set_uinteger("type", column3_type);
+        CATCH_REQUIRE(column3->get_uinteger("type") == column3_type);
+
+        // make sure the root & column 1/2 are not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 3);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(column1->get_string("colname") == column1_name);
+        CATCH_REQUIRE(column1->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(column1->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(column2->get_string("colname") == column2_name);
+        CATCH_REQUIRE(column2->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(column2->get_uinteger("type") == column2_type);
+        CATCH_REQUIRE(array[2] == column3);
+        CATCH_REQUIRE(column3->get_string("colname") == column3_name);
+        CATCH_REQUIRE(column3->get_uinteger("max_size") == column3_max_size);
+        CATCH_REQUIRE(column3->get_uinteger("type") == column3_type);
+
+        // now change the root structure (name) and make sure that column #1 is still fine
+        //
+        name = "pretty_much_final_name";
+        description->set_string("name", name);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 3);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+        CATCH_REQUIRE(array[2] == column3);
+        CATCH_REQUIRE(array[2]->get_string("colname") == column3_name);
+        CATCH_REQUIRE(array[2]->get_uinteger("max_size") == column3_max_size);
+        CATCH_REQUIRE(array[2]->get_uinteger("type") == column3_type);
+
+        // change the root structure again (comment) and make sure that column #1 is still fine
+        //
+        comment_field = "Final comment.";
+        description->set_string("comment", comment_field);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 3);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+        CATCH_REQUIRE(array[2] == column3);
+        CATCH_REQUIRE(array[2]->get_string("colname") == column3_name);
+        CATCH_REQUIRE(array[2]->get_uinteger("max_size") == column3_max_size);
+        CATCH_REQUIRE(array[2]->get_uinteger("type") == column3_type);
+//{
+//prinbee::reference_t start_offset(0);
+//prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+//std::cout << std::flush << "column3 at the end -- buffer start offset: " << start_offset << "\n" << *buffer << std::endl;
+//description->display_offsets();
+//}
+        {
+            prinbee::reference_t start_offset(0);
+            prinbee::virtual_buffer::pointer_t b(description->get_virtual_buffer(start_offset));
+            CATCH_REQUIRE(b != nullptr);
+            CATCH_REQUIRE(b->size() == description->get_current_size());
+
+            prinbee::buffer_t buffer(b->size());
+            CATCH_REQUIRE(b->pread(buffer.data(), buffer.size(), 0) == static_cast<int>(buffer.size()));
+
+            prinbee::virtual_buffer::pointer_t n(std::make_shared<prinbee::virtual_buffer>());
+            n->pwrite(buffer.data(), buffer.size(), 0, true);
+
+            prinbee::structure::pointer_t d(std::make_shared<prinbee::structure>(g_description9));
+            d->set_virtual_buffer(n, 0);
+
+            CATCH_REQUIRE(d->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+            CATCH_REQUIRE(d->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+            CATCH_REQUIRE(d->get_string("name") == name);
+            CATCH_REQUIRE(d->get_string("comment") == comment_field);
+
+            array = d->get_array("columns");
+            CATCH_REQUIRE(array.size() == 3);
+            CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+            CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+            CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+            CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+            CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+            CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+            CATCH_REQUIRE(array[2]->get_string("colname") == column3_name);
+            CATCH_REQUIRE(array[2]->get_uinteger("max_size") == column3_max_size);
+            CATCH_REQUIRE(array[2]->get_uinteger("type") == column3_type);
+        }
     }
     CATCH_END_SECTION()
 }
@@ -2259,7 +3981,7 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("structure: structure version missing in description")
+    CATCH_START_SECTION("structure_invalid: structure version missing in description")
     {
         CATCH_REQUIRE_THROWS_MATCHES(
                   std::make_shared<prinbee::structure>(g_description4a)
@@ -2268,7 +3990,7 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("structure: magic missing in description")
+    CATCH_START_SECTION("structure_invalid: magic missing in description")
     {
         CATCH_REQUIRE_THROWS_MATCHES(
                   std::make_shared<prinbee::structure>(g_description4b)
@@ -2277,7 +3999,7 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("structure: invalid CHAR size (missing equal)")
+    CATCH_START_SECTION("structure_invalid: invalid CHAR size (missing equal)")
     {
         prinbee::struct_description_t description = {
             .f_field_name = "char123",
@@ -2300,7 +4022,7 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("structure: invalid CHAR size (size too large)")
+    CATCH_START_SECTION("structure_invalid: invalid CHAR size (size too large)")
     {
         prinbee::struct_description_t description = {
             .f_field_name = "char=9999999999999999999",
@@ -2313,6 +4035,201 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
                 , Catch::Matchers::ExceptionMessage(
                         "prinbee_exception: the size in field"
                         " \"char=9999999999999999999\" must be a valid decimal number."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get unknown field")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description9));
+        description->init_buffer();
+
+        try
+        {
+            description->get_field("unknown.field.name");
+            throw prinbee::logic_error("the expected exception did not occur.");
+        }
+        catch(prinbee::field_not_found const & e)
+        {
+            CATCH_REQUIRE(e.what() == std::string("prinbee_exception: this description does not include a field named \"unknown\"."));
+            CATCH_REQUIRE(e.get_parameter("field_name") == "unknown");
+            CATCH_REQUIRE(e.get_parameter("full_field_name") == "unknown.field.name");
+        }
+
+        //CATCH_REQUIRE_THROWS_MATCHES(
+        //          description->get_field("unknown.field.name")
+        //        , prinbee::field_not_found
+        //        , Catch::Matchers::ExceptionMessage(
+        //                "prinbee_exception: this description does not include a field named \"unknown\"."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get unknown field with a sub-name")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description5));
+        description->init_buffer();
+
+        try
+        {
+            description->get_field("early_version.field");
+            throw prinbee::logic_error("the expected exception did not occur.");
+        }
+        catch(prinbee::field_not_found const & e)
+        {
+            CATCH_REQUIRE(e.what() == std::string("prinbee_exception: this description does not include a field named \"field\"."));
+            CATCH_REQUIRE(e.get_parameter("field_name") == "field");
+            CATCH_REQUIRE(e.get_parameter("full_field_name") == "early_version.field");
+        }
+
+        //CATCH_REQUIRE_THROWS_MATCHES(
+        //          description->get_field("early_version.field")
+        //        , prinbee::field_not_found
+        //        , Catch::Matchers::ExceptionMessage(
+        //                "prinbee_exception: this description does not include a field named \"field\"."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get field with wrong type")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description5));
+        description->init_buffer();
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_field("early_version.size", prinbee::struct_type_t::STRUCT_TYPE_UINT16)
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this field type is \""
+                        + prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT8)
+                        + "\" but we expected \""
+                        + prinbee::to_string(prinbee::struct_type_t::STRUCT_TYPE_UINT16)
+                        + "\"."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get field with wrong type")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description5));
+        description->init_buffer();
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_field("data.bad_type", prinbee::struct_type_t::STRUCT_TYPE_UINT16)
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: field \"data\" is not of"
+                          " type structure or bit field so you can't get a"
+                          " sub-field (i.e. have a period in the name)."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get field.flag with wrong flag name")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description3));
+        description->init_buffer();
+
+        try
+        {
+            description->get_field("eight_bits.unknown_flag");
+            throw prinbee::logic_error("the expected exception did not occur.");
+        }
+        catch(prinbee::field_not_found const & e)
+        {
+            CATCH_REQUIRE(e.what() == std::string("prinbee_exception: flag named \"unknown_flag\" not found."));
+            CATCH_REQUIRE(e.get_parameter("flag_name") == "unknown_flag");
+        }
+
+        //CATCH_REQUIRE_THROWS_MATCHES(
+        //          description->get_field("eight_bits.unknown_flag")
+        //        , prinbee::field_not_found
+        //        , Catch::Matchers::ExceptionMessage(
+        //                  "prinbee_exception: flag named \"unknown_flag\" not found."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get field.flag with wrong type")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description3));
+        description->init_buffer();
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_field("eight_bits.efficient", prinbee::struct_type_t::STRUCT_TYPE_BITS16)
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this field type is \"BITS8\" but"
+                          " we expected \"BITS16\"."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get flag with flag name missing")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description3));
+        description->init_buffer();
+
+        prinbee::field_t::pointer_t f;
+        try
+        {
+            description->get_flag("eight_bits", f);
+            throw prinbee::logic_error("the expected exception did not occur.");
+        }
+        catch(prinbee::field_not_found const & e)
+        {
+            CATCH_REQUIRE(e.what() == std::string(
+                    "prinbee_exception: flag named \"eight_bits\" must"
+                    " at least include a field name and a flag name."));
+            CATCH_REQUIRE(e.get_parameter("flag_name") == "eight_bits");
+        }
+
+        //CATCH_REQUIRE_THROWS_MATCHES(
+        //          description->get_flag("eight_bits", f)
+        //        , prinbee::field_not_found
+        //        , Catch::Matchers::ExceptionMessage(
+        //                  "prinbee_exception: flag named \"eight_bits\" must"
+        //                  " at least include a field name and a flag name."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get flag with UINT32 type")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description3));
+        description->init_buffer();
+
+        prinbee::field_t::pointer_t f;
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_flag("sub_field.efficient", f)
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: expected a field of type"
+                          " BITS<size> for flag named \"sub_field.efficient\"."
+                          " Got a UINT32 instead."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get field which is RENAMED with an invalid destination name")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description10));
+        description->init_buffer();
+
+        prinbee::field_t::pointer_t f;
+        try
+        {
+            description->get_field("buffer_size");
+            throw prinbee::logic_error("the expected exception did not occur.");
+        }
+        catch(prinbee::field_not_found const & e)
+        {
+            CATCH_REQUIRE(e.what() == std::string("prinbee_exception: this description renames field"
+                          " \"buffer_size\" to \"unknown\" but we could not"
+                          " find the latter field."));
+            CATCH_REQUIRE(e.get_parameter("field_name") == "buffer_size");
+            CATCH_REQUIRE(e.get_parameter("new_name") == "unknown");
+            CATCH_REQUIRE(e.get_parameter("full_field_name") == "buffer_size");
+        }
+
+        //CATCH_REQUIRE_THROWS_MATCHES(
+        //          description->get_field("buffer_size")
+        //        , prinbee::field_not_found
+        //        , Catch::Matchers::ExceptionMessage(
+        //                  "prinbee_exception: this description renames field"
+        //                  " \"buffer_size\" to \"unknown\" but we could not"
+        //                  " find the latter field."));
     }
     CATCH_END_SECTION()
 }

@@ -61,6 +61,8 @@ struct int512_t
     int                             compare(int512_t const & rhs) const;
 
     std::size_t                     bit_size() const;
+    void                            lsl(int count);
+    void                            asr(int count);
     std::string                     to_string(int base = 10, bool introducer = false, bool uppercase = false) const;
 
     int512_t                        operator - () const;
@@ -68,6 +70,19 @@ struct int512_t
     int512_t &                      operator += (std::int64_t rhs);
     int512_t &                      operator -= (int512_t const & rhs);
     int512_t &                      operator -= (std::int64_t rhs);
+    int512_t &                      operator <<= (int shift);
+    int512_t                        operator << (int shift) const;
+    int512_t &                      operator >>= (int shift);
+    int512_t                        operator >> (int shift) const;
+    int512_t                        operator & (int512_t const & rhs) const;
+    int512_t                        operator & (std::int64_t rhs) const;
+    int512_t &                      operator &= (int512_t const & rhs);
+    int512_t                        operator | (int512_t const & rhs) const;
+    int512_t                        operator | (std::int64_t rhs) const;
+    int512_t &                      operator |= (int512_t const & rhs);
+    int512_t                        operator ^ (int512_t const & rhs) const;
+    int512_t                        operator ^ (std::int64_t rhs) const;
+    int512_t &                      operator ^= (int512_t const & rhs);
 
     int512_t &                      operator ++ ();
     int512_t &                      operator -- ();

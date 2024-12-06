@@ -822,10 +822,12 @@ flag_definition::pointer_t field_t::find_flag_definition(std::string const & nam
     auto const & flag(f_flag_definitions.find(name));
     if(flag == f_flag_definitions.end())
     {
-        throw field_not_found(
+        field_not_found e(
                   "flag named \""
                 + name
                 + "\" not found.");
+        e.set_parameter("flag_name", name);
+        throw e;
     }
 
     return flag->second;
@@ -934,14 +936,18 @@ void structure::set_block(block::pointer_t b, std::uint64_t offset, std::uint64_
 
 void structure::init_buffer()
 {
-    f_buffer = std::make_shared<virtual_buffer>();
-    f_start_offset = 0;
-
     std::size_t const size(parse());
 
+    f_buffer = std::make_shared<virtual_buffer>();
     buffer_t d(size);
     f_buffer->pwrite(d.data(), size, 0, true);
 
+    set_defaults();
+}
+
+
+void structure::set_defaults()
+{
     for(struct_description_t const * def(f_descriptions);
         def->f_type != struct_type_t::STRUCT_TYPE_END;
         ++def)
@@ -958,16 +964,6 @@ void structure::init_buffer()
                 // the structure version field name must be valid as is
                 //
                 field_t::pointer_t f(find_field(def->f_field_name));
-                if(f == nullptr)
-                {
-                    // LCOV_EXCL_START
-                    throw field_not_found(
-                              "field named \""
-                            + std::string(def->f_field_name)
-                            + "\" not found.");
-                    // LCOV_EXCL_STOP
-                }
-
                 buffer_t const value(string_to_typed_buffer(struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION, def->f_min_version.to_string()));
                 f_buffer->pwrite(value.data(), value.size(), f->offset());
             }
@@ -978,15 +974,6 @@ void structure::init_buffer()
             //
             char const * equal(strchrnul(def->f_field_name, '='));
             field_t::pointer_t f(find_field(std::string(def->f_field_name, equal)));
-            if(f == nullptr)
-            {
-                // LCOV_EXCL_START
-                throw field_not_found(
-                          "field named \""
-                        + std::string(def->f_field_name)
-                        + "\" not found.");
-                // LCOV_EXCL_STOP
-            }
 
             // TODO: when we change the length of a string, array, buffer,
             //       then the later offsets need to be adjusted (I think they
@@ -1186,7 +1173,7 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
     if(field_name.empty())
     {
         throw logic_error(
-                  "called get_field() with an empty field name.");
+                  "called structure::get_field() with an empty field name.");
     }
 
     // make sure we parsed the descriptions
@@ -1198,25 +1185,40 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
     char const * n(field_name.c_str());
     for(;;)
     {
-        // Note: at this time we do not support accessing arrays (i.e. having
-        // '[<index>]') because I don't see the point since indexes need to
-        // be dynamic pretty much 100% of the time
+        // Note: if the name includes an equal, we treat it like a NUL at
+        //       the end of the string (i.e. char_field=32)
+        //
+        // Note: at this time, we do not support accessing arrays (i.e. having
+        //       '[<index>]') because I don't see the point since indexes need to
+        //       be dynamic pretty much 100% of the time
         //
         char const * e(n);
-        while(*e != '.' && *e != '\0')
+        while(*e != '.' && *e != '=' && *e != '\0')
         {
             ++e;
         }
         std::string const sub_field_name(n, e - n);
-        f = s->find_field(sub_field_name);
-        if(f == nullptr)
+
+        // catch the "not found" errors so we can put the full name of the
+        // field in the message
+        //
+        try
         {
-            throw field_not_found(
-                      "this description does not include a field named \""
-                    + field_name.substr(0, e - field_name.c_str())
-                    + "\".");
+            f = s->find_field(sub_field_name);
         }
-        if(*e == '\0')
+        catch(field_not_found & not_found)
+        {
+            not_found.set_parameter("full_field_name", field_name);
+            throw not_found;
+        }
+        // LCOV_EXCL_START
+        catch(...)
+        {
+            throw;
+        }
+        // LCOV_EXCL_STOP
+        if(*e == '='
+        || *e == '\0')
         {
             if(type != struct_type_t::STRUCT_TYPE_END
             && f->type() != type)
@@ -1232,7 +1234,7 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
             return f;
         }
 
-        switch(f->description()->f_type)
+        switch(f->type())
         {
         case struct_type_t::STRUCT_TYPE_STRUCTURE:
             break;
@@ -1247,34 +1249,43 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
             // the sub-name is not a field name, it's a flag name in this case
             //
             {
-                std::string flag_name(e + 1);
-                flag_definition::pointer_t flag(s->get_flag(flag_name, f));
-                if(flag == nullptr)
+                flag_definition::pointer_t flag(f->find_flag_definition(e + 1));
+                if(type != struct_type_t::STRUCT_TYPE_END
+                && f->type() != type)
                 {
-                    throw field_not_found(
-                              "this description field does not include a flag named \""
-                            + flag_name
+                    throw type_mismatch(
+                              "this field type is \""
+                            + to_string(f->type())
+                            + "\" but we expected \""
+                            + to_string(type)
                             + "\".");
                 }
                 return f;
-            }
+            } // LCOV_EXCL_LINE
 
         default:
             throw type_mismatch(
                       "field \""
                     + sub_field_name
-                    + "\" is not of type structure so you can't get a"
-                      " sub-field (i.e. have a period in the name).");
+                    + "\" is not of type structure or bit field so you can't"
+                      " get a sub-field (i.e. have a period in the name).");
 
         }
 
+#ifdef _DEBUG
+        // since we test the type above, not having a sub-structure of 1
+        // should just never happen
+        //
         if(f->sub_structures().size() != 1)
         {
+            // LCOV_EXCL_START
             throw invalid_size(
                       "a structure requires a sub_structure vector of size 1 (got "
                     + std::to_string(f->sub_structures().size())
                     + " instead).");
+            // LCOV_EXCL_STOP
         }
+#endif
 
         s = (*f)[0];
         n = e + 1;  // +1 to skip the '.'
@@ -1292,10 +1303,12 @@ flag_definition::pointer_t structure::get_flag(std::string const & flag_name, fi
     }
     if(e == s)
     {
-        throw field_not_found(
+        field_not_found not_found(
                   "flag named \""
                 + flag_name
                 + "\" must at least include a field name and a flag name.");
+        not_found.set_parameter("flag_name", flag_name);
+        throw not_found;
     }
 
     std::string const field_name(s, e - s);
@@ -1317,7 +1330,7 @@ flag_definition::pointer_t structure::get_flag(std::string const & flag_name, fi
     default:
         // incorrect type
         //
-        throw field_not_found(
+        throw type_mismatch(
                   "expected a field of type BITS<size> for flag named \""
                 + flag_name
                 + "\". Got a "
@@ -1337,10 +1350,12 @@ field_t::pointer_t structure::find_field(std::string const & field_name)
         // (if we change a description to still include old fields, we need
         // to have a way to point to the new field--see the RENAMED flag).
         //
-        throw field_not_found(
+        field_not_found e(
                   "this description does not include a field named \""
                 + field_name
                 + "\".");
+        e.set_parameter("field_name", field_name);
+        throw e;
     }
 
     field_t::pointer_t f(field->second);
@@ -1350,12 +1365,15 @@ field_t::pointer_t structure::find_field(std::string const & field_name)
         field = f_fields_by_name.find(new_name);
         if(field == f_fields_by_name.end())
         {
-            throw field_not_found(
+            field_not_found e(
                       "this description renames field \""
                     + field_name
                     + "\" to \""
                     + new_name
                     + "\" but we could not find the latter field.");
+            e.set_parameter("field_name", field_name);
+            e.set_parameter("new_name", new_name);
+            throw e;
         }
         f = field->second;
 
@@ -1371,7 +1389,7 @@ field_t::pointer_t structure::find_field(std::string const & field_name)
     }
 
     return f;
-}
+} // LCOV_EXCL_LINE
 
 
 std::int64_t structure::get_integer(std::string const & field_name) const
@@ -1384,21 +1402,21 @@ std::int64_t structure::get_integer(std::string const & field_name) const
     {
     case struct_type_t::STRUCT_TYPE_INT8:
         {
-            int8_t value(0);
+            std::int8_t value(0);
             f_buffer->pread(&value, sizeof(value), f->offset());
             return value;
         }
 
     case struct_type_t::STRUCT_TYPE_INT16:
         {
-            int16_t value(0);
+            std::int16_t value(0);
             f_buffer->pread(&value, sizeof(value), f->offset());
             return value;
         }
 
     case struct_type_t::STRUCT_TYPE_INT32:
         {
-            int32_t value(0);
+            std::int32_t value(0);
             f_buffer->pread(&value, sizeof(value), f->offset());
             return value;
         }
@@ -1408,7 +1426,7 @@ std::int64_t structure::get_integer(std::string const & field_name) const
     case struct_type_t::STRUCT_TYPE_MSTIME:
     case struct_type_t::STRUCT_TYPE_USTIME:
         {
-            int64_t value(0);
+            std::int64_t value(0);
             f_buffer->pread(&value, sizeof(value), f->offset());
             return value;
         }
@@ -1426,9 +1444,9 @@ std::int64_t structure::get_integer(std::string const & field_name) const
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_INT64)
                 + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_TIME)
-                + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_MSTIME)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_TIME)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_USTIME)
                 + "\".");
@@ -1475,7 +1493,7 @@ void structure::set_integer(std::string const & field_name, std::int64_t value)
 
     default:
         throw type_mismatch(
-                  "This description type is \""
+                  "this description type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -1486,9 +1504,9 @@ void structure::set_integer(std::string const & field_name, std::int64_t value)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_INT64)
                 + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_TIME)
-                + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_MSTIME)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_TIME)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_USTIME)
                 + "\".");
@@ -1544,7 +1562,7 @@ std::uint64_t structure::get_uinteger(std::string const & field_name) const
 
     default:
         throw type_mismatch(
-                  "This description type is \""
+                  "this description type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1555,19 +1573,23 @@ std::uint64_t structure::get_uinteger(std::string const & field_name) const
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_BITS64)
                 + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_MAGIC)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_OID)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_REFERENCE)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT8)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT16)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT32)
                 + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_VERSION)
-                + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT64)
                 + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_REFERENCE)
-                + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_OID)
+                + to_string(struct_type_t::STRUCT_TYPE_VERSION)
                 + "\".");
 
     }
@@ -1627,19 +1649,19 @@ void structure::set_uinteger(std::string const & field_name, std::uint64_t value
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_BITS64)
                 + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_OID)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_REFERENCE)
+                + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT8)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT16)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT32)
                 + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_VERSION)
-                + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT64)
                 + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_REFERENCE)
-                + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_OID)
+                + to_string(struct_type_t::STRUCT_TYPE_VERSION)
                 + "\".");
 
     }
@@ -1685,7 +1707,7 @@ std::uint64_t structure::get_bits(std::string const & flag_name) const
 
     default:
         throw type_mismatch(
-                  "This description type is \""
+                  "this description type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1718,7 +1740,7 @@ void structure::set_bits(std::string const & flag_name, std::uint64_t value)
 
     default:
         throw type_mismatch(
-                  "This description type is \""
+                  "this description type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1735,7 +1757,7 @@ void structure::set_bits(std::string const & flag_name, std::uint64_t value)
     if((value & (flag->mask() >> flag->pos())) != value)
     {
         throw invalid_number(
-                  "Value \""
+                  "value \""
                 + std::to_string(value)
                 + "\" does not fit in flag field \""
                 + flag->full_name()
@@ -1816,6 +1838,7 @@ sign_extend_64bit:
         goto sign_extend_64bit;
 
     case struct_type_t::STRUCT_TYPE_INT128:
+    case struct_type_t::STRUCT_TYPE_NSTIME:
         f_buffer->pread(&result.f_value, sizeof(int64_t) * 2, f->offset());
 
         result.f_value[2] = static_cast<int64_t>(result.f_value[1]) < 0
@@ -1845,7 +1868,7 @@ sign_extend_64bit:
 
     default:
         throw type_mismatch(
-                  "This description type is \""
+                  "this description type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -1862,9 +1885,11 @@ sign_extend_64bit:
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_INT512)
                 + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_TIME)
-                + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_MSTIME)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_NSTIME)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_TIME)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_USTIME)
                 + "\".");
@@ -1885,18 +1910,19 @@ void structure::set_large_integer(std::string const & field_name, int512_t value
     case struct_type_t::STRUCT_TYPE_INT16:
     case struct_type_t::STRUCT_TYPE_INT32:
     case struct_type_t::STRUCT_TYPE_INT64:
-    case struct_type_t::STRUCT_TYPE_TIME:
-    case struct_type_t::STRUCT_TYPE_MSTIME:
-    case struct_type_t::STRUCT_TYPE_USTIME:
     case struct_type_t::STRUCT_TYPE_INT128:
     case struct_type_t::STRUCT_TYPE_INT256:
     case struct_type_t::STRUCT_TYPE_INT512:
+    case struct_type_t::STRUCT_TYPE_MSTIME:
+    case struct_type_t::STRUCT_TYPE_NSTIME:
+    case struct_type_t::STRUCT_TYPE_TIME:
+    case struct_type_t::STRUCT_TYPE_USTIME:
         f_buffer->pwrite(value.f_value, f->size(), f->offset());
         return;
 
     default:
         throw type_mismatch(
-                  "This description type is \""
+                  "this description type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -1913,9 +1939,11 @@ void structure::set_large_integer(std::string const & field_name, int512_t value
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_INT512)
                 + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_TIME)
-                + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_MSTIME)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_NSTIME)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_TIME)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_USTIME)
                 + "\".");
@@ -1934,24 +1962,30 @@ uint512_t structure::get_large_uinteger(std::string const & field_name) const
     switch(f->type())
     {
     case struct_type_t::STRUCT_TYPE_BITS8:
-    case struct_type_t::STRUCT_TYPE_UINT8:
     case struct_type_t::STRUCT_TYPE_BITS16:
-    case struct_type_t::STRUCT_TYPE_UINT16:
     case struct_type_t::STRUCT_TYPE_BITS32:
-    case struct_type_t::STRUCT_TYPE_UINT32:
     case struct_type_t::STRUCT_TYPE_BITS64:
-    case struct_type_t::STRUCT_TYPE_UINT64:
+    case struct_type_t::STRUCT_TYPE_BITS128:
+    case struct_type_t::STRUCT_TYPE_BITS256:
+    case struct_type_t::STRUCT_TYPE_BITS512:
+    case struct_type_t::STRUCT_TYPE_MAGIC:
     case struct_type_t::STRUCT_TYPE_REFERENCE:
     case struct_type_t::STRUCT_TYPE_OID:
+    case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
+    case struct_type_t::STRUCT_TYPE_UINT8:
+    case struct_type_t::STRUCT_TYPE_UINT16:
+    case struct_type_t::STRUCT_TYPE_UINT32:
+    case struct_type_t::STRUCT_TYPE_UINT64:
     case struct_type_t::STRUCT_TYPE_UINT128:
     case struct_type_t::STRUCT_TYPE_UINT256:
     case struct_type_t::STRUCT_TYPE_UINT512:
+    case struct_type_t::STRUCT_TYPE_VERSION:
         f_buffer->pread(&result.f_value, f->size(), f->offset());
         break;
 
     default:
         throw type_mismatch(
-                  "This description type is \""
+                  "this description type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1961,6 +1995,14 @@ uint512_t structure::get_large_uinteger(std::string const & field_name) const
                 + to_string(struct_type_t::STRUCT_TYPE_BITS32)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_BITS64)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_MAGIC)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_OID)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_REFERENCE)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT8)
                 + ", "
@@ -1976,9 +2018,7 @@ uint512_t structure::get_large_uinteger(std::string const & field_name) const
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT512)
                 + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_REFERENCE)
-                + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_OID)
+                + to_string(struct_type_t::STRUCT_TYPE_VERSION)
                 + "\".");
 
     }
@@ -1999,6 +2039,11 @@ void structure::set_large_uinteger(std::string const & field_name, uint512_t val
     case struct_type_t::STRUCT_TYPE_BITS16:
     case struct_type_t::STRUCT_TYPE_BITS32:
     case struct_type_t::STRUCT_TYPE_BITS64:
+    case struct_type_t::STRUCT_TYPE_BITS128:
+    case struct_type_t::STRUCT_TYPE_BITS256:
+    case struct_type_t::STRUCT_TYPE_BITS512:
+    case struct_type_t::STRUCT_TYPE_OID:
+    case struct_type_t::STRUCT_TYPE_REFERENCE:
     case struct_type_t::STRUCT_TYPE_UINT8:
     case struct_type_t::STRUCT_TYPE_UINT16:
     case struct_type_t::STRUCT_TYPE_UINT32:
@@ -2006,14 +2051,13 @@ void structure::set_large_uinteger(std::string const & field_name, uint512_t val
     case struct_type_t::STRUCT_TYPE_UINT128:
     case struct_type_t::STRUCT_TYPE_UINT256:
     case struct_type_t::STRUCT_TYPE_UINT512:
-    case struct_type_t::STRUCT_TYPE_REFERENCE:
-    case struct_type_t::STRUCT_TYPE_OID:
+    case struct_type_t::STRUCT_TYPE_VERSION:
         f_buffer->pwrite(value.f_value, f->size(), f->offset());
         break;
 
     default:
         throw type_mismatch(
-                  "This description type is \""
+                  "this description type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -2023,6 +2067,10 @@ void structure::set_large_uinteger(std::string const & field_name, uint512_t val
                 + to_string(struct_type_t::STRUCT_TYPE_BITS32)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_BITS64)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_OID)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_REFERENCE)
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT8)
                 + ", "
@@ -2038,9 +2086,7 @@ void structure::set_large_uinteger(std::string const & field_name, uint512_t val
                 + ", "
                 + to_string(struct_type_t::STRUCT_TYPE_UINT512)
                 + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_REFERENCE)
-                + ", "
-                + to_string(struct_type_t::STRUCT_TYPE_OID)
+                + to_string(struct_type_t::STRUCT_TYPE_VERSION)
                 + "\".");
 
     }
@@ -2135,7 +2181,7 @@ std::string structure::get_string(std::string const & field_name) const
 
     default:
         throw string_not_terminated(
-                  "This field was expected to be a string it is a \""
+                  "this field was expected to be a string it is a \""
                 + to_string(f->type())
                 + "\" instead.");
 
@@ -2148,10 +2194,14 @@ std::string structure::get_string(std::string const & field_name) const
     if(length != f->size())
     {
         throw logic_error(
-                  "The size of this string field ("
+                  "the size of string field \""
+                + field_name
+                + "\" ("
                 + std::to_string(f->size())
                 + ") is different from the size found in the file ("
                 + std::to_string(field_size)
+                + " found at offset "
+                + std::to_string(f->offset())
                 + ").");
     }
 
@@ -2302,7 +2352,7 @@ void structure::set_structure(std::string const & field_name, structure::pointer
                 + " instead).");
     }
 
-    if(f->sub_structures().size())
+    if(f->sub_structures().empty()) // as per the above test, this is not possible at the moment, but TBD
     {
         f->sub_structures().push_back(value);
     }
@@ -2339,6 +2389,13 @@ structure::vector_t structure::get_array(std::string const & field_name) const
 structure::pointer_t structure::new_array_item(std::string const & field_name)
 {
     auto f(get_field(field_name));
+    if(f == nullptr)
+    {
+        throw logic_error(
+                  "could not find field \""
+                + field_name
+                + "\".");
+    }
 
     std::uint64_t size(0);
     std::uint64_t max(0);
@@ -2399,11 +2456,12 @@ structure::pointer_t structure::new_array_item(std::string const & field_name)
     // returns)
     //
     structure::pointer_t s(std::make_shared<structure>(f->description()->f_sub_description, shared_from_this()));
-    reference_t const new_offset(s->parse_descriptions(offset));
+    s->f_start_offset = offset;
+    reference_t const new_offset(s->parse());
 
     // now add the buffer area for that new sub-structure
     //
-    size_t const add(s->get_current_size());
+    std::size_t const add(s->get_current_size());
 #ifdef _DEBUG
     if(add != new_offset - offset)
     {
@@ -2436,17 +2494,26 @@ structure::pointer_t structure::new_array_item(std::string const & field_name)
         break;
 
     default:
-        // ignore, we already throw above
+        // we already throw above so we should never reach this point
+        //
+        snapdev::NOT_REACHED();
         break;
 
     }
 
-    adjust_offsets(f->offset(), new_offset - offset);
+    adjust_offsets(offset - 1, new_offset - offset);
+    //adjust_offsets(f->offset(), new_offset - offset);
 
     // WARNING: for the adjust_offsets() to work properly we MUST have this
     //          push_back() after it; otherwise the sub-fields would also
     //          get moved
+    //
     f->sub_structures().push_back(s);
+
+    // setting default strings will adjust the offsets again so we have to
+    // do that after we already made adjustments for adding this sub-structure
+    //
+    s->set_defaults();
 
     verify_buffer_size();
 
@@ -2497,7 +2564,7 @@ buffer_t structure::get_buffer(std::string const & field_name) const
     }
 
     ssize_t const field_size(f->type_field_size());
-    uint32_t size(0);
+    std::uint32_t size(0);
     f_buffer->pread(&size, field_size, f->offset());
     if(size != f->size())
     {
@@ -2536,8 +2603,8 @@ void structure::set_buffer(std::string const & field_name, buffer_t const & valu
     }
 
     ssize_t const field_size(f->type_field_size());
-    uint64_t const max(1ULL << (field_size * 8));
-    uint64_t const size(value.size());
+    std::uint64_t const max(1ULL << (field_size * 8));
+    std::uint64_t const size(value.size());
     if(size >= max)
     {
         throw out_of_range(
@@ -2962,7 +3029,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
                         }
                     }
                 }
-                flag_definition::pointer_t bits(std::make_shared<flag_definition>(field_name, flag_name, bit_pos, size));
+                flag_definition::pointer_t bits(std::make_shared<flag_definition>(field_name.substr(0, pos), flag_name, bit_pos, size));
                 f->add_flag_definition(bits);
 
                 bit_pos += size;
@@ -2984,6 +3051,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             field_name = field_name.substr(0, pos);
         }
 
+SNAP_LOG_WARNING << "--- saving field named [" << field_name << "]" << SNAP_LOG_SEND;
         const_cast<structure *>(this)->f_fields_by_name[field_name] = f;
 
         previous = f;
@@ -3015,7 +3083,7 @@ void structure::adjust_offsets(reference_t offset_cutoff, std::int64_t diff)
         s = p;
     }
 
-    // we can't use auto to a recursive lambda function
+    // we can't use auto and call a lambda function recursively
     //
     typedef std::function<void(pointer_t)>     func_t;
     func_t adjust = [&](pointer_t p)
@@ -3035,6 +3103,72 @@ void structure::adjust_offsets(reference_t offset_cutoff, std::int64_t diff)
         };
 
     adjust(s);
+}
+
+
+void structure::display_offsets() const
+{
+    pointer_t s(const_cast<structure *>(this)->shared_from_this());
+
+    // we can't use auto and call a lambda function recursively
+    //
+    typedef std::function<void(pointer_t, int, std::string)> func_t;
+    func_t display = [&](pointer_t p, std::string::size_type indent, std::string const & index)
+        {
+            // we want to show the fields in the order they are defined
+            // (i.e. that way the offsets increment as expected and it's
+            // easier for the programmer to see possible issues)
+            //
+            std::string prefix(indent, ' ');
+            prefix += index;
+            for(struct_description_t const * def(p->f_descriptions);
+                    def->f_type != struct_type_t::STRUCT_TYPE_END;
+                    ++def)
+            {
+                auto const f(p->get_field(def->f_field_name));
+                if(f == nullptr)
+                {
+                    std::cout << std::flush;
+                    SNAP_LOG_SEVERE
+                        << "could not find field \""
+                        << def->f_field_name
+                        << "\" in this structure."
+                        << SNAP_LOG_SEND;
+                    continue;
+                }
+
+                std::cout
+                    << prefix
+                    << f->field_name();
+                if(def->f_type == struct_type_t::STRUCT_TYPE_RENAMED)
+                {
+                    std::cout
+                        << " -> "
+                        << f->new_name();
+                }
+                std::cout
+                    << ": 0x"
+                    << snapdev::int_to_hex(f->offset())
+                    << " (size: "
+                    << f->size()
+                    << ")\n";
+
+                int idx(0);
+                for(auto const & sub : f->sub_structures())
+                {
+                    std::string sub_index;
+                    sub_index += '[';
+                    sub_index += std::to_string(idx);
+                    sub_index += ']';
+                    ++idx;
+
+                    display(sub, indent + 2, sub_index);
+                }
+            }
+        };
+
+    display(s, 0, std::string());
+    std::cout << std::flush;
 }
 
 

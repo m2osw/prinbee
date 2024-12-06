@@ -552,12 +552,13 @@ std::ostream & operator << (std::ostream & out, virtual_buffer const & v)
 
     ss << std::hex << std::setfill('0');
 
-    uint8_t buf[16];
+    std::uint8_t buf[16];
     char const * newline("");
     std::uint64_t sz(v.size());
     prinbee::reference_t p(0);
     for(; p < sz; ++p)
     {
+        char const * sep(" ");
         if(p % 16 == 0)
         {
             if(*newline != '\0')
@@ -585,6 +586,10 @@ std::ostream & operator << (std::ostream & out, virtual_buffer const & v)
             }
             newline = "\n";
         }
+        else if(p % 16 == 8)
+        {
+            sep = "  ";
+        }
 
         std::uint8_t c;
         if(v.pread(&c, sizeof(c), p) != 1)
@@ -593,7 +598,7 @@ std::ostream & operator << (std::ostream & out, virtual_buffer const & v)
         }
         buf[p % 16] = c;
 
-        ss << " " << std::setw(2) << static_cast<int>(c);
+        ss << sep << std::setw(2) << static_cast<int>(c);
     }
 
     prinbee::reference_t q(p % 16);
