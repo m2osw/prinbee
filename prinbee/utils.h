@@ -341,8 +341,8 @@ constexpr bool validate_bit_field_name(
             {
                 if(state == 2)
                 {
-                    // a slash must be followed by a valid decimal number with
-                    // at least one digit
+                    // a colon must be followed by a valid decimal number with
+                    // at least one digit (`<field_name>=<name>:<size>/...`)
                     //
                     return false;
                 }
@@ -371,7 +371,7 @@ constexpr bool validate_bit_field_name(
     {
         // we expect at least one character in a name
         //
-        // also a slash must be followed by a valid decimal number with
+        // also a colon must be followed by a valid decimal number with
         // at least one digit
         //
         // or the last name is not followed by a size and is too long

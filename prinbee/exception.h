@@ -51,6 +51,7 @@ DECLARE_MAIN_EXCEPTION(prinbee_exception);
 DECLARE_EXCEPTION(prinbee_exception, block_not_found);
 DECLARE_EXCEPTION(prinbee_exception, column_not_found);
 DECLARE_EXCEPTION(prinbee_exception, conversion_unavailable);
+DECLARE_EXCEPTION(prinbee_exception, corrupted_data);
 DECLARE_EXCEPTION(prinbee_exception, defined_twice);
 DECLARE_EXCEPTION(prinbee_exception, exclusive_fields);
 DECLARE_EXCEPTION(prinbee_exception, field_not_found);

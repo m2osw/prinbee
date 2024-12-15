@@ -195,6 +195,11 @@ constexpr prinbee::struct_description_t g_description3[] =
         , prinbee::FieldSubDescription(g_description3_sub1)
     ),
     prinbee::define_description(
+          prinbee::FieldName("javascript_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_VERSION)
+        , prinbee::FieldDefaultValue("7.3")
+    ),
+    prinbee::define_description(
           prinbee::FieldName("eight_bits=null/advance:4/efficient:2/sign")
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS8)
     ),
@@ -608,6 +613,62 @@ constexpr prinbee::struct_description_t g_description10[] =
 
 
 
+constexpr prinbee::struct_description_t g_description11_column[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("name")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+        , prinbee::FieldDefaultValue("_undefined")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("type")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT16)
+        , prinbee::FieldDefaultValue("14")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("flags=null/blob")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS8)
+        , prinbee::FieldDefaultValue("2")
+    ),
+    prinbee::end_descriptions()
+};
+
+
+constexpr prinbee::struct_description_t g_description11[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_SCHEMA_LIST))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(5, 29)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("name=32")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+        , prinbee::FieldDefaultValue("passwords")
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("columns")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY8)
+        , prinbee::FieldSubDescription(g_description11_column)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+
+
+
+
+
+
+
+
+
 struct fixed_size_t
 {
     prinbee::struct_type_t  f_type = prinbee::INVALID_STRUCT_TYPE;
@@ -700,6 +761,8 @@ std::vector<field_info_t> g_field_info{
     { "TIME",       8,  0 },
     { "MSTIME",     8,  0 },
     { "USTIME",     8,  0 },
+    { "NSTIME",    16,  0 },
+    { "CHAR",      -1,  0 },
     { "P8STRING",  -2,  1 },
     { "P16STRING", -2,  2 },
     { "P32STRING", -2,  4 },
@@ -1032,6 +1095,9 @@ CATCH_TEST_CASE("structure_version_basics", "[structure][version]")
             version_str += '.';
             version_str += std::to_string(minor_version);
             CATCH_REQUIRE(v3_str == version_str);
+            std::stringstream ss;
+            ss << v3;
+            CATCH_REQUIRE(ss.str() == version_str);
 
             v3.next_branch();
             CATCH_REQUIRE(v3.get_major() == major_version + 1);
@@ -1263,6 +1329,7 @@ CATCH_TEST_CASE("structure_field", "[structure][valid]")
             prinbee::struct_type_t const type(prinbee::name_to_struct_type(info.f_type_name));
             std::shared_ptr<prinbee::struct_description_t> description;
             std::string name(info.f_type_name);
+            ssize_t expected_type_field_size(info.f_type_field_size);
             switch(type)
             {
             case prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE:
@@ -1297,6 +1364,18 @@ CATCH_TEST_CASE("structure_field", "[structure][valid]")
                     });
                 break;
 
+            case prinbee::struct_type_t::STRUCT_TYPE_CHAR:
+                expected_type_field_size = 40;
+                name += "=40";
+                description.reset(new prinbee::struct_description_t{
+                        prinbee::define_description(
+                              prinbee::FieldName(name.c_str())
+                            , prinbee::FieldType(type)
+                            , prinbee::FieldFlags(flags)
+                        ),
+                    });
+                break;
+
             default:
                 description.reset(new prinbee::struct_description_t{
                         prinbee::define_description(
@@ -1318,15 +1397,25 @@ CATCH_TEST_CASE("structure_field", "[structure][valid]")
             CATCH_REQUIRE(f == f->last());
             CATCH_REQUIRE(type == f->type());
             CATCH_REQUIRE(info.f_field_size == f->field_size());
-            CATCH_REQUIRE(info.f_type_field_size == f->type_field_size());
+            CATCH_REQUIRE(expected_type_field_size == f->type_field_size());
             CATCH_REQUIRE(info.f_type_name == f->field_name());
-            CATCH_REQUIRE(0 == f->size());
+            if(type == prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+            {
+                // CHAR is peculiar about its size which is hard coded in
+                // the field name so it is predefined and not zero here
+                //
+                CATCH_REQUIRE(expected_type_field_size == f->size());
+            }
+            else
+            {
+                CATCH_REQUIRE(0 == f->size());
+            }
 
             std::uint32_t const size(SNAP_CATCH2_NAMESPACE::rand32());
             std::const_pointer_cast<prinbee::field_t>(f)->set_size(size);
             CATCH_REQUIRE(size == f->size());
 
-            // the flag are set by the structure parser, so here it's never set
+            // the flags are set by the structure parser, so here it's never set
             // whether it is defined in the description above
             //
             CATCH_REQUIRE_FALSE(f->has_flags(prinbee::field_t::FIELD_FLAG_VARIABLE_SIZE));
@@ -1622,18 +1711,6 @@ CATCH_TEST_CASE("structure_field", "[structure][valid]")
         CATCH_REQUIRE(s->get_static_size() == 33);
         f->sub_structures().push_back(s);
         CATCH_REQUIRE((*f)[0] == s);
-
-        prinbee::structure::vector_t v;
-        prinbee::structure::pointer_t s1(std::make_shared<prinbee::structure>(g_description1));
-        v.push_back(s1);
-        prinbee::structure::pointer_t s2(std::make_shared<prinbee::structure>(g_description1));
-        v.push_back(s2);
-        prinbee::structure::pointer_t s3(std::make_shared<prinbee::structure>(g_description1));
-        v.push_back(s3);
-        f->set_sub_structures(v);
-        CATCH_REQUIRE((*f)[0] == s1);
-        CATCH_REQUIRE((*f)[1] == s2);
-        CATCH_REQUIRE((*f)[2] == s3);
     }
     CATCH_END_SECTION()
 }
@@ -2240,11 +2317,13 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
     {
         prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description3));
 
-        CATCH_REQUIRE(description->get_static_size() == 93);
+        CATCH_REQUIRE(description->get_static_size() == 97);
 
         description->init_buffer();
 
-        //description->set_uinteger("magic", static_cast<std::uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_DATA));
+        CATCH_REQUIRE(description->get_version("javascript_version") == prinbee::version_t(7, 3));
+
+        //description->set_uinteger("_magic", static_cast<std::uint32_t>(prinbee::dbtype_t::BLOCK_TYPE_DATA));
 
         std::uint32_t sub_field(SNAP_CATCH2_NAMESPACE::rand32());
         description->set_uinteger("sub_field", sub_field);
@@ -2261,6 +2340,8 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
         description->set_uinteger("software_version.minor", minor);
         description->set_uinteger("software_version.release", release);
         description->set_uinteger("software_version.build", build);
+
+        description->set_version("javascript_version", prinbee::version_t(12, 8));
 
         std::uint32_t const null_value(rand() & 1);
         description->set_bits("eight_bits.null", null_value);
@@ -2283,6 +2364,7 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
         CATCH_REQUIRE(description->get_uinteger("software_version.minor") == minor);
         CATCH_REQUIRE(description->get_uinteger("software_version.release") == release);
         CATCH_REQUIRE(description->get_uinteger("software_version.build") == build);
+        CATCH_REQUIRE(description->get_version("javascript_version") == prinbee::version_t(12, 8));
         CATCH_REQUIRE(description->get_bits("eight_bits.null") == null_value);
         CATCH_REQUIRE(description->get_bits("eight_bits.advance") == advance_value);
         CATCH_REQUIRE(description->get_bits("eight_bits.efficient") == efficient_value);
@@ -2327,7 +2409,7 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
                   description->set_uinteger("_structure_version", SNAP_CATCH2_NAMESPACE::rand32())
                 , prinbee::type_mismatch
                 , Catch::Matchers::ExceptionMessage(
-                    "prinbee_exception: this description type is \"STRUCTURE_VERSION\""
+                    "prinbee_exception: this field type is \"STRUCTURE_VERSION\""
                     " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
 
         std::int64_t const sub_field(SNAP_CATCH2_NAMESPACE::rand64());
@@ -2410,6 +2492,54 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
         CATCH_REQUIRE(description->get_bits("sixteen_bits.signal") == signal_value);
         CATCH_REQUIRE(description->get_string("tag") == "image"); // from the default value
         CATCH_REQUIRE(description->get_string("name") == name);
+
+        // the version_parts buffer change:
+        //    1. same size
+        //    2. grow
+        //    3. shrink back
+        //
+        for(int count(0); count < 10; ++count)
+        {
+            for(std::uint8_t idx(0); idx < version_size; ++idx)
+            {
+                version_parts[idx] = rand();
+            }
+            //description->set_uinteger("early_version.size", version_size);
+            description->set_buffer("early_version.parts", version_parts);
+            CATCH_REQUIRE(description->get_uinteger("early_version.size") == version_size);
+            CATCH_REQUIRE(description->get_buffer("early_version.parts") == version_parts);
+        }
+        std::size_t buffer_size(version_size);
+        for(int count(0); count < 10; ++count)
+        {
+            buffer_size += rand() % 10 + 1;
+            version_parts.resize(buffer_size);
+            for(std::uint8_t idx(0); idx < buffer_size; ++idx)
+            {
+                version_parts[idx] = rand();
+            }
+            description->set_uinteger("early_version.size", buffer_size);
+            description->set_buffer("early_version.parts", version_parts);
+            CATCH_REQUIRE(description->get_uinteger("early_version.size") == buffer_size);
+            CATCH_REQUIRE(description->get_buffer("early_version.parts") == version_parts);
+        }
+        for(int count(0); count < 10; ++count)
+        {
+            buffer_size -= rand() % 10 + 1;
+            if(static_cast<ssize_t>(buffer_size) <= 0)
+            {
+                break;
+            }
+            version_parts.resize(buffer_size);
+            for(std::uint8_t idx(0); idx < buffer_size; ++idx)
+            {
+                version_parts[idx] = rand();
+            }
+            description->set_uinteger("early_version.size", buffer_size);
+            description->set_buffer("early_version.parts", version_parts);
+            CATCH_REQUIRE(description->get_uinteger("early_version.size") == buffer_size);
+            CATCH_REQUIRE(description->get_buffer("early_version.parts") == version_parts);
+        }
     }
     CATCH_END_SECTION()
 
@@ -2429,7 +2559,7 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
                   description->set_uinteger("_magic", SNAP_CATCH2_NAMESPACE::rand32())
                 , prinbee::type_mismatch
                 , Catch::Matchers::ExceptionMessage(
-                    "prinbee_exception: this description type is \"MAGIC\""
+                    "prinbee_exception: this field type is \"MAGIC\""
                     " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
 
         CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
@@ -2450,21 +2580,17 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
         CATCH_REQUIRE(description->get_string("essay") == "King who killed his wife to marry another. Later wives were lucky that the divorce was \"invented\".");
         CATCH_REQUIRE(description->get_string("dissertation") == "King who killed his wife to marry another. Later wives were lucky that the divorce was \"invented\".");
         std::string const essay(SNAP_CATCH2_NAMESPACE::random_string(1'000, 250'000));
-SNAP_LOG_WARNING << "--- random essay length is " << essay.length() << SNAP_LOG_SEND;
         description->set_string("essay", essay);
         CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4UL + essay.length() + 15UL);
         CATCH_REQUIRE(description->get_string("essay") == essay);
         CATCH_REQUIRE(description->get_string("dissertation") == essay);
 
         std::string const dissertation(SNAP_CATCH2_NAMESPACE::random_string(1'000, 250'000));
-SNAP_LOG_WARNING << "--- random dissertation length is " << dissertation.length() << SNAP_LOG_SEND;
         description->set_string("dissertation", dissertation);
-SNAP_LOG_WARNING << "--- dissertation set_string() returned... verify" << SNAP_LOG_SEND;
         CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4UL + dissertation.length() + 15UL);
         CATCH_REQUIRE(description->get_string("dissertation") == dissertation);
         CATCH_REQUIRE(description->get_string("essay") == dissertation);
 
-SNAP_LOG_WARNING << "--- now do a set of the kingdom..." << SNAP_LOG_SEND;
         description->set_string("tag", "kingdom");
         CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 1UL + name.length() + 2UL + description_field.length() + 4UL + dissertation.length() + 15UL);
         CATCH_REQUIRE(description->get_string("tag") == "kingdom");
@@ -2488,6 +2614,7 @@ CATCH_TEST_CASE("structure_get_set", "[structure][valid]")
         constexpr valid_func_t          VALID_FUNC_FLOAT32          = 0x0040;
         constexpr valid_func_t          VALID_FUNC_FLOAT64          = 0x0080;
         constexpr valid_func_t          VALID_FUNC_FLOAT128         = 0x0100;
+        constexpr valid_func_t          VALID_FUNC_VARIABLE_SIZE    = 0x0200;
 
         struct type_to_test_t
         {
@@ -2623,6 +2750,26 @@ CATCH_TEST_CASE("structure_get_set", "[structure][valid]")
                 .f_type = prinbee::struct_type_t::STRUCT_TYPE_FLOAT128,
                 .f_mask_size = 128,
             },
+            {
+                .f_valid_func = VALID_FUNC_VARIABLE_SIZE,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_CHAR,
+                .f_mask_size = 512,
+            },
+            {
+                .f_valid_func = VALID_FUNC_VARIABLE_SIZE,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_P8STRING,
+                .f_mask_size = 512,
+            },
+            {
+                .f_valid_func = VALID_FUNC_VARIABLE_SIZE,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_P16STRING,
+                .f_mask_size = 512,
+            },
+            {
+                .f_valid_func = VALID_FUNC_VARIABLE_SIZE,
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_P32STRING,
+                .f_mask_size = 512,
+            },
         };
 //    STRUCT_TYPE_MAGIC,              // CHAR=4
 //    STRUCT_TYPE_STRUCTURE_VERSION,  // UINT16:UINT16 (Major:Minor) -- version of the structure.cpp/h description
@@ -2643,11 +2790,11 @@ CATCH_TEST_CASE("structure_get_set", "[structure][valid]")
             {
                 field_name = "test_field=on/color:3/valid/side:2";
             }
+            else if(t.f_type == prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+            {
+                field_name = "test_field=32";
+            }
 
-SNAP_LOG_WARNING << "--- testing [" << prinbee::to_string(t.f_type)
-<< "] - " << t.f_valid_func
-<< " -> " << field_name
-<< SNAP_LOG_SEND;
             prinbee::struct_description_t field_descriptions[] =
             {
                 {
@@ -2694,6 +2841,32 @@ SNAP_LOG_WARNING << "--- testing [" << prinbee::to_string(t.f_type)
             CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_BLOB);
             CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(3, 7));
 
+            // the integer functions below check the size and throw a different
+            // out_of_range error for parameters with a variable size such as
+            // CHAR and P8STRING
+            //
+            std::string variable_size_errmsg;
+            if((t.f_valid_func & VALID_FUNC_VARIABLE_SIZE) != 0)
+            {
+                std::string const field_type(prinbee::to_string(t.f_type));
+                int size(-10);
+                for(auto const & fi : g_field_info)
+                {
+                    if(fi.f_type_name == field_type)
+                    {
+                        size = fi.f_field_size;
+                        break;
+                    }
+                }
+                variable_size_errmsg = "out_of_range: value ("
+                          + std::to_string(t.f_type == prinbee::struct_type_t::STRUCT_TYPE_CHAR ? 32 : 0)
+                          + ") and type ("
+                          + prinbee::to_string(t.f_type)
+                          + ") sizes do not correspond (expected size: "
+                          + std::to_string(size)
+                          + ").";
+            }
+
             // get_flag() function
             //
             prinbee::field_t::pointer_t f;
@@ -2737,7 +2910,9 @@ SNAP_LOG_WARNING << "--- testing [" << prinbee::to_string(t.f_type)
                           description->get_flag(field_name, f)
                         , prinbee::field_not_found
                         , Catch::Matchers::ExceptionMessage(
-                            "prinbee_exception: flag named \"test_field\" must at least include a field name and a flag name."));
+                            "prinbee_exception: flag named \""
+                          + std::string(field_name)
+                          + "\" must at least include a field name and a flag name."));
             }
 
             // get_bits()/set_bits() functions
@@ -2770,7 +2945,7 @@ SNAP_LOG_WARNING << "--- testing [" << prinbee::to_string(t.f_type)
                               description->set_bits("test_field.on", rand() & 1)
                             , prinbee::type_mismatch
                             , Catch::Matchers::ExceptionMessage(
-                                "prinbee_exception: this description type is \""
+                                "prinbee_exception: this field type is \""
                               + prinbee::to_string(t.f_type)
                               + "\" but we expected one of"
                                 " \"BITS8, BITS16, BITS32, BITS64\"."));
@@ -2779,7 +2954,7 @@ SNAP_LOG_WARNING << "--- testing [" << prinbee::to_string(t.f_type)
                               description->get_bits("test_field.on")
                             , prinbee::type_mismatch
                             , Catch::Matchers::ExceptionMessage(
-                                "prinbee_exception: this description type is \""
+                                "prinbee_exception: this field type is \""
                               + prinbee::to_string(t.f_type)
                               + "\" but we expected one of"
                                 " \"BITS8, BITS16, BITS32, BITS64\"."));
@@ -2787,16 +2962,14 @@ SNAP_LOG_WARNING << "--- testing [" << prinbee::to_string(t.f_type)
             }
             else
             {
-SNAP_LOG_WARNING << "--- set_bits() ..." << SNAP_LOG_SEND;
                 CATCH_REQUIRE_THROWS_MATCHES(
-                          description->set_bits(field_name, rand())
+                          description->set_bits("test_field", rand())
                         , prinbee::field_not_found
                         , Catch::Matchers::ExceptionMessage(
                             "prinbee_exception: flag named \"test_field\" must at least include a field name and a flag name."));
 
-SNAP_LOG_WARNING << "--- get_bits() ..." << SNAP_LOG_SEND;
                 CATCH_REQUIRE_THROWS_MATCHES(
-                          description->get_bits(field_name)
+                          description->get_bits("test_field")
                         , prinbee::field_not_found
                         , Catch::Matchers::ExceptionMessage(
                             "prinbee_exception: flag named \"test_field\" must at least include a field name and a flag name."));
@@ -2815,26 +2988,38 @@ SNAP_LOG_WARNING << "--- get_bits() ..." << SNAP_LOG_SEND;
                     CATCH_REQUIRE(description->get_uinteger(field_name) == r);
                 }
             }
+            else if((t.f_valid_func & VALID_FUNC_VARIABLE_SIZE) != 0)
+            {
+                std::uint64_t v(0);
+                SNAP_CATCH2_NAMESPACE::random(v);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_uinteger("test_field", v)
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage(variable_size_errmsg));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_uinteger("test_field")
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage(variable_size_errmsg));
+            }
             else
             {
                 std::uint64_t v(0);
                 SNAP_CATCH2_NAMESPACE::random(v);
-SNAP_LOG_WARNING << "--- set_uinteger() ..." << SNAP_LOG_SEND;
                 CATCH_REQUIRE_THROWS_MATCHES(
-                          description->set_uinteger(field_name, v)
+                          description->set_uinteger("test_field", v)
                         , prinbee::type_mismatch
                         , Catch::Matchers::ExceptionMessage(
-                            "prinbee_exception: this description type is \""
+                            "prinbee_exception: this field type is \""
                           + prinbee::to_string(t.f_type)
                           + "\""
                             " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
 
-SNAP_LOG_WARNING << "--- get_uinteger() ..." << SNAP_LOG_SEND;
                 CATCH_REQUIRE_THROWS_MATCHES(
-                          description->get_uinteger(field_name)
+                          description->get_uinteger("test_field")
                         , prinbee::type_mismatch
                         , Catch::Matchers::ExceptionMessage(
-                            "prinbee_exception: this description type is \""
+                            "prinbee_exception: this field type is \""
                           + prinbee::to_string(t.f_type)
                           + "\""
                             " but we expected one of \"BITS8, BITS16, BITS32, BITS64, MAGIC, OID, REFERENCE, STRUCTURE_VERSION, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
@@ -2860,30 +3045,41 @@ SNAP_LOG_WARNING << "--- get_uinteger() ..." << SNAP_LOG_SEND;
                     CATCH_REQUIRE(description->get_integer(field_name) == r);
                 }
             }
+            else if((t.f_valid_func & VALID_FUNC_VARIABLE_SIZE) != 0)
+            {
+                std::uint64_t v(0);
+                SNAP_CATCH2_NAMESPACE::random(v);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_integer("test_field", v)
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage(variable_size_errmsg));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_integer("test_field")
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage(variable_size_errmsg));
+            }
             else
             {
                 std::int64_t v(0);
                 SNAP_CATCH2_NAMESPACE::random(v);
-SNAP_LOG_WARNING << "--- set_integer() ..." << SNAP_LOG_SEND;
                 CATCH_REQUIRE_THROWS_MATCHES(
                           description->set_integer(field_name, v)
                         , prinbee::type_mismatch
                         , Catch::Matchers::ExceptionMessage(
-                            "prinbee_exception: this description type is \""
+                            "prinbee_exception: this field type is \""
                           + prinbee::to_string(t.f_type)
                           + "\""
                             " but we expected one of \"INT8, INT16, INT32, INT64, MSTIME, TIME, USTIME\"."));
 
-SNAP_LOG_WARNING << "--- get_integer() ..." << SNAP_LOG_SEND;
                 CATCH_REQUIRE_THROWS_MATCHES(
                           description->get_integer(field_name)
                         , prinbee::type_mismatch
                         , Catch::Matchers::ExceptionMessage(
-                            "prinbee_exception: this description type is \""
+                            "prinbee_exception: this field type is \""
                           + prinbee::to_string(t.f_type)
                           + "\""
                             " but we expected one of \"INT8, INT16, INT32, INT64, MSTIME, TIME, USTIME\"."));
-SNAP_LOG_WARNING << "--- something else? ..." << SNAP_LOG_SEND;
             }
 
             // get_large_uinteger()/set_large_uinteger()
@@ -2894,7 +3090,6 @@ SNAP_LOG_WARNING << "--- something else? ..." << SNAP_LOG_SEND;
                 {
                     prinbee::uint512_t v(0);
                     SNAP_CATCH2_NAMESPACE::rand512(v);
-SNAP_LOG_WARNING << "--- first do set_large_uinteger()..." << SNAP_LOG_SEND;
                     description->set_large_uinteger(field_name, v);
                     prinbee::uint512_t r(v);
                     if(t.f_mask_size != 512)
@@ -2905,32 +3100,41 @@ SNAP_LOG_WARNING << "--- first do set_large_uinteger()..." << SNAP_LOG_SEND;
                         mask >>= 512 - t.f_mask_size;
                         r &= mask;
                     }
-SNAP_LOG_WARNING << "--- " << count << ". get_large_uinteger() without protection ..." << SNAP_LOG_SEND;
                     CATCH_REQUIRE(description->get_large_uinteger(field_name) == r);
-SNAP_LOG_WARNING << "--- got the large integer get_large_uinteger() ..." << SNAP_LOG_SEND;
                 }
-SNAP_LOG_WARNING << "--- done with loop..." << SNAP_LOG_SEND;
+            }
+            else if((t.f_valid_func & VALID_FUNC_VARIABLE_SIZE) != 0)
+            {
+                std::uint64_t v(0);
+                SNAP_CATCH2_NAMESPACE::random(v);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_large_uinteger("test_field", v)
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage(variable_size_errmsg));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_large_uinteger("test_field")
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage(variable_size_errmsg));
             }
             else
             {
                 prinbee::uint512_t v(0);
                 SNAP_CATCH2_NAMESPACE::rand512(v);
-SNAP_LOG_WARNING << "--- set_large_uinteger() ..." << SNAP_LOG_SEND;
                 CATCH_REQUIRE_THROWS_MATCHES(
                           description->set_large_uinteger(field_name, v)
                         , prinbee::type_mismatch
                         , Catch::Matchers::ExceptionMessage(
-                            "prinbee_exception: this description type is \""
+                            "prinbee_exception: this field type is \""
                           + prinbee::to_string(t.f_type)
                           + "\""
                             " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, UINT128, UINT256, UINT512, VERSION\"."));
 
-SNAP_LOG_WARNING << "--- get_large_uinteger() ..." << SNAP_LOG_SEND;
                 CATCH_REQUIRE_THROWS_MATCHES(
                           description->get_large_uinteger(field_name)
                         , prinbee::type_mismatch
                         , Catch::Matchers::ExceptionMessage(
-                            "prinbee_exception: this description type is \""
+                            "prinbee_exception: this field type is \""
                           + prinbee::to_string(t.f_type)
                           + "\""
                             " but we expected one of \"BITS8, BITS16, BITS32, BITS64, MAGIC, OID, REFERENCE, STRUCTURE_VERSION, UINT8, UINT16, UINT32, UINT64, UINT128, UINT256, UINT512, VERSION\"."));
@@ -2938,15 +3142,12 @@ SNAP_LOG_WARNING << "--- get_large_uinteger() ..." << SNAP_LOG_SEND;
 
             // get_integer()/set_integer()
             //
-SNAP_LOG_WARNING << "--- large int?..." << SNAP_LOG_SEND;
             if((t.f_valid_func & VALID_FUNC_LARGE_INTEGER) != 0)
             {
-SNAP_LOG_WARNING << "--- loop over large int?..." << SNAP_LOG_SEND;
                 for(int count(0); count < 10; ++count)
                 {
                     prinbee::int512_t v(0);
                     SNAP_CATCH2_NAMESPACE::rand512(v);
-SNAP_LOG_WARNING << "--- set large int... inside loop" << SNAP_LOG_SEND;
                     description->set_large_integer(field_name, v);
 
                     prinbee::int512_t r(v);
@@ -2973,35 +3174,223 @@ SNAP_LOG_WARNING << "--- set large int... inside loop" << SNAP_LOG_SEND;
                             r |= mask;
                         }
                     }
-SNAP_LOG_WARNING << "--- " << count << ". get_large_integer() without protection ..." << SNAP_LOG_SEND;
                     CATCH_REQUIRE(description->get_large_integer(field_name) == r);
-SNAP_LOG_WARNING << "--- got the get_large_integer() ..." << SNAP_LOG_SEND;
                 }
+            }
+            else if((t.f_valid_func & VALID_FUNC_VARIABLE_SIZE) != 0)
+            {
+                std::uint64_t v(0);
+                SNAP_CATCH2_NAMESPACE::random(v);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_large_integer("test_field", v)
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage(variable_size_errmsg));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_large_integer("test_field")
+                        , prinbee::out_of_range
+                        , Catch::Matchers::ExceptionMessage(variable_size_errmsg));
             }
             else
             {
-SNAP_LOG_WARNING << "--- random int512_t problem???..." << SNAP_LOG_SEND;
                 prinbee::int512_t v(0);
                 SNAP_CATCH2_NAMESPACE::rand512(v);
-SNAP_LOG_WARNING << "--- set_large_integer() ..." << SNAP_LOG_SEND;
                 CATCH_REQUIRE_THROWS_MATCHES(
                           description->set_large_integer(field_name, v)
                         , prinbee::type_mismatch
                         , Catch::Matchers::ExceptionMessage(
-                            "prinbee_exception: this description type is \""
+                            "prinbee_exception: this field type is \""
                           + prinbee::to_string(t.f_type)
                           + "\""
                             " but we expected one of \"INT8, INT16, INT32, INT64, INT128, INT256, INT512, MSTIME, NSTIME, TIME, USTIME\"."));
 
-SNAP_LOG_WARNING << "--- get_large_integer() ..." << SNAP_LOG_SEND;
                 CATCH_REQUIRE_THROWS_MATCHES(
                           description->get_large_integer(field_name)
                         , prinbee::type_mismatch
                         , Catch::Matchers::ExceptionMessage(
-                            "prinbee_exception: this description type is \""
+                            "prinbee_exception: this field type is \""
                           + prinbee::to_string(t.f_type)
                           + "\""
                             " but we expected one of \"INT8, INT16, INT32, INT64, INT128, INT256, INT512, MSTIME, NSTIME, TIME, USTIME\"."));
+            }
+
+            // get_float32()/set_float32()
+            //
+            if((t.f_valid_func & VALID_FUNC_FLOAT32) != 0)
+            {
+                for(int count(0); count < 10; ++count)
+                {
+                    float v(drand48() * 1000.0L);
+                    description->set_float32(field_name, v);
+
+                    CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(description->get_float32(field_name), v, 0.0f));
+                }
+            }
+            else if((t.f_valid_func & VALID_FUNC_VARIABLE_SIZE) != 0)
+            {
+                float v(drand48() * 1000.0L);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_float32("test_field", v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this field type is \""
+                            + prinbee::to_string(t.f_type)
+                            + "\" but we expected \"FLOAT32\"."));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_float32("test_field")
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this field type is \""
+                            + prinbee::to_string(t.f_type)
+                            + "\" but we expected \"FLOAT32\"."));
+            }
+            else
+            {
+                float v(drand48() * 1000.0L);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_float32(field_name, v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this field type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\" but we expected \"FLOAT32\"."));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_float32(field_name)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this field type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\" but we expected \"FLOAT32\"."));
+            }
+
+            // get_float64()/set_float64()
+            //
+            if((t.f_valid_func & VALID_FUNC_FLOAT64) != 0)
+            {
+                for(int count(0); count < 10; ++count)
+                {
+                    double v(drand48() * 1000.0L);
+                    description->set_float64(field_name, v);
+
+                    CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(description->get_float64(field_name), v, 0.0));
+                }
+            }
+            else if((t.f_valid_func & VALID_FUNC_VARIABLE_SIZE) != 0)
+            {
+                double v(drand48() * 1000.0L);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_float64("test_field", v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this field type is \""
+                            + prinbee::to_string(t.f_type)
+                            + "\" but we expected \"FLOAT64\"."));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_float64("test_field")
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this field type is \""
+                            + prinbee::to_string(t.f_type)
+                            + "\" but we expected \"FLOAT64\"."));
+            }
+            else
+            {
+                double v(drand48() * 1000.0L);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_float64(field_name, v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this field type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\" but we expected \"FLOAT64\"."));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_float64(field_name)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this field type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\" but we expected \"FLOAT64\"."));
+            }
+
+            // get_float128()/set_float128()
+            //
+            if((t.f_valid_func & VALID_FUNC_FLOAT128) != 0)
+            {
+                for(int count(0); count < 10; ++count)
+                {
+                    long double v(drand48() * 1000.0L);
+                    description->set_float128(field_name, v);
+
+                    CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(description->get_float128(field_name), v, 0.0l));
+                }
+            }
+            else if((t.f_valid_func & VALID_FUNC_VARIABLE_SIZE) != 0)
+            {
+                long double v(drand48() * 1000.0L);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_float128("test_field", v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this field type is \""
+                            + prinbee::to_string(t.f_type)
+                            + "\" but we expected \"FLOAT128\"."));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_float128("test_field")
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this field type is \""
+                            + prinbee::to_string(t.f_type)
+                            + "\" but we expected \"FLOAT128\"."));
+            }
+            else
+            {
+                long double v(drand48() * 1000.0L);
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_float128(field_name, v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this field type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\" but we expected \"FLOAT128\"."));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_float128(field_name)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this field type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\" but we expected \"FLOAT128\"."));
+            }
+
+            // buffers are not checked here, but we can still attempt the
+            // get/set functions with all the other types which must all fail
+            {
+                prinbee::buffer_t v;
+                std::uint64_t l(rand() % 300);
+                for(std::uint64_t i(0); i < l; ++i)
+                {
+                    v.push_back(rand());
+                }
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_buffer(field_name, v)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this field type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\" but we expected one of \"BUFFER8, BUFFER16, BUFFER32\"."));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_buffer(field_name)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this field type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\" but we expected one of \"BUFFER8, BUFFER16, BUFFER32\"."));
             }
         }
     }
@@ -3012,7 +3401,7 @@ SNAP_LOG_WARNING << "--- get_large_integer() ..." << SNAP_LOG_SEND;
 
 CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
 {
-    CATCH_START_SECTION("structure: structure with an ARRAY8")
+    CATCH_START_SECTION("structure_array: structure with an ARRAY8")
     {
         prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description7));
 
@@ -3028,7 +3417,7 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
                   description->set_uinteger("_magic", SNAP_CATCH2_NAMESPACE::rand32())
                 , prinbee::type_mismatch
                 , Catch::Matchers::ExceptionMessage(
-                    "prinbee_exception: this description type is \"MAGIC\""
+                    "prinbee_exception: this field type is \"MAGIC\""
                     " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
 
         CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
@@ -3184,10 +3573,80 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
 //std::cout << std::flush << "column3 at the end -- buffer start offset: " << start_offset << "\n" << *buffer << std::endl;
 //description->display_offsets();
 //}
+        // column #4 and beyond (we want to test an overflow, see after loop)
+        //
+        // WARNING: the following adds column #4 to column #255--we cannot
+        //          have 256 columns since the 8 bit counters can be 0 to
+        //          255 with 0 representing an empty array
+        //
+        for(int count(4); count < 256; ++count)
+        {
+            description->new_array_item("columns");
+        }
+
+        // further attempts to add array items fail
+        //
+        for(int count(0); count < 10; ++ count)
+        {
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      description->new_array_item("columns")
+                    , prinbee::out_of_range
+                    , Catch::Matchers::ExceptionMessage(
+                        "out_of_range: the new_array_item() function cannot be"
+                        " used because the array is already full with 256 items."));
+        }
+
+        // now randomly remove columns one by one
+        //
+        // Remember we only have 255 entries, not 256, since the size has to
+        // fit in 8 bits and 0 does represent "no items"
+        //
+        for(int count(0); count < 255; ++count)
+        {
+            std::size_t max(0);
+            if((rand() & 1) != 0)
+            {
+                max = std::const_pointer_cast<prinbee::structure const>(description)->get_array("columns").size();
+            }
+            else
+            {
+                max = description->get_array("columns").size();
+            }
+            int const idx(rand() % max);
+            description->delete_array_item("columns", idx);
+
+            // attempts to delete a non-existent item fails
+            //
+            int index(max + rand());
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      description->delete_array_item("columns", index)
+                    , prinbee::out_of_range
+                    , Catch::Matchers::ExceptionMessage(
+                          "out_of_range: the index ("
+                        + std::to_string(index)
+                        + ") in delete_array_item() function is out of range (larger or equal to the size: "
+                        + std::to_string(max - 1) // -1 because we deleted one item above
+                        + ")."));
+        }
+
+        // further attempts to delete any array item fail
+        //
+        for(int count(0); count < 10; ++ count)
+        {
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      description->delete_array_item("columns", count)
+                    , prinbee::out_of_range
+                    , Catch::Matchers::ExceptionMessage(
+                          "out_of_range: the index ("
+                        + std::to_string(count)
+                        + ") in delete_array_item() function is out of range (larger or equal to the size: 0)."));
+        }
+
+        CATCH_REQUIRE(description->get_array("columns").empty());
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("structure: structure with an ARRAY16")
+    CATCH_START_SECTION("structure_array: structure with an ARRAY16")
     {
         prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description8));
 
@@ -3203,7 +3662,7 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
                   description->set_uinteger("_magic", SNAP_CATCH2_NAMESPACE::rand32())
                 , prinbee::type_mismatch
                 , Catch::Matchers::ExceptionMessage(
-                    "prinbee_exception: this description type is \"MAGIC\""
+                    "prinbee_exception: this field type is \"MAGIC\""
                     " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
 
         CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
@@ -3584,10 +4043,70 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
 //std::cout << std::flush << "column3 at the end -- buffer start offset: " << start_offset << "\n" << *buffer << std::endl;
 //description->display_offsets();
 //}
+        // delete column 2 (index of 1)
+        description->delete_array_item("columns", 1);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        // column 2 was deleted
+        CATCH_REQUIRE(array[1] == column3);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column3_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column3_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column3_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column1_name.length() + 2UL + 2UL
+                      + 1UL + column3_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // delete column 1 (index of 0)
+        description->delete_array_item("columns", 0);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 1);
+        // column 1 & 2 were deleted
+        CATCH_REQUIRE(array[0] == column3);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column3_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column3_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column3_type);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL + 1UL + column3_name.length() + 2UL + 2UL
+                + 4UL + comment_field.length());
+
+        // delete column 3 (index of 0 since 1 & 2 are gone)
+        //
+        description->delete_array_item("columns", 0);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 0);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 4UL + name.length()
+                + 2UL
+                + 4UL + comment_field.length());
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("structure: structure with an ARRAY32")
+    CATCH_START_SECTION("structure_array: structure with an ARRAY32")
     {
         prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description9));
 
@@ -3952,6 +4471,397 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
             CATCH_REQUIRE(array[2]->get_uinteger("max_size") == column3_max_size);
             CATCH_REQUIRE(array[2]->get_uinteger("type") == column3_type);
         }
+
+        // delete column 3
+        //
+        description->delete_array_item("columns", 2);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+//{
+//prinbee::reference_t start_offset(0);
+//prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+//std::cout << std::flush << "column3 at the end -- buffer start offset: " << start_offset << "\n" << *buffer << std::endl;
+//description->display_offsets();
+//}
+        {
+            prinbee::reference_t start_offset(0);
+            prinbee::virtual_buffer::pointer_t b(description->get_virtual_buffer(start_offset));
+            CATCH_REQUIRE(b != nullptr);
+            CATCH_REQUIRE(b->size() == description->get_current_size());
+
+            prinbee::buffer_t buffer(b->size());
+            CATCH_REQUIRE(b->pread(buffer.data(), buffer.size(), 0) == static_cast<int>(buffer.size()));
+
+            prinbee::virtual_buffer::pointer_t n(std::make_shared<prinbee::virtual_buffer>());
+            n->pwrite(buffer.data(), buffer.size(), 0, true);
+
+            prinbee::structure::pointer_t d(std::make_shared<prinbee::structure>(g_description9));
+            d->set_virtual_buffer(n, 0);
+
+            CATCH_REQUIRE(d->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+            CATCH_REQUIRE(d->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+            CATCH_REQUIRE(d->get_string("name") == name);
+            CATCH_REQUIRE(d->get_string("comment") == comment_field);
+
+            array = d->get_array("columns");
+            CATCH_REQUIRE(array.size() == 2);
+            CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+            CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+            CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+            CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+            CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+            CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+        }
+
+        // delete column 1
+        //
+        description->delete_array_item("columns", 0);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 1);
+        CATCH_REQUIRE(array[0] == column2);
+        CATCH_REQUIRE(array[0]->get_string("colname") == column2_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column2_max_size);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column2_type);
+//{
+//prinbee::reference_t start_offset(0);
+//prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+//std::cout << std::flush << "column3 at the end -- buffer start offset: " << start_offset << "\n" << *buffer << std::endl;
+//description->display_offsets();
+//}
+        {
+            prinbee::reference_t start_offset(0);
+            prinbee::virtual_buffer::pointer_t b(description->get_virtual_buffer(start_offset));
+            CATCH_REQUIRE(b != nullptr);
+            CATCH_REQUIRE(b->size() == description->get_current_size());
+
+            prinbee::buffer_t buffer(b->size());
+            CATCH_REQUIRE(b->pread(buffer.data(), buffer.size(), 0) == static_cast<int>(buffer.size()));
+
+            prinbee::virtual_buffer::pointer_t n(std::make_shared<prinbee::virtual_buffer>());
+            n->pwrite(buffer.data(), buffer.size(), 0, true);
+
+            prinbee::structure::pointer_t d(std::make_shared<prinbee::structure>(g_description9));
+            d->set_virtual_buffer(n, 0);
+
+            CATCH_REQUIRE(d->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+            CATCH_REQUIRE(d->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+            CATCH_REQUIRE(d->get_string("name") == name);
+            CATCH_REQUIRE(d->get_string("comment") == comment_field);
+
+            array = d->get_array("columns");
+            CATCH_REQUIRE(array.size() == 1);
+            CATCH_REQUIRE(array[0]->get_string("colname") == column2_name);
+            CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column2_max_size);
+            CATCH_REQUIRE(array[0]->get_uinteger("type") == column2_type);
+        }
+
+        // delete column 2 (which is now at offset 0)
+        //
+        description->delete_array_item("columns", 0);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        CATCH_REQUIRE(description->get_string("name") == name);
+        CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 0);
+//{
+//prinbee::reference_t start_offset(0);
+//prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+//std::cout << std::flush << "column3 at the end -- buffer start offset: " << start_offset << "\n" << *buffer << std::endl;
+//description->display_offsets();
+//}
+        {
+            prinbee::reference_t start_offset(0);
+            prinbee::virtual_buffer::pointer_t b(description->get_virtual_buffer(start_offset));
+            CATCH_REQUIRE(b != nullptr);
+            CATCH_REQUIRE(b->size() == description->get_current_size());
+
+            prinbee::buffer_t buffer(b->size());
+            CATCH_REQUIRE(b->pread(buffer.data(), buffer.size(), 0) == static_cast<int>(buffer.size()));
+
+            prinbee::virtual_buffer::pointer_t n(std::make_shared<prinbee::virtual_buffer>());
+            n->pwrite(buffer.data(), buffer.size(), 0, true);
+
+            prinbee::structure::pointer_t d(std::make_shared<prinbee::structure>(g_description9));
+            d->set_virtual_buffer(n, 0);
+
+            CATCH_REQUIRE(d->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+            CATCH_REQUIRE(d->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+            CATCH_REQUIRE(d->get_string("name") == name);
+            CATCH_REQUIRE(d->get_string("comment") == comment_field);
+
+            array = d->get_array("columns");
+            CATCH_REQUIRE(array.size() == 0);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_array: structure with an ARRAY8 at the end of the structure")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description11));
+
+        // the array make this structure dynamic
+        //
+        CATCH_REQUIRE(description->get_static_size() == 0UL);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL + 1UL);
+
+        description->init_buffer();
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL + 1UL);
+
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_SCHEMA_LIST);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(5, 29));
+
+        // changing the CHAR data does not change the size
+        //
+        CATCH_REQUIRE(description->get_string("name") == "passwords");
+        std::string const name("different_name");
+        description->set_string("name", name);
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL + 1UL);
+        CATCH_REQUIRE(description->get_string("name") == name);
+
+        // now create column definitions
+        //
+        prinbee::structure::pointer_t column1(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column1->get_string("name") == "_undefined");
+        std::string const column1_name("col1");
+        column1->set_string("name", column1_name);
+        CATCH_REQUIRE(column1->get_string("name") == column1_name);
+
+        CATCH_REQUIRE(column1->get_uinteger("type") == 14);
+        std::uint16_t column1_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column1_type);
+        column1->set_uinteger("type", column1_type);
+        CATCH_REQUIRE(column1->get_uinteger("type") == column1_type);
+
+        CATCH_REQUIRE(column1->get_uinteger("flags") == 2);
+        std::uint16_t column1_flags(0);
+        SNAP_CATCH2_NAMESPACE::random(column1_flags);
+        column1_flags &= 3;
+        column1->set_uinteger("flags", column1_flags);
+        CATCH_REQUIRE(column1->get_uinteger("flags") == column1_flags);
+
+        // make sure the root was not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_SCHEMA_LIST);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(5, 29));
+        CATCH_REQUIRE(description->get_string("name") == name);
+
+        prinbee::structure::vector_t array(description->get_array("columns"));
+        CATCH_REQUIRE(array.size() == 1);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("name") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[0]->get_uinteger("flags") == column1_flags);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL
+                + 1UL + 1UL + column1_name.length() + 2UL + 1UL);
+
+        // column #2
+        //
+        prinbee::structure::pointer_t column2(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column2->get_string("name") == "_undefined");
+        std::string const column2_name("col2_long_name_here");
+        column2->set_string("name", column2_name);
+        CATCH_REQUIRE(column2->get_string("name") == column2_name);
+
+        CATCH_REQUIRE(column2->get_uinteger("type") == 14);
+        std::uint16_t column2_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column2_type);
+        column2->set_uinteger("type", column2_type);
+        CATCH_REQUIRE(column2->get_uinteger("type") == column2_type);
+
+        CATCH_REQUIRE(column2->get_uinteger("flags") == 2);
+        std::uint16_t column2_flags(0);
+        SNAP_CATCH2_NAMESPACE::random(column2_flags);
+        column2_flags &= 3;
+        column2->set_uinteger("flags", column2_flags);
+        CATCH_REQUIRE(column2->get_uinteger("flags") == column2_flags);
+
+        // make sure the root & column1 were not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_SCHEMA_LIST);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(5, 29));
+        CATCH_REQUIRE(description->get_string("name") == name);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 2);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(array[0]->get_string("name") == column1_name);
+        CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(array[0]->get_uinteger("flags") == column1_flags);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(array[1]->get_string("name") == column2_name);
+        CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+        CATCH_REQUIRE(array[1]->get_uinteger("flags") == column2_flags);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL
+                + 1UL + 1UL + column1_name.length() + 2UL + 1UL
+                      + 1UL + column2_name.length() + 2UL + 1UL);
+
+        // column #3
+        //
+        prinbee::structure::pointer_t column3(description->new_array_item("columns"));
+
+        CATCH_REQUIRE(column3->get_string("name") == "_undefined");
+        std::string const column3_name("col3__here");
+        column3->set_string("name", column3_name);
+        CATCH_REQUIRE(column3->get_string("name") == column3_name);
+
+        CATCH_REQUIRE(column3->get_uinteger("type") == 14);
+        std::uint16_t column3_type(0);
+        SNAP_CATCH2_NAMESPACE::random(column3_type);
+        column3->set_uinteger("type", column3_type);
+        CATCH_REQUIRE(column3->get_uinteger("type") == column3_type);
+
+        CATCH_REQUIRE(column3->get_uinteger("flags") == 2);
+        std::uint16_t column3_flags(0);
+        SNAP_CATCH2_NAMESPACE::random(column3_flags);
+        column3_flags &= 3;
+        column3->set_uinteger("flags", column3_flags);
+        CATCH_REQUIRE(column3->get_uinteger("flags") == column3_flags);
+
+        // make sure the root & column 1/2 are not affected
+        //
+        CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_SCHEMA_LIST);
+        CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(5, 29));
+        CATCH_REQUIRE(description->get_string("name") == name);
+
+        array = description->get_array("columns");
+        CATCH_REQUIRE(array.size() == 3);
+        CATCH_REQUIRE(array[0] == column1);
+        CATCH_REQUIRE(column1->get_string("name") == column1_name);
+        CATCH_REQUIRE(column1->get_uinteger("type") == column1_type);
+        CATCH_REQUIRE(column1->get_uinteger("flags") == column1_flags);
+        CATCH_REQUIRE(array[1] == column2);
+        CATCH_REQUIRE(column2->get_string("name") == column2_name);
+        CATCH_REQUIRE(column2->get_uinteger("type") == column2_type);
+        CATCH_REQUIRE(column2->get_uinteger("flags") == column2_flags);
+        CATCH_REQUIRE(array[2] == column3);
+        CATCH_REQUIRE(column3->get_string("name") == column3_name);
+        CATCH_REQUIRE(column3->get_uinteger("type") == column3_type);
+        CATCH_REQUIRE(column3->get_uinteger("flags") == column3_flags);
+
+        CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL
+                + 1UL + 1UL + column1_name.length() + 2UL + 1UL
+                      + 1UL + column2_name.length() + 2UL + 1UL
+                      + 1UL + column3_name.length() + 2UL + 1UL);
+//{
+//prinbee::reference_t start_offset(0);
+//prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+//std::cout << std::flush << "column3 at the end -- buffer start offset: " << start_offset << "\n" << *buffer << std::endl;
+//description->display_offsets();
+//}
+
+        // another way to setup an array is to create items in a vector
+        // and then save that vector in our structure
+        //
+
+        //prinbee::structure::vector_t v;
+        //prinbee::structure::pointer_t s1(std::make_shared<prinbee::structure>(g_description11_column));
+        //v.push_back(s1);
+        //prinbee::structure::pointer_t s2(std::make_shared<prinbee::structure>(g_description11_column));
+        //v.push_back(s2);
+        //prinbee::structure::pointer_t s3(std::make_shared<prinbee::structure>(g_description11_column));
+        //v.push_back(s3);
+        //f->set_sub_structures(v);
+        //CATCH_REQUIRE((*f)[0] == s1);
+        //CATCH_REQUIRE((*f)[1] == s2);
+        //CATCH_REQUIRE((*f)[2] == s3);
+
+        // column #4 and beyond (we want to test an overflow, see after loop)
+        //
+        // WARNING: the following adds column #4 to column #255--we cannot
+        //          have 256 columns since the 8 bit counters can be 0 to
+        //          255 with 0 representing an empty array
+        //
+        for(int count(4); count < 256; ++count)
+        {
+            description->new_array_item("columns");
+        }
+
+        // further attempts to add array items fail
+        //
+        for(int count(0); count < 10; ++ count)
+        {
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      description->new_array_item("columns")
+                    , prinbee::out_of_range
+                    , Catch::Matchers::ExceptionMessage(
+                        "out_of_range: the new_array_item() function cannot be"
+                        " used because the array is already full with 256 items."));
+        }
+
+        // now randomly remove columns one by one
+        //
+        // Remember we only have 255 entries, not 256, since the size has to
+        // fit in 8 bits and 0 does represent "no items"
+        //
+        for(int count(0); count < 255; ++count)
+        {
+            std::size_t max(0);
+            if((rand() & 1) != 0)
+            {
+                max = std::const_pointer_cast<prinbee::structure const>(description)->get_array("columns").size();
+            }
+            else
+            {
+                max = description->get_array("columns").size();
+            }
+            int const idx(rand() % max);
+            description->delete_array_item("columns", idx);
+
+            // attempts to delete a non-existent item fails
+            //
+            int index(max + rand());
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      description->delete_array_item("columns", index)
+                    , prinbee::out_of_range
+                    , Catch::Matchers::ExceptionMessage(
+                          "out_of_range: the index ("
+                        + std::to_string(index)
+                        + ") in delete_array_item() function is out of range (larger or equal to the size: "
+                        + std::to_string(max - 1) // -1 because we deleted one item above
+                        + ")."));
+        }
+
+        // further attempts to delete any array item fail
+        //
+        for(int count(0); count < 10; ++ count)
+        {
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      description->delete_array_item("columns", count)
+                    , prinbee::out_of_range
+                    , Catch::Matchers::ExceptionMessage(
+                          "out_of_range: the index ("
+                        + std::to_string(count)
+                        + ") in delete_array_item() function is out of range (larger or equal to the size: 0)."));
+        }
+
+        CATCH_REQUIRE(description->get_array("columns").empty());
     }
     CATCH_END_SECTION()
 }
@@ -3999,6 +4909,205 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
     }
     CATCH_END_SECTION()
 
+    CATCH_START_SECTION("structure_invalid: get/set string against a different type")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description9));
+        description->init_buffer();
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_string("columns")
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this field type is \"ARRAY32\" but we expected one of \"CHAR, P8STRING, P16STRING, P32STRING\"."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->set_string("columns", "anything")
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this field type is \"ARRAY32\" but we expected one of \"CHAR, P8STRING, P16STRING, P32STRING\"."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get/new array against a different type")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description9));
+        description->init_buffer();
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_array("name")
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this field type is \"P8STRING\" but we expected one of \"ARRAY8, ARRAY16, ARRAY32\"."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->new_array_item("name")
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this field type is \"P8STRING\" but we expected one of \"ARRAY8, ARRAY16, ARRAY32\"."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->delete_array_item("name", 0)
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this field type is \"P8STRING\" but we expected one of \"ARRAY8, ARRAY16, ARRAY32\"."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get/set string with damaged buffer")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description9));
+        description->init_buffer();
+
+        // at the moment, everything is fine
+        //
+        CATCH_REQUIRE(description->get_string("name") == "page");
+
+        prinbee::reference_t start_offset(0);
+        prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+        std::uint8_t size(9);
+        buffer->pwrite(
+              &size
+            , sizeof(size)
+            , 4 + 4);  // skip magic & structure version
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_string("name")
+                , prinbee::corrupted_data
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: the size of string field \"name\" (4) is"
+                          " different from the size found in the file (9 found at"
+                          " offset 8 over 1 bytes)."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->set_string("name", "new name")
+                , prinbee::corrupted_data
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: the size of string field \"name\" (4) is"
+                          " different from the size found in the file (9 found at"
+                          " offset 8 over 1 bytes)."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get/set ARRAY8 with damaged size (a.k.a. number of items)")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description7));
+        description->init_buffer();
+
+        // create a few columns
+        //
+        std::size_t const max(rand() % 96 + 5);
+        for(std::size_t idx(0); idx < max; ++idx)
+        {
+            prinbee::structure::pointer_t column(description->new_array_item("columns"));
+            std::string name("col");
+            name += std::to_string(idx);
+            column->set_string("colname", name);
+            CATCH_REQUIRE(column->get_string("colname") == name);
+        }
+
+        prinbee::reference_t start_offset(0);
+        prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+        std::uint8_t const size(200);
+        buffer->pwrite(
+              &size
+            , sizeof(size)
+            , 4 + 4 + 32);  // skip magic & structure version & name (a CHAR(32))
+
+        int const to_delete(rand() & 255);
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->delete_array_item("columns", to_delete)
+                , prinbee::corrupted_data
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: the number of array items is"
+                          " different in our buffer and our field (read "
+                        + std::to_string(static_cast<int>(size))
+                        + " from the buffer, found "
+                        + std::to_string(max)
+                        + " in our in memory array)."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: get BUFFER8 with damaged size")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description5));
+        description->init_buffer();
+
+        // create a buffer
+        //
+        std::size_t const max(rand() % 96 + 5);
+        prinbee::buffer_t value(max);
+        for(std::size_t idx(0); idx < max; ++idx)
+        {
+            value[idx] = rand();
+        }
+        description->set_buffer("early_version.parts", value);
+
+        prinbee::reference_t start_offset(0);
+        prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+        std::uint8_t const size(max + rand() % 50 + 1);  // a different size
+        buffer->pwrite(
+              &size
+            , sizeof(size)
+            , 4 + 4         // skip magic & structure version
+            + 8 + 16        // sub-field & data
+            + 1);           // early_version.size
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_buffer("early_version.parts")
+                , prinbee::corrupted_data
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: the existing buffer size ("
+                        + std::to_string(static_cast<int>(size))
+                        + ") and field size ("
+                        + std::to_string(max)
+                        + ") do not match."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: string too long for this P8STRING")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description9));
+        description->init_buffer();
+        CATCH_REQUIRE(description->get_string("name") == "page");
+
+        for(std::size_t size(256); size <= 512; ++size)
+        {
+            std::string const name(SNAP_CATCH2_NAMESPACE::random_string(size, size));
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      description->set_string("name", name)
+                    , prinbee::out_of_range
+                    , Catch::Matchers::ExceptionMessage(
+                          "out_of_range: the input string is too large for this string field ("
+                        + std::to_string(size)
+                        + " >= 256)."));
+        }
+
+        CATCH_REQUIRE(description->get_string("name") == "page");
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: string too long for this CHAR")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description7));
+        description->init_buffer();
+        CATCH_REQUIRE(description->get_string("name") == "users");
+
+        for(std::size_t size(33); size <= 256; ++size)
+        {
+            std::string const name(SNAP_CATCH2_NAMESPACE::random_string(size, size));
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      description->set_string("name", name)
+                    , prinbee::out_of_range
+                    , Catch::Matchers::ExceptionMessage(
+                          "out_of_range: the CHAR field is limited to 32 characters. The input string is "
+                        + std::to_string(size)
+                        + " characters. It does not fit this field."));
+        }
+
+        CATCH_REQUIRE(description->get_string("name") == "users");
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("structure_invalid: invalid CHAR size (missing equal)")
     {
         prinbee::struct_description_t description = {
@@ -4022,7 +5131,29 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("structure_invalid: invalid CHAR size (size too large)")
+    CATCH_START_SECTION("structure_invalid: invalid CHAR size (negative size)")
+    {
+        prinbee::struct_description_t description = {
+            .f_field_name = "char=-123",
+            .f_type = prinbee::struct_type_t::STRUCT_TYPE_CHAR,
+        };
+
+#ifdef _DEBUG
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  std::make_shared<prinbee::field_t>(&description)
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage("logic_error: char field name & length \"char=-123\" are not valid."));
+#else
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  std::make_shared<prinbee::field_t>(&description)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                          "out_of_range: the size in field \"char=-123\" must be at least 1 and no more then 2^32 - 1."));
+#endif
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: invalid CHAR size (size too large for 64 bits)")
     {
         prinbee::struct_description_t description = {
             .f_field_name = "char=9999999999999999999",
@@ -4035,6 +5166,41 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
                 , Catch::Matchers::ExceptionMessage(
                         "prinbee_exception: the size in field"
                         " \"char=9999999999999999999\" must be a valid decimal number."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: invalid CHAR size (size of zero)")
+    {
+        prinbee::struct_description_t description = {
+            .f_field_name = "char=0",
+            .f_type = prinbee::struct_type_t::STRUCT_TYPE_CHAR,
+        };
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  std::make_shared<prinbee::field_t>(&description)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                        "out_of_range: the size in field \"char=0\" must be at least 1 and no more then 2^32 - 1."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: invalid CHAR size (size too large for 32 bits)")
+    {
+        std::string char_size("char=");
+        std::uint64_t const size((1ULL << 32) + rand());
+        char_size += std::to_string(size);
+        prinbee::struct_description_t description = {
+            .f_field_name = char_size.c_str(),
+            .f_type = prinbee::struct_type_t::STRUCT_TYPE_CHAR,
+        };
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  std::make_shared<prinbee::field_t>(&description)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                        "out_of_range: the size in field \""
+                      + char_size
+                      + "\" must be at least 1 and no more then 2^32 - 1."));
     }
     CATCH_END_SECTION()
 
@@ -4230,6 +5396,138 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
         //                  "prinbee_exception: this description renames field"
         //                  " \"buffer_size\" to \"unknown\" but we could not"
         //                  " find the latter field."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: structure version cannot be updated")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description3));
+        description->init_buffer();
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+              description->set_version(prinbee::g_system_field_name_structure_version, prinbee::version_t(rand() & 0xFFFF, rand() & 0xFFFF))
+            , prinbee::type_mismatch
+            , Catch::Matchers::ExceptionMessage(
+                      "prinbee_exception: this field type is \"STRUCTURE_VERSION\""
+                      " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: set bit field with out of range values")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description3));
+        description->init_buffer();
+
+        CATCH_REQUIRE(description->get_bits("eight_bits.null") == 0);
+        CATCH_REQUIRE(description->get_bits("eight_bits.advance") == 0);
+        CATCH_REQUIRE(description->get_bits("eight_bits.efficient") == 0);
+        CATCH_REQUIRE(description->get_bits("eight_bits.sign") == 0);
+
+        // change the value to add some spice to this test
+        //
+        std::uint32_t const valid_null_value(rand() & 1);
+        description->set_bits("eight_bits.null", valid_null_value);
+
+        std::uint32_t const valid_advance_value(rand() & 15);
+        description->set_bits("eight_bits.advance", valid_advance_value);
+
+        std::uint32_t const valid_efficient_value(rand() & 3);
+        description->set_bits("eight_bits.efficient", valid_efficient_value);
+
+        std::uint32_t const valid_sign_value(rand() & 1);
+        description->set_bits("eight_bits.sign", valid_sign_value);
+
+        for(int count(0); count < 10; ++count)
+        {
+            {
+                std::uint64_t null_value(0);
+                while(null_value < 2)
+                {
+                    SNAP_CATCH2_NAMESPACE::random(null_value);
+                }
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_bits("eight_bits.null", null_value)
+                        , prinbee::invalid_number
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: value \""
+                                + std::to_string(null_value)
+                                + "\" does not fit in flag field \"eight_bits.null\"."));
+
+                CATCH_REQUIRE(description->get_bits("eight_bits.null") == valid_null_value);
+            }
+
+            {
+                std::uint64_t advance_value(0);
+                while(advance_value < 16)
+                {
+                    SNAP_CATCH2_NAMESPACE::random(advance_value);
+                }
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_bits("eight_bits.advance", advance_value)
+                        , prinbee::invalid_number
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: value \""
+                                + std::to_string(advance_value)
+                                + "\" does not fit in flag field \"eight_bits.advance\"."));
+
+                CATCH_REQUIRE(description->get_bits("eight_bits.advance") == valid_advance_value);
+            }
+
+            {
+                std::uint64_t efficient_value(0);
+                while(efficient_value < 8)
+                {
+                    SNAP_CATCH2_NAMESPACE::random(efficient_value);
+                }
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_bits("eight_bits.efficient", efficient_value)
+                        , prinbee::invalid_number
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: value \""
+                                + std::to_string(efficient_value)
+                                + "\" does not fit in flag field \"eight_bits.efficient\"."));
+
+                CATCH_REQUIRE(description->get_bits("eight_bits.efficient") == valid_efficient_value);
+            }
+
+            {
+                std::uint64_t sign_value(0);
+                while(sign_value < 8)
+                {
+                    SNAP_CATCH2_NAMESPACE::random(sign_value);
+                }
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->set_bits("eight_bits.sign", sign_value)
+                        , prinbee::invalid_number
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: value \""
+                                + std::to_string(sign_value)
+                                + "\" does not fit in flag field \"eight_bits.sign\"."));
+
+                CATCH_REQUIRE(description->get_bits("eight_bits.sign") == valid_sign_value);
+            }
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: set buffer with too large a size")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description5));
+        description->init_buffer();
+
+        std::size_t const max(rand() % 100 + 256);
+        prinbee::buffer_t v(max);
+        for(std::size_t idx(0); idx < max; ++idx)
+        {
+            v[idx] = rand();
+        }
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->set_buffer("early_version.parts", v)
+                , prinbee::out_of_range
+                , Catch::Matchers::ExceptionMessage(
+                          "out_of_range: size of input buffer ("
+                        + std::to_string(max)
+                        + ") too large to send it to the buffer; the maximum permitted by this field is 255."));
     }
     CATCH_END_SECTION()
 }

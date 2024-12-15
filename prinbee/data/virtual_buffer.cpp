@@ -114,6 +114,17 @@ std::uint64_t virtual_buffer::size() const
 }
 
 
+std::uint64_t virtual_buffer::start_offset() const
+{
+    if(f_buffers.empty())
+    {
+        return 0;
+    }
+
+    return f_buffers.begin()->f_offset;
+}
+
+
 bool virtual_buffer::is_data_available(std::uint64_t offset, std::uint64_t size) const
 {
     return offset + size <= f_total_size;
@@ -411,7 +422,8 @@ SNAP_LOG_ERROR << "--- perase CASE 1 -- size == 0" << SNAP_LOG_SEND;
 
     if(offset >= f_total_size)
     {
-SNAP_LOG_ERROR << "--- perase CASE 2 -- offset >= total size" << SNAP_LOG_SEND;
+SNAP_LOG_ERROR << "--- perase CASE 2 -- offset (" << offset
+<< ") >= total size (" << f_total_size << ")" << SNAP_LOG_SEND;
         return 0;
     }
 

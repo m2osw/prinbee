@@ -42,6 +42,11 @@
 #include    <snaplogger/message.h>
 
 
+// cppthread
+//
+#include    <cppthread/thread.h>
+
+
 // snapdev
 //
 #include    <snapdev/hexadecimal_string.h>
@@ -585,6 +590,14 @@ field_t::field_t(struct_description_t const * description)
                         + std::string(f_description->f_field_name)
                         + "\" must be a valid decimal number.");
             }
+            if(size <= 0
+            || size >= (1LL << 32))
+            {
+                throw out_of_range(
+                          "the size in field \""
+                        + std::string(f_description->f_field_name)
+                        + "\" must be at least 1 and no more then 2^32 - 1.");
+            }
             f_size = size;
         }
         break;
@@ -892,10 +905,6 @@ structure::pointer_t field_t::operator [] (int idx) const
 }
 
 
-void field_t::set_sub_structures(structure::vector_t const & v)
-{
-    f_sub_structures = v;
-}
 
 
 
@@ -1084,10 +1093,8 @@ std::size_t structure::get_static_size() const
 }
 
 
-std::size_t structure::get_current_size() const
+std::size_t structure::get_current_size(std::size_t start_offset) const
 {
-    std::size_t result(0);
-
     if(!f_fields_by_name.empty())
     {
         for(field_t::pointer_t f(f_fields_by_name.begin()->second->first()); f != nullptr; f = f->next())
@@ -1096,6 +1103,24 @@ std::size_t structure::get_current_size() const
             {
                 continue;
             }
+#ifdef _DEBUG
+            if(f->offset() != start_offset
+            && cppthread::gettid() == f_verify_offset)
+            {
+                std::cout << std::flush;
+                std::cerr << std::flush;
+                SNAP_LOG_FATAL << "-------------- offsets are off?" << SNAP_LOG_SEND;
+                display_offsets();
+                throw logic_error(
+                        "offset of field \""
+                        + f->field_name()
+                        + "\" seems off; size so far is "
+                        + std::to_string(start_offset)
+                        + " but field offset is "
+                        + std::to_string(f->offset())
+                        + ".");
+            }
+#endif
 
             // the size of the structure field is ignored, it's always 1
             // and it has nothing to do with the size of the resulting
@@ -1106,52 +1131,54 @@ std::size_t structure::get_current_size() const
             case struct_type_t::STRUCT_TYPE_STRUCTURE:
                 break;
 
-            // for those fields, we need to add a few bytes for the size
+            // for the STRING & BUFFER fields, we need to add a few bytes for
+            // the space holding the size
             //
             case struct_type_t::STRUCT_TYPE_P8STRING:
             case struct_type_t::STRUCT_TYPE_BUFFER8:
-                result += 1 + f->size();
+                start_offset += 1 + f->size();
                 break;
 
             case struct_type_t::STRUCT_TYPE_P16STRING:
             case struct_type_t::STRUCT_TYPE_BUFFER16:
-                result += 2 + f->size();
+                start_offset += 2 + f->size();
                 break;
 
             case struct_type_t::STRUCT_TYPE_P32STRING:
             case struct_type_t::STRUCT_TYPE_BUFFER32:
-                result += 4 + f->size();
+                start_offset += 4 + f->size();
                 break;
 
-            // the size of arrays is the number of items, not the byte size...
-            // so instead we'll call the get_current_size() recursively
+            // right here, the size of arrays is the space holding the number
+            // of items, not the total byte size which we get by calling
+            // get_current_size() recursively
             //
             case struct_type_t::STRUCT_TYPE_ARRAY8:
-                result += 1;
+                start_offset += 1;
                 break;
 
             case struct_type_t::STRUCT_TYPE_ARRAY16:
-                result += 2;
+                start_offset += 2;
                 break;
 
             case struct_type_t::STRUCT_TYPE_ARRAY32:
-                result += 4;
+                start_offset += 4;
                 break;
 
             default:
-                result += f->size();
+                start_offset += f->size();
                 break;
 
             }
 
             for(auto const & s : f->sub_structures())
             {
-                result += s->get_current_size();
+                start_offset = s->get_current_size(start_offset);
             }
         }
     }
 
-    return result;
+    return start_offset;
 }
 
 
@@ -1433,7 +1460,7 @@ std::int64_t structure::get_integer(std::string const & field_name) const
 
     default:
         throw type_mismatch(
-                  "this description type is \""
+                  "this field type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -1493,7 +1520,7 @@ void structure::set_integer(std::string const & field_name, std::int64_t value)
 
     default:
         throw type_mismatch(
-                  "this description type is \""
+                  "this field type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -1562,7 +1589,7 @@ std::uint64_t structure::get_uinteger(std::string const & field_name) const
 
     default:
         throw type_mismatch(
-                  "this description type is \""
+                  "this field type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1638,7 +1665,7 @@ void structure::set_uinteger(std::string const & field_name, std::uint64_t value
 
     default:
         throw type_mismatch(
-                  "this description type is \""
+                  "this field type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1707,7 +1734,7 @@ std::uint64_t structure::get_bits(std::string const & flag_name) const
 
     default:
         throw type_mismatch(
-                  "this description type is \""
+                  "this field type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1740,7 +1767,7 @@ void structure::set_bits(std::string const & flag_name, std::uint64_t value)
 
     default:
         throw type_mismatch(
-                  "this description type is \""
+                  "this field type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1774,12 +1801,6 @@ void structure::set_bits(std::string const & flag_name, std::uint64_t value)
 dbtype_t structure::get_magic() const
 {
     return static_cast<dbtype_t>(get_uinteger(g_system_field_name_magic));
-}
-
-
-void structure::set_magic(dbtype_t const & magic)
-{
-    set_uinteger(g_system_field_name_magic, static_cast<std::uint32_t>(magic));
 }
 
 
@@ -1868,7 +1889,7 @@ sign_extend_64bit:
 
     default:
         throw type_mismatch(
-                  "this description type is \""
+                  "this field type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -1922,7 +1943,7 @@ void structure::set_large_integer(std::string const & field_name, int512_t value
 
     default:
         throw type_mismatch(
-                  "this description type is \""
+                  "this field type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -1985,7 +2006,7 @@ uint512_t structure::get_large_uinteger(std::string const & field_name) const
 
     default:
         throw type_mismatch(
-                  "this description type is \""
+                  "this field type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -2057,7 +2078,7 @@ void structure::set_large_uinteger(std::string const & field_name, uint512_t val
 
     default:
         throw type_mismatch(
-                  "this description type is \""
+                  "this field type is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -2180,29 +2201,39 @@ std::string structure::get_string(std::string const & field_name) const
         break;
 
     default:
-        throw string_not_terminated(
-                  "this field was expected to be a string it is a \""
+        throw type_mismatch(
+                  "this field type is \""
                 + to_string(f->type())
-                + "\" instead.");
+                + "\" but we expected one of \""
+                + to_string(struct_type_t::STRUCT_TYPE_CHAR)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_P8STRING)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_P16STRING)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_P32STRING)
+                + "\".");
 
     }
 
     // TBD: should we ignore this check in release mode?
     std::uint32_t length(0);
     f_buffer->pread(&length, field_size, f->offset());
-    // in big endian we have to swap the bytes in length if field_size != 4
+    // in big endian we have to swap the bytes in length if field_size != 1
     if(length != f->size())
     {
-        throw logic_error(
+        throw corrupted_data(
                   "the size of string field \""
                 + field_name
                 + "\" ("
                 + std::to_string(f->size())
                 + ") is different from the size found in the file ("
-                + std::to_string(field_size)
+                + std::to_string(length)
                 + " found at offset "
                 + std::to_string(f->offset())
-                + ").");
+                + " over "
+                + std::to_string(field_size)
+                + " bytes).");
     }
 
     std::string result(length, '\0');
@@ -2246,10 +2277,18 @@ SNAP_LOG_WARNING << "CHAR case: offset (2) = " << f->offset() << " + " << value.
         break;
 
     default:
-        throw string_not_terminated(
-                  "this field was expected to be a string it is a \""
+        throw type_mismatch(
+                  "this field type is \""
                 + to_string(f->type())
-                + "\" instead.");
+                + "\" but we expected one of \""
+                + to_string(struct_type_t::STRUCT_TYPE_CHAR)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_P8STRING)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_P16STRING)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_P32STRING)
+                + "\".");
 
     }
 
@@ -2262,23 +2301,25 @@ SNAP_LOG_WARNING << "CHAR case: offset (2) = " << f->offset() << " + " << value.
     f_buffer->pread(&length, field_size, f->offset());
     if(length != f->size())
     {
-        // TODO: handle the difference (i.e. enlarge/shrink)
-        //       this happens if you change a P8STRING to a P16STRING or
-        //       other such combo
-        //
-        throw invalid_size(
-                  "the existing string size and field size do not match; found "
-                + std::to_string(length)
-                + ", expected "
+        throw corrupted_data(
+                  "the size of string field \""
+                + field_name
+                + "\" ("
                 + std::to_string(f->size())
-                + " instead.");
+                + ") is different from the size found in the file ("
+                + std::to_string(length)
+                + " found at offset "
+                + std::to_string(f->offset())
+                + " over "
+                + std::to_string(field_size)
+                + " bytes).");
     }
 
     std::uint32_t const size(value.length());
     std::uint64_t const max_size(1ULL << (field_size * 8));
     if(size >= max_size)
     {
-        throw invalid_size(
+        throw out_of_range(
                   "the input string is too large for this string field ("
                 + std::to_string(size)
                 + " >= "
@@ -2363,7 +2404,7 @@ void structure::set_structure(std::string const & field_name, structure::pointer
 }
 
 
-structure::vector_t structure::get_array(std::string const & field_name) const
+structure::vector_t const & structure::get_array(std::string const & field_name) const
 {
     auto f(get_field(field_name));
 
@@ -2376,8 +2417,14 @@ structure::vector_t structure::get_array(std::string const & field_name) const
 
     default:
         throw type_mismatch(
-                  "The get_array() function expected a STRUCT_TYPE_ARRAY<size> field instead of \""
+                  "this field type is \""
                 + to_string(f->type())
+                + "\" but we expected one of \""
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY8)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY16)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY32)
                 + "\".");
 
     }
@@ -2386,16 +2433,64 @@ structure::vector_t structure::get_array(std::string const & field_name) const
 }
 
 
+structure::vector_t & structure::get_array(std::string const & field_name)
+{
+    auto f(get_field(field_name));
+
+    switch(f->type())
+    {
+    case struct_type_t::STRUCT_TYPE_ARRAY8:
+    case struct_type_t::STRUCT_TYPE_ARRAY16:
+    case struct_type_t::STRUCT_TYPE_ARRAY32:
+        break;
+
+    default:
+        throw type_mismatch(
+                  "this field type is \""
+                + to_string(f->type())
+                + "\" but we expected one of \""
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY8)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY16)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY32)
+                + "\".");
+
+    }
+
+    return f->sub_structures();
+}
+
+
+// at the moment I do not need this one and the implementation would
+// require a deep copy() function which we do not have
+//void structure::set_array(std::string const & field_name, vector_t const & value)
+//{
+//    auto f(get_field(field_name));
+//
+//    switch(f->type())
+//    {
+//    case struct_type_t::STRUCT_TYPE_ARRAY8:
+//    case struct_type_t::STRUCT_TYPE_ARRAY16:
+//    case struct_type_t::STRUCT_TYPE_ARRAY32:
+//        break;
+//
+//    default:
+//        throw type_mismatch(
+//                  "the set_array() function expected a STRUCT_TYPE_ARRAY<size> field instead of \""
+//                + to_string(f->type())
+//                + "\".");
+//
+//    }
+//
+//    snapdev::NOT_USED(value);
+//    //f->set_sub_structures(value);
+//}
+
+
 structure::pointer_t structure::new_array_item(std::string const & field_name)
 {
     auto f(get_field(field_name));
-    if(f == nullptr)
-    {
-        throw logic_error(
-                  "could not find field \""
-                + field_name
-                + "\".");
-    }
 
     std::uint64_t size(0);
     std::uint64_t max(0);
@@ -2418,8 +2513,14 @@ structure::pointer_t structure::new_array_item(std::string const & field_name)
 
     default:
         throw type_mismatch(
-                  "the new_array_item() function expected a STRUCT_TYPE_ARRAY<size> field instead of \""
+                  "this field type is \""
                 + to_string(f->type())
+                + "\" but we expected one of \""
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY8)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY16)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY32)
                 + "\".");
 
     }
@@ -2465,12 +2566,14 @@ structure::pointer_t structure::new_array_item(std::string const & field_name)
 #ifdef _DEBUG
     if(add != new_offset - offset)
     {
+        // LCOV_EXCL_START
         throw logic_error(
                   "sub-structure says its size is "
                 + std::to_string(add)
                 + " but the offsets say it's "
                 + std::to_string(new_offset - offset)
                 + ".");
+        // LCOV_EXCL_STOP
     }
 #endif
     std::vector<std::uint8_t> value(add, 0);
@@ -2493,10 +2596,10 @@ structure::pointer_t structure::new_array_item(std::string const & field_name)
         f_buffer->pwrite(&size, sizeof(uint32_t), f->offset());
         break;
 
-    default:
-        // we already throw above so we should never reach this point
+    default: // LCOV_EXCL_LINE
+        // we already throw above so we should never reach this case
         //
-        snapdev::NOT_REACHED();
+        snapdev::NOT_REACHED(); // LCOV_EXCL_LINE
         break;
 
     }
@@ -2521,26 +2624,109 @@ structure::pointer_t structure::new_array_item(std::string const & field_name)
 }
 
 
-void structure::set_array(std::string const & field_name, vector_t const & value)
+void structure::delete_array_item(std::string const & field_name, int idx)
 {
     auto f(get_field(field_name));
 
+    std::uint64_t size(0);
     switch(f->type())
     {
     case struct_type_t::STRUCT_TYPE_ARRAY8:
+        f_buffer->pread(&size, sizeof(std::uint8_t), f->offset());
+        break;
+
     case struct_type_t::STRUCT_TYPE_ARRAY16:
+        f_buffer->pread(&size, sizeof(std::uint16_t), f->offset());
+        break;
+
     case struct_type_t::STRUCT_TYPE_ARRAY32:
+        f_buffer->pread(&size, sizeof(std::uint32_t), f->offset());
         break;
 
     default:
         throw type_mismatch(
-                  "the set_array() function expected a STRUCT_TYPE_ARRAY<size> field instead of \""
+                  "this field type is \""
                 + to_string(f->type())
+                + "\" but we expected one of \""
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY8)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY16)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_ARRAY32)
                 + "\".");
 
     }
 
-    f->set_sub_structures(value);
+    structure::vector_t & array(f->sub_structures());
+    if(size != array.size())
+    {
+        throw corrupted_data(
+                  "the number of array items is different in our buffer and our field (read "
+                + std::to_string(size)
+                + " from the buffer, found "
+                + std::to_string(array.size())
+                + " in our in memory array).");
+    }
+
+    if(static_cast<std::size_t>(idx) >= size)
+    {
+        throw out_of_range(
+                  "the index ("
+                + std::to_string(idx)
+                + ") in delete_array_item() function is out of range (larger or equal to the size: "
+                + std::to_string(size)
+                + ").");
+    }
+
+    reference_t offset(0);
+    snapdev::NOT_USED(array[idx]->get_virtual_buffer(offset));
+    std::size_t const item_size(array[idx]->get_current_size());
+    std::size_t const bytes_erased(f_buffer->perase(item_size, offset));
+    if(bytes_erased != item_size)
+    {
+        // LCOV_EXCL_START
+        throw out_of_range(
+                  "could not properly delete_array_item() data; deleted "
+                + std::to_string(bytes_erased)
+                + " bytes; expected "
+                + std::to_string(item_size)
+                + " instead.");
+        // LCOV_EXCL_STOP
+    }
+
+    // WARNING: for the adjust_offsets() to work properly we MUST have this
+    //          erase() before it; otherwise there would be a mismatch
+    //
+    f->sub_structures().erase(array.begin() + idx);
+
+    // decrement the array counter and save the new value
+    //
+    --size;
+    switch(f->type())
+    {
+    case struct_type_t::STRUCT_TYPE_ARRAY8:
+        f_buffer->pwrite(&size, sizeof(uint8_t), f->offset());
+        break;
+
+    case struct_type_t::STRUCT_TYPE_ARRAY16:
+        f_buffer->pwrite(&size, sizeof(uint16_t), f->offset());
+        break;
+
+    case struct_type_t::STRUCT_TYPE_ARRAY32:
+        f_buffer->pwrite(&size, sizeof(uint32_t), f->offset());
+        break;
+
+    default: // LCOV_EXCL_LINE
+        // we already throw above so we should never reach this case
+        //
+        snapdev::NOT_REACHED(); // LCOV_EXCL_LINE
+        break;
+
+    }
+
+    adjust_offsets(offset - 1, -item_size);
+
+    verify_buffer_size();
 }
 
 
@@ -2557,8 +2743,14 @@ buffer_t structure::get_buffer(std::string const & field_name) const
 
     default:
         throw type_mismatch(
-                  "the get_buffer() function expected a STRUCT_TYPE_BUFFER<size> field instead of \""
+                  "this field type is \""
                 + to_string(f->type())
+                + "\" but we expected one of \""
+                + to_string(struct_type_t::STRUCT_TYPE_BUFFER8)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_BUFFER16)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_BUFFER32)
                 + "\".");
 
     }
@@ -2568,12 +2760,12 @@ buffer_t structure::get_buffer(std::string const & field_name) const
     f_buffer->pread(&size, field_size, f->offset());
     if(size != f->size())
     {
-        throw invalid_size(
-                  "this existing buffer size and field size do not match; found "
+        throw corrupted_data(
+                  "the existing buffer size ("
                 + std::to_string(size)
-                + ", expected "
+                + ") and field size ("
                 + std::to_string(f->size())
-                + " instead.");
+                + ") do not match.");
     }
 
     buffer_t result;
@@ -2596,8 +2788,14 @@ void structure::set_buffer(std::string const & field_name, buffer_t const & valu
 
     default:
         throw type_mismatch(
-                  "the set_buffer() function expected a STRUCT_TYPE_BUFFER<size> field instead of \""
+                  "this field type is \""
                 + to_string(f->type())
+                + "\" but we expected one of \""
+                + to_string(struct_type_t::STRUCT_TYPE_BUFFER8)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_BUFFER16)
+                + ", "
+                + to_string(struct_type_t::STRUCT_TYPE_BUFFER32)
                 + "\".");
 
     }
@@ -3043,10 +3241,15 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             std::string::size_type pos(field_name.find('='));
             if(pos == std::string::npos)
             {
+                // this is caught in the field_t constructor so it should
+                // not happen here
+                //
+                // LCOV_EXCL_START
                 throw logic_error(
                           "field \""
                         + field_name
                         + "\" is expected to have a size following its name.");
+                // LCOV_EXCL_STOP
             }
             field_name = field_name.substr(0, pos);
         }
@@ -3083,9 +3286,9 @@ void structure::adjust_offsets(reference_t offset_cutoff, std::int64_t diff)
         s = p;
     }
 
-    // we can't use auto and call a lambda function recursively
+    // we cannot use auto and call a lambda function recursively
     //
-    typedef std::function<void(pointer_t)>     func_t;
+    typedef std::function<void(pointer_t)> func_t;
     func_t adjust = [&](pointer_t p)
         {
             for(auto const & f : p->f_fields_by_name)
@@ -3097,6 +3300,13 @@ void structure::adjust_offsets(reference_t offset_cutoff, std::int64_t diff)
 
                 for(auto const & sub : f.second->sub_structures())
                 {
+                    reference_t start_offset(0);
+                    virtual_buffer::pointer_t buffer(sub->get_virtual_buffer(start_offset));
+                    if(start_offset > offset_cutoff)
+                    {
+                        sub->f_start_offset += diff;
+                    }
+
                     adjust(sub);
                 }
             }
@@ -3106,6 +3316,7 @@ void structure::adjust_offsets(reference_t offset_cutoff, std::int64_t diff)
 }
 
 
+// LCOV_EXCL_START
 void structure::display_offsets() const
 {
     pointer_t s(const_cast<structure *>(this)->shared_from_this());
@@ -3126,16 +3337,6 @@ void structure::display_offsets() const
                     ++def)
             {
                 auto const f(p->get_field(def->f_field_name));
-                if(f == nullptr)
-                {
-                    std::cout << std::flush;
-                    SNAP_LOG_SEVERE
-                        << "could not find field \""
-                        << def->f_field_name
-                        << "\" in this structure."
-                        << SNAP_LOG_SEND;
-                    continue;
-                }
 
                 std::cout
                     << prefix
@@ -3156,6 +3357,11 @@ void structure::display_offsets() const
                 int idx(0);
                 for(auto const & sub : f->sub_structures())
                 {
+reference_t start_offset(0);
+virtual_buffer::pointer_t buffer(sub->get_virtual_buffer(start_offset));
+std::cout << "--- start offset: 0x" << snapdev::int_to_hex(start_offset)
+<< (sub->get_field(sub->f_descriptions->f_field_name)->offset() != start_offset ? " --- DIFFERENT" : "")
+<< '\n';
                     std::string sub_index;
                     sub_index += '[';
                     sub_index += std::to_string(idx);
@@ -3170,6 +3376,7 @@ void structure::display_offsets() const
     display(s, 0, std::string());
     std::cout << std::flush;
 }
+// LCOV_EXCL_STOP
 
 
 void structure::verify_buffer_size()
@@ -3179,14 +3386,19 @@ void structure::verify_buffer_size()
     {
         pointer_t s;
         for(s = shared_from_this(); s->parent() != nullptr; s = s->parent());
-        if(f_buffer->size() != s->get_current_size())
+        f_verify_offset = cppthread::gettid();
+        std::size_t const size(s->get_current_size());
+        f_verify_offset = 0;
+        if(f_buffer->size() != size)
         {
+            // LCOV_EXCL_START
             throw logic_error(
-                    "Buffer ("
+                    "buffer ("
                     + std::to_string(f_buffer->size())
                     + ") and current ("
                     + std::to_string(s->get_current_size())
                     + ") sizes do not match.");
+            // LCOV_EXCL_STOP
         }
     }
 #endif

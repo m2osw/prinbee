@@ -884,7 +884,6 @@ public:
     structure_vector_t const &              sub_structures() const;
     structure_vector_t &                    sub_structures();
     structure_pointer_t                     operator [] (int idx) const;
-    void                                    set_sub_structures(structure_vector_t const & v);
 
 private:
     weak_pointer_t                          f_next = weak_pointer_t();
@@ -924,7 +923,7 @@ public:
     virtual_buffer::pointer_t               get_virtual_buffer(reference_t & start_offset) const;
 
     std::size_t                             get_static_size() const;
-    std::size_t                             get_current_size() const;
+    std::size_t                             get_current_size(std::size_t start_offset = 0) const;
 
     pointer_t                               parent() const;
     field_t::pointer_t                      get_field(
@@ -945,7 +944,6 @@ public:
     void                                    set_bits(std::string const & flag_name, std::uint64_t value);
 
     dbtype_t                                get_magic() const;
-    void                                    set_magic(dbtype_t const & magic);
 
     version_t                               get_version(std::string const & field_name) const;
     void                                    set_version(std::string const & field_name, version_t const & version);
@@ -974,9 +972,11 @@ public:
     structure::pointer_t                    get_structure(std::string const & field_name) const;
     void                                    set_structure(std::string const & field_name, pointer_t & value);
 
-    structure::vector_t                     get_array(std::string const & field_name) const;
+    structure::vector_t const &             get_array(std::string const & field_name) const;
+    structure::vector_t &                   get_array(std::string const & field_name);
+    //void                                    set_array(std::string const & field_name, vector_t const & value);
     structure::pointer_t                    new_array_item(std::string const & field_name);
-    void                                    set_array(std::string const & field_name, vector_t const & value);
+    void                                    delete_array_item(std::string const & field_name, int idx);
 
     buffer_t                                get_buffer(std::string const & field_name) const;
     void                                    set_buffer(std::string const & field_name, buffer_t const & value);
@@ -998,6 +998,9 @@ private:
     reference_t                             f_start_offset = 0;
     mutable std::uint64_t                   f_original_size = 0;
     field_t::map_t                          f_fields_by_name = field_t::map_t();
+#ifdef _DEBUG
+    pid_t                                   f_verify_offset = 0;
+#endif
 };
 
 
