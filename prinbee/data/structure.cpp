@@ -395,7 +395,7 @@ flag_definition::flag_definition(
                 + field_name
                 + "."
                 + flag_name
-                + "\" can't have a size of 0.");
+                + "\" cannot have a size of 0.");
     }
     if(size >= 64ULL)
     {
@@ -1107,6 +1107,7 @@ std::size_t structure::get_current_size(std::size_t start_offset) const
             if(f->offset() != start_offset
             && cppthread::gettid() == f_verify_offset)
             {
+                // LCOV_EXCL_START
                 std::cout << std::flush;
                 std::cerr << std::flush;
                 SNAP_LOG_FATAL << "-------------- offsets are off?" << SNAP_LOG_SEND;
@@ -1119,6 +1120,7 @@ std::size_t structure::get_current_size(std::size_t start_offset) const
                         + " but field offset is "
                         + std::to_string(f->offset())
                         + ".");
+                // LCOV_EXCL_STOP
             }
 #endif
 
@@ -2381,27 +2383,27 @@ structure::pointer_t structure::get_structure(std::string const & field_name) co
 }
 
 
-void structure::set_structure(std::string const & field_name, structure::pointer_t & value)
-{
-    auto f(get_field(field_name, struct_type_t::STRUCT_TYPE_STRUCTURE));
-
-    if(f->sub_structures().size() != 1)
-    {
-        throw invalid_size(
-                  "a structure requires a sub_structure vector of size 1 (got "
-                + std::to_string(f->sub_structures().size())
-                + " instead).");
-    }
-
-    if(f->sub_structures().empty()) // as per the above test, this is not possible at the moment, but TBD
-    {
-        f->sub_structures().push_back(value);
-    }
-    else
-    {
-        f->sub_structures()[0] = value;
-    }
-}
+//void structure::set_structure(std::string const & field_name, structure::pointer_t & value)
+//{
+//    auto f(get_field(field_name, struct_type_t::STRUCT_TYPE_STRUCTURE));
+//
+//    if(f->sub_structures().size() != 1)
+//    {
+//        throw invalid_size(
+//                  "a structure requires a sub_structure vector of size 1 (got "
+//                + std::to_string(f->sub_structures().size())
+//                + " instead).");
+//    }
+//
+//    if(f->sub_structures().empty()) // as per the above test, this is not possible at the moment, but TBD
+//    {
+//        f->sub_structures().push_back(value);
+//    }
+//    else
+//    {
+//        f->sub_structures()[0] = value;
+//    }
+//}
 
 
 structure::vector_t const & structure::get_array(std::string const & field_name) const
@@ -3092,8 +3094,8 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             has_sub_defs = true;
             break;
 
-        case struct_type_t::STRUCT_TYPE_END: // <- this one cannot happen here, it helps with the switch() warnings, though
-            throw invalid_size("this field does not offer a size which can be queried.");
+        case struct_type_t::STRUCT_TYPE_END: // <- this one cannot happen here, it helps with the switch() warnings, though -- LCOV_EXCL_LINE
+            throw invalid_size("this field does not offer a size which can be queried."); // LCOV_EXCL_LINE
 
         }
 
@@ -3101,7 +3103,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
         && f_buffer->count_buffers() != 0
         && offset > f_buffer->size())
         {
-            throw invalid_size(
+            throw corrupted_data(
                       "field \""
                     + field_name
                     + "\" is too large for the specified data buffer.");
@@ -3114,7 +3116,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
                 throw logic_error(
                           "field \""
                         + field_name
-                        + "\" has its \"f_sub_description\" field set to a pointer when its type doesn't allow it.");
+                        + "\" has its \"f_sub_description\" field set to a pointer when its type does not allow it.");
             }
 
             if(def->f_type != struct_type_t::STRUCT_TYPE_RENAMED)
@@ -3135,17 +3137,19 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             throw logic_error(
                       "field \""
                     + field_name
-                    + "\" is expected to have its \"f_sub_description\" field set to a pointer but it's null right now.");
+                    + "\" is expected to have its \"f_sub_description\" field set to a pointer but it is null right now.");
         }
         else if(bit_field > 0)
         {
             std::string::size_type pos(field_name.find('='));
             if(pos == std::string::npos)
             {
+                // LCOV_EXCL_START
                 throw logic_error(
                           "field \""
                         + field_name
                         + "\" is expected to have a bit field description following its name.");
+                // LCOV_EXCL_STOP
             }
 
             // TODO: add support for 128, 256, and 512 at some point
@@ -3163,7 +3167,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
                 std::string::size_type start(end + 1);
                 if(start >= field_name.size())  // allows for the list to end with a '/'
                 {
-                    break;
+                    break; // LCOV_EXCL_LINE
                 }
                 end = field_name.find_first_of(":/", start);
                 std::int64_t size(1);
@@ -3203,17 +3207,17 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
                             throw invalid_size(
                                   "the size ("
                                 + size_str
-                                + ") of this bit field \""
+                                + ") of bit field \""
                                 + flag_name
                                 + "\" is invalid.");
                         }
-                        if(bit_field <= 0)
+                        if(size <= 0)
                         {
                             throw invalid_size(
                                   "the size of a bit field must be positive. \""
                                 + flag_name
                                 + "\" was given "
-                                + std::to_string(bit_field)
+                                + std::to_string(size)
                                 + " instead.");
                         }
                         if(bit_pos + size > bit_field)

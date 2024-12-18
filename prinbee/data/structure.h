@@ -970,7 +970,7 @@ public:
     void                                    set_string(std::string const & field_name, std::string const & value);
 
     structure::pointer_t                    get_structure(std::string const & field_name) const;
-    void                                    set_structure(std::string const & field_name, pointer_t & value);
+    //void                                    set_structure(std::string const & field_name, pointer_t & value);
 
     structure::vector_t const &             get_array(std::string const & field_name) const;
     structure::vector_t &                   get_array(std::string const & field_name);

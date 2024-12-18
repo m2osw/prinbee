@@ -1270,7 +1270,7 @@ CATCH_TEST_CASE("structure_flag_definitions_incorrect_construction", "[structure
                         + field_name
                         + "."
                         + flag_name
-                        + "\" can't have a size of 0."));
+                        + "\" cannot have a size of 0."));
 
         for(std::size_t size(64); size < 100; ++size)
         {
@@ -3392,6 +3392,26 @@ CATCH_TEST_CASE("structure_get_set", "[structure][valid]")
                           + prinbee::to_string(t.f_type)
                           + "\" but we expected one of \"BUFFER8, BUFFER16, BUFFER32\"."));
             }
+
+            // arrays are not checked here, but we can still attempt the
+            // get function with all the other types which must all fail
+            {
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          description->get_array(field_name)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this field type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\" but we expected one of \"ARRAY8, ARRAY16, ARRAY32\"."));
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          std::const_pointer_cast<prinbee::structure const>(description)->get_array(field_name)
+                        , prinbee::type_mismatch
+                        , Catch::Matchers::ExceptionMessage(
+                            "prinbee_exception: this field type is \""
+                          + prinbee::to_string(t.f_type)
+                          + "\" but we expected one of \"ARRAY8, ARRAY16, ARRAY32\"."));
+            }
         }
     }
     CATCH_END_SECTION()
@@ -3594,6 +3614,49 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
                     , Catch::Matchers::ExceptionMessage(
                         "out_of_range: the new_array_item() function cannot be"
                         " used because the array is already full with 256 items."));
+        }
+
+        {
+            prinbee::reference_t start_offset(0);
+            prinbee::virtual_buffer::pointer_t b(description->get_virtual_buffer(start_offset));
+            CATCH_REQUIRE(b != nullptr);
+            CATCH_REQUIRE(b->size() == description->get_current_size());
+
+            prinbee::buffer_t buffer(b->size());
+            CATCH_REQUIRE(b->pread(buffer.data(), buffer.size(), 0) == static_cast<int>(buffer.size()));
+
+            prinbee::virtual_buffer::pointer_t n(std::make_shared<prinbee::virtual_buffer>());
+            n->pwrite(buffer.data(), buffer.size(), 0, true);
+
+            prinbee::structure::pointer_t d(std::make_shared<prinbee::structure>(g_description7));
+            d->set_virtual_buffer(n, 0);
+
+            CATCH_REQUIRE(d->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+            CATCH_REQUIRE(d->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+            CATCH_REQUIRE(d->get_string("name") == name);
+            CATCH_REQUIRE(d->get_string("comment") == comment_field);
+
+            array = d->get_array("columns");
+            CATCH_REQUIRE(array.size() == 255);
+
+            CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+            CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+            CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+
+            CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+            CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+            CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+
+            CATCH_REQUIRE(array[2]->get_string("colname") == column3_name);
+            CATCH_REQUIRE(array[2]->get_uinteger("max_size") == column3_max_size);
+            CATCH_REQUIRE(array[2]->get_uinteger("type") == column3_type);
+
+            for(std::size_t idx(3); idx < 255; ++idx)
+            {
+                CATCH_REQUIRE(array[idx]->get_string("colname") == "_undefined");
+                CATCH_REQUIRE(array[idx]->get_uinteger("max_size") == 256);
+                CATCH_REQUIRE(array[idx]->get_uinteger("type") == 14);
+            }
         }
 
         // now randomly remove columns one by one
@@ -4037,6 +4100,43 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
                       + 1UL + column2_name.length() + 2UL + 2UL
                       + 1UL + column3_name.length() + 2UL + 2UL
                 + 4UL + comment_field.length());
+
+        {
+            prinbee::reference_t start_offset(0);
+            prinbee::virtual_buffer::pointer_t b(description->get_virtual_buffer(start_offset));
+            CATCH_REQUIRE(b != nullptr);
+            CATCH_REQUIRE(b->size() == description->get_current_size());
+
+            prinbee::buffer_t buffer(b->size());
+            CATCH_REQUIRE(b->pread(buffer.data(), buffer.size(), 0) == static_cast<int>(buffer.size()));
+
+            prinbee::virtual_buffer::pointer_t n(std::make_shared<prinbee::virtual_buffer>());
+            n->pwrite(buffer.data(), buffer.size(), 0, true);
+
+            prinbee::structure::pointer_t d(std::make_shared<prinbee::structure>(g_description8));
+            d->set_virtual_buffer(n, 0);
+
+            CATCH_REQUIRE(d->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+            CATCH_REQUIRE(d->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+            CATCH_REQUIRE(d->get_string("name") == name);
+            CATCH_REQUIRE(d->get_string("comment") == comment_field);
+
+            array = d->get_array("columns");
+            CATCH_REQUIRE(array.size() == 3);
+
+            CATCH_REQUIRE(array[0]->get_string("colname") == column1_name);
+            CATCH_REQUIRE(array[0]->get_uinteger("max_size") == column1_max_size);
+            CATCH_REQUIRE(array[0]->get_uinteger("type") == column1_type);
+
+            CATCH_REQUIRE(array[1]->get_string("colname") == column2_name);
+            CATCH_REQUIRE(array[1]->get_uinteger("max_size") == column2_max_size);
+            CATCH_REQUIRE(array[1]->get_uinteger("type") == column2_type);
+
+            CATCH_REQUIRE(array[2]->get_string("colname") == column3_name);
+            CATCH_REQUIRE(array[2]->get_uinteger("max_size") == column3_max_size);
+            CATCH_REQUIRE(array[2]->get_uinteger("type") == column3_type);
+        }
+
 //{
 //prinbee::reference_t start_offset(0);
 //prinbee::virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
@@ -5204,6 +5304,99 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
     }
     CATCH_END_SECTION()
 
+    CATCH_START_SECTION("structure_invalid: invalid bit field size (size too large for 8 bits)")
+    {
+        constexpr prinbee::struct_description_t description_definition[] =
+        {
+            prinbee::define_description(
+                  prinbee::FieldName("_magic")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+                , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("_structure_version")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                , prinbee::FieldVersion(405, 119)
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("bad_bits=large:9")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS8)
+            ),
+            prinbee::end_descriptions()
+        };
+
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(description_definition));
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->init_buffer()
+                , prinbee::invalid_size
+                , Catch::Matchers::ExceptionMessage(
+                        "prinbee_exception: the total number of bits used by"
+                        " bit field \"large\" overflows the maximum"
+                        " allowed of 8."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: invalid bit field size (size is zero)")
+    {
+        constexpr prinbee::struct_description_t description_definition[] =
+        {
+            prinbee::define_description(
+                  prinbee::FieldName("_magic")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+                , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("_structure_version")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                , prinbee::FieldVersion(405, 119)
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("bad_bits=zero:0")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS8)
+            ),
+            prinbee::end_descriptions()
+        };
+
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(description_definition));
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->init_buffer()
+                , prinbee::invalid_size
+                , Catch::Matchers::ExceptionMessage(
+                        "prinbee_exception: the size of a bit field must be"
+                        " positive. \"zero\" was given 0 instead."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: invalid bit field size (size does not fit 64 bits)")
+    {
+        constexpr prinbee::struct_description_t description_definition[] =
+        {
+            prinbee::define_description(
+                  prinbee::FieldName("_magic")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+                , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("_structure_version")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                , prinbee::FieldVersion(405, 119)
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("bad_bits=giant:9999999999999999999")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_BITS8)
+            ),
+            prinbee::end_descriptions()
+        };
+
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(description_definition));
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->init_buffer()
+                , prinbee::invalid_size
+                , Catch::Matchers::ExceptionMessage(
+                        "prinbee_exception: the size (9999999999999999999) of bit field \"giant\" is invalid."));
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("structure_invalid: get unknown field")
     {
         prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description9));
@@ -5528,6 +5721,164 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
                           "out_of_range: size of input buffer ("
                         + std::to_string(max)
                         + ") too large to send it to the buffer; the maximum permitted by this field is 255."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: catch bit field ending with lone '/'")
+    {
+        constexpr prinbee::struct_description_t description_definition[] =
+        {
+            prinbee::define_description(
+                  prinbee::FieldName("_magic")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+                , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("_structure_version")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                , prinbee::FieldVersion(405, 119)
+            ),
+            //prinbee::define_description(...) -- this detects the "issue" and fails at compile time...
+            {
+                .f_field_name = "bad_bits=small/medium:3/giant:9/",
+                .f_type = prinbee::struct_type_t::STRUCT_TYPE_BITS32,
+                //.f_flags =
+                //.f_default_value =
+                //.f_min_version =
+                //.f_max_version =
+                //.f_sub_description =
+            },
+            prinbee::end_descriptions()
+        };
+
+        // the problem is caught by the verification function early on
+        // and the parser never sees it
+        //
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(description_definition));
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->init_buffer()
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage(
+                        "logic_error: bit field name & definition \"bad_bits=small/medium:3/giant:9/\" are not valid."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: bits field with a sub-description")
+    {
+        constexpr prinbee::struct_description_t description_definition[] =
+        {
+            prinbee::define_description(
+                  prinbee::FieldName("_magic")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+                , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("_structure_version")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                , prinbee::FieldVersion(405, 119)
+            ),
+            //prinbee::define_description(...) -- this detects the "issue" and fails at compile time...
+            {
+                .f_field_name =      "foo=flag:3",
+                .f_type =            prinbee::struct_type_t::STRUCT_TYPE_BITS8,
+                .f_sub_description = g_description3_sub1,
+            },
+            prinbee::end_descriptions()
+        };
+
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(description_definition));
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->init_buffer()
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage(
+                          "logic_error: field \"foo=flag:3\" has its "
+                          "\"f_sub_description\" field set to a pointer"
+                          " when its type does not allow it."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: structure field without a sub-description")
+    {
+        constexpr prinbee::struct_description_t description_definition[] =
+        {
+            prinbee::define_description(
+                  prinbee::FieldName("_magic")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+                , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("_structure_version")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                , prinbee::FieldVersion(405, 119)
+            ),
+            {
+                .f_field_name =      "sub_struct",
+                .f_type =            prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE,
+            },
+            prinbee::end_descriptions()
+        };
+
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(description_definition));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->init_buffer()
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage(
+                          "logic_error: field \"sub_struct\""
+                          " is expected to have its \"f_sub_description\""
+                          " field set to a pointer but it is null right now."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: reload large number from too small a buffer")
+    {
+        constexpr prinbee::struct_description_t description_definition[] =
+        {
+            prinbee::define_description(
+                  prinbee::FieldName("_magic")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+                , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("_structure_version")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                , prinbee::FieldVersion(405, 119)
+            ),
+            prinbee::define_description(
+                  prinbee::FieldName("large_number")
+                , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_INT512)
+            ),
+            prinbee::end_descriptions()
+        };
+
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(description_definition));
+        description->init_buffer();
+
+        // get a copy of the buffer
+        //
+        prinbee::reference_t start_offset(0);
+        prinbee::virtual_buffer::pointer_t b(description->get_virtual_buffer(start_offset));
+        CATCH_REQUIRE(b != nullptr);
+        CATCH_REQUIRE(b->size() == description->get_current_size());
+
+        // create a copy but skip the last 32 bytes to generate an invalid
+        // buffer
+        //
+        prinbee::buffer_t buffer(b->size() - 32ULL);
+        CATCH_REQUIRE(b->pread(buffer.data(), buffer.size(), 0) == static_cast<int>(buffer.size()));
+
+        prinbee::virtual_buffer::pointer_t n(std::make_shared<prinbee::virtual_buffer>());
+        n->pwrite(buffer.data(), buffer.size(), 0, true);
+
+        prinbee::structure::pointer_t d(std::make_shared<prinbee::structure>(description_definition));
+        d->set_virtual_buffer(n, 0);
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  d->get_large_integer("large_number")
+                , prinbee::corrupted_data
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: field \"large_number\" is too"
+                          " large for the specified data buffer."));
     }
     CATCH_END_SECTION()
 }
