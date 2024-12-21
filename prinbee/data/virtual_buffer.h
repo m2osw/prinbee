@@ -30,7 +30,7 @@
  *
  * Another case is when a structure ends up being larger than one block.
  * For example, the table schema can end up requiring 2 or 3 blocks.
- * To handle that case, we use avirtual buffer as well. This is very
+ * To handle that case, we use a virtual buffer as well. This is very
  * practical because that way we do not have to handle the fact that
  * the buffer is multiple buffers. The virtual buffer gives us one
  * linear offset starting at `0` and going up to `size - 1`.

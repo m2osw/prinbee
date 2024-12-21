@@ -2364,6 +2364,7 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
         CATCH_REQUIRE(description->get_uinteger("software_version.minor") == minor);
         CATCH_REQUIRE(description->get_uinteger("software_version.release") == release);
         CATCH_REQUIRE(description->get_uinteger("software_version.build") == build);
+        CATCH_REQUIRE(description->get_structure("software_version") != nullptr); // we do not have the pointer, but it cannot be nullptr
         CATCH_REQUIRE(description->get_version("javascript_version") == prinbee::version_t(12, 8));
         CATCH_REQUIRE(description->get_bits("eight_bits.null") == null_value);
         CATCH_REQUIRE(description->get_bits("eight_bits.advance") == advance_value);
@@ -5724,6 +5725,134 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
     }
     CATCH_END_SECTION()
 
+    CATCH_START_SECTION("structure_invalid: field \"_magic\" wrong name")
+    {
+            //prinbee::define_description(
+            //      prinbee::FieldName("_structure_version")
+            //    , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+            //    , prinbee::FieldVersion(405, 119)
+            //),
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("wrong_name")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+                      , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS))
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: the MAGIC field must be named \"_magic\"."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: field \"_structure_version\" wrong name")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("wrong_name")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+                      , prinbee::FieldVersion(405, 119)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: the STRUCTURE_VERSION field must be named \"_structure_version\"."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: bit field with invalid names")
+    {
+        for(prinbee::struct_type_t type(prinbee::struct_type_t::STRUCT_TYPE_BITS8);
+            type <= prinbee::struct_type_t::STRUCT_TYPE_BITS512;
+            ++type)
+        {
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      prinbee::define_description(
+                            prinbee::FieldName("missing_flag_definitions")
+                          , prinbee::FieldType(type)
+                      )
+                    , prinbee::invalid_parameter
+                    , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this structure bit field name or definition is not considered valid."));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      prinbee::define_description(
+                            prinbee::FieldName("two_equal=flag=wrong")
+                          , prinbee::FieldType(type)
+                      )
+                    , prinbee::invalid_parameter
+                    , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this structure bit field name or definition is not considered valid."));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      prinbee::define_description(
+                            prinbee::FieldName("expect_number=flag:number")
+                          , prinbee::FieldType(type)
+                      )
+                    , prinbee::invalid_parameter
+                    , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this structure bit field name or definition is not considered valid."));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      prinbee::define_description(
+                            prinbee::FieldName("wrong_character=no/question/mark?")
+                          , prinbee::FieldType(type)
+                      )
+                    , prinbee::invalid_parameter
+                    , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: this structure bit field name or definition is not considered valid."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: CHAR field with invalid names")
+    {
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("missing_size")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure char field name is not considered valid."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("expect_number=expect_number")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure char field name is not considered valid."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("bad?char=123")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure char field name is not considered valid."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("bad_char=123!")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure char field name is not considered valid."));
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  prinbee::define_description(
+                        prinbee::FieldName("no_number=")
+                      , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_CHAR)
+                  )
+                , prinbee::invalid_parameter
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this structure char field name is not considered valid."));
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("structure_invalid: catch bit field ending with lone '/'")
     {
         constexpr prinbee::struct_description_t description_definition[] =
@@ -5811,6 +5940,7 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
                 , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
                 , prinbee::FieldVersion(405, 119)
             ),
+            //prinbee::define_description(...) -- this detects the "issue" and fails at compile time...
             {
                 .f_field_name =      "sub_struct",
                 .f_type =            prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE,
@@ -5879,6 +6009,32 @@ CATCH_TEST_CASE("structure_invalid", "[structure][invalid]")
                 , Catch::Matchers::ExceptionMessage(
                           "prinbee_exception: field \"large_number\" is too"
                           " large for the specified data buffer."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: attempt sub-structure GET before initialization sub-structure is empty")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description3));
+        //description->init_buffer();
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_structure("structure_version")
+                , prinbee::logic_error
+                , Catch::Matchers::ExceptionMessage(
+                          "logic_error: trying to access a structure field when the f_buffer pointer is still null."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("structure_invalid: attempt sub-structure GET of wrong field")
+    {
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description3));
+        description->init_buffer();
+
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  description->get_structure("javascript_version")
+                , prinbee::type_mismatch
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: this field type is \"VERSION\" but we expected \"STRUCTURE\"."));
     }
     CATCH_END_SECTION()
 }

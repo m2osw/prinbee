@@ -2373,10 +2373,14 @@ structure::pointer_t structure::get_structure(std::string const & field_name) co
 
     if(f->sub_structures().size() != 1)
     {
+        // LCOV_EXCL_START
+        // if not initialized, the get_field() fails, so we cannot reach
+        // this throw in a test at the moment
         throw invalid_size(
                   "a structure requires a sub_structure vector of size 1 (got "
                 + std::to_string(f->sub_structures().size())
                 + " instead).");
+        // LCOV_EXCL_STOP
     }
 
     return (*f)[0];

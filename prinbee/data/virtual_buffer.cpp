@@ -85,7 +85,7 @@ void virtual_buffer::add_buffer(block::pointer_t b, std::uint64_t offset, std::u
     if(f_modified)
     {
         throw logic_error(
-                "virtual buffer was already modified, you can't add"
+                "virtual buffer was already modified, you cannot add"
                 " another buffer until you commit this virtual buffer.");
     }
 

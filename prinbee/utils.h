@@ -246,7 +246,7 @@ constexpr bool validate_bit_field_name(
 {
     if(max_length == 0)
     {
-        throw logic_error("max_length parameter cannot be zero in validate_char_field_name().");
+        throw logic_error("max_length parameter cannot be zero in validate_bit_field_name().");
     }
 
     std::size_t const max(name == nullptr ? 0 : strlen(name));
@@ -367,7 +367,7 @@ constexpr bool validate_bit_field_name(
     }
     if(state == 0
     || state == 2
-    || (state != 1 && idx - name_start > max_length))
+    || (state == 1 && idx - name_start > max_length))
     {
         // we expect at least one character in a name
         //

@@ -63,6 +63,7 @@
 
 // snapdev
 //
+#include    <snapdev/file_contents.h>
 #include    <snapdev/tokenize_string.h>
 #include    <snapdev/to_upper.h>
 
@@ -89,10 +90,128 @@ namespace
 
 
 
+constexpr char const * const    g_complex_types_filename = "complex-types.pb";
 constexpr char const * const    g_column_scope = "column::";
 constexpr char const * const    g_expiration_date = "expiration_date";
 constexpr char const * const    g_index_scope = "index::";
 
+
+
+// one file in a complex type definition
+struct_description_t g_complex_enum_field_description[] =
+{
+    define_description( // name of the enum value
+          FieldName("name")
+        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
+    ),
+    define_description( // the enum value
+          FieldName("value")
+        , FieldType(struct_type_t::STRUCT_TYPE_UINT64)
+    ),
+    end_descriptions()
+};
+
+// one complex enum definition
+//
+// Note: at the moment I do not see the need for a validation script
+//       on an enumeration number since one is in pretty good control
+//       of the enumeration values; the compare script can be used to
+//       change the order (so not follow the integer value)
+//
+struct_description_t g_complex_enum_description[] =
+{
+    define_description( // name of the type
+          FieldName("name")
+        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
+    ),
+    define_description( // human description
+          FieldName("description")
+        , FieldType(struct_type_t::STRUCT_TYPE_P32STRING)
+    ),
+    define_description( // compare script (as2js script as a string; returns -1, 0, 1)
+          FieldName("compare_script")
+        , FieldType(struct_type_t::STRUCT_TYPE_P32STRING)
+    ),
+    define_description( // if not VOID, type of enumeration (defaults to UINT16 if user does not define)
+          FieldName("enum_type")
+        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
+        , FieldDefaultValue("VOID")
+    ),
+    define_description(
+          FieldName("values")
+        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
+        , prinbee::FieldSubDescription(g_complex_enum_field_description)
+    ),
+    end_descriptions()
+};
+
+// one field in a complex type definition defining the field name & type
+struct_description_t g_complex_type_field_description[] =
+{
+    define_description( // name of the field
+          FieldName("name")
+        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
+    ),
+    define_description( // type of this field
+          FieldName("type")
+        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
+        , FieldDefaultValue("VOID")
+    ),
+    end_descriptions()
+};
+
+// one complex type definition
+struct_description_t g_complex_type_description[] =
+{
+    define_description( // name of the type
+          FieldName("name")
+        , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
+    ),
+    define_description( // human description
+          FieldName("description")
+        , FieldType(struct_type_t::STRUCT_TYPE_P32STRING)
+    ),
+    define_description( // compare script (as2js script as a string; returns -1, 0, 1)
+          FieldName("compare_script")
+        , FieldType(struct_type_t::STRUCT_TYPE_P32STRING)
+    ),
+    define_description( // validation script (as2js script as a string; returns true, false)
+          FieldName("validation_script")
+        , FieldType(struct_type_t::STRUCT_TYPE_P32STRING)
+    ),
+    define_description(
+          FieldName("fields")
+        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
+        , prinbee::FieldSubDescription(g_complex_type_field_description)
+    ),
+    end_descriptions()
+};
+
+// complex type definition, with all the complex types
+struct_description_t g_complex_type_file_description[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_magic)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_COMPLEX_TYPE))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_structure_version)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(1, 0)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("types")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY16)
+        , prinbee::FieldSubDescription(g_complex_type_description)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("enums")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY16)
+        , prinbee::FieldSubDescription(g_complex_enum_description)
+    ),
+    end_descriptions()
+};
 
 
 //struct_description_t g_column_description[] =
@@ -396,107 +515,67 @@ model_t name_to_model(std::string const & name)
 
 
 
-// required constructor for copying in the map
-//
-//schema_complex_type::schema_complex_type()
-//{
-//}
-
-
-/** \brief Initialize a complex type from a configuration file.
+/** \brief Initialize a complex type from a .pb file.
+ *
+ * This function initializes a complex type definition from a structure.
  *
  * Once in a list of columns, a complex type becomes a
  * `STRUCT_TYPE_STRUCTURE`.
  *
- * \param[in] config  The configuration file (.ini) where this complex
- *                    type is defined.
- * \param[in] name  The name of the complex type being read.
+ * \param[in] s  the structure from the .pb file with this complex
+ *               type definition.
+ * \param[in] is_enum  whether this is an enumeration (true) or not (false).
  */
-schema_complex_type::schema_complex_type(advgetopt::conf_file::pointer_t config, std::string const & name)
+schema_complex_type::schema_complex_type(structure::pointer_t s, bool is_enum)
 {
-    if(name_to_struct_type(name) != INVALID_STRUCT_TYPE)
+    // first read common fields
+    //
+    f_name = s->get_string("name");
+    if(name_to_struct_type(f_name) != INVALID_STRUCT_TYPE)
     {
         throw type_mismatch(
                   "the name of a complex type cannot be the name of a basic type; \""
-                + name
+                + f_name
                 + "\" is not considered valid.");
     }
+    f_description = s->get_string("description");
+    f_compare_script = s->get_string("compare_script");
 
-    f_name = name;
-
-    std::string const section_name("type::" + name);
-
-    // these parameters are optional; they remain empty if undefined
-    //
-    f_description = config->get_parameter(section_name + "::description");
-    f_compare = config->get_parameter(section_name + "::compare");
-    f_validation_script = config->get_parameter(section_name + "::validation_script");
-
-    std::string const field_definitions(section_name + "::fields");
-    std::string const enum_names(section_name + "::enum");
-
-    bool const has_field_definitions(config->has_parameter(field_definitions));
-    f_is_enum = config->has_parameter(enum_names);
-
-    if(has_field_definitions
-    && f_is_enum)
+    if(is_enum)
     {
-        throw exclusive_fields("a complex type cannot have the \"fields\" and \"enum\" parameters defined together.");
-    }
-
-    if(f_is_enum)
-    {
-        // the enumeration type is optional, especially if the type is not an
-        // enumeration (in which case it is ignored if defined)
+        // an enumeration has a type and a list of name=values
         //
-        std::string const enum_type_name(section_name + "::enum_type");
-        if(config->has_parameter(enum_type_name))
-        {
-            f_enum_type = name_to_struct_type(config->get_parameter(enum_type_name));
-            if(f_enum_type < struct_type_t::STRUCT_TYPE_INT8
-            || f_enum_type > struct_type_t::STRUCT_TYPE_UINT64)
-            {
-                throw type_mismatch(
-                          "an enum type must be an integer type from 8 to 64 bits; \""
-                        + enum_type_name
-                        + "\" is not considered valid.");
-            }
-        }
+        f_enum_type = name_to_struct_type(s->get_string("type"));
 
-        advgetopt::string_list_t list;
-        advgetopt::split_string(config->get_parameter(enum_names), list, {","});
-        for(auto const & nv : list)
+        for(auto const & v : std::const_pointer_cast<structure>(s)->get_array("values"))
         {
-            advgetopt::string_list_t name_value;
-            advgetopt::split_string(nv, name_value, {" "});
-            if(name_value.size() != 2)
-            {
-                throw type_mismatch(
-                          "an enum definition must be a name and an integer separated by a space, not \""
-                        + nv
-                        + "\".");
-            }
+            field_t enum_field;
+            enum_field.f_name = v->get_string("name");
+            enum_field.f_enum_value = v->get_uinteger("value");
+
+            // f_fields is a vector since we need to keep the fields in the
+            // order the user defined them (do we, actually?)
+            //
             auto const it_name(std::find_if(
                   f_fields.begin()
                 , f_fields.end()
-                , [&name_value](field_t const & f)
+                , [&enum_field](field_t const & f)
                 {
-                    return name_value[0] == f.f_name;
+                    return enum_field.f_name == f.f_name;
                 }));
             if(it_name != f_fields.end())
             {
-                throw type_mismatch(
+                throw defined_twice(
                           "each name in an enum definition must be unique, found \""
-                        + name_value[0]
+                        + enum_field.f_name
                         + "\" twice.");
             }
-            field_t enum_field;
-            enum_field.f_name = name_value[0];
-            enum_field.f_enum_value = convert_to_uint(name_value[1], 64);
 
             // TBD: do we want the values of an enum to be unique? at the moment
             //      I am thinking that yes and we are not offering the user to
-            //      set the value anyway...
+            //      set the value anyway... (although we may, long term,
+            //      want to allow the user to be able to define the value)
+            //
             auto const it_value(std::find_if(
                   f_fields.begin()
                 , f_fields.end()
@@ -506,71 +585,56 @@ schema_complex_type::schema_complex_type(advgetopt::conf_file::pointer_t config,
                 }));
             if(it_value != f_fields.end())
             {
-                throw type_mismatch(
+                throw defined_twice(
                           "each value in an enum definition must be unique, found \""
-                        + name_value[1]
+                        + std::to_string(enum_field.f_enum_value)
                         + "\" twice in \""
                         + it_value->f_name
                         + "\" and \""
-                        + name_value[0]
+                        + enum_field.f_name
                         + "\".");
             }
 
             f_fields.push_back(enum_field);
         }
     }
-    else if(has_field_definitions)
+    else
     {
-        advgetopt::string_list_t list;
-        advgetopt::split_string(config->get_parameter(field_definitions), list, {","});
-        for(auto const & nt : list)
+        // a type also has a validation script
+        //
+        f_validation_script = s->get_string("validation_script");
+
+        for(auto const & f : std::const_pointer_cast<structure>(s)->get_array("fields"))
         {
-            advgetopt::string_list_t name_type;
-            advgetopt::split_string(nt, name_type, {" "});
-            if(name_type.size() != 2)
-            {
-                throw type_mismatch(
-                          "a field definition must be a name and a type separated by a space, not \""
-                        + nt
-                        + "\".");
-            }
+            // we do not yet have all the complex types so we cannot verify
+            // their existence just yet (or whether a loop exists)
+            //
+            field_t type_field;
+            type_field.f_name = f->get_string("name");
+            type_field.f_type_name = f->get_uinteger("type");
+
+            // f_fields is a vector since we need to keep the fields in the
+            // order the user defined them (do we, actually?)
+            //
             auto const it(std::find_if(
                   f_fields.begin()
                 , f_fields.end()
-                , [&name_type](field_t const & f)
+                , [&type_field](field_t const & field)
                 {
-                    return name_type[0] == f.f_name;
+                    return type_field.f_name == field.f_name;
                 }));
             if(it != f_fields.end())
             {
-                throw type_mismatch(
-                          "each field name in an complex type must be unique, found \""
-                        + name_type[0]
+                throw defined_twice(
+                          "each field name in a complex type must be unique, found \""
+                        + type_field.f_name
                         + "\" twice.");
             }
 
-            // we do not yet have all the complex types so we cannot verify
-            // their existance just yet (or whether a loop exists)
-            //
-            field_t field;
-            field.f_name = name_type[0];
-            field.f_type_name = name_type[1];
-            f_fields.push_back(field);
+            f_fields.push_back(type_field);
         }
     }
-    else
-    {
-        throw missing_parameter("a complex type must have \"fields=...\" or an \"enum=...\" definition.");
-    }
 }
-
-
-//void schema_comple_type::verify_types(schema_complex_type::map_pointer_t complex_types)
-//{
-//    f_complex_types = complex_types;
-//
-//    f_type = name_to_struct_type(type_name);
-//}
 
 
 std::string schema_complex_type::get_name() const
@@ -581,7 +645,7 @@ std::string schema_complex_type::get_name() const
 
 bool schema_complex_type::is_enum() const
 {
-    return f_is_enum;
+    return f_enum_type != struct_type_t::STRUCT_TYPE_VOID;
 }
 
 
@@ -700,6 +764,102 @@ std::int64_t schema_complex_type::get_enum_value(int idx) const
 }
 
 
+schema_complex_type::map_pointer_t schema_complex_type::load_complex_types(std::string const & path)
+{
+    schema_complex_type::map_pointer_t result(std::make_shared<schema_complex_type::map_t>());
+
+    snapdev::file_contents in(path + '/' + g_complex_types_filename);
+    if(!in.exists())
+    {
+        // this is not an error, it is possible for a schema to not have
+        // any user defined types (actually, it's probably often the case)
+        //
+        return result;
+    }
+
+    if(!in.read_all())
+    {
+        // this is an error
+        //
+        // TODO: we need to do something to let the admin know that
+        //       there is an issue
+        //
+        SNAP_LOG_ERROR
+            << "failed loading \""
+            << path
+            << '/'
+            << g_complex_types_filename
+            << "\" to get the schema complex types."
+            << SNAP_LOG_SEND;
+
+        return result;
+    }
+
+    // we got the definitions, parse them
+    //
+    // TODO: look for a way to avoid a copy from "data" to "buffer"
+    //
+    std::string const & data(in.contents());
+    virtual_buffer::pointer_t buffer(std::make_shared<prinbee::virtual_buffer>());
+    buffer->pwrite(data.data(), data.length(), 0, true);
+    structure::pointer_t s(std::make_shared<prinbee::structure>(g_complex_type_file_description));
+    s->set_virtual_buffer(buffer, 0);
+
+    // we have two arrays to go through, the list of types (TYPE)
+    // and enumerations (TYPE AS ENUM)
+    //
+    for(auto const & t : std::const_pointer_cast<structure>(s)->get_array("types"))
+    {
+        schema_complex_type::pointer_t user_type(std::make_shared<schema_complex_type>(t, false));
+        (*result)[user_type->get_name()] = user_type;
+    }
+
+    for(auto const & e : std::const_pointer_cast<structure>(s)->get_array("enums"))
+    {
+        schema_complex_type::pointer_t user_enum(std::make_shared<schema_complex_type>(e, true));
+        (*result)[user_enum->get_name()] = user_enum;
+    }
+
+    // now setup all the "field.f_type" fields properly
+    //
+    // the load above does not set that field because the
+    // `f_complex_types->contains()` could fail unless we
+    // loaded all the complex types already
+    //
+    for(auto & type : *result)
+    {
+        if(type.second->is_enum())
+        {
+            continue;
+        }
+
+        std::size_t const size(type.second->get_size());
+        for(std::size_t idx(0); idx < size; ++idx)
+        {
+            std::string const name(type.second->get_type_name(idx));
+            struct_type_t const struct_type(name_to_struct_type(name));
+            if(struct_type != INVALID_STRUCT_TYPE)
+            {
+                type.second->set_type(idx, struct_type);
+            }
+            else if(result->contains(name))
+            {
+                // the type is a known complex type
+                //
+                type.second->set_type(idx, struct_type_t::STRUCT_TYPE_STRUCTURE);
+            }
+            else
+            {
+                throw type_not_found(
+                        "basic or complex type named \""
+                      + name
+                      + "\" not known.");
+            }
+        }
+    }
+
+    return result;
+}
 
 
 

@@ -105,7 +105,6 @@ public:
     //long                                get_config_long(std::string const & name, int idx) const;
 
 private:
-    void                                load_complex_types(std::string const & filename);
     void                                verify_complex_types();
     void                                find_loop(std::string const & name, schema_complex_type::pointer_t type, std::size_t depth);
 
@@ -140,6 +139,8 @@ void context_impl::initialize()
         << "\"."
         << SNAP_LOG_SEND;
 
+    // make sure the folder exists
+    //
     if(snapdev::mkdir_p(f_tables_path
             , false
             , 0700
@@ -156,7 +157,7 @@ void context_impl::initialize()
     // one of them) so these are saved in a file at the top; it also gets
     // read first since that list is passed down to each table object
     //
-    load_complex_types(f_setup.get_path() + "/complex-types.ini");
+    f_complex_types = schema_complex_type::load_complex_types(f_setup.get_path() + "/");
     verify_complex_types();
 
     //basic_xml::node::deque_t table_extensions;
@@ -351,105 +352,6 @@ void context_impl::initialize()
         << f_setup.get_path()
         << "\" ready."
         << SNAP_LOG_SEND;
-}
-
-
-/** \brief Read all the complex types in a map.
- *
- * This function reads all the complex types defined in a context. All
- * the complex types are shared between all the tables so we return a
- * pointer to this map. The map may be empty if not complex type was
- * defined in this context.
- *
- * \exception invalid_name
- * The function throws an invalid_name exception if the input has a
- * section which uses a name other than `[type::\<name>]`. This
- * should not happen since the backend is expected to manage these
- * files (administrators should not directly edit these .ini files).
- *
- * \param[in] filename  The name of the file defining complex types.
- *
- * \return A pointer to a map of complex type indexed by complex type names.
- */
-void context_impl::load_complex_types(std::string const & filename)
-{
-    f_complex_types = std::shared_ptr<schema_complex_type::map_t>();
-
-    advgetopt::conf_file_setup setup(
-          filename
-        , advgetopt::line_continuation_t::line_continuation_unix
-        , advgetopt::ASSIGNMENT_OPERATOR_EQUAL
-        , advgetopt::COMMENT_SHELL
-        , advgetopt::SECTION_OPERATOR_INI_FILE);
-
-    advgetopt::conf_file::pointer_t config(advgetopt::conf_file::get_conf_file(setup));
-
-    // the list of sections is "type::<name>" for each complex type
-    //
-    advgetopt::conf_file::sections_t sections(config->get_sections());
-
-    for(auto s : sections)
-    {
-        advgetopt::string_list_t section_names;
-        advgetopt::split_string(s, section_names, {"::"});
-        if(section_names.size() != 2)
-        {
-            throw invalid_name(
-                    "complex type names must be exactly two segments (type::<name>); \""
-                  + s
-                  + "\" is not valid.");
-        }
-        if(section_names[0] != "type")
-        {
-            throw invalid_name(
-                    "the first segment of a complex type name must be \"type\"; \""
-                  + section_names[0]
-                  + "\" is not valid.");
-        }
-        if(f_complex_types->contains(section_names[1]))
-        {
-            throw invalid_name(
-                    "complex type \""
-                  + section_names[1]
-                  + "\" defined twice.");
-        }
-        schema_complex_type::pointer_t type(std::make_shared<schema_complex_type>(config, section_names[1]));
-        (*f_complex_types)[section_names[1]] = type;
-    }
-
-    // now setup all the "type" fields properly
-    //
-    for(auto & type : *f_complex_types)
-    {
-        if(type.second->is_enum())
-        {
-            continue;
-        }
-
-        std::size_t const size(type.second->get_size());
-        for(std::size_t idx(0); idx < size; ++idx)
-        {
-            std::string const name(type.second->get_type_name(idx));
-            struct_type_t const struct_type(name_to_struct_type(name));
-            if(struct_type != INVALID_STRUCT_TYPE)
-            {
-                type.second->set_type(idx, struct_type);
-            }
-            else if(f_complex_types->contains(name))
-            {
-                // the type is a known complex type
-                //
-                type.second->set_type(idx, struct_type_t::STRUCT_TYPE_STRUCTURE);
-            }
-            else
-            {
-                throw invalid_name(
-                        "basic or complex type named \""
-                      + name
-                      + "\" not known.");
-            }
-        }
-    }
 }
 
 

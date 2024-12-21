@@ -733,7 +733,7 @@ constexpr struct_description_t define_description(ARGS ...args)
         case struct_type_t::STRUCT_TYPE_MAGIC:
             if(strcmp(s.f_field_name, g_system_field_name_magic) != 0)
             {
-                throw invalid_parameter("the MAGIC structure field must be named \"_magic\".");
+                throw invalid_parameter("the MAGIC field must be named \"_magic\".");
             }
             break;
 

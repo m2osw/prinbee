@@ -80,6 +80,7 @@ DECLARE_EXCEPTION(prinbee_exception, row_not_found);
 DECLARE_EXCEPTION(prinbee_exception, schema_not_found);
 DECLARE_EXCEPTION(prinbee_exception, string_not_terminated);
 DECLARE_EXCEPTION(prinbee_exception, type_mismatch);
+DECLARE_EXCEPTION(prinbee_exception, type_not_found);
 DECLARE_EXCEPTION(prinbee_exception, unexpected_eof);
 DECLARE_EXCEPTION(prinbee_exception, unexpected_token);
 DECLARE_EXCEPTION(prinbee_exception, unknown_parameter);

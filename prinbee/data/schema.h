@@ -39,11 +39,6 @@
 #include    "prinbee/data/structure.h"
 
 
-// basic-xml
-//
-#include    <basic-xml/xml.h>
-
-
 // advgetopt
 //
 #include    <advgetopt/advgetopt.h>
@@ -164,8 +159,7 @@ public:
                                             map_t;
     typedef std::shared_ptr<map_t>          map_pointer_t;
 
-                                            //schema_complex_type();
-                                            schema_complex_type(advgetopt::conf_file::pointer_t config, std::string const & name);
+                                            schema_complex_type(structure::pointer_t config, bool is_enum);
 
     std::string                             get_name() const;
     bool                                    is_enum() const;
@@ -176,29 +170,30 @@ public:
     struct_type_t                           get_type(int idx) const;
     std::int64_t                            get_enum_value(int idx) const;
 
+    static map_pointer_t                    load_complex_types(std::string const & path);
+
 private:
     struct field_t
     {
         typedef std::vector<field_t>        vector_t;
 
         std::string             f_name = std::string();
-        std::string             f_type_name = std::string();    // used on load and for STRUCT_TYPE_STRUCTURE
+        std::string             f_type_name = std::string();    // used on load and for STRUCT_TYPE_STRUCTURE since the name of the type needs to be defined somewhere
         struct_type_t           f_type = struct_type_t::STRUCT_TYPE_VOID;
         std::int64_t            f_enum_value = 0;
     };
 
     std::string                             f_name = std::string();
     std::string                             f_description = std::string();
-    std::string                             f_compare = std::string();
+    std::string                             f_compare_script = std::string();
     std::string                             f_validation_script = std::string();
-    bool                                    f_is_enum = false;
-    struct_type_t                           f_enum_type = struct_type_t::STRUCT_TYPE_INT16;
+    struct_type_t                           f_enum_type = struct_type_t::STRUCT_TYPE_VOID;
     field_t::vector_t                       f_fields = field_t::vector_t();
     schema_complex_type::map_pointer_t      f_complex_types = schema_complex_type::map_pointer_t();
 };
 
 
-schema_complex_type::map_pointer_t          load_complex_types(std::string const & filename);
+
 
 
 
@@ -390,7 +385,7 @@ private:
     void                                    from_config_load_primary_key(advgetopt::conf_file::pointer_t config);
     void                                    from_config_load_indexes(advgetopt::conf_file::pointer_t config);
     //void                                    process_columns(basic_xml::node::pointer_t column_definitions);
-    void                                    process_secondary_indexes(basic_xml::node::deque_t secondary_indexes);
+    //void                                    process_secondary_indexes(basic_xml::node::deque_t secondary_indexes);
 
     schema_complex_type::map_pointer_t      f_complex_types = schema_complex_type::map_pointer_t();
     schema_version_t                        f_version = schema_version_t();
