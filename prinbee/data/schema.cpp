@@ -90,7 +90,6 @@ namespace
 
 
 
-constexpr char const * const    g_complex_types_filename = "complex-types.pb";
 constexpr char const * const    g_column_scope = "column::";
 constexpr char const * const    g_expiration_date = "expiration_date";
 constexpr char const * const    g_index_scope = "index::";
@@ -764,46 +763,15 @@ std::int64_t schema_complex_type::get_enum_value(int idx) const
 }
 
 
-schema_complex_type::map_pointer_t schema_complex_type::load_complex_types(std::string const & path)
+void schema_complex_type::load_complex_types(map_pointer_t complex_types, virtual_buffer::pointer_t b)
 {
-    schema_complex_type::map_pointer_t result(std::make_shared<schema_complex_type::map_t>());
-
-    snapdev::file_contents in(path + '/' + g_complex_types_filename);
-    if(!in.exists())
+    if(complex_types == nullptr)
     {
-        // this is not an error, it is possible for a schema to not have
-        // any user defined types (actually, it's probably often the case)
-        //
-        return result;
+        throw logic_error("load_complex_types() called with a null complex_types pointer.");
     }
 
-    if(!in.read_all())
-    {
-        // this is an error
-        //
-        // TODO: we need to do something to let the admin know that
-        //       there is an issue
-        //
-        SNAP_LOG_ERROR
-            << "failed loading \""
-            << path
-            << '/'
-            << g_complex_types_filename
-            << "\" to get the schema complex types."
-            << SNAP_LOG_SEND;
-
-        return result;
-    }
-
-    // we got the definitions, parse them
-    //
-    // TODO: look for a way to avoid a copy from "data" to "buffer"
-    //
-    std::string const & data(in.contents());
-    virtual_buffer::pointer_t buffer(std::make_shared<prinbee::virtual_buffer>());
-    buffer->pwrite(data.data(), data.length(), 0, true);
     structure::pointer_t s(std::make_shared<prinbee::structure>(g_complex_type_file_description));
-    s->set_virtual_buffer(buffer, 0);
+    s->set_virtual_buffer(b, 0);
 
     // we have two arrays to go through, the list of types (TYPE)
     // and enumerations (TYPE AS ENUM)
@@ -811,22 +779,22 @@ schema_complex_type::map_pointer_t schema_complex_type::load_complex_types(std::
     for(auto const & t : std::const_pointer_cast<structure>(s)->get_array("types"))
     {
         schema_complex_type::pointer_t user_type(std::make_shared<schema_complex_type>(t, false));
-        (*result)[user_type->get_name()] = user_type;
+        (*complex_types)[user_type->get_name()] = user_type;
     }
 
     for(auto const & e : std::const_pointer_cast<structure>(s)->get_array("enums"))
     {
         schema_complex_type::pointer_t user_enum(std::make_shared<schema_complex_type>(e, true));
-        (*result)[user_enum->get_name()] = user_enum;
+        (*complex_types)[user_enum->get_name()] = user_enum;
     }
 
     // now setup all the "field.f_type" fields properly
     //
     // the load above does not set that field because the
     // `f_complex_types->contains()` could fail unless we
-    // loaded all the complex types already
+    // load all the complex types first
     //
-    for(auto & type : *result)
+    for(auto & type : *complex_types)
     {
         if(type.second->is_enum())
         {
@@ -842,7 +810,7 @@ schema_complex_type::map_pointer_t schema_complex_type::load_complex_types(std::
             {
                 type.second->set_type(idx, struct_type);
             }
-            else if(result->contains(name))
+            else if(complex_types->contains(name))
             {
                 // the type is a known complex type
                 //
@@ -857,8 +825,6 @@ schema_complex_type::map_pointer_t schema_complex_type::load_complex_types(std::
             }
         }
     }
-
-    return result;
 }
 
 

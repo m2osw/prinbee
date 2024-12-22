@@ -80,6 +80,10 @@ public:
 
     static pointer_t                        create_context(context_setup const & setup);
 
+    void                                    initialize();
+    void                                    load_file(std::string const & filename, bool required);
+    void                                    from_binary(virtual_buffer::pointer_t b);
+
     table::pointer_t                        get_table(std::string const & name) const;
     table::map_t const &                    list_tables() const;
     std::string const &                     get_path() const;
@@ -90,7 +94,6 @@ public:
 
 private:
                                             context(context_setup const & setup);
-    //void                                    initialize();
 
     std::unique_ptr<detail::context_impl>   f_impl;
 };

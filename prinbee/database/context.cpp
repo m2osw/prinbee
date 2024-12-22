@@ -55,6 +55,7 @@
 // snapdev
 //
 #include    <snapdev/glob_to_list.h>
+#include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/mkdir_p.h>
 
 
@@ -87,6 +88,9 @@ namespace detail
 
 
 
+constexpr char const * const    g_complex_types_filename = "complex-types.pb";
+
+
 class context_impl
 {
 public:
@@ -97,6 +101,9 @@ public:
     context_impl &                      operator = (context_impl const & rhs) = delete;
 
     void                                initialize();
+    void                                load_file(std::string const & filename, bool required);
+    void                                from_binary(virtual_buffer::pointer_t b);
+
     table::pointer_t                    get_table(std::string const & name) const;
     table::map_t const &                list_tables() const;
     std::string const &                 get_path() const;
@@ -121,6 +128,7 @@ context_impl::context_impl(context * c, context_setup const & setup)
     : f_context(c)
     , f_setup(setup)
 {
+    f_complex_types = std::make_shared<schema_complex_type::map_t>();
 }
 
 
@@ -157,8 +165,7 @@ void context_impl::initialize()
     // one of them) so these are saved in a file at the top; it also gets
     // read first since that list is passed down to each table object
     //
-    f_complex_types = schema_complex_type::load_complex_types(f_setup.get_path() + "/");
-    verify_complex_types();
+    load_file(f_setup.get_path() + '/' + g_complex_types_filename, false);
 
     //basic_xml::node::deque_t table_extensions;
 
@@ -352,6 +359,44 @@ void context_impl::initialize()
         << f_setup.get_path()
         << "\" ready."
         << SNAP_LOG_SEND;
+}
+
+
+void context_impl::load_file(std::string const & filename, bool required)
+{
+    virtual_buffer::pointer_t b(std::make_shared<virtual_buffer>());
+    b->load_file(filename, required);
+    from_binary(b);
+}
+
+
+void context_impl::from_binary(virtual_buffer::pointer_t b)
+{
+    //return static_cast<dbtype_t>(get_uinteger(g_system_field_name_magic));
+    dbtype_t type(dbtype_t::DBTYPE_UNKNOWN);
+    b->pread(&type, sizeof(type), 0);
+
+    switch(type)
+    {
+    case dbtype_t::FILE_TYPE_COMPLEX_TYPE:
+        schema_complex_type::load_complex_types(f_complex_types, b);
+        verify_complex_types();
+        break;
+
+    default:
+        throw invalid_type(
+                  "invalid type found in binary buffer (0x"
+                + snapdev::int_to_hex(static_cast<std::uint32_t>(type, false, 8))
+                + ").");
+
+    }
+
+    //FILE_TYPE_TABLE                 = DBTYPE_NAME("PTBL"),      // Prinbee Table
+    //FILE_TYPE_PRIMARY_INDEX         = DBTYPE_NAME("PIDX"),      // Primary Index (a.k.a. OID Index)
+    //FILE_TYPE_INDEX                 = DBTYPE_NAME("INDX"),      // User Defined Index (key -> OID)
+    //FILE_TYPE_BLOOM_FILTER          = DBTYPE_NAME("BLMF"),      // Bloom Filter
+    //FILE_TYPE_SCHEMA                = DBTYPE_NAME("SCHM"),      // Table Schema
+    //FILE_TYPE_COMPLEX_TYPE          = DBTYPE_NAME("CXTP"),      // User Defined Types
 }
 
 
@@ -563,16 +608,16 @@ context::~context()
 
 context::pointer_t context::create_context(context_setup const & setup)
 {
-    pointer_t c(new context(setup));
-    c->f_impl->initialize();
-    return c;
+    pointer_t result;
+    result.reset(new context(setup));
+    return result;
 }
 
 
-//void context::initialize()
-//{
-//    f_impl->initialize();
-//}
+void context::initialize()
+{
+    f_impl->initialize();
+}
 
 
 table::pointer_t context::get_table(std::string const & name) const

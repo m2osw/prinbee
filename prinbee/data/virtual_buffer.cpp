@@ -42,6 +42,7 @@
 //
 #include    <iomanip>
 #include    <iostream>
+#include    <fstream>
 
 
 // last include
@@ -77,6 +78,66 @@ virtual_buffer::virtual_buffer()
 virtual_buffer::virtual_buffer(block::pointer_t b, std::uint64_t offset, std::uint64_t size)
 {
     add_buffer(b, offset, size);
+}
+
+
+void virtual_buffer::load_file(std::string const & filename, bool required)
+{
+    if(f_modified
+    || !f_buffers.empty())
+    {
+        throw logic_error(
+                "virtual buffer was modified or is not empty, the load_file() only"
+                " works on empty virtual buffers.");
+    }
+
+    std::ifstream in;
+    in.open(filename, std::ios::in | std::ios::binary);
+    if(!in.is_open())
+    {
+        if(required)
+        {
+            throw file_not_found(
+                      "could not open file \""
+                    + filename
+                    + "\" for reading.");
+        }
+        return;
+    }
+
+    in.seekg(0, std::ios::end);
+    std::ifstream::pos_type const size(in.tellg());
+    if(std::ifstream::pos_type(-1) == size)
+    {
+        // TBD: in snapdev, the contents::read_all() function is able to
+        //      read data from all sorts of files and we may want to support
+        //      such here too; in that case we can read 4K buffers in a loop
+        //
+        throw io_error(
+                  "could not retrieve size of file \""
+                + filename
+                + "\".");
+    }
+    in.seekg(0, std::ios::beg);
+
+    vbuf_t file_data;
+    file_data.f_data.reserve((size + 4095L) & -4096L);
+    file_data.f_data.resize(size);
+    file_data.f_size = size;
+
+    in.read(reinterpret_cast<char *>(file_data.f_data.data()), size);
+
+    if(in.bad())
+    {
+        throw io_error(
+                  "I/O error reading file \""
+                + filename
+                + "\".");
+    }
+
+    f_buffers.push_back(file_data);
+
+    f_total_size += size;
 }
 
 

@@ -170,7 +170,7 @@ public:
     struct_type_t                           get_type(int idx) const;
     std::int64_t                            get_enum_value(int idx) const;
 
-    static map_pointer_t                    load_complex_types(std::string const & path);
+    static void                             load_complex_types(map_pointer_t complex_types, virtual_buffer::pointer_t b);
 
 private:
     struct field_t
