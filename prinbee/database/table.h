@@ -19,7 +19,7 @@
 
 
 /** \file
- * \brief Table file header.
+ * \brief Table class declaration.
  *
  * The table class handles the settings of the table and the files where the
  * data is saved.

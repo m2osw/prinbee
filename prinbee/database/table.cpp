@@ -18,10 +18,10 @@
 
 
 /** \file
- * \brief Database file implementation.
+ * \brief Table class implementation.
  *
- * Each table uses one or more files. Each file is handled by a dbfile
- * object and a corresponding set of blocks.
+ * This file implements the table class. It handles loading the table
+ * schema, indexes, etc. and manages the actual user data (rows).
  */
 
 // self
@@ -286,6 +286,8 @@ table_impl::table_impl(
     : f_context(c)
     , f_table(t)
 {
+    // extract the name of the table
+    //
     std::string::size_type const pos(table_dir.rfind('/'));
     if(pos == std::string::npos)
     {
@@ -301,32 +303,38 @@ table_impl::table_impl(
     if(!validate_name(f_name.c_str()))
     {
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-        msg << "Unsupported directory name for a table \""
+        msg << "unsupported directory name for a table \""
             << table_dir
             << "\".";
-        throw io_error(msg.str());
+        throw invalid_name(msg.str());
     }
 
     // the table may have any number of versions (well nearly) and we want
     // to load them all so that way we can read any row
     //
+    // however, clients only receive the latest
+    //
     snapdev::glob_to_list<std::set<std::string>> table_schemata;
     if(!table_schemata.read_path<
-              snapdev::glob_to_list_flag_t::GLOB_FLAG_ONLY_DIRECTORIES
-            , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(table_dir + "/table-*.ini"))
+              snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(table_dir + "/table-*.pb"))
     {
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-        msg << "Could not read directory \""
+        msg << "could not read \""
             << table_dir
-            << "\" for table schemata.";
+            << "/table-*.pb\" for table schemata.";
         throw io_error(msg.str());
     }
 
+    // note that the table_schemata will not be properly sorted, which
+    // should have no bearing on the loading process
+    //
     for(auto const & s : table_schemata)
     {
         schema_table::pointer_t schema(std::make_shared<schema_table>());
         schema->set_complex_types(complex_types);
-        schema->from_config(f_name, s);
+        virtual_buffer::pointer_t b(std::make_shared<virtual_buffer>());
+        b->load_file(s, true);
+        schema->from_binary(b);
         f_schema_table_by_version[schema->get_schema_version()] = schema;
     }
 
@@ -1550,9 +1558,9 @@ throw not_yet_implemented("table: TODO implement read tree");
 
 table::table(
           context * c
-        , std::string const & filename
+        , std::string const & table_dir
         , schema_complex_type::map_pointer_t complex_types)
-    : f_impl(std::make_shared<detail::table_impl>(c, this, filename, complex_types))
+    : f_impl(std::make_shared<detail::table_impl>(c, this, table_dir, complex_types))
 {
 }
 

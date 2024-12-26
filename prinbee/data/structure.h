@@ -103,6 +103,7 @@
 // snapdev
 //
 #include    <snapdev/init_structure.h>
+#include    <snapdev/timespec_ex.h>
 
 
 // C++
@@ -950,10 +951,13 @@ public:
 
     // bits, int/uint, all sizes up to 512 bits
     int512_t                                get_large_integer(std::string const & field_name) const;
-    void                                    set_large_integer(std::string const & field_name, int512_t value);
+    void                                    set_large_integer(std::string const & field_name, int512_t const & value);
 
     uint512_t                               get_large_uinteger(std::string const & field_name) const;
-    void                                    set_large_uinteger(std::string const & field_name, uint512_t value);
+    void                                    set_large_uinteger(std::string const & field_name, uint512_t const & value);
+
+    snapdev::timespec_ex                    get_nstime(std::string const & field_name) const;
+    void                                    set_nstime(std::string const & field_name, snapdev::timespec_ex const & value);
 
     // floating points (long double, even today, are not likely 128 bits, more like 80 to 102)
     float                                   get_float32(std::string const & field_name) const;

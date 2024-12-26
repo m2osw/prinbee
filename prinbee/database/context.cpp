@@ -372,7 +372,6 @@ void context_impl::load_file(std::string const & filename, bool required)
 
 void context_impl::from_binary(virtual_buffer::pointer_t b)
 {
-    //return static_cast<dbtype_t>(get_uinteger(g_system_field_name_magic));
     dbtype_t type(dbtype_t::DBTYPE_UNKNOWN);
     b->pread(&type, sizeof(type), 0);
 
@@ -614,9 +613,80 @@ context::pointer_t context::create_context(context_setup const & setup)
 }
 
 
+/** \brief Load the schema from disk.
+ *
+ * When you create the context, you can pass a setup structure including
+ * a path with the location of the schema on disk. This function uses
+ * that path to read the user complex type and the table schemata.
+ *
+ * If you are not running the prinbee server, then you cannot use this
+ * function since the data is protected. Instead, you will have to call
+ * the from_binary() from the data sent to your client.
+ */
 void context::initialize()
 {
     f_impl->initialize();
+}
+
+
+/** \brief Load a file and parse it through from_binary().
+ *
+ * This helper function is used to read an entire file and then 
+ * parse it through the from_binary() function. This is useful
+ * to load a schema of disk.
+ *
+ * This function is used from the initialize() function to load
+ * the complex types and tables of a schema.
+ *
+ * On a client, we usually receive the schema data through messages
+ * and process those calling the from_binary() function instead.
+ *
+ * \exception file_not_found
+ * The function generates an exception if the \p required parameter
+ * is true and we could not open the file for reading.
+ *
+ * \exception io_error
+ * When an error occurs while reading the file, then this exception
+ * is raised.
+ *
+ * \note
+ * Other exception can occur if the data inside the file is not
+ * recognized by the from_binary() function.
+ *
+ * \param[in] b  The buffer the data is to be read from.
+ *
+ * \sa from_binary()
+ * \sa virtual_buffer::load_file()
+ */
+void context::load_file(std::string const & filename, bool required)
+{
+    f_impl->load_file(filename, required);
+}
+
+
+/** \brief Load one items from a binary buffer.
+ *
+ * This function reads the magic characters of the buffer from the start
+ * (first four bytes). If the magic is a known file type, then the
+ * context loads the data as if reading it from that file.
+ *
+ * Types that are currently supported:
+ *
+ * * Complex Types
+ *
+ * \raise invalid_size
+ * The input buffer cannot be empty. It also has to properly represent
+ * the structure that corresponds to its type.
+ *
+ * \raise invalid_type
+ * If the magic found in the buffer is not recognized, then this exception
+ * is raised.
+ *
+ * \param[in] b  The buffer the data is to be read from.
+ */
+void context::from_binary(virtual_buffer::pointer_t b)
+{
+    f_impl->from_binary(b);
 }
 
 

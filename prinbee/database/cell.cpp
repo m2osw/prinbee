@@ -653,7 +653,7 @@ void cell::set_string(std::string const & value)
 
 void cell::column_id_to_binary(buffer_t & buffer) const
 {
-    column_id_t const id(f_schema_column->get_id());
+    column_id_t const id(f_schema_column->get_column_id());
 
     // for the actual data, we use big endian so that way we can use memcmp()
     // to compare different values and get the correct results
@@ -777,7 +777,7 @@ void cell::value_to_binary(buffer_t & buffer) const
         {
             // Note: the CHAR size is fixed so the minimum & maximum are the same
             //
-            std::size_t const size(f_schema_column->get_minimum_size());
+            std::size_t const size(f_schema_column->get_minimum_length());
             if(size > 0)
             {
                 std::uint8_t const * s(reinterpret_cast<std::uint8_t const *>(f_string.c_str()));
@@ -1025,7 +1025,7 @@ void cell::value_from_binary(buffer_t const & buffer, std::size_t & pos)
         {
             // Note: the CHAR size is fixed so the minimum & maximum are the same
             //
-            std::size_t const size(f_schema_column->get_minimum_size());
+            std::size_t const size(f_schema_column->get_minimum_length());
             f_string.resize(size);
             memcpy(&f_string[0], buffer.data() + pos, size);
 

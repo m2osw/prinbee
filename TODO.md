@@ -59,6 +59,8 @@ These need to be installed properly using the corresponding variables
   could be useful in our environment; this is useful when querying a span of
   rows and you want to count how many times this or that happens along the
   way (although that probably requires a `GROUP BY` feature)
+* Create support for a CREATE VIEW ... command and setup logical tables
+  in that way. This allows for fast relational queries.
 
 # prinbee-journal
 

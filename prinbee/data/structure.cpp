@@ -1023,6 +1023,7 @@ void structure::set_virtual_buffer(virtual_buffer::pointer_t buffer, reference_t
 {
     f_buffer = buffer;
     f_start_offset = start_offset;
+    f_fields_by_name.clear(); // force a new parse() when the buffer changes
 }
 
 
@@ -1921,7 +1922,7 @@ sign_extend_64bit:
 }
 
 
-void structure::set_large_integer(std::string const & field_name, int512_t value)
+void structure::set_large_integer(std::string const & field_name, int512_t const & value)
 {
     auto f(get_field(field_name));
 
@@ -2050,7 +2051,7 @@ uint512_t structure::get_large_uinteger(std::string const & field_name) const
 }
 
 
-void structure::set_large_uinteger(std::string const & field_name, uint512_t value)
+void structure::set_large_uinteger(std::string const & field_name, uint512_t const & value)
 {
     auto f(get_field(field_name));
 
@@ -2113,6 +2114,25 @@ void structure::set_large_uinteger(std::string const & field_name, uint512_t val
                 + "\".");
 
     }
+}
+
+
+snapdev::timespec_ex structure::get_nstime(std::string const & field_name) const
+{
+    uint512_t const u128(get_large_uinteger(field_name));
+    snapdev::timespec_ex result;
+    result.tv_sec = u128.f_value[0];
+    result.tv_nsec = u128.f_value[1];
+    return result;
+}
+
+
+void structure::set_nstime(std::string const & field_name, snapdev::timespec_ex const & value)
+{
+    uint512_t u128 = {};
+    u128.f_value[0] = value.tv_sec;
+    u128.f_value[1] = value.tv_nsec;
+    set_large_uinteger(field_name, u128);
 }
 
 
@@ -2584,7 +2604,8 @@ structure::pointer_t structure::new_array_item(std::string const & field_name)
 #endif
     std::vector<std::uint8_t> value(add, 0);
     f_buffer->pinsert(value.data(), add, offset);
-    s->set_virtual_buffer(f_buffer, offset);
+    //s->set_virtual_buffer(f_buffer, offset); -- this cancels the parse()
+    s->f_buffer = f_buffer;
 
     // increment the array counter and save it
     //

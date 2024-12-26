@@ -250,7 +250,7 @@ cell::pointer_t row::get_cell(std::string const & column_name, bool create)
                 + "\".");
     }
 
-    auto it(f_cells.find(column->get_id()));
+    auto it(f_cells.find(column->get_column_id()));
     if(it != f_cells.end())
     {
             return it->second;
@@ -262,7 +262,7 @@ cell::pointer_t row::get_cell(std::string const & column_name, bool create)
     }
 
     cell::pointer_t c(std::make_shared<cell>(column));
-    f_cells[column->get_id()] = c;
+    f_cells[column->get_column_id()] = c;
     return c;
 }
 
@@ -290,7 +290,7 @@ void row::delete_cell(std::string const & column_name)
                 + "\".");
     }
 
-    delete_cell(column->get_id());
+    delete_cell(column->get_column_id());
 }
 
 
