@@ -70,9 +70,11 @@ constexpr std::uint64_t divide_rounded_up(std::uint64_t value, std::uint64_t mul
 }
 
 
-char const *    get_default_context_path();
-char const *    get_prinbee_group();
-char const *    get_prinbee_user();
+char const *        get_default_prinbee_path();
+void                set_prinbee_path(std::string const & path);
+std::string const & get_prinbee_path();
+char const *        get_prinbee_group();
+char const *        get_prinbee_user();
 
 
 /** \brief Validate a field, table, or column name.

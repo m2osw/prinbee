@@ -62,7 +62,7 @@ CATCH_TEST_CASE("utils_defaults", "[utils][valid]")
 {
     CATCH_START_SECTION("utils_defaults: verify default context path")
     {
-        CATCH_REQUIRE(strcmp(prinbee::get_default_context_path(), "/var/lib/prinbee/context") == 0);
+        CATCH_REQUIRE(strcmp(prinbee::get_default_prinbee_path(), "/var/lib/prinbee") == 0);
     }
     CATCH_END_SECTION()
 

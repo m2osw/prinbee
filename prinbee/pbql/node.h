@@ -51,23 +51,28 @@ enum class token_t
     TOKEN_EOF = -1,
     TOKEN_UNKNOWN,
 
-    TOKEN_BITWISE_XOR       = '#',
-    TOKEN_MODULO            = '%',
-    TOKEN_BITWISE_AND       = '&',
-    TOKEN_OPEN_PARENTHESIS  = '(',
-    TOKEN_CLOSE_PARENTHESIS = ')',
-    TOKEN_MULTIPLY          = '*',
-    TOKEN_PLUS              = '+',
-    TOKEN_COMMA             = ',',
-    TOKEN_MINUS             = '-',
-    TOKEN_PERIOD            = '.',
-    TOKEN_DIVIDE            = '/',
-    TOKEN_SEMI_COLON        = ';',
-    TOKEN_EQUAL             = '=',
-    TOKEN_ABSOLUTE_VALUE    = '@',
-    TOKEN_POWER             = '^',
-    TOKEN_BITWISE_OR        = '|',
-    TOKEN_BITWISE_NOT       = '~',
+    TOKEN_BITWISE_XOR        = '#',
+    TOKEN_MODULO             = '%',
+    TOKEN_BITWISE_AND        = '&',
+    TOKEN_OPEN_PARENTHESIS   = '(',
+    TOKEN_CLOSE_PARENTHESIS  = ')',
+    TOKEN_MULTIPLY           = '*',
+    TOKEN_PLUS               = '+',
+    TOKEN_COMMA              = ',',
+    TOKEN_MINUS              = '-',
+    TOKEN_PERIOD             = '.',
+    TOKEN_DIVIDE             = '/',
+    TOKEN_COLON              = ':',
+    TOKEN_SEMI_COLON         = ';',
+    TOKEN_LESS               = '<',
+    TOKEN_EQUAL              = '=',
+    TOKEN_GREATER            = '>',
+    TOKEN_ABSOLUTE_VALUE     = '@',
+    TOKEN_OPEN_BRACKET       = '[',
+    TOKEN_CLOSE_BRACKET      = ']',
+    TOKEN_POWER              = '^', // exponential
+    TOKEN_BITWISE_OR         = '|',
+    TOKEN_REGULAR_EXPRESSION = '~',
 
     TOKEN_other = 1000,
 
@@ -77,18 +82,20 @@ enum class token_t
     TOKEN_FLOATING_POINT,
 
     TOKEN_NOT_EQUAL,
-    TOKEN_LESS,
     TOKEN_LESS_EQUAL,
-    TOKEN_GREATER,
     TOKEN_GREATER_EQUAL,
     TOKEN_SQUARE_ROOT,
     TOKEN_CUBE_ROOT,
+    TOKEN_SCOPE,
     TOKEN_SHIFT_LEFT,
     TOKEN_SHIFT_RIGHT,
     TOKEN_STRING_CONCAT,
 
     TOKEN_max // create all tokens before this one
 };
+
+
+char const *        to_string(token_t t);
 
 
 #pragma GCC diagnostic push
@@ -108,6 +115,8 @@ public:
 
     void                set_string(std::string const & string); // for STRING and IDENTIFIER
     std::string const & get_string() const;
+    std::string         get_string_lower() const;
+    std::string         get_string_upper() const;
     void                set_integer(uint512_t i);
     uint512_t           get_integer();
     void                set_floating_point(long double d);

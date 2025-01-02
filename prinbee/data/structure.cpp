@@ -2488,8 +2488,6 @@ structure::vector_t & structure::get_array(std::string const & field_name)
 }
 
 
-// at the moment I do not need this one and the implementation would
-// require a deep copy() function which we do not have
 //void structure::set_array(std::string const & field_name, vector_t const & value)
 //{
 //    auto f(get_field(field_name));
@@ -2509,8 +2507,20 @@ structure::vector_t & structure::get_array(std::string const & field_name)
 //
 //    }
 //
-//    snapdev::NOT_USED(value);
-//    //f->set_sub_structures(value);
+//    // remove the existing array items
+//    //
+//    while(!f->sub_structures().empty())
+//    {
+//        delete_array_item(field_name, f->sub_structures().size() - 1);
+//    }
+//
+//    // add the new items
+//    //
+//    for(auto const & a : value)
+//    {
+//        structure::pointer_t s(new_array_item(field_name));
+//        s.copy_structure(a);
+//    }
 //}
 
 

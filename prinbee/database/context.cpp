@@ -88,6 +88,7 @@ namespace detail
 
 
 
+constexpr char const * const    g_contexts_subpath = "contexts";
 constexpr char const * const    g_complex_types_filename = "complex-types.pb";
 
 
@@ -96,7 +97,6 @@ class context_impl
 public:
                                         context_impl(context * c, context_setup const & setup);
                                         context_impl(context_impl const & rhs) = delete;
-                                        ~context_impl();
 
     context_impl &                      operator = (context_impl const & rhs) = delete;
 
@@ -112,15 +112,18 @@ public:
     //long                                get_config_long(std::string const & name, int idx) const;
 
 private:
+    std::string const &                 get_context_path();
     void                                verify_complex_types();
     void                                find_loop(std::string const & name, schema_complex_type::pointer_t type, std::size_t depth);
 
     context *                           f_context = nullptr;
     context_setup                       f_setup = context_setup();
+    std::string                         f_context_path = std::string();
     std::string                         f_tables_path = std::string();
     int                                 f_lock = -1;        // TODO: lock the context so only one prinbee daemon can run against it
     table::map_t                        f_tables = table::map_t();
-    schema_complex_type::map_pointer_t  f_complex_types = schema_complex_type::map_pointer_t();
+    schema_complex_type::map_pointer_t  f_schema_complex_types = schema_complex_type::map_pointer_t();
+    schema_table::map_by_name_t         f_schema_tables_by_name_and_version = schema_table::map_by_name_t();
 };
 
 
@@ -128,26 +131,43 @@ context_impl::context_impl(context * c, context_setup const & setup)
     : f_context(c)
     , f_setup(setup)
 {
-    f_complex_types = std::make_shared<schema_complex_type::map_t>();
+    if(!setup.is_valid())
+    {
+        throw invalid_parameter("the context_setup is not valid.");
+    }
+    f_schema_complex_types = std::make_shared<schema_complex_type::map_t>();
 }
 
 
-context_impl::~context_impl()
+std::string const & context_impl::get_context_path()
 {
+    if(f_context_path.empty())
+    {
+        // build the path the first time we get called
+        //
+        f_context_path = get_prinbee_path();
+        f_context_path = snapdev::pathinfo::canonicalize(f_context_path, get_contexts_subpath());
+        f_context_path = snapdev::pathinfo::canonicalize(f_context_path, f_setup.get_name());
+    }
+
+    return f_context_path;
 }
 
 
 void context_impl::initialize()
 {
-    f_tables_path = f_setup.get_path() + "/tables";
-
     SNAP_LOG_CONFIGURATION
         << "Initialize context \""
-        << f_setup.get_path()
-        << "\"."
+        << f_setup.get_name()
+        << "\" from disk."
         << SNAP_LOG_SEND;
 
-    // make sure the folder exists
+    // the full path to the data is built from three different paths
+    // and sub-paths so we have a function to do that work.
+    //
+    f_tables_path = snapdev::pathinfo::canonicalize(get_context_path(), "tables");
+
+    // make sure the sub-folders exist
     //
     if(snapdev::mkdir_p(f_tables_path
             , false
@@ -156,7 +176,7 @@ void context_impl::initialize()
             , f_setup.get_group()) != 0)
     {
         throw io_error(
-              "Could not create or access the context table directory \""
+              "could not create or access the context table directory \""
             + f_tables_path
             + "\".");
     }
@@ -165,7 +185,7 @@ void context_impl::initialize()
     // one of them) so these are saved in a file at the top; it also gets
     // read first since that list is passed down to each table object
     //
-    load_file(f_setup.get_path() + '/' + g_complex_types_filename, false);
+    load_file(snapdev::pathinfo::canonicalize(get_context_path(), g_complex_types_filename), false);
 
     //basic_xml::node::deque_t table_extensions;
 
@@ -192,10 +212,10 @@ void context_impl::initialize()
     snapdev::glob_to_list<std::list<std::string>> list;
     if(!list.read_path<
               snapdev::glob_to_list_flag_t::GLOB_FLAG_ONLY_DIRECTORIES
-            , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(f_tables_path + "/*"))
+            , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(snapdev::pathinfo::canonicalize(f_tables_path, "*")))
     {
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-        msg << "Could not read directory \""
+        msg << "could not read directory \""
             << f_tables_path
             << "\" for table schemata.";
         throw io_error(msg.str());
@@ -204,16 +224,18 @@ void context_impl::initialize()
     if(list.empty())
     {
         SNAP_LOG_DEBUG
-            << "No tables found in context \""
+            << "no tables found in context \""
+            << f_setup.get_name()
+            << "\" (full tables path: \""
             << f_tables_path
-            << "\"."
+            << "\")."
             << SNAP_LOG_SEND;
     }
     else
     {
         for(auto const & table_dir : list)
         {
-            table::pointer_t t(std::make_shared<table>(f_context, table_dir, f_complex_types));
+            table::pointer_t t(std::make_shared<table>(f_context, table_dir, f_schema_complex_types));
             f_tables[t->get_name()] = t;
         }
 
@@ -264,7 +286,7 @@ void context_impl::initialize()
 //                            << SNAP_LOG_SEND;
 //                        continue;
 //                    }
-//                    if(f_complex_types->find(name) != f_complex_types->end())
+//                    if(f_schema_complex_types->find(name) != f_schema_complex_types->end())
 //                    {
 //                        SNAP_LOG_WARNING
 //                            << filename
@@ -274,7 +296,7 @@ void context_impl::initialize()
 //                            << SNAP_LOG_SEND;
 //                        continue;
 //                    }
-//                    (*f_complex_types)[name] = std::make_shared<schema_complex_type>(child);
+//                    (*f_schema_complex_types)[name] = std::make_shared<schema_complex_type>(child);
 //                }
 //            }
 //        }
@@ -286,7 +308,7 @@ void context_impl::initialize()
 //std::cerr << "--- child tag name " << child->tag_name() << "\n";
 //                if(child->tag_name() == "table")
 //                {
-//                    table::pointer_t t(std::make_shared<table>(f_context, child, f_complex_types));
+//                    table::pointer_t t(std::make_shared<table>(f_context, child, f_schema_complex_types));
 //                    f_tables[t->name()] = t;
 //
 //                    dbfile::pointer_t dbfile(t->get_dbfile());
@@ -356,7 +378,7 @@ void context_impl::initialize()
 
     SNAP_LOG_INFORMATION
         << "Context \""
-        << f_setup.get_path()
+        << f_setup.get_name()
         << "\" ready."
         << SNAP_LOG_SEND;
 }
@@ -378,8 +400,17 @@ void context_impl::from_binary(virtual_buffer::pointer_t b)
     switch(type)
     {
     case dbtype_t::FILE_TYPE_COMPLEX_TYPE:
-        schema_complex_type::load_complex_types(f_complex_types, b);
+        schema_complex_type::load_complex_types(f_schema_complex_types, b);
         verify_complex_types();
+        break;
+
+    case dbtype_t::FILE_TYPE_SCHEMA:
+        {
+            schema_table::pointer_t schema(std::make_shared<schema_table>());
+            schema->set_complex_types(f_schema_complex_types);
+            schema->from_binary(b);
+            f_schema_tables_by_name_and_version[schema->get_name()] = schema;
+        }
         break;
 
     default:
@@ -404,7 +435,7 @@ void context_impl::verify_complex_types()
     // in case the user made updates directly in our .ini, we could
     // have loops, make sure that's not the case
     //
-    for(auto & type : *f_complex_types)
+    for(auto & type : *f_schema_complex_types)
     {
         if(type.second->is_enum())
         {
@@ -445,8 +476,8 @@ void context_impl::find_loop(std::string const & name, schema_complex_type::poin
                   + "\".");
         }
 
-        auto it(f_complex_types->find(field_name));
-        if(it == f_complex_types->end())
+        auto it(f_schema_complex_types->find(field_name));
+        if(it == f_schema_complex_types->end())
         {
             // this should never happen
             //
@@ -480,7 +511,7 @@ table::map_t const & context_impl::list_tables() const
 
 std::string const & context_impl::get_path() const
 {
-    return f_setup.get_path();
+    return f_setup.get_name();
 }
 
 
@@ -527,39 +558,97 @@ std::string const & context_impl::get_path() const
 
 
 
+char const * get_contexts_subpath()
+{
+    return detail::g_contexts_subpath;
+}
+
+
+
+
 
 context_setup::context_setup()
 {
 }
 
 
-context_setup::context_setup(std::string const & path)
-    : f_path(path)
+context_setup::context_setup(std::string const & name)
 {
+    set_name(name);
 }
 
 
-void context_setup::set_path(std::string const & path)
+bool context_setup::is_valid() const
 {
-    if(path.empty())
-    {
-        f_path = get_default_context_path();
-    }
-    else
-    {
-        f_path = path;
-    }
+    // TODO: verify that the user name/id and group name/id are recognized
+    //
+    return !f_name.empty();
 }
 
 
-std::string const & context_setup::get_path() const
+void context_setup::set_name(std::string const & name)
 {
-    return f_path;
+    if(name.empty())
+    {
+        throw invalid_parameter("the context name cannot be an empty string.");
+    }
+    if(snapdev::pathinfo::is_absolute(name)
+    || name.back() == '/')
+    {
+        throw invalid_parameter(
+              "a context name cannot start with '/', \""
+            + name
+            + "\" is not valid.");
+    }
+
+    std::vector<std::string> segments;
+    snapdev::tokenize_string(segments, name, "/", true);
+    if(segments.size() > MAX_CONTEXT_NAME_SEGMENTS)
+    {
+        throw invalid_parameter(
+              "a context name cannot include that many '/', \""
+            + name
+            + "\" is not valid (limit is "
+            + std::to_string(MAX_CONTEXT_NAME_SEGMENTS)
+            + ").");
+    }
+
+    // the following ensures that each segment in the context name is
+    // considered to be a valid name
+    //
+    // as a side effect, this means we make sure that there is no "." and
+    // ".." segments since periods are not allowed in out names
+    //
+    for(auto const & s : segments)
+    {
+        if(!validate_name(s.c_str(), MAX_CONTEXT_NAME_SEGMENT_LENGTH))
+        {
+            throw invalid_name(
+                    "context name segment \""
+                  + s
+                  + "\" is not considered valid.");
+        }
+    }
+
+    // save the canonicalized version
+    //
+    f_name = snapdev::join_strings(segments, "/");
+}
+
+
+std::string const & context_setup::get_name() const
+{
+    return f_name;
 }
 
 
 void context_setup::set_user(std::string const & user)
 {
+    if(user.empty())
+    {
+        throw invalid_parameter("the user name cannot be an empty string.");
+    }
+
     f_user = user;
 }
 
@@ -572,6 +661,11 @@ std::string const & context_setup::get_user() const
 
 void context_setup::set_group(std::string const & group)
 {
+    if(group.empty())
+    {
+        throw invalid_parameter("the group name cannot be an empty string.");
+    }
+
     f_group = group;
 }
 
@@ -616,11 +710,12 @@ context::pointer_t context::create_context(context_setup const & setup)
 /** \brief Load the schema from disk.
  *
  * When you create the context, you can pass a setup structure including
- * a path with the location of the schema on disk. This function uses
- * that path to read the user complex type and the table schemata.
+ * a name which defines the location of the schema on disk. This function
+ * uses that information to read the user complex type and the table
+ * schemata.
  *
  * If you are not running the prinbee server, then you cannot use this
- * function since the data is protected. Instead, you will have to call
+ * function since the data is protected. Instead, you have to call
  * the from_binary() from the data sent to your client.
  */
 void context::initialize()
@@ -633,7 +728,7 @@ void context::initialize()
  *
  * This helper function is used to read an entire file and then 
  * parse it through the from_binary() function. This is useful
- * to load a schema of disk.
+ * to load a schema from disk.
  *
  * This function is used from the initialize() function to load
  * the complex types and tables of a schema.

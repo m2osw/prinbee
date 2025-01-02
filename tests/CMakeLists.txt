@@ -38,6 +38,7 @@ if(SnapCatch2_FOUND)
         catch_pbql_lexer.cpp
         catch_pbql_location.cpp
         catch_pbql_node.cpp
+        catch_pbql_parser.cpp
         catch_structure.cpp
         catch_utils.cpp
         catch_version.cpp

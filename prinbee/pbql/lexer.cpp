@@ -65,7 +65,7 @@ namespace pbql
 
 
 
-void lexer::set_input(input::pointer_t & in)
+void lexer::set_input(input::pointer_t in)
 {
     f_input = in;
 }
@@ -82,6 +82,8 @@ node::pointer_t lexer::get_next_token()
 
     for(;;)
     {
+        bool escape_string(false);
+        bool number_string(false);
         location const l(f_input->get_location());
         char32_t c(f_input->getc());
         switch(c)
@@ -104,11 +106,12 @@ node::pointer_t lexer::get_next_token()
         case '&':
         case '(':
         case ')':
+        case '[':
+        case ']':
         case '*':
         case '+':
         case ',':
         case '.':
-        case '/':
         case ';':
         case '@':
         case '^':
@@ -118,6 +121,23 @@ node::pointer_t lexer::get_next_token()
                 node::pointer_t n(std::make_shared<node>(static_cast<token_t>(c), l));
                 return n;
             }
+
+        case ':':
+            c = f_input->getc();
+            if(c == ':')
+            {
+                // this is the "scope" operator (used to cast things in SQL)
+                //
+                node::pointer_t n(std::make_shared<node>(token_t::TOKEN_SCOPE, l));
+                return n;
+            }
+            else
+            {
+                f_input->ungetc(c);
+                node::pointer_t n(std::make_shared<node>(token_t::TOKEN_COLON, l));
+                return n;
+            }
+            break;
 
         case '#':
             if(l.get_line() == 1
@@ -153,6 +173,67 @@ node::pointer_t lexer::get_next_token()
                 node::pointer_t n(std::make_shared<node>(static_cast<token_t>(c), l));
                 return n;
             }
+            break;
+
+        case '/':
+            c = f_input->getc();
+            if(c == '*')
+            {
+                // this is a comment (C-like except that nesting is clearly
+                // supported in SQL)
+                //
+                int count(1);
+                for(;;)
+                {
+                    c = f_input->getc();
+
+                    // closing comment (*/)
+                    //
+                    while(c == '*')
+                    {
+                        c = f_input->getc();
+                        if(c == '/')
+                        {
+                            --count;
+                            if(count == 0)
+                            {
+                                goto found_end;
+                            }
+                            c = f_input->getc();
+                        }
+                    }
+
+                    // nested opening (/*)
+                    //
+                    while(c == '/')
+                    {
+                        c = f_input->getc();
+                        if(c == '*')
+                        {
+                            ++count;
+                            c = f_input->getc();
+                        }
+                    }
+                    // note: no need to unget(); i.e. here the character in 'c'
+                    //       is neither a '/' nor a '*'
+
+                    if(c == libutf8::EOS)
+                    {
+                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                        msg << "end of script reached within a C-like comment (i.e. '*/' not found; depth: "
+                            << count
+                            << ").";
+                        throw invalid_token(msg.str());
+                    }
+                }
+            }
+            else
+            {
+                f_input->ungetc(c);
+                node::pointer_t n(std::make_shared<node>(token_t::TOKEN_DIVIDE, l));
+                return n;
+            }
+found_end:
             break;
 
         case '-':
@@ -254,14 +335,25 @@ node::pointer_t lexer::get_next_token()
             break;
 
         case '\'':
+parse_string:
             {
+                // Note:
+                //   in SQL, it is possible to change the escape character
+                //   using the '<string>' UESCAPE '<char>' syntax; I don't
+                //   think we need to support such (it's just too crazy)
+                //
                 std::string s;
                 for(;;)
                 {
                     c = f_input->getc();
                     if(c == '\'')
                     {
-                        break;
+                        c = f_input->getc();
+                        if(c != '\'')
+                        {
+                            f_input->ungetc(c);
+                            break;
+                        }
                     }
                     if(c == libutf8::EOS)
                     {
@@ -274,6 +366,25 @@ node::pointer_t lexer::get_next_token()
                         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
                         msg << "string cannot include a newline or carriage return character.";
                         throw invalid_token(msg.str());
+                    }
+                    if(escape_string
+                    && c == '\\')
+                    {
+                        // support for C-like escape sequences
+                        //
+                        //  Backslash Escape Sequence         | Interpretation
+                        // -----------------------------------+----------------
+                        //  \b                                | backspace
+                        //  \f                                | form feed
+                        //  \n                                | newline
+                        //  \r                                | carriage return
+                        //  \t                                | tab
+                        //  \o, \oo, \ooo (o = 0–7)           | octal byte value
+                        //  \xh, \xhh (h = 0–9, A–F)          | hexadecimal byte value
+                        //  \uxxxx, \Uxxxxxxxx (x = 0–9, A–F) | 16 or 32-bit hexadecimal Unicode character value
+                        // -----------------------------------+----------------
+                        //
+                        throw not_yet_implemented("lexer::get_next_token() -- add support for C-like escape sequences");
                     }
                     s += c;
                 }
@@ -295,21 +406,86 @@ node::pointer_t lexer::get_next_token()
         case '8':
         case '9':
             {
-                uint512_t value(0);
                 if(c == '0')
                 {
                     c = f_input->getc();
-                    if(c == 'x' || c == 'X')
+                    if(c == 'b' || c == 'B')
                     {
+parse_binary_number:
+                        uint512_t value(0);
+                        bool found(false);
+                        for(;;)
+                        {
+                            c = f_input->getc();
+                            if(c == '0')
+                            {
+                                value *= 2;
+                            }
+                            else if(c == '1')
+                            {
+                                value *= 2;
+                                value += 1;
+                            }
+                            else if(c >= '2' && c <= '9')
+                            {
+                                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                                msg << "a binary string only supports binary digits (0 and 1).";
+                                throw invalid_number(msg.str());
+                            }
+                            else
+                            {
+                                 if(number_string)
+                                 {
+                                     if(c != '\'')
+                                     {
+                                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                                        msg << "a binary string needs to end with a quote (').";
+                                        throw invalid_number(msg.str());
+                                    }
+                                 }
+                                 else
+                                 {
+                                    f_input->ungetc(c);
+                                 }
+                                 break;
+                            }
+                            found = true;
+                        }
+                        if(!found)
+                        {
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                            msg << "a binary number needs at least one digit.";
+                            throw invalid_number(msg.str());
+                        }
+                        node::pointer_t n(std::make_shared<node>(token_t::TOKEN_INTEGER, l));
+                        n->set_integer(value);
+                        return n;
+                    }
+                    else if(c == 'x' || c == 'X')
+                    {
+parse_hexadecimal_number:
                         // hexadecimal number
                         //
+                        uint512_t value(0);
                         bool found(false);
                         for(;;)
                         {
                             c = f_input->getc();
                             if(!snapdev::is_hexdigit(c))
                             {
-                                f_input->ungetc(c);
+                                if(number_string)
+                                {
+                                    if(c != '\'')
+                                    {
+                                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                                        msg << "an hexadecimal string needs to end with a quote (').";
+                                        throw invalid_number(msg.str());
+                                    }
+                                }
+                                else
+                                {
+                                    f_input->ungetc(c);
+                                }
                                 break;
                             }
                             found = true;
@@ -319,7 +495,54 @@ node::pointer_t lexer::get_next_token()
                         if(!found)
                         {
                             snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                            msg << "hexadecimal number needs at least one digit after the \"0x\".";
+                            msg << "an hexadecimal number needs at least one digit after the \"0x\".";
+                            throw invalid_number(msg.str());
+                        }
+                        node::pointer_t n(std::make_shared<node>(token_t::TOKEN_INTEGER, l));
+                        n->set_integer(value);
+                        return n;
+                    }
+                    else if(c == 'o' || c == 'O')
+                    {
+parse_octal_number:
+                        // octal number
+                        //
+                        uint512_t value(0);
+                        bool found(false);
+                        for(;;)
+                        {
+                            c = f_input->getc();
+                            if(c < '0' || c > '7')
+                            {
+                                if(c == '8' || c == '9')
+                                {
+                                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                                    msg << "an octal string cannot include digits 8 or 9.";
+                                    throw invalid_number(msg.str());
+                                }
+                                if(number_string)
+                                {
+                                    if(c != '\'')
+                                    {
+                                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                                        msg << "an octal string needs to end with a quote (').";
+                                        throw invalid_number(msg.str());
+                                    }
+                                }
+                                else
+                                {
+                                    f_input->ungetc(c);
+                                }
+                                break;
+                            }
+                            found = true;
+                            value *= 8;
+                            value += c = '0';
+                        }
+                        if(!found)
+                        {
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                            msg << "an octal number needs at least one digit after the \"0o\".";
                             throw invalid_number(msg.str());
                         }
                         node::pointer_t n(std::make_shared<node>(token_t::TOKEN_INTEGER, l));
@@ -329,7 +552,8 @@ node::pointer_t lexer::get_next_token()
                     f_input->ungetc(c);
                     c = '0';
                 }
-                value += c - '0';
+
+                uint512_t value(c - '0');
                 for(;;)
                 {
                     c = f_input->getc();
@@ -397,6 +621,67 @@ node::pointer_t lexer::get_next_token()
             break;
 
         default:
+            switch(c)
+            {
+            case 'b':
+            case 'B':
+                {
+                    char32_t const quote(f_input->getc());
+                    if(quote == '\'')
+                    {
+                        // binary number written in a string
+                        //
+                        number_string = true;
+                        goto parse_binary_number;
+                    }
+                    f_input->ungetc(quote);
+                }
+                break;
+
+            case 'e':
+            case 'E':
+                {
+                    char32_t const quote(f_input->getc());
+                    if(quote == '\'')
+                    {
+                        escape_string = true;
+                        goto parse_string;
+                    }
+                    f_input->ungetc(quote);
+                }
+                break;
+
+            case 'o':
+            case 'O':
+                {
+                    char32_t const quote(f_input->getc());
+                    if(quote == '\'')
+                    {
+                        // octal number written in a string
+                        //
+                        number_string = true;
+                        goto parse_octal_number;
+                    }
+                    f_input->ungetc(quote);
+                }
+                break;
+
+            case 'x':
+            case 'X':
+                {
+                    char32_t const quote(f_input->getc());
+                    if(quote == '\'')
+                    {
+                        // hexadecimal number written in a string
+                        //
+                        number_string = true;
+                        goto parse_hexadecimal_number;
+                    }
+                    f_input->ungetc(quote);
+                }
+                break;
+
+            }
             if((c >= 'a' && c <= 'z')
             || (c >= 'A' && c <= 'Z')
             || c == '_')

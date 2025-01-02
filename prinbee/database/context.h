@@ -50,21 +50,28 @@ class context_impl;
 }
 
 
+constexpr std::size_t const                 MAX_CONTEXT_NAME_SEGMENTS = 3;
+constexpr std::size_t const                 MAX_CONTEXT_NAME_SEGMENT_LENGTH = 100;
+
+char const *                                get_contexts_subpath();
+
+
 class context_setup
 {
 public:
                                             context_setup();
-                                            context_setup(std::string const & path);
+                                            context_setup(std::string const & name);
 
-    void                                    set_path(std::string const & path);
-    std::string const &                     get_path() const;
+    bool                                    is_valid() const;
+    void                                    set_name(std::string const & name);
+    std::string const &                     get_name() const;
     void                                    set_user(std::string const & user);
     std::string const &                     get_user() const;
     void                                    set_group(std::string const & group);
     std::string const &                     get_group() const;
 
 private:
-    std::string                             f_path = get_default_context_path();
+    std::string                             f_name = std::string();
     std::string                             f_user = get_prinbee_user();
     std::string                             f_group = get_prinbee_group();
 };
@@ -73,8 +80,9 @@ private:
 class context
 {
 public:
-    typedef std::shared_ptr<context>        pointer_t;
-    typedef std::weak_ptr<context>          weak_pointer_t;
+    typedef std::shared_ptr<context>            pointer_t;
+    typedef std::weak_ptr<context>              weak_pointer_t;
+    typedef std::map<std::string, pointer_t>    map_t;
 
                                             ~context();
 

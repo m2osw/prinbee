@@ -54,7 +54,7 @@ class table_impl;
 
 
 
-constexpr size_t const                          BLOCK_HEADER_SIZE = 4 + 4;  // magic + version (32 bits each)
+constexpr std::size_t const                     BLOCK_HEADER_SIZE = 4 + 4;  // magic + version (32 bits each)
 
 class context;
 class dbfile;

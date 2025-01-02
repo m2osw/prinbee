@@ -43,7 +43,7 @@ class lexer
 public:
     typedef std::shared_ptr<lexer>  pointer_t;
 
-    void                set_input(input::pointer_t & in);
+    void                set_input(input::pointer_t in);
 
     node::pointer_t     get_next_token();
 

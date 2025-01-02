@@ -31,6 +31,16 @@
 #include    "prinbee/exception.h"
 
 
+// snapdev
+//
+#include    <snapdev/pathinfo.h>
+
+
+// C
+//
+#include    <sys/stat.h>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
@@ -44,7 +54,8 @@ namespace
 
 
 
-constexpr char const * const    g_default_context_path = "/var/lib/prinbee/context";
+constexpr char const * const    g_default_prinbee_path = "/var/lib/prinbee";
+std::string                     g_prinbee_path = g_default_prinbee_path;
 constexpr char const * const    g_prinbee_name = "prinbee";
 
 
@@ -53,9 +64,58 @@ constexpr char const * const    g_prinbee_name = "prinbee";
 
 
 
-char const * get_default_context_path()
+char const * get_default_prinbee_path()
 {
-    return g_default_context_path;
+    return g_default_prinbee_path;
+}
+
+
+void set_prinbee_path(std::string const & path)
+{
+    if(path.empty())
+    {
+        throw file_not_found("the top prinbee data path cannot be set to the empty string.");
+    }
+    if(!snapdev::pathinfo::is_absolute(path))
+    {
+        throw file_not_found(
+              "the top prinbee data path must be an absolute path, \""
+            + path
+            + "\" is not considered valid.");
+    }
+    struct stat s;
+    if(stat(path.c_str(), &s) != 0)
+    {
+        throw file_not_found(
+              "the top prinbee data path must exist, directory \""
+            + path
+            + "\" not found.");
+    }
+    if(!S_ISDIR(s.st_mode))
+    {
+        throw invalid_type(
+              "the top prinbee data path \""
+            + path
+            + "\" must be a directory.");
+    }
+    std::string errmsg;
+    std::string const real_path(snapdev::pathinfo::realpath(path, errmsg));
+    if(!errmsg.empty())
+    {
+        throw file_not_found(
+              "could not retrieve the real prinbee data path for \""
+            + path
+            + "\" (error: "
+            + errmsg
+            + ").");
+    }
+    g_prinbee_path = real_path;
+}
+
+
+std::string const & get_prinbee_path()
+{
+    return g_prinbee_path;
 }
 
 

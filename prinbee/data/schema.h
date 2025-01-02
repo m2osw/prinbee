@@ -405,9 +405,9 @@ class schema_table
     : public std::enable_shared_from_this<schema_table>
 {
 public:
-    typedef std::shared_ptr<schema_table>   pointer_t;
-    typedef std::map<schema_version_t, pointer_t>
-                                            map_by_version_t;
+    typedef std::shared_ptr<schema_table>           pointer_t;
+    typedef std::map<schema_version_t, pointer_t>   map_by_version_t;
+    typedef std::map<std::string, pointer_t>        map_by_name_t;
 
                                             schema_table();
 
@@ -415,7 +415,6 @@ public:
 
     void                                    from_binary(virtual_buffer::pointer_t b);
     virtual_buffer::pointer_t               to_binary() const;
-    void                                    modified();
     //void                                    from_config(std::string const & name, std::string const & filename);
     //void                                    load_extension(advgetopt::conf_file::pointer_t s);
 
@@ -423,10 +422,13 @@ public:
 
     schema_version_t                        get_schema_version() const;
     void                                    set_schema_version(schema_version_t version);
-    snapdev::timespec_ex                    get_created_on() const;
+    snapdev::timespec_ex                    get_created_on() const; // no set, it gets set on creation of a schema_table object
     snapdev::timespec_ex                    get_last_updated_on() const;
-    std::string                             get_name() const;
+    void                                    modified();
+    std::string const &                     get_name() const;
+    void                                    set_name(std::string const & name);
     model_t                                 get_model() const;
+    void                                    set_model(model_t model);
     bool                                    is_logged() const;
     void                                    set_logged(bool logged);
     bool                                    is_secure() const;
@@ -434,7 +436,8 @@ public:
     bool                                    is_translatable() const;
     void                                    set_translatable(bool translatable);
     column_ids_t                            get_primary_key() const;
-    void                                    assign_column_ids(pointer_t existing_schema = pointer_t());
+    void                                    set_primary_key(column_ids_t const & key);
+    //void                                    assign_column_ids(pointer_t existing_schema = pointer_t());
     bool                                    has_expiration_date_column() const;
     schema_column::pointer_t                get_expiration_date_column() const;
     schema_column::pointer_t                get_column(std::string const & name) const;
@@ -444,7 +447,8 @@ public:
     schema_secondary_index::pointer_t       get_secondary_index(std::string const & name) const;
     schema_complex_type::pointer_t          get_complex_type(std::string const & name) const;
 
-    std::string                             get_description() const;
+    std::string const &                     get_description() const;
+    void                                    set_description(std::string const & description);
 
 private:
     //void                                    from_config_name(std::string const & name);
@@ -459,7 +463,7 @@ private:
 
     structure::pointer_t                    f_structure = structure::pointer_t();
     schema_complex_type::map_pointer_t      f_complex_types = schema_complex_type::map_pointer_t();
-    schema_version_t                        f_version = schema_version_t();
+    schema_version_t                        f_schema_version = schema_version_t();
     std::string                             f_name = std::string();
     std::string                             f_filename = std::string();
     std::string                             f_description = std::string();

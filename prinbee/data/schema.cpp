@@ -2086,6 +2086,12 @@ schema_table::schema_table()
     : f_structure(std::make_shared<structure>(g_table_description))
 {
     f_structure->init_buffer();
+
+    // in case we are creating; because there is no set_created_on() by
+    // design so it needs to be set somehow
+    //
+    f_created_on = snapdev::now();
+    f_structure->set_nstime(g_name_prinbee_fld_created_on, f_created_on);
 }
 
 
@@ -2151,11 +2157,11 @@ void schema_table::set_complex_types(schema_complex_type::map_pointer_t complex_
 //                + "\".");
 //    }
 //    char const * v(filename.c_str() + pos + 1);
-//    f_version = 0;
+//    f_schema_version = 0;
 //    while(*v >= '0' && *v <= '9')
 //    {
-//        f_version *= 10;
-//        f_version += *v - '0';
+//        f_schema_version *= 10;
+//        f_schema_version += *v - '0';
 //        ++v;
 //    }
 //    if(strcmp(v, ".ini") != 0)
@@ -2226,13 +2232,13 @@ void schema_table::set_complex_types(schema_complex_type::map_pointer_t complex_
 //            throw type_mismatch("the [table] section must have a version=... parameter.");
 //        }
 //        std::string const ini_version(config->get_parameter(table_section_version));
-//        if(f_version != convert_to_uint(ini_version, 32))
+//        if(f_schema_version != convert_to_uint(ini_version, 32))
 //        {
 //            throw type_mismatch(
 //                      "the table filename is \""
 //                    + f_filename
 //                    + "\" with version \""
-//                    + std::to_string(f_version)
+//                    + std::to_string(f_schema_version)
 //                    + "\"; found version \""
 //                    + ini_version
 //                    + "\" in the .ini file; there is a mismatch.");
@@ -2847,7 +2853,7 @@ void schema_table::from_binary(virtual_buffer::pointer_t b)
 {
     f_structure->set_virtual_buffer(b, 0);
 
-    f_version                  = f_structure->get_uinteger(g_name_prinbee_fld_schema_version);
+    f_schema_version           = f_structure->get_uinteger(g_name_prinbee_fld_schema_version);
     f_created_on               = f_structure->get_nstime(g_name_prinbee_fld_created_on);
     f_last_updated_on          = f_structure->get_nstime(g_name_prinbee_fld_last_updated_on);
     f_name                     = f_structure->get_string(g_name_prinbee_fld_name);
@@ -2917,7 +2923,7 @@ virtual_buffer::pointer_t schema_table::to_binary() const
 
 //    structure::pointer_t s(std::make_shared<structure>(g_table_description));
 //    s->init_buffer();
-//    s->set_uinteger("schema_version", f_version);
+//    s->set_uinteger("schema_version", f_schema_version);
 //    s->set_large_integer("created_on", f_created_on);
 //    s->set_large_integer("last_updated_on", f_last_updated_on);
 //    s->set_string("name", f_name);
@@ -2981,12 +2987,6 @@ virtual_buffer::pointer_t schema_table::to_binary() const
 }
 
 
-void schema_table::modified()
-{
-    f_last_updated_on = snapdev::now();
-}
-
-
 /** \brief Compare two table schemata.
  *
  * This operator let you know whether two schema descriptions are considered
@@ -3020,7 +3020,7 @@ void schema_table::modified()
 //{
 //    compare_t result(compare_t::COMPARE_SCHEMA_EQUAL);
 //
-//    //f_version -- we calculate the version
+//    //f_schema_version -- we calculate the version
 //    //f_created_on -- this is dynamically assigned on creation
 //    //f_last_updated_on -- this is dynamically assigned on updates
 //
@@ -3135,14 +3135,14 @@ void schema_table::modified()
 
 schema_version_t schema_table::get_schema_version() const
 {
-    return f_version;
+    return f_schema_version;
 }
 
 
 /** \brief Set the version of the schema.
  *
  * This function is used only internally to set the version of the schema.
- * By default, all schemata are assigned version 1.0 on a read. However,
+ * By default, all schemata are assigned version 1 on a read. However,
  * it may later be determined that this is an updated version of the
  * schema for a given table. In that case, the table will know what its
  * current version is (i.e. the latest version of the schema in that
@@ -3156,7 +3156,12 @@ schema_version_t schema_table::get_schema_version() const
  */
 void schema_table::set_schema_version(schema_version_t version)
 {
-    f_version = version;
+    if(f_schema_version != version)
+    {
+        f_schema_version = version;
+        f_structure->set_uinteger(g_name_prinbee_fld_schema_version, f_schema_version);
+        //modified(); -- I think this is not necessary on this one
+    }
 }
 
 
@@ -3172,15 +3177,44 @@ snapdev::timespec_ex schema_table::get_last_updated_on() const
 }
 
 
-std::string schema_table::get_name() const
+void schema_table::modified()
+{
+    f_last_updated_on = snapdev::now();
+    f_structure->set_nstime(g_name_prinbee_fld_last_updated_on, f_last_updated_on);
+}
+
+
+std::string const & schema_table::get_name() const
 {
     return f_name;
+}
+
+
+void schema_table::set_name(std::string const & name)
+{
+    if(f_name != name)
+    {
+        f_name = name;
+        f_structure->set_string(g_name_prinbee_fld_name, f_name);
+        modified();
+    }
 }
 
 
 model_t schema_table::get_model() const
 {
     return f_model;
+}
+
+
+void schema_table::set_model(model_t model)
+{
+    if(f_model != model)
+    {
+        f_model = model;
+        f_structure->set_uinteger("model", std::to_underlying(f_model));
+        modified();
+    }
 }
 
 
@@ -3192,7 +3226,11 @@ bool schema_table::is_logged() const
 
 void schema_table::set_logged(bool logged)
 {
-    f_structure->set_bits("flags.logged", logged ? 1 : 0);
+    if(is_logged() != logged)
+    {
+        f_structure->set_bits("flags.logged", logged ? 1 : 0);
+        modified();
+    }
 }
 
 
@@ -3204,7 +3242,11 @@ bool schema_table::is_secure() const
 
 void schema_table::set_secure(bool secure)
 {
-    f_structure->set_bits("flags.secure", secure ? 1 : 0);
+    if(is_secure() != secure)
+    {
+        f_structure->set_bits("flags.secure", secure ? 1 : 0);
+        modified();
+    }
 }
 
 
@@ -3216,7 +3258,11 @@ bool schema_table::is_translatable() const
 
 void schema_table::set_translatable(bool translatable)
 {
-    f_structure->set_bits("flags.translatable", translatable ? 1 : 0);
+    if(is_translatable() != translatable)
+    {
+        f_structure->set_bits("flags.translatable", translatable ? 1 : 0);
+        modified();
+    }
 }
 
 
@@ -3226,7 +3272,29 @@ column_ids_t schema_table::get_primary_key() const
 }
 
 
-// we now immediately have the IDs and thus there is nothing to assign later
+void schema_table::set_primary_key(column_ids_t const & key)
+{
+    if(f_primary_key != key)
+    {
+        f_primary_key = key;
+        structure::vector_t const & s(f_structure->get_array(g_name_prinbee_fld_primary_key));
+        std::size_t idx(s.size());
+        while(idx > 0)
+        {
+            --idx;
+            f_structure->delete_array_item(g_name_prinbee_fld_primary_key, idx);
+        }
+        for(auto const & k : key)
+        {
+            structure::pointer_t n(f_structure->new_array_item(g_name_prinbee_fld_primary_key));
+            n->set_uinteger(g_name_prinbee_fld_column_id, k);
+        }
+        modified();
+    }
+}
+
+
+// we immediately have the IDs now and thus there is nothing to assign later
 //void schema_table::assign_column_ids(schema_table::pointer_t existing_schema)
 //{
 //    if(!f_columns_by_id.empty())
@@ -3432,9 +3500,20 @@ schema_complex_type::pointer_t schema_table::get_complex_type(std::string const 
 }
 
 
-std::string schema_table::get_description() const
+std::string const & schema_table::get_description() const
 {
     return f_description;
+}
+
+
+void schema_table::set_description(std::string const & description)
+{
+    if(f_description != description)
+    {
+        f_description = description;
+        f_structure->set_string(g_name_prinbee_fld_description, f_description);
+        modified();
+    }
 }
 
 

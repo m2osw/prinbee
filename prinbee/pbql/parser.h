@@ -18,41 +18,21 @@
 #pragma once
 
 /** \file
- * \brief Lexer of the Prinbee Query Language.
+ * \brief Parser of the Prinbee Query Language.
  *
  * The Pribee Query Language (PBQL) is an SQL-like language. This file
- * defines the classes supported by the lexer.
+ * defines the classes supported by the parser.
  */
 
 // self
 //
 #include    <prinbee/pbql/lexer.h>
+#include    <prinbee/pbql/command.h>
 
 
-//// advgetopt
-////
-//#include    <advgetopt/conf_file.h>
-//#include    <advgetopt/validator_integer.h>
+// advgetopt
 //
-//
-//// snaplogger
-////
-//#include    <snaplogger/message.h>
-//
-//
-//// snapdev
-////
-//#include    <snapdev/hexadecimal_string.h>
-//#include    <snapdev/mkdir_p.h>
-//#include    <snapdev/pathinfo.h>
-//#include    <snapdev/stream_fd.h>
-//#include    <snapdev/unique_number.h>
-//
-//
-//// C
-////
-//#include    <linux/fs.h>
-//#include    <sys/ioctl.h>
+#include    <advgetopt/utils.h>
 
 
 
@@ -63,20 +43,49 @@ namespace pbql
 
 
 
+enum class transaction_t : std::uint8_t
+{
+    TRANSACTION_UNDEFINED,
+    TRANSACTION_SCHEMA,
+    TRANSACTION_DATA,
+};
+
+
 class parser
 {
 public:
+    typedef std::shared_ptr<parser>     pointer_t;
+
                         parser(lexer::pointer_t l);
 
-    void                run();
+    command::vector_t const &
+                        parse();
 
 private:
-    void                expect_semi_colon(std::string const & command);
-
     void                parse_alter_index();
     void                parse_alter_table();
+    void                parse_alter_type();
+
+    void                parse_begin();
+    void                parse_create_context();
+    void                parse_create_index();
+    void                parse_create_table();
+    void                parse_create_type();
+
+    void                expect_semi_colon(
+                              std::string const & command
+                            , node::pointer_t n = node::pointer_t());
+    node::pointer_t     keyword_string(
+                              std::string commands
+                            , advgetopt::string_list_t const & keywords
+                            , bool & optional_found
+                            , token_t next_token_type = token_t::TOKEN_UNKNOWN);
+    void                parse_transaction_command(std::string const & cmd_name, command_t cmd);
+
+    std::string         parse_expression(node::pointer_t n);
 
     lexer::pointer_t    f_lexer = lexer::pointer_t();
+    command::vector_t   f_commands = command::vector_t();
 };
 
 

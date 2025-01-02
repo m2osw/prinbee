@@ -79,11 +79,13 @@ add_library(${PROJECT_NAME} SHARED
     data/structure.cpp
     data/virtual_buffer.cpp
 
+    pbql/command.cpp
     pbql/input.cpp
     pbql/lexer.cpp
     pbql/location.cpp
     pbql/node.cpp
     pbql/parser.cpp
+    pbql/parse_expression.cpp
 
     error.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
