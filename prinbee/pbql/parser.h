@@ -72,6 +72,8 @@ private:
     void                parse_create_table();
     void                parse_create_type();
 
+    void                parse_select();
+
     void                expect_semi_colon(
                               std::string const & command
                             , node::pointer_t n = node::pointer_t());
@@ -82,7 +84,7 @@ private:
                             , token_t next_token_type = token_t::TOKEN_UNKNOWN);
     void                parse_transaction_command(std::string const & cmd_name, command_t cmd);
 
-    std::string         parse_expression(node::pointer_t n);
+    std::string         parse_expression(node::pointer_t & n);
 
     lexer::pointer_t    f_lexer = lexer::pointer_t();
     command::vector_t   f_commands = command::vector_t();

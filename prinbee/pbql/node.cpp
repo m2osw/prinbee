@@ -173,6 +173,8 @@ node::node(token_t token, location const & l)
     case token_t::TOKEN_SEMI_COLON:
     case token_t::TOKEN_EQUAL:
     case token_t::TOKEN_ABSOLUTE_VALUE:
+    case token_t::TOKEN_OPEN_BRACKET:
+    case token_t::TOKEN_CLOSE_BRACKET:
     case token_t::TOKEN_POWER:
     case token_t::TOKEN_BITWISE_OR:
     case token_t::TOKEN_REGULAR_EXPRESSION:
@@ -187,6 +189,7 @@ node::node(token_t token, location const & l)
     case token_t::TOKEN_GREATER_EQUAL:
     case token_t::TOKEN_SQUARE_ROOT:
     case token_t::TOKEN_CUBE_ROOT:
+    case token_t::TOKEN_SCOPE:
     case token_t::TOKEN_SHIFT_LEFT:
     case token_t::TOKEN_SHIFT_RIGHT:
     case token_t::TOKEN_STRING_CONCAT:

@@ -58,6 +58,7 @@ enum class command_t
     COMMAND_COMMIT,
     COMMAND_CREATE_CONTEXT,
     COMMAND_ROLLBACK,
+    COMMAND_SELECT,
 };
 
 
@@ -72,6 +73,10 @@ enum class param_type_t
 };
 
 
+constexpr int const         MAX_LIMIT       = 1'000'000;
+constexpr int const         MAX_EXPRESSIONS = 1'000;
+constexpr int const         MAX_TABLES      = 20;
+
 enum class param_t
 {
     PARAM_UNKNOWN,      // an invalid parameter
@@ -80,10 +85,24 @@ enum class param_t
     PARAM_DESCRIPTION,
     PARAM_GROUP,
     PARAM_IF_EXISTS,
+    PARAM_LIMIT,
     PARAM_NAME,
+    PARAM_ORDER_BY,
     PARAM_PATH,
     PARAM_TYPE,
     PARAM_USER,
+    PARAM_WHERE,
+
+    // allow for up to MAX_EXPRESSIONS expressions (for SELECT)
+    //
+    PARAM_EXPRESSION,
+    PARAM_EXPRESSION_end = PARAM_EXPRESSION + MAX_EXPRESSIONS - 1,
+    PARAM_COLUMN_NAME,
+    PARAM_COLUMN_NAME_end = PARAM_COLUMN_NAME + MAX_EXPRESSIONS - 1,
+    PARAM_TABLE,
+    PARAM_TABLE_end = PARAM_TABLE + MAX_TABLES - 1,
+    PARAM_TABLE_NAME,
+    PARAM_TABLE_NAME_end = PARAM_TABLE_NAME + MAX_TABLES - 1,
 };
 
 

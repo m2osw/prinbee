@@ -34,6 +34,7 @@ if(SnapCatch2_FOUND)
         catch_dbfile.cpp
         catch_hash.cpp
         catch_journal.cpp
+        catch_pbql_expression.cpp
         catch_pbql_input.cpp
         catch_pbql_lexer.cpp
         catch_pbql_location.cpp
@@ -57,6 +58,7 @@ if(SnapCatch2_FOUND)
     target_link_libraries(${PROJECT_NAME}
         prinbee
         ${SNAPCATCH2_LIBRARIES}
+        ${LIBUTF8_LIBRARIES}
     )
 
 else(SnapCatch2_FOUND)

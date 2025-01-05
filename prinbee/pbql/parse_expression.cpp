@@ -147,9 +147,9 @@
 // snapdev
 //
 #include    <snapdev/escape_special_regex_characters.h>
+#include    <snapdev/floating_point_to_string.h>
 #include    <snapdev/to_upper.h>
 #include    <snapdev/string_replace_many.h>
-//#include    <snapdev/pathinfo.h>
 //#include    <snapdev/stream_fd.h>
 
 
@@ -1555,7 +1555,7 @@ std::string expr_state::parse_expr_primary()
         return result;
 
     case token_t::TOKEN_FLOATING_POINT:
-        result = std::to_string(f_node->get_floating_point());
+        result = snapdev::floating_point_to_string<double, char>(f_node->get_floating_point());
         f_node = f_lexer->get_next_token();
         return result;
 
@@ -1599,14 +1599,16 @@ std::string expr_state::parse_expr_primary()
 } // no name namespace
 
 
-std::string parser::parse_expression(node::pointer_t n)
+std::string parser::parse_expression(node::pointer_t & n)
 {
     expr_state s
     {
         .f_lexer = f_lexer,
         .f_node = n,
     };
-    return s.parse_expr_logical_or();
+    std::string const result(s.parse_expr_logical_or());
+    n = s.f_node;
+    return result;
 }
 
 

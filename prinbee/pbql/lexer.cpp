@@ -342,6 +342,7 @@ parse_string:
                 //   using the '<string>' UESCAPE '<char>' syntax; I don't
                 //   think we need to support such (it's just too crazy)
                 //
+                int count(0);
                 std::string s;
                 for(;;)
                 {
@@ -384,7 +385,122 @@ parse_string:
                         //  \uxxxx, \Uxxxxxxxx (x = 0–9, A–F) | 16 or 32-bit hexadecimal Unicode character value
                         // -----------------------------------+----------------
                         //
-                        throw not_yet_implemented("lexer::get_next_token() -- add support for C-like escape sequences");
+                        c = f_input->getc();
+                        switch(c)
+                        {
+                        case 'b':
+                            c = '\b';
+                            break;
+
+                        case 'f':
+                            c = '\f';
+                            break;
+
+                        case 'n':
+                            c = '\n';
+                            break;
+
+                        case 'r':
+                            c = '\r';
+                            break;
+
+                        case 't':
+                            c = '\t';
+                            break;
+
+                        case '0':
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                        case '6':
+                        case '7':
+                            {
+                                c -= '0';
+                                char32_t d(f_input->getc());
+                                if(d >= '0' && d <= '7')
+                                {
+                                    c <<= 3;
+                                    c += d - '0';
+                                    d = f_input->getc();
+                                    if(d >= '0' && d <= '7')
+                                    {
+                                        c <<= 3;
+                                        c += d - '0';
+                                    }
+                                    else
+                                    {
+                                        f_input->ungetc(d);
+                                    }
+                                }
+                                else
+                                {
+                                    f_input->ungetc(d);
+                                }
+                            }
+
+                            // here the character can be over 0x7F so we
+                            // need to insert it as UTF-8
+                            //
+                            goto append_unicode;
+
+                        case 'x':
+                        case 'X':
+                            count = 2;
+                            goto parse_hex_char;
+
+                        case 'u':
+                            count = 4;
+                            goto parse_hex_char;
+
+                        case 'U':
+                            count = 8;
+parse_hex_char:
+                            {
+                                c = U'\0';
+                                int idx(0);
+                                for(; idx < count; ++idx)
+                                {
+                                    char32_t const d(f_input->getc());
+                                    if(!snapdev::is_hexdigit(d))
+                                    {
+                                        f_input->ungetc(d);
+                                        break;
+                                    }
+                                    c <<= 4;
+                                    c += snapdev::hexdigit_to_number(d);
+                                }
+                                if(idx != count
+                                && (idx != 1 || count != 2))
+                                {
+                                    throw invalid_token(
+                                              "lexer::get_next_token() -- escape sequence needed "
+                                            + std::to_string(count)
+                                            + " digits; found "
+                                            + std::to_string(idx)
+                                            + " instead.");
+                                }
+                            }
+
+append_unicode:
+                            if(c == U'\0')
+                            {
+                                throw unexpected_token("lexer::get_next_token() -- the NULL character is not allowed in strings.");
+                            }
+
+                            // this can require UTF-8 so we cannot just
+                            // pass 'c' below because s += c will fail
+                            //
+                            s += libutf8::to_u8string(c);
+                            continue; // avoid the s += c; below
+
+                        default:
+                            // any other character is simply escaped
+                            // (useful to escape the backslash character)
+                            break;
+
+                        }
                     }
                     s += c;
                 }
@@ -429,7 +545,7 @@ parse_binary_number:
                             else if(c >= '2' && c <= '9')
                             {
                                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                                msg << "a binary string only supports binary digits (0 and 1).";
+                                msg << "a binary number only supports binary digits (0 and 1).";
                                 throw invalid_number(msg.str());
                             }
                             else
@@ -517,7 +633,7 @@ parse_octal_number:
                                 if(c == '8' || c == '9')
                                 {
                                     snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                                    msg << "an octal string cannot include digits 8 or 9.";
+                                    msg << "an octal number cannot include digits 8 or 9.";
                                     throw invalid_number(msg.str());
                                 }
                                 if(number_string)
@@ -537,7 +653,7 @@ parse_octal_number:
                             }
                             found = true;
                             value *= 8;
-                            value += c = '0';
+                            value += c - '0';
                         }
                         if(!found)
                         {

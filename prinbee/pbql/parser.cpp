@@ -228,6 +228,14 @@ command::vector_t const & parser::parse()
                     }
                     break;
 
+                case 'S':
+                    if(command == "SELECT")
+                    {
+                        parse_select();
+                        continue;
+                    }
+                    break;
+
                 }
 
                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
@@ -883,6 +891,254 @@ void parser::parse_create_type()
 }
 
 
+void parser::parse_select()
+{
+    command::pointer_t command(std::make_shared<command>(command_t::COMMAND_SELECT));
+
+    node::pointer_t n(f_lexer->get_next_token());
+    int count(0);
+    for(;; ++count)
+    {
+        // SELECT DEFAULT VALUES ...
+        //
+        if(n->get_token() == token_t::TOKEN_IDENTIFIER
+        && n->get_string_upper() == "DEFAULT")
+        {
+            if(command->is_defined_as(param_t::PARAM_EXPRESSION) == param_type_t::PARAM_TYPE_STRING)
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << n->get_location().get_location()
+                    << "SELECT DEFAULT VALUES cannot be used with other fields.";
+                throw invalid_token(msg.str());
+            }
+
+            n = f_lexer->get_next_token();
+            if(n->get_token() != token_t::TOKEN_IDENTIFIER
+            && n->get_string_upper() != "VALUES")
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << n->get_location().get_location()
+                    << "SELECT DEFAULT is expected to be followed by VALUES.";
+                throw invalid_token(msg.str());
+            }
+
+            n = f_lexer->get_next_token();
+            break;
+        }
+
+        if(count >= MAX_EXPRESSIONS)
+        {
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+            msg << n->get_location().get_location()
+                << "SELECT can be followed by at most "
+                << MAX_EXPRESSIONS
+                << " expressions.";
+            throw invalid_token(msg.str());
+        }
+
+        // SELECT <expr>
+        //
+        std::string const expr(parse_expression(n));
+        command->set_string(static_cast<param_t>(static_cast<int>(param_t::PARAM_EXPRESSION) + count), expr);
+
+        // SELECT <expr> AS <name>
+        //
+        if(n->get_token() == token_t::TOKEN_IDENTIFIER
+        && n->get_string_upper() == "AS")
+        {
+            n = f_lexer->get_next_token();
+            if(n->get_token() != token_t::TOKEN_IDENTIFIER)
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << n->get_location().get_location()
+                    << "SELECT <expression> AS ... is expected to be followed by a name (an identifier).";
+                throw invalid_token(msg.str());
+            }
+            command->set_string(static_cast<param_t>(static_cast<int>(param_t::PARAM_COLUMN_NAME) + count), n->get_string());
+
+            n = f_lexer->get_next_token();
+        }
+
+        if(n->get_token() != token_t::TOKEN_COMMA)
+        {
+            break;
+        }
+    }
+
+    // SELECT can be used to compute expressions and that's it, so the
+    // FROM and following are all optional here
+    //
+    if(n->get_token() == token_t::TOKEN_IDENTIFIER
+    && n->get_string_upper() == "FROM")
+    {
+        n = f_lexer->get_next_token();
+        count = 0;
+        for(;; ++count)
+        {
+            if(count >= MAX_EXPRESSIONS)
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << n->get_location().get_location()
+                    << "SELECT can be followed by at most "
+                    << MAX_EXPRESSIONS
+                    << " expressions.";
+                throw invalid_token(msg.str());
+            }
+
+            if(n->get_token() != token_t::TOKEN_IDENTIFIER)
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << n->get_location().get_location()
+                    << "SELECT ... FROM <table-name> is expected to be the name of a table (an identifier).";
+                throw invalid_token(msg.str());
+            }
+            // TODO: check that the identifier is not a keyword (WHERE, ORDER, LIMIT...)
+            //
+            command->set_string(static_cast<param_t>(static_cast<int>(param_t::PARAM_TABLE) + count), n->get_string());
+
+            // ... FROM <table-name> AS <name>
+            //
+            n = f_lexer->get_next_token();
+            if(n->get_token() == token_t::TOKEN_IDENTIFIER
+            && n->get_string_upper() == "AS")
+            {
+                n = f_lexer->get_next_token();
+                if(n->get_token() != token_t::TOKEN_IDENTIFIER)
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    msg << n->get_location().get_location()
+                        << "SELECT ... FROM <table-name> AS ... is expected to be followed by a name (an identifier).";
+                    throw invalid_token(msg.str());
+                }
+                command->set_string(static_cast<param_t>(static_cast<int>(param_t::PARAM_TABLE_NAME) + count), n->get_string());
+
+                n = f_lexer->get_next_token();
+            }
+
+            if(n->get_token() != token_t::TOKEN_COMMA)
+            {
+                break;
+            }
+        }
+
+        std::string where;
+        std::string order_by;
+        std::int64_t limit(0);
+        while(n->get_token() == token_t::TOKEN_IDENTIFIER)
+        {
+            std::string const keyword(n->get_string_upper());
+            if(keyword == "WHERE")
+            {
+                // WHERE <expr>
+                //
+                if(!where.empty())
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    msg << n->get_location().get_location()
+                        << "SELECT ... WHERE ... found twice.";
+                    throw invalid_token(msg.str());
+                }
+                n = f_lexer->get_next_token();
+                where = parse_expression(n);
+                command->set_string(param_t::PARAM_WHERE, where);
+            }
+            else if(keyword == "ORDER")
+            {
+                // ORDER BY PRIMARY KEY
+                //   or
+                // ORDER BY <index-name>
+                //
+                if(!order_by.empty())
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    msg << n->get_location().get_location()
+                        << "SELECT ... ORDER BY ... found twice.";
+                    throw invalid_token(msg.str());
+                }
+                n = f_lexer->get_next_token();
+                if(n->get_token() != token_t::TOKEN_IDENTIFIER
+                || n->get_string_upper() != "BY")
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    msg << n->get_location().get_location()
+                        << "SELECT ... ORDER ... is expected to be followed by the 'BY' keyword.";
+                    throw invalid_token(msg.str());
+                }
+
+                n = f_lexer->get_next_token();
+                if(n->get_token() != token_t::TOKEN_IDENTIFIER)
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    msg << n->get_location().get_location()
+                        << "SELECT ... ORDER BY ... is expected to be the name of an index or 'PRIMARY KEY'.";
+                    throw invalid_token(msg.str());
+                }
+                if(n->get_string_upper() == "PRIMARY")
+                {
+                    n = f_lexer->get_next_token();
+                    if(n->get_token() != token_t::TOKEN_IDENTIFIER
+                    || n->get_string_upper() != "KEY")
+                    {
+                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                        msg << n->get_location().get_location()
+                            << "SELECT ... ORDER BY PRIMARY ... is expected to be followed by the 'KEY' keyword.";
+                        throw invalid_token(msg.str());
+                    }
+
+                    // TODO: determine the correct index name for the primary key
+                    //
+                    order_by = "primary_key";
+                }
+                else
+                {
+                    order_by = n->get_string_lower();
+                }
+                command->set_string(param_t::PARAM_ORDER_BY, order_by);
+            }
+            else if(keyword == "LIMIT")
+            {
+                // LIMIT <integer>
+                //
+                if(limit != 0)
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    msg << n->get_location().get_location()
+                        << "SELECT ... LIMIT ... found twice.";
+                    throw invalid_token(msg.str());
+                }
+                n = f_lexer->get_next_token();
+                if(n->get_token() != token_t::TOKEN_INTEGER)
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    msg << n->get_location().get_location()
+                        << "SELECT ... LIMIT ... is expected to be followed by an integer.";
+                    throw invalid_token(msg.str());
+                }
+                limit = n->get_integer().f_value[0];
+                if(limit <= 0 || limit > MAX_LIMIT)
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    msg << n->get_location().get_location()
+                        << "SELECT ... LIMIT "
+                        << limit
+                        << " is out of range: (0, 1,000,000].";
+                    throw invalid_token(msg.str());
+                }
+                command->set_int64(param_t::PARAM_LIMIT, limit);
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+
+    expect_semi_colon("SELECT", n);
+
+    f_commands.push_back(command);
+}
+
+
 void parser::expect_semi_colon(std::string const & command, node::pointer_t n)
 {
     if(n == nullptr)
@@ -895,7 +1151,9 @@ void parser::expect_semi_colon(std::string const & command, node::pointer_t n)
         msg << n->get_location().get_location()
             << "expected ';' at the end of '"
             << command
-            << "' command.";
+            << "' command; not "
+            << to_string(n->get_token())
+            << ".";
         throw invalid_token(msg.str());
     }
 }

@@ -182,7 +182,7 @@ CATCH_TEST_CASE("parser", "[parser][pbql]")
 SNAP_LOG_WARNING << "script [" << script << "]" << SNAP_LOG_SEND;
 
                     prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
-                    lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "begin-test"));
+                    lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "begin-test.pbql"));
                     prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
                     prinbee::pbql::command::vector_t const & commands(parser->parse());
 
@@ -324,7 +324,7 @@ SNAP_LOG_WARNING << "script [" << script << "]" << SNAP_LOG_SEND;
 //SNAP_LOG_WARNING << "script [" << script << "]" << SNAP_LOG_SEND;
 
                         prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
-                        lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test"));
+                        lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
                         prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
                         prinbee::pbql::command::vector_t const & commands(parser->parse());
 
