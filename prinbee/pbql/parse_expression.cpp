@@ -214,6 +214,7 @@ std::string expr_state::parse_expr_list(int & count)
             return result;
         }
         result += ',';
+        f_node = f_lexer->get_next_token();
     }
 }
 
@@ -1279,12 +1280,20 @@ std::string expr_state::parse_expr_unary()
 
 std::string expr_state::parse_expr_postfix()
 {
+    bool found_all_fields(false);
     std::string result(parse_expr_primary());
     for(;;)
     {
         switch(f_node->get_token())
         {
         case token_t::TOKEN_PERIOD:
+            if(found_all_fields)
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << f_node->get_location().get_location()
+                    << "no more '.' can be used after '.*'.";
+                throw invalid_token(msg.str());
+            }
             f_node = f_lexer->get_next_token();
             if(f_node->get_token() == token_t::TOKEN_MULTIPLY)
             {
@@ -1295,6 +1304,7 @@ std::string expr_state::parse_expr_postfix()
                 //      nothing here?
                 //
                 f_node = f_lexer->get_next_token();
+                found_all_fields = true;
             }
             else if(f_node->get_token() == token_t::TOKEN_IDENTIFIER)
             {
@@ -1323,6 +1333,7 @@ std::string expr_state::parse_expr_postfix()
             else
             {
                 std::string keyword(f_node->get_string_upper());
+                std::string const l(f_node->get_location().get_location());
                 bool found(true);
                 switch(keyword[0])
                 {
@@ -1363,7 +1374,7 @@ std::string expr_state::parse_expr_postfix()
                         || f_node->get_string_upper() != "PRECISION")
                         {
                             snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                            msg << f_node->get_location().get_location()
+                            msg << l
                                 << "expected DOUBLE to be followed by the word PRECISION.";
                             throw invalid_token(msg.str());
                         }
@@ -1474,6 +1485,7 @@ std::string expr_state::parse_expr_postfix()
                         }
                         else
                         {
+                            keyword = "UNSIGNED " + keyword;
                             found = false;
                         }
                     }
@@ -1483,16 +1495,21 @@ std::string expr_state::parse_expr_postfix()
                     }
                     break;
 
+                default:
+                    found = false;
+                    break;
+
                 }
                 if(!found)
                 {
                     snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                    msg << f_node->get_location().get_location()
+                    msg << l
                         << "expected the name of a type after the '::' operator, found \""
                         << keyword
                         << "\" instead.";
                     throw invalid_token(msg.str());
                 }
+                f_node = f_lexer->get_next_token();
             }
             break;
 
@@ -1500,7 +1517,17 @@ std::string expr_state::parse_expr_postfix()
             f_node = f_lexer->get_next_token();
             result += '[';
             result += parse_expr_logical_or();
+            if(f_node->get_token() != token_t::TOKEN_CLOSE_BRACKET)
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << f_node->get_location().get_location()
+                    << "expected a closing square bracket (]), not "
+                    << to_string(f_node->get_token())
+                    << ".";
+                throw invalid_token(msg.str());
+            }
             result += ']';
+            f_node = f_lexer->get_next_token();
             break;
 
         default:
@@ -1587,7 +1614,10 @@ std::string expr_state::parse_expr_primary()
     default:
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
         msg << f_node->get_location().get_location()
-            << "expected a primary token (string, number, variable name, '*', or an expression between parenthesis).";
+            << "expected a primary token not "
+            << to_string(f_node->get_token())
+            << " (primary tokens are: string, number, true, false, identifier,"
+               " '*', or an expression between parenthesis).";
         throw invalid_token(msg.str());
 
     }

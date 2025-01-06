@@ -963,6 +963,7 @@ void parser::parse_select()
         {
             break;
         }
+        n = f_lexer->get_next_token();
     }
 
     // SELECT can be used to compute expressions and that's it, so the
@@ -975,13 +976,13 @@ void parser::parse_select()
         count = 0;
         for(;; ++count)
         {
-            if(count >= MAX_EXPRESSIONS)
+            if(count >= MAX_TABLES)
             {
                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
                 msg << n->get_location().get_location()
-                    << "SELECT can be followed by at most "
-                    << MAX_EXPRESSIONS
-                    << " expressions.";
+                    << "SELECT ... FROM can be followed by at most "
+                    << MAX_TABLES
+                    << " table names.";
                 throw invalid_token(msg.str());
             }
 
@@ -1133,6 +1134,10 @@ void parser::parse_select()
         }
     }
 
+if(n->get_token() == token_t::TOKEN_IDENTIFIER)
+{
+SNAP_LOG_WARNING << "identifier [" << n->get_string() << "] instead of ';' ?!" << SNAP_LOG_SEND;
+}
     expect_semi_colon("SELECT", n);
 
     f_commands.push_back(command);
