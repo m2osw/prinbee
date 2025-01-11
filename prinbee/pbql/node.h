@@ -51,6 +51,8 @@ enum class token_t
     TOKEN_EOF = -1,
     TOKEN_UNKNOWN,
 
+    // lexer one character token
+    //
     TOKEN_BITWISE_XOR        = '#',
     TOKEN_MODULO             = '%',
     TOKEN_BITWISE_AND        = '&',
@@ -76,6 +78,8 @@ enum class token_t
 
     TOKEN_other = 1000,
 
+    // lexer multi-character tokens
+    //
     TOKEN_IDENTIFIER,
     TOKEN_STRING,
     TOKEN_INTEGER,
@@ -90,6 +94,28 @@ enum class token_t
     TOKEN_SHIFT_LEFT,
     TOKEN_SHIFT_RIGHT,
     TOKEN_STRING_CONCAT,
+
+    // parser additional tokens (glue in our tree)
+    //
+    TOKEN_ALL_FIELDS,
+    TOKEN_AT,
+    TOKEN_BETWEEN,
+    TOKEN_CAST,
+    TOKEN_FALSE,
+    TOKEN_FUNCTION_CALL, // get_string() to retrieve the name
+    TOKEN_ILIKE,
+    TOKEN_LIKE,
+    TOKEN_LIST,
+    TOKEN_LOGICAL_OR,
+    TOKEN_LOGICAL_AND,
+    TOKEN_LOGICAL_NOT,
+    TOKEN_NULL,
+    TOKEN_SIMILAR,
+    TOKEN_TRUE,
+
+    // meta types -- used by is_literal()
+    TOKEN_BOOLEAN,      // true or false
+    TOKEN_NUMBER,       // integer or floating point
 
     TOKEN_max // create all tokens before this one
 };
@@ -112,11 +138,13 @@ public:
 
     token_t             get_token() const;
     location const &    get_location() const;
+    bool                is_literal(token_t match_type = token_t::TOKEN_UNKNOWN) const;
 
     void                set_string(std::string const & string); // for STRING and IDENTIFIER
     std::string const & get_string() const;
     std::string         get_string_lower() const;
     std::string         get_string_upper() const;
+    std::string         get_string_auto_convert() const;
     void                set_integer(uint512_t i);
     uint512_t           get_integer();
     void                set_floating_point(long double d);
@@ -125,9 +153,14 @@ public:
     pointer_t           get_parent() const;
     pointer_t           get_child(int position) const;
     std::size_t         get_children_size() const;
+    void                set_child(int position, pointer_t child);
     void                insert_child(int position, pointer_t child);
 
+    std::string         to_as2js() const;
+
 private:
+    std::string         recursive_to_as2js() const;
+
     token_t             f_token = token_t::TOKEN_UNKNOWN;
     location            f_location = location();
 
@@ -137,6 +170,8 @@ private:
 
     weak_ptr_t          f_parent = weak_ptr_t();
     vector_t            f_children = vector_t();
+
+    mutable int         f_temp_counter = 0;
 };
 #pragma GCC diagnostic pop
 

@@ -146,11 +146,7 @@
 
 // snapdev
 //
-#include    <snapdev/escape_special_regex_characters.h>
-#include    <snapdev/floating_point_to_string.h>
-#include    <snapdev/to_upper.h>
-#include    <snapdev/string_replace_many.h>
-//#include    <snapdev/stream_fd.h>
+#include    <snapdev/to_lower.h>
 
 
 //// C
@@ -176,78 +172,86 @@ namespace
 {
 
 
+
 struct expr_state
 {
     lexer::pointer_t    f_lexer = lexer::pointer_t();
     node::pointer_t     f_node = node::pointer_t();
+    node::pointer_t     f_tree = node::pointer_t(); // resulting tree
     int                 f_temp = 0;
 
-    std::string         parse_expr_list(int & count); // for function calls only
-    std::string         parse_expr_logical_or();
-    std::string         parse_expr_logical_and();
-    std::string         parse_expr_logical_not();
-    std::string         parse_expr_is();
-    std::string         parse_expr_comparison();
-    std::string         parse_expr_matching();
-    std::string         parse_expr_function(std::string const & keyword, int count, int & list_size);
-    std::string         parse_expr_cast_value();
-    std::string         parse_expr_other();
-    std::string         parse_expr_additive();
-    std::string         parse_expr_multiplicative();
-    std::string         parse_expr_exponentiation();
-    std::string         parse_expr_unary();
-    std::string         parse_expr_postfix();
-    std::string         parse_expr_primary();
+    node::pointer_t     parse_expr_list(); // for function calls only
+    node::pointer_t     parse_expr_logical_or();
+    node::pointer_t     parse_expr_logical_and();
+    node::pointer_t     parse_expr_logical_not();
+    node::pointer_t     parse_expr_is();
+    node::pointer_t     parse_expr_comparison();
+    node::pointer_t     parse_expr_matching();
+    node::pointer_t     parse_expr_function_parameters(std::string const & keyword, int count);
+    node::pointer_t     parse_expr_cast_value(std::string const & type_name);
+    node::pointer_t     parse_expr_other();
+    node::pointer_t     parse_expr_additive();
+    node::pointer_t     parse_expr_multiplicative();
+    node::pointer_t     parse_expr_exponentiation();
+    node::pointer_t     parse_expr_unary();
+    node::pointer_t     parse_expr_postfix();
+    node::pointer_t     parse_expr_primary();
 };
 
 
-std::string expr_state::parse_expr_list(int & count)
+ 
+node::pointer_t expr_state::parse_expr_list()
 {
-    count = 0;
-    std::string result;
+    node::pointer_t result(std::make_shared<node>(token_t::TOKEN_LIST, f_node->get_location()));
     for(;;)
     {
-        ++count;
-        result += parse_expr_logical_or();
+        node::pointer_t n(parse_expr_logical_or());
+        result->insert_child(-1, n);
+
+        // repeat as long as we find commas
+        //
         if(f_node->get_token() != token_t::TOKEN_COMMA)
         {
             return result;
         }
-        result += ',';
         f_node = f_lexer->get_next_token();
     }
 }
 
 
-std::string expr_state::parse_expr_logical_or()
+node::pointer_t expr_state::parse_expr_logical_or()
 {
-    std::string result(parse_expr_logical_and());
+    node::pointer_t result(parse_expr_logical_and());
     while(f_node->get_token() == token_t::TOKEN_IDENTIFIER
        && f_node->get_string_upper() == "OR")
     {
+        node::pointer_t n(std::make_shared<node>(token_t::TOKEN_LOGICAL_OR, f_node->get_location()));
+        n->insert_child(-1, result);
         f_node = f_lexer->get_next_token();
-        result += "||";
-        result += parse_expr_logical_and();
+        n->insert_child(-1, parse_expr_logical_and());
+        result = n;
     }
     return result;
 }
 
 
-std::string expr_state::parse_expr_logical_and()
+node::pointer_t expr_state::parse_expr_logical_and()
 {
-    std::string result(parse_expr_logical_not());
+    node::pointer_t result(parse_expr_logical_not());
     while(f_node->get_token() == token_t::TOKEN_IDENTIFIER
        && f_node->get_string_upper() == "AND")
     {
+        node::pointer_t n(std::make_shared<node>(token_t::TOKEN_LOGICAL_AND, f_node->get_location()));
+        n->insert_child(-1, result);
         f_node = f_lexer->get_next_token();
-        result += "&&";
-        result += parse_expr_logical_not();
+        n->insert_child(-1, parse_expr_logical_not());
+        result = n;
     }
     return result;
 }
 
 
-std::string expr_state::parse_expr_logical_not()
+node::pointer_t expr_state::parse_expr_logical_not()
 {
     bool logical_not(false);
     while(f_node->get_token() == token_t::TOKEN_IDENTIFIER
@@ -258,15 +262,17 @@ std::string expr_state::parse_expr_logical_not()
     }
     if(logical_not)
     {
-        return '!' + parse_expr_is(); // TODO: fix parenthesis since JavaScript '!' is unary
+        node::pointer_t n(std::make_shared<node>(token_t::TOKEN_LOGICAL_NOT, f_node->get_location()));
+        n->insert_child(-1, parse_expr_is());
+        return n;
     }
     return parse_expr_is();
 }
 
 
-std::string expr_state::parse_expr_is()
+node::pointer_t expr_state::parse_expr_is()
 {
-    std::string result(parse_expr_comparison());
+    node::pointer_t result(parse_expr_comparison());
     while(f_node->get_token() == token_t::TOKEN_IDENTIFIER
        && f_node->get_string_upper() == "IS")
     {
@@ -282,24 +288,30 @@ std::string expr_state::parse_expr_is()
         {
             if(f_node->get_string_upper() == "TRUE")
             {
-                // TBD: verify that we have a boolean?
+                // TBD: verify that we have a Boolean?
                 if(negate)
                 {
-                    result = "!(" + result + ')';
+                    node::pointer_t n(std::make_shared<node>(token_t::TOKEN_LOGICAL_NOT, f_node->get_location()));
+                    n->insert_child(-1, result);
+                    result = n;
                 }
             }
             else if(f_node->get_string_upper() == "FALSE")
             {
-                // TBD: verify that we have a boolean?
+                // TBD: verify that we have a Boolean?
                 if(!negate)
                 {
-                    result = "!(" + result + ')';
+                    node::pointer_t n(std::make_shared<node>(token_t::TOKEN_LOGICAL_NOT, f_node->get_location()));
+                    n->insert_child(-1, result);
+                    result = n;
                 }
             }
             else if(f_node->get_string_upper() == "NULL")
             {
-                result += negate ? '!' : '=';
-                result += "=null";
+                node::pointer_t n(std::make_shared<node>(negate ? token_t::TOKEN_NOT_EQUAL : token_t::TOKEN_EQUAL, f_node->get_location()));
+                n->insert_child(-1, result);
+                n->insert_child(-1, std::make_shared<node>(token_t::TOKEN_NULL, f_node->get_location()));
+                result = n;
             }
             else if(f_node->get_string_upper() == "DISTINCT")
             {
@@ -320,41 +332,24 @@ std::string expr_state::parse_expr_is()
 }
 
 
-std::string expr_state::parse_expr_comparison()
+node::pointer_t expr_state::parse_expr_comparison()
 {
-    std::string result(parse_expr_matching());
+    node::pointer_t result(parse_expr_matching());
+    node::pointer_t n;
     for(;;)
     {
         switch(f_node->get_token())
         {
         case token_t::TOKEN_LESS:
-            result += "<";
-            result += parse_expr_matching();
-            break;
-
         case token_t::TOKEN_LESS_EQUAL:
-            result += "<=";
-            result += parse_expr_matching();
-            break;
-
         case token_t::TOKEN_EQUAL:
-            result += "==";
-            result += parse_expr_matching();
-            break;
-
         case token_t::TOKEN_GREATER:
-            result += ">";
-            result += parse_expr_matching();
-            break;
-
         case token_t::TOKEN_GREATER_EQUAL:
-            result += ">=";
-            result += parse_expr_matching();
-            break;
-
         case token_t::TOKEN_NOT_EQUAL:
-            result += "!=";
-            result += parse_expr_matching();
+            n = std::make_shared<node>(f_node->get_token(), f_node->get_location());
+            n->insert_child(-1, result);
+            n->insert_child(-1, parse_expr_matching());
+            result = n;
             break;
 
         default:
@@ -366,9 +361,9 @@ std::string expr_state::parse_expr_comparison()
 }
 
 
-std::string expr_state::parse_expr_matching()
+node::pointer_t expr_state::parse_expr_matching()
 {
-    std::string result(parse_expr_other());
+    node::pointer_t result(parse_expr_other());
 
     bool negate(false);
     if(f_node->get_token() == token_t::TOKEN_IDENTIFIER
@@ -381,44 +376,40 @@ std::string expr_state::parse_expr_matching()
         std::string const keyword(f_node->get_string_upper());
         if(keyword == "BETWEEN")
         {
-            f_node = f_lexer->get_next_token();
+            node::pointer_t n(std::make_shared<node>(token_t::TOKEN_BETWEEN, f_node->get_location()));
+            n->insert_child(-1, result);
 
             // WARNING: here we have to make sure the next parse_expr_...()
             //          does not manage the "AND" keyword
             //
-            std::string const lowerbound(parse_expr_other());
+            f_node = f_lexer->get_next_token();
+            n->insert_child(-1, parse_expr_other());
 
             if(f_node->get_token() != token_t::TOKEN_IDENTIFIER
             || f_node->get_string_upper() != "AND")
             {
                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
                 msg << f_node->get_location().get_location()
-                    << "expected AND between the lower and higher bounds of BETWEEN operator.";
+                    << "expected AND between the lower and higher bounds of [NOT] BETWEEN operator.";
                 throw invalid_token(msg.str());
             }
 
             f_node = f_lexer->get_next_token();
-            std::string const upperbound(parse_expr_other());
+            n->insert_child(-1, parse_expr_other());
 
-            ++f_temp;
-            std::string temp("_t");
-            temp += std::to_string(f_temp);
-
-            std::string compare("(");
-            compare += temp;
-            compare += '=';
-            compare += result;
-            compare += ',';
-            compare += temp;
-            compare += negate ? "<" : ">=";
-            compare += lowerbound;
-            compare += negate ? "||" : "&&";
-            compare += temp;
-            compare += negate ? ">" : "<=";
-            compare += upperbound;
-            compare += ')';
-
-            result.swap(compare);
+            if(negate)
+            {
+                // Note: ... NOT BETWEEN ... AND ...
+                //       is equivalent to:
+                //       NOT ( ... BETWEEN ... AND ... )
+                //
+                result = std::make_shared<node>(token_t::TOKEN_LOGICAL_NOT, n->get_location());
+                result->insert_child(-1, n);
+            }
+            else
+            {
+                result = n;
+            }
         }
         else if(keyword == "IN")
         {
@@ -429,129 +420,39 @@ std::string expr_state::parse_expr_matching()
         }
         else
         {
-            bool const like(keyword == "LIKE");
-            bool const ilike(keyword == "ILIKE");
-            bool const similar(keyword == "SIMILAR");
-            if(like || ilike || similar)
+            node::pointer_t n;
+            if(keyword == "LIKE")
             {
-                if(similar)
+                n = std::make_shared<node>(token_t::TOKEN_LIKE, f_node->get_location());
+            }
+            else if(keyword == "ILIKE")
+            {
+                n = std::make_shared<node>(token_t::TOKEN_ILIKE, f_node->get_location());
+            }
+            else if(keyword == "SIMILAR")
+            {
+                n = std::make_shared<node>(token_t::TOKEN_SIMILAR, f_node->get_location());
+
+                f_node = f_lexer->get_next_token();
+                if(f_node->get_token() != token_t::TOKEN_IDENTIFIER
+                || f_node->get_string_upper() != "TO")
                 {
-                    f_node = f_lexer->get_next_token();
-                    if(f_node->get_token() != token_t::TOKEN_IDENTIFIER
-                    || f_node->get_string_upper() != "TO")
-                    {
-                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                        msg << f_node->get_location().get_location()
-                            << "expected TO after the SIMILAR keyword.";
-                        throw invalid_token(msg.str());
-                    }
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    msg << f_node->get_location().get_location()
+                        << "expected TO after the SIMILAR keyword.";
+                    throw invalid_token(msg.str());
                 }
+            }
+            if(n != nullptr)
+            {
+                n->insert_child(-1, result);
 
                 // we expect a string, so there is really no need to check
                 // for the Boolean expressions
                 //
-                std::string const sql_pattern(parse_expr_other());
-                std::string regex_pattern;
-                char close('\0');
-                std::size_t const max(sql_pattern.size());
-                for(std::size_t idx(0); idx < max; ++idx)
-                {
-                    // % denotes any number of characters (i.e. ".*" in regex; only character supported by LIKE and ILIKE)
-                    // _ denotes one character (i.e. "." in regex)
-                    // | denotes alternation (either of two alternatives).
-                    // * denotes repetition of the previous item zero or more times.
-                    // + denotes repetition of the previous item one or more times.
-                    // ? denotes repetition of the previous item zero or one time.
-                    // {m} denotes repetition of the previous item exactly m times.
-                    // {m,} denotes repetition of the previous item m or more times.
-                    // {m,n} denotes repetition of the previous item at least m and not more than n times.
-                    // Parentheses () can be used to group items into a single logical item.
-                    // A bracket expression [...] specifies a character class, just as in POSIX regular expressions.
+                n->insert_child(-1, parse_expr_other());
 
-                    char c(sql_pattern[idx]);
-                    if(c == '%')
-                    {
-                        regex_pattern += ".*";
-                    }
-                    else if(similar)
-                    {
-                        switch(c)
-                        {
-                        case '_':
-                            regex_pattern += ".";
-                            break;
-
-                        case '|':   // Note: the following does not (currently)
-                        case '*':   //       get verified here.
-                        case '+':
-                        case '?':
-                        case '(':
-                        case ')':
-                            regex_pattern += c;
-                            break;
-
-                        case '{':
-                            close = '}';
-                            goto copy_to_close;
-
-                        case '[':
-                            close = ']';
-copy_to_close:
-                            regex_pattern += c;
-                            for(bool first(true);; first = false)
-                            {
-                                ++idx;
-                                if(idx >= max)
-                                {
-                                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                                    msg << f_node->get_location().get_location()
-                                        << "SIMILAR pattern missing closing bracket ('"
-                                        << close
-                                        << "' not found or the value within those brackets was empty).";
-                                    throw invalid_token(msg.str());
-                                }
-                                c = sql_pattern[idx];
-                                regex_pattern += c;
-                                if(!first
-                                && c == close)
-                                {
-                                    break;
-                                }
-                            }
-                            break;
-
-                        case '/':
-                            // we need to escape the slash and the snapdev
-                            // function does not do that for us
-                            //
-                            regex_pattern += "\\/";
-                            break;
-
-                        default:
-                            // escape anything else as required
-                            {
-                                char buf[2] = { c, '\0' };
-                                regex_pattern += snapdev::escape_special_regex_characters(std::string(buf));
-                            }
-                            break;
-
-                        }
-                    }
-                    else
-                    {
-                        // escape character if required
-                        char buf[2] = { c, '\0' };
-                        regex_pattern += snapdev::escape_special_regex_characters(std::string(buf));
-                    }
-                }
-
-                std::string compare("/");
-                compare += regex_pattern;
-                compare += "/.test(";
-                compare += result;
-                compare += ')';
-
-                result.swap(compare);
+                result = n;
             }
         }
     }
@@ -559,16 +460,15 @@ copy_to_close:
     {
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
         msg << f_node->get_location().get_location()
-            << "expected NOT in expression.";
+            << "expected NOT to be followed by BETWEEN, IN, LIKE, ILIKE, or SIMILAR TO.";
         throw invalid_token(msg.str());
     }
     return result;
 }
 
 
-std::string expr_state::parse_expr_function(std::string const & keyword, int count, int & list_size)
+node::pointer_t expr_state::parse_expr_function_parameters(std::string const & keyword, int count)
 {
-    list_size = 0;
     f_node = f_lexer->get_next_token();
     if(f_node->get_token() != token_t::TOKEN_OPEN_PARENTHESIS)
     {
@@ -578,10 +478,14 @@ std::string expr_state::parse_expr_function(std::string const & keyword, int cou
         throw invalid_token(msg.str());
     }
     f_node = f_lexer->get_next_token();
-    std::string result;
+    node::pointer_t result;
     if(f_node->get_token() != token_t::TOKEN_CLOSE_PARENTHESIS)
     {
-        result = parse_expr_list(list_size);
+        result = parse_expr_list();
+    }
+    else
+    {
+        result = std::make_shared<node>(token_t::TOKEN_LIST, f_node->get_location());
     }
     if(f_node->get_token() != token_t::TOKEN_CLOSE_PARENTHESIS)
     {
@@ -591,7 +495,7 @@ std::string expr_state::parse_expr_function(std::string const & keyword, int cou
         throw invalid_token(msg.str());
     }
     if(count >= 0
-    && count != list_size)
+    && static_cast<std::size_t>(count) != result->get_children_size())
     {
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
         msg << f_node->get_location().get_location()
@@ -601,7 +505,7 @@ std::string expr_state::parse_expr_function(std::string const & keyword, int cou
             << " parameter"
             << (count != 1 ? "s" : "")
             << ", found "
-            << list_size
+            << result->get_children_size()
             << " instead.";
         throw invalid_parameter(msg.str());
     }
@@ -609,16 +513,17 @@ std::string expr_state::parse_expr_function(std::string const & keyword, int cou
 }
 
 
-std::string expr_state::parse_expr_cast_value()
+node::pointer_t expr_state::parse_expr_cast_value(std::string const & type_name)
 {
     bool has_parenthesis(false);
+    location const l(f_node->get_location());
     f_node = f_lexer->get_next_token();
     if(f_node->get_token() == token_t::TOKEN_OPEN_PARENTHESIS)
     {
         has_parenthesis = true;
         f_node = f_lexer->get_next_token();
     }
-    std::string const result(parse_expr_logical_or());
+    node::pointer_t value(parse_expr_logical_or());
     if(has_parenthesis)
     {
         if(f_node->get_token() != token_t::TOKEN_CLOSE_PARENTHESIS)
@@ -630,167 +535,103 @@ std::string expr_state::parse_expr_cast_value()
         }
         f_node = f_lexer->get_next_token();
     }
+    node::pointer_t result(std::make_shared<node>(token_t::TOKEN_CAST, l));
+    result->set_string(type_name);
+    result->insert_child(-1, value);
     return result;
 }
 
 
-std::string expr_state::parse_expr_other()
+node::pointer_t expr_state::parse_expr_other()
 {
     // this one is really strange since it can start with a primary like
     // expression (@ <?> and |/ <?> for example)
     //
-    std::string result;
+    node::pointer_t result;
+    location const l(f_node->get_location());
+
+    auto function_call = [&](std::string const & name, node::pointer_t params)
+    {
+        result = std::make_shared<node>(token_t::TOKEN_FUNCTION_CALL, l);
+        result->set_string(name);
+        result->insert_child(-1, params);
+        return result;
+    };
+
     switch(f_node->get_token())
     {
     case token_t::TOKEN_ABSOLUTE_VALUE:
-        result += "Math.abs(";
-        result += parse_expr_other();
-        result += ")";
-        return result;
+        return function_call("Math.abs", parse_expr_other());
 
     case token_t::TOKEN_SQUARE_ROOT:
-        result += "Math.sqrt(";
-        result += parse_expr_other();
-        result += ")";
-        return result;
+        return function_call("Math.sqrt", parse_expr_other());
 
     case token_t::TOKEN_CUBE_ROOT:
-        result += "Math.cbrt(";
-        result += parse_expr_other();
-        result += ")";
-        return result;
+        return function_call("Math.cbrt", parse_expr_other());
 
     case token_t::TOKEN_IDENTIFIER:
-        // type case or function call
-        //
+        // type cast or function call
         {
-            int list_size(0);
+            int parameter_count(-2);
             std::string keyword(f_node->get_string_upper());
             switch(keyword[0])
             {
             case 'A':
-                if(keyword == "ABS")
+                if(keyword == "ABS"
+                || keyword == "ACOS"
+                || keyword == "ACOSH"
+                || keyword == "ASIN"
+                || keyword == "ASINH"
+                || keyword == "ATANH")
                 {
-                    result += "Math.abs(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = 1;
                 }
-                if(keyword == "ACOS")
+                else if(keyword == "ATAN")
                 {
-                    result += "Math.acos(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "ACOSH")
-                {
-                    result += "Math.acosh(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "ASIN")
-                {
-                    result += "Math.asin(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "ASINH")
-                {
-                    result += "Math.asinh(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "ATAN")
-                {
-                    std::string const params(parse_expr_function(keyword, 1, list_size));
-                    if(list_size == 1)
+                    node::pointer_t params(parse_expr_function_parameters(keyword, -1));
+                    if(params->get_children_size() == 1)
                     {
-                        result += "Math.atan(";
-                        result += params;
-                        result += ")";
+                        return function_call("Math.atan", params);
                     }
-                    else if(list_size == 2)
+                    else if(params->get_children_size() == 2)
                     {
-                        result += "Math.atan2(";
-                        result += params;
-                        result += ")";
+                        return function_call("Math.atan2", params);
                     }
                     else
                     {
                         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
                         msg << f_node->get_location().get_location()
                             << "expected 1 or 2 parameters to ATAN(), found "
-                            << list_size
+                            << params->get_children_size()
                             << " instead.";
                         throw invalid_parameter(msg.str());
                     }
-                    return result;
-                }
-                if(keyword == "ATANH")
-                {
-                    result += "Math.atanh(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    snapdev::NOT_REACHED();
                 }
                 break;
 
             case 'B':
                 if(keyword == "BIGINT")
                 {
-                    result += "new Integer(";
-                    result += parse_expr_cast_value();
-                    result += ')';
-                    return result;
+                    return parse_expr_cast_value("Integer");
                 }
-                if(keyword == "BOOLEAN")
+                else if(keyword == "BOOLEAN")
                 {
-                    result += "new Boolean(";
-                    result += parse_expr_cast_value();
-                    result += ')';
-                    return result;
+                    return parse_expr_cast_value("Boolean");
                 }
                 break;
 
             case 'C':
-                if(keyword == "CBRT")
+                if(keyword == "CBRT"
+                || keyword == "CEIL"
+                || keyword == "COS"
+                || keyword == "COSH")
                 {
-                    result += "Math.cbrt(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = 1;
                 }
-                if(keyword == "CEIL")
+                else if(keyword == "CHAR")
                 {
-                    result += "Math.ceil(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "CHAR")
-                {
-                    result += "new String(";
-                    result += parse_expr_cast_value();
-                    result += ')';
-                    return result;
-                }
-                if(keyword == "COS")
-                {
-                    result += "Math.cos(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "COSH")
-                {
-                    result += "Math.cosh(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    return parse_expr_cast_value("String");
                 }
                 break;
 
@@ -806,53 +647,29 @@ std::string expr_state::parse_expr_other()
                             << "expected DOUBLE to be followed by the word PRECISION.";
                         throw invalid_token(msg.str());
                     }
-                    result += "new Number(";
-                    result += parse_expr_cast_value();
-                    result += ')';
-                    return result;
+                    return parse_expr_cast_value("Number");
                 }
                 break;
 
             case 'E':
-                if(keyword == "EXP")
+                if(keyword == "EXP"
+                || keyword == "EXPM1")
                 {
-                    result += "Math.exp(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "EXPM1")
-                {
-                    result += "Math.expm1(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = 1;
                 }
                 break;
 
             case 'F':
-                if(keyword == "FLOAT2"
-                || keyword == "FLOAT4"
-                || keyword == "FLOAT10")
+                if(keyword == "FLOOR"
+                || keyword == "FROUND")
                 {
-                    result += "new Number(";
-                    result += parse_expr_cast_value();
-                    result += ')';
-                    return result;
+                    parameter_count = 1;
                 }
-                if(keyword == "FLOOR")
+                else if(keyword == "FLOAT2"
+                     || keyword == "FLOAT4"
+                     || keyword == "FLOAT10")
                 {
-                    result += "Math.floor(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "FROUND")
-                {
-                    result += "Math.fround(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    return parse_expr_cast_value("Number");
                 }
                 break;
 
@@ -863,189 +680,96 @@ std::string expr_state::parse_expr_other()
                     // with 1 parameter, the function returns that parameter as is
                     // with 2 or more, it returns the square root of the sum of the squares
                     //
-                    result += "Math.hypot(";
-                    result += parse_expr_function(keyword, -1, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = -1;
                 }
                 break;
 
             case 'I':
                 if(keyword == "INUL")
                 {
-                    result += "Math.imul(";
-                    result += parse_expr_function(keyword, 2, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = 1;
                 }
-                if(keyword == "INT"
-                || keyword == "INT1"
-                || keyword == "INT2"
-                || keyword == "INT4"
-                || keyword == "INT8"
-                || keyword == "INT16"
-                || keyword == "INT32"
-                || keyword == "INT64"
-                || keyword == "INTEGER")
+                else if(keyword == "INT"
+                     || keyword == "INT1"
+                     || keyword == "INT2"
+                     || keyword == "INT4"
+                     || keyword == "INT8"
+                     || keyword == "INT16"
+                     || keyword == "INT32"
+                     || keyword == "INT64"
+                     || keyword == "INTEGER")
                 {
-                    // TODO: add support for bigint for larger numbers can be
-                    //       more than 64 bits
+                    // TODO: add support for bigint in as2js so larger numbers
+                    //       can be more than 64 bits
                     //
-                    result += "new Integer(";
-                    result += parse_expr_cast_value();
-                    result += ')';
-                    return result;
+                    return parse_expr_cast_value("Integer");
                 }
                 break;
 
             case 'L':
-                if(keyword == "LOG")
+                if(keyword == "LOG"
+                || keyword == "LOG1P"
+                || keyword == "LOG10"
+                || keyword == "LOG2")
                 {
-                    result += "Math.log(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "LOG1P")
-                {
-                    result += "Math.log1p(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "LOG10")
-                {
-                    result += "Math.log10(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "LOG2")
-                {
-                    result += "Math.log2(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = 1;
                 }
                 break;
 
             case 'M':
-                if(keyword == "MAX")
+                if(keyword == "MAX"
+                || keyword == "MIN")
                 {
-                    result += "Math.max(";
-                    result += parse_expr_function(keyword, -1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "MIN")
-                {
-                    result += "Math.min(";
-                    result += parse_expr_function(keyword, -1, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = -1;
                 }
                 break;
 
             case 'P':
                 if(keyword == "POW")
                 {
-                    result += "Math.pow(";
-                    result += parse_expr_function(keyword, 2, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = 2;
                 }
                 break;
 
             case 'R':
                 if(keyword == "RAND")
                 {
-                    result += "Math.random(";
-                    result += parse_expr_function(keyword, 0, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = 0;
                 }
-                if(keyword == "REAL")
+                else if(keyword == "REAL")
                 {
-                    result += "new Number(";
-                    result += parse_expr_cast_value();
-                    result += ')';
-                    return result;
+                    return parse_expr_cast_value("Number");
                 }
-                if(keyword == "ROUND")
+                else if(keyword == "ROUND")
                 {
-                    result += "Math.round(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = 1;
                 }
                 break;
 
             case 'S':
-                if(keyword == "SIGN")
+                if(keyword == "SIGN"
+                || keyword == "SIN"
+                || keyword == "SINH"
+                || keyword == "SQRT")
                 {
-                    result += "Math.sign(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = 1;
                 }
-                if(keyword == "SIN")
+                else if(keyword == "SMALLINT")
                 {
-                    result += "Math.sin(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "SINH")
-                {
-                    result += "Math.sinh(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "SMALLINT")
-                {
-                    result += "new Integer(";
-                    result += parse_expr_cast_value();
-                    result += ')';
-                    return result;
-                }
-                if(keyword == "SQRT")
-                {
-                    result += "Math.sqrt(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    return parse_expr_cast_value("Integer");
                 }
                 break;
 
             case 'T':
-                if(keyword == "TAN")
+                if(keyword == "TAN"
+                || keyword == "TANH"
+                || keyword == "TRUNC")
                 {
-                    result += "Math.tan(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    parameter_count = 1;
                 }
-                if(keyword == "TANH")
+                else if(keyword == "TEXT")
                 {
-                    result += "Math.tanh(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
-                }
-                if(keyword == "TEXT")
-                {
-                    result += "new String(";
-                    result += parse_expr_cast_value();
-                    result += ')';
-                    return result;
-                }
-                if(keyword == "TRUNC")
-                {
-                    result += "Math.trunc(";
-                    result += parse_expr_function(keyword, 1, list_size);
-                    result += ")";
-                    return result;
+                    return parse_expr_cast_value("String");
                 }
                 break;
 
@@ -1073,17 +797,20 @@ std::string expr_state::parse_expr_other()
                     || keyword == "INTEGER"
                     || keyword == "SMALLINT")
                     {
-                        // TODO: add support for bigint for larger numbers can be
-                        //       more than 64 bits
+                        // TODO: add support for bigint so larger numbers
+                        //       can be more than 64 bits
                         //
-                        result += "new Integer(";
-                        result += parse_expr_cast_value();
-                        result += ')';
-                        return result;
+                        return parse_expr_cast_value("Integer");
                     }
                 }
                 break;
 
+            }
+            if(parameter_count != -2)
+            {
+                return function_call(
+                              "Math." + snapdev::to_lower(keyword)
+                            , parse_expr_function_parameters(keyword, parameter_count));
             }
         }
         break;
@@ -1099,61 +826,87 @@ std::string expr_state::parse_expr_other()
         switch(f_node->get_token())
         {
         case token_t::TOKEN_BITWISE_AND:
-            result += '&';
-            f_node = f_lexer->get_next_token();
-            result += parse_expr_additive();
-            break;
-
         case token_t::TOKEN_BITWISE_OR:
-            result += '|';
-            f_node = f_lexer->get_next_token();
-            result += parse_expr_additive();
-            break;
-
         case token_t::TOKEN_BITWISE_XOR:
-            result += '^';
+        case token_t::TOKEN_SHIFT_LEFT:
+        case token_t::TOKEN_SHIFT_RIGHT:
+            f_node->insert_child(-1, result);
+            result = f_node;
             f_node = f_lexer->get_next_token();
-            result += parse_expr_additive();
+            result->insert_child(-1, parse_expr_additive());
             break;
 
         case token_t::TOKEN_STRING_CONCAT:
-            // TODO: optimize if we have multiple in a row by concatenating
-            //       them all in one call
-            //
-            result = "String.concat(" + result;
-            result += ',';
-            f_node = f_lexer->get_next_token();
-            result += parse_expr_additive();
-            result += ')';
-            break;
-
-        case token_t::TOKEN_SHIFT_LEFT:
-            result += "<<";
-            f_node = f_lexer->get_next_token();
-            result += parse_expr_additive();
-            break;
-
-        case token_t::TOKEN_SHIFT_RIGHT:
-            // TODO: in JavaScript we need to use '>>>' to properly support
-            //       unsigned integers
-            //
-            result += ">>";
-            f_node = f_lexer->get_next_token();
-            result += parse_expr_additive();
+            {
+                node::pointer_t params(std::make_shared<node>(token_t::TOKEN_LIST, l));
+                params->insert_child(-1, result);
+                for(;;)
+                {
+                    f_node = f_lexer->get_next_token();
+                    node::pointer_t n(parse_expr_additive());
+                    if(params->get_children_size() > 0
+                    && n->is_literal())
+                    {
+                        node::pointer_t p(params->get_child(params->get_children_size() - 1));
+                        if(p->is_literal())
+                        {
+                            std::string const concatenated(p->get_string_auto_convert() + n->get_string_auto_convert());
+                            if(p->get_token() == token_t::TOKEN_STRING)
+                            {
+                                // already a string, we can do it in place
+                                //
+                                p->set_string(concatenated);
+                            }
+                            else
+                            {
+                                // the existing parameter is not a string,
+                                // create a new node to replace it and
+                                // save the result there
+                                //
+                                node::pointer_t str(std::make_shared<node>(token_t::TOKEN_STRING, p->get_location()));
+                                str->set_string(concatenated);
+                                params->set_child(params->get_children_size() - 1, str);
+                            }
+                        }
+                        else
+                        {
+                            params->insert_child(-1, n);
+                        }
+                    }
+                    else
+                    {
+                        params->insert_child(-1, n);
+                    }
+                    if(f_node->get_token() != token_t::TOKEN_STRING_CONCAT)
+                    {
+                        break;
+                    }
+                }
+                if(params->get_children_size() == 1)
+                {
+                    // all were merged, we do not need to keep a complicated
+                    // function call when we can just use a literal string
+                    //
+                    result = params->get_child(0);
+                }
+                else
+                {
+                    result = function_call("String.concat", params);
+                }
+            }
             break;
 
         case token_t::TOKEN_REGULAR_EXPRESSION:
-            {
-                f_node = f_lexer->get_next_token();
-
-                std::string compare("new RegExp(");
-                compare += parse_expr_additive();
-                compare += ").test(";
-                compare += result;
-                compare += ')';
-
-                result.swap(compare);
-            }
+            // TBD: we could also create TOKEN_PERIOD + the new RegExpr
+            //      on the left handside and the test() call on the right
+            //      handside--however, done in this way we can detect
+            //      whether the two sides are string literal and if so
+            //      change the expression in a Boolean at compile time
+            //
+            f_node->insert_child(-1, result);
+            result = f_node;
+            f_node = f_lexer->get_next_token();
+            result->insert_child(-1, parse_expr_additive());
             break;
 
         default:
@@ -1164,21 +917,19 @@ std::string expr_state::parse_expr_other()
 }
 
 
-std::string expr_state::parse_expr_additive()
+node::pointer_t expr_state::parse_expr_additive()
 {
-    std::string result(parse_expr_multiplicative());
+    node::pointer_t result(parse_expr_multiplicative());
     for(;;)
     {
         switch(f_node->get_token())
         {
         case token_t::TOKEN_PLUS:
-            result += '+';
-            result += parse_expr_multiplicative();
-            break;
-
         case token_t::TOKEN_MINUS:
-            result += '-';
-            result += parse_expr_multiplicative();
+            f_node->insert_child(-1, result);
+            result = f_node;
+            f_node = f_lexer->get_next_token();
+            result->insert_child(-1, parse_expr_multiplicative());
             break;
 
         default:
@@ -1190,26 +941,20 @@ std::string expr_state::parse_expr_additive()
 }
 
 
-std::string expr_state::parse_expr_multiplicative()
+node::pointer_t expr_state::parse_expr_multiplicative()
 {
-    std::string result(parse_expr_exponentiation());
+    node::pointer_t result(parse_expr_exponentiation());
     for(;;)
     {
         switch(f_node->get_token())
         {
         case token_t::TOKEN_MULTIPLY:
-            result += '*';
-            result += parse_expr_exponentiation();
-            break;
-
         case token_t::TOKEN_DIVIDE:
-            result += '/';
-            result += parse_expr_exponentiation();
-            break;
-
         case token_t::TOKEN_MODULO:
-            result += '%';
-            result += parse_expr_exponentiation();
+            f_node->insert_child(-1, result);
+            result = f_node;
+            f_node = f_lexer->get_next_token();
+            result->insert_child(-1, parse_expr_exponentiation());
             break;
 
         default:
@@ -1221,20 +966,21 @@ std::string expr_state::parse_expr_multiplicative()
 }
 
 
-std::string expr_state::parse_expr_exponentiation()
+node::pointer_t expr_state::parse_expr_exponentiation()
 {
-    std::string result(parse_expr_unary());
+    node::pointer_t result(parse_expr_unary());
     for(;;)
     {
         switch(f_node->get_token())
         {
         case token_t::TOKEN_POWER:
-            // in as2js the exponentiation is right to left (like in math/Ada)
+            // Note: in as2js the exponentiation is right to left
+            //       (like in math/Ada); but here it's left to right!
             //
-            result = '(' + result + "**";
+            f_node->insert_child(-1, result);
+            result = f_node;
             f_node = f_lexer->get_next_token();
-            result += parse_expr_unary();
-            result += ')';
+            result->insert_child(-1, parse_expr_unary());
             break;
 
         default:
@@ -1246,9 +992,9 @@ std::string expr_state::parse_expr_exponentiation()
 }
 
 
-std::string expr_state::parse_expr_unary()
+node::pointer_t expr_state::parse_expr_unary()
 {
-    bool negate(false);
+    node::pointer_t result;
     for(;;)
     {
         switch(f_node->get_token())
@@ -1261,14 +1007,22 @@ std::string expr_state::parse_expr_unary()
             break;
 
         case token_t::TOKEN_MINUS:
-            negate = !negate;
+            if(result == nullptr)
+            {
+                result = f_node;
+            }
+            else
+            {
+                result.reset();
+            }
             f_node = f_lexer->get_next_token();
             break;
 
         default:
-            if(negate)
+            if(result != nullptr)
             {
-                return '-' + parse_expr_postfix();
+                result->insert_child(-1, parse_expr_postfix());
+                return result;
             }
             return parse_expr_postfix();
 
@@ -1278,10 +1032,10 @@ std::string expr_state::parse_expr_unary()
 }
 
 
-std::string expr_state::parse_expr_postfix()
+node::pointer_t expr_state::parse_expr_postfix()
 {
     bool found_all_fields(false);
-    std::string result(parse_expr_primary());
+    node::pointer_t result(parse_expr_primary());
     for(;;)
     {
         switch(f_node->get_token())
@@ -1294,22 +1048,22 @@ std::string expr_state::parse_expr_postfix()
                     << "no more '.' can be used after '.*'.";
                 throw invalid_token(msg.str());
             }
+            f_node->insert_child(-1, result);
+            result = f_node;
             f_node = f_lexer->get_next_token();
             if(f_node->get_token() == token_t::TOKEN_MULTIPLY)
             {
                 // special case were we want all the fields of a table,
                 // record, etc.
                 //
-                // TBD: in JavaScript it means we return the object so we do
-                //      nothing here?
-                //
+                result->insert_child(-1, std::make_shared<node>(token_t::TOKEN_ALL_FIELDS, f_node->get_location()));
                 f_node = f_lexer->get_next_token();
                 found_all_fields = true;
             }
             else if(f_node->get_token() == token_t::TOKEN_IDENTIFIER)
             {
-                result += '.';
-                result += f_node->get_string_lower();
+                f_node->set_string(f_node->get_string_lower());
+                result->insert_child(-1, f_node);
                 f_node = f_lexer->get_next_token();
             }
             else
@@ -1332,21 +1086,27 @@ std::string expr_state::parse_expr_postfix()
             }
             else
             {
+                location loc(f_node->get_location());
+                std::string const l(loc.get_location());
+                auto cast_value = [&](char const * type_name)
+                {
+                    node::pointer_t n(std::make_shared<node>(token_t::TOKEN_CAST, loc));
+                    n->set_string(type_name);
+                    n->insert_child(-1, result);
+                    return n;
+                };
                 std::string keyword(f_node->get_string_upper());
-                std::string const l(f_node->get_location().get_location());
                 bool found(true);
                 switch(keyword[0])
                 {
                 case 'B':
                     if(keyword == "BIGINT")
                     {
-                        result = "new Integer(" + result;
-                        result += ')';
+                        result = cast_value("Integer");
                     }
                     else if(keyword == "BOOLEAN")
                     {
-                        result = "new Boolean(" + result;
-                        result += ')';
+                        result = cast_value("Boolean");
                     }
                     else
                     {
@@ -1357,8 +1117,7 @@ std::string expr_state::parse_expr_postfix()
                 case 'C':
                     if(keyword == "CHAR")
                     {
-                        result = "new String(" + result;
-                        result += ')';
+                        result = cast_value("String");
                     }
                     else
                     {
@@ -1378,8 +1137,7 @@ std::string expr_state::parse_expr_postfix()
                                 << "expected DOUBLE to be followed by the word PRECISION.";
                             throw invalid_token(msg.str());
                         }
-                        result = "new Number(" + result;
-                        result += ')';
+                        result = cast_value("Number");
                     }
                     else
                     {
@@ -1398,8 +1156,7 @@ std::string expr_state::parse_expr_postfix()
                     || keyword == "INT64"
                     || keyword == "INTEGER")
                     {
-                        result = "new Integer(" + result;
-                        result += ')';
+                        result = cast_value("Integer");
                     }
                     else
                     {
@@ -1411,8 +1168,7 @@ std::string expr_state::parse_expr_postfix()
                     if(keyword == "FLOAT2"
                     || keyword == "FLOAT4")
                     {
-                        result = "new Number(" + result;
-                        result += ')';
+                        result = cast_value("Number");
                     }
                     else
                     {
@@ -1423,8 +1179,7 @@ std::string expr_state::parse_expr_postfix()
                 case 'R':
                     if(keyword == "REAL")
                     {
-                        result = "new Number(" + result;
-                        result += ')';
+                        result = cast_value("Number");
                     }
                     else
                     {
@@ -1435,8 +1190,7 @@ std::string expr_state::parse_expr_postfix()
                 case 'S':
                     if(keyword == "SMALLINT")
                     {
-                        result = "new Integer(" + result;
-                        result += ')';
+                        result = cast_value("Integer");
                     }
                     else
                     {
@@ -1447,8 +1201,7 @@ std::string expr_state::parse_expr_postfix()
                 case 'T':
                     if(keyword == "TEXT")
                     {
-                        result = "new String(" + result;
-                        result += ')';
+                        result = cast_value("String");
                     }
                     else
                     {
@@ -1480,8 +1233,7 @@ std::string expr_state::parse_expr_postfix()
                         || keyword == "INTEGER"
                         || keyword == "SMALLINT")
                         {
-                            result = "new Integer(" + result;
-                            result += ')';
+                            result = cast_value("Integer");
                         }
                         else
                         {
@@ -1514,9 +1266,11 @@ std::string expr_state::parse_expr_postfix()
             break;
 
         case token_t::TOKEN_OPEN_BRACKET:
+            f_node = std::make_shared<node>(token_t::TOKEN_AT, f_node->get_location());
+            f_node->insert_child(-1, result);
+            result = f_node;
             f_node = f_lexer->get_next_token();
-            result += '[';
-            result += parse_expr_logical_or();
+            result->insert_child(-1, parse_expr_logical_or());
             if(f_node->get_token() != token_t::TOKEN_CLOSE_BRACKET)
             {
                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
@@ -1526,7 +1280,6 @@ std::string expr_state::parse_expr_postfix()
                     << ".";
                 throw invalid_token(msg.str());
             }
-            result += ']';
             f_node = f_lexer->get_next_token();
             break;
 
@@ -1539,13 +1292,13 @@ std::string expr_state::parse_expr_postfix()
 }
 
 
-std::string expr_state::parse_expr_primary()
+node::pointer_t expr_state::parse_expr_primary()
 {
-    std::string result;
+    node::pointer_t result;
     switch(f_node->get_token())
     {
     case token_t::TOKEN_STRING:
-        result = f_node->get_string();
+        result = f_node;
         f_node = f_lexer->get_next_token();
         while(f_node->get_token() == token_t::TOKEN_STRING)
         {
@@ -1556,45 +1309,45 @@ std::string expr_state::parse_expr_primary()
             // the location of the node); however, in our case, we do not
             // need to follow the standard to the letter and skip on that part
             //
-            result += f_node->get_string();
+            result->set_string(result->get_string() + f_node->get_string());
             f_node = f_lexer->get_next_token();
         }
-        // add the quotes; also use double quotes and make sure to escape
-        // them if any are present in the string
-        //
-        result = '"' + snapdev::string_replace_many(
-                result
-                , {
-                    {"\"", "\\\""},
-                    {"\b", "\\b"},
-                    {"\f", "\\f"},
-                    {"\n", "\\n"},  // the \n and \r are very important in strings otherwise the as2js lexer breaks
-                    {"\r", "\\r"},
-                    {"\t", "\\t"},
-                    {"\v", "\\v"},
-                }) + '"';
         return result;
 
     case token_t::TOKEN_IDENTIFIER:
-        result = f_node->get_string_lower();
-        // if result is "true" or "false" we already have a Boolean as expected!
-        f_node = f_lexer->get_next_token();
-        return result;
+        {
+            std::string const keyword(f_node->get_string_lower());
+            if(keyword == "true")
+            {
+                result = std::make_shared<node>(token_t::TOKEN_TRUE, f_node->get_location());
+            }
+            else if(keyword == "false")
+            {
+                result = std::make_shared<node>(token_t::TOKEN_FALSE, f_node->get_location());
+            }
+            else
+            {
+                result = f_node;
+                result->set_string(keyword); // save the lowercase version
+            }
+            f_node = f_lexer->get_next_token();
+            return result;
+        }
 
     case token_t::TOKEN_FLOATING_POINT:
-        result = snapdev::floating_point_to_string<double, char>(f_node->get_floating_point());
+        //result = snapdev::floating_point_to_string<double, char>(f_node->get_floating_point());
+        result = f_node;
         f_node = f_lexer->get_next_token();
         return result;
 
     case token_t::TOKEN_INTEGER:
-        result = to_string(f_node->get_integer());
+        //result = to_string(f_node->get_integer());
+        result = f_node;
         f_node = f_lexer->get_next_token();
         return result;
 
     case token_t::TOKEN_MULTIPLY:
-        // TODO: how do we really want to represent that one in our as2js expressions?
-        //
-        result = "ALL_FIELDS";
+        result = std::make_shared<node>(token_t::TOKEN_ALL_FIELDS, f_node->get_location());
         f_node = f_lexer->get_next_token();
         return result;
 
@@ -1636,7 +1389,8 @@ std::string parser::parse_expression(node::pointer_t & n)
         .f_lexer = f_lexer,
         .f_node = n,
     };
-    std::string const result(s.parse_expr_logical_or());
+    node::pointer_t tree(s.parse_expr_logical_or());
+    std::string const result(tree->to_as2js());
     n = s.f_node;
     return result;
 }

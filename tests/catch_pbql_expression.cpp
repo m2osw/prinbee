@@ -199,7 +199,7 @@ CATCH_TEST_CASE("expression", "[expression][parser][pbql]")
             },
             {
                 "SELECT Table_Name.*;",
-                { "table_name" },
+                { "table_name.ALL_FIELDS" },
             },
             {
                 "SELECT Cast1::BigInt, Cast2::Boolean, Cast3::Char,"
@@ -257,7 +257,63 @@ CATCH_TEST_CASE("expression", "[expression][parser][pbql]")
             prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
             prinbee::pbql::command::vector_t const & commands(parser->parse());
 
-SNAP_LOG_WARNING << "got command for expression! [" << e.f_postfix << "] max=" << e.f_expected.size() << SNAP_LOG_SEND;
+//SNAP_LOG_WARNING << "got command for expression! [" << e.f_postfix << "] max=" << e.f_expected.size() << SNAP_LOG_SEND;
+            CATCH_REQUIRE(commands.size() == 1);
+
+            // BEGIN
+            CATCH_REQUIRE(commands[0]->get_command() == prinbee::pbql::command_t::COMMAND_SELECT);
+            // SCHEMA/DATA
+            std::size_t const max(e.f_expected.size());
+            CATCH_REQUIRE(max <= prinbee::pbql::MAX_EXPRESSIONS);
+            for(std::size_t idx(0); idx < max; ++idx)
+            {
+                CATCH_REQUIRE(commands[0]->is_defined_as(prinbee::pbql::param_t::PARAM_EXPRESSION + idx) == prinbee::pbql::param_type_t::PARAM_TYPE_STRING);
+                CATCH_REQUIRE(commands[0]->get_string(prinbee::pbql::param_t::PARAM_EXPRESSION + idx) == e.f_expected[idx]);
+            }
+            CATCH_REQUIRE(commands[0]->is_defined_as(prinbee::pbql::param_t::PARAM_EXPRESSION + max) == prinbee::pbql::param_type_t::PARAM_TYPE_UNKNOWN);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("expression: unary")
+    {
+        struct postfix_t
+        {
+            char const *        f_unary = nullptr;
+            std::vector<std::string>
+                                f_expected = std::vector<std::string>();
+        };
+        postfix_t const unary_expressions[] =
+        {
+            {
+                "SELECT +304;",
+                { "304" },
+            },
+            {
+                "SELECT -129;",
+                { "-129" },
+            },
+            {
+                "SELECT -(-912);",
+                { "--912" },
+            },
+            {
+                "SELECT -+-192;",
+                { "192" },
+            },
+            {
+                "SELECT +-+-+-871;",
+                { "-871" },
+            },
+        };
+        for(auto const & e : unary_expressions)
+        {
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(e.f_unary, "unary-expression.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+            prinbee::pbql::command::vector_t const & commands(parser->parse());
+
+SNAP_LOG_WARNING << "got command for expression! [" << e.f_unary << "] max=" << e.f_expected.size() << SNAP_LOG_SEND;
             CATCH_REQUIRE(commands.size() == 1);
 
             // BEGIN
