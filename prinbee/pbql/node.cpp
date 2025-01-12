@@ -345,13 +345,13 @@ std::string node::get_string_auto_convert() const
 }
 
 
-void node::set_integer(uint512_t i)
+void node::set_integer(int512_t i)
 {
     f_integer = i;
 }
 
 
-uint512_t node::get_integer()
+int512_t node::get_integer()
 {
     return f_integer;
 }
@@ -573,8 +573,11 @@ std::string node::recursive_to_as2js() const
             std::string result(f_string);
             result += '(';
             char const * sep("");
-            for(auto const & n : f_children)
+            node::pointer_t list(f_children[0]);
+            std::size_t const max(list->get_children_size());
+            for(std::size_t idx(0); idx < max; ++idx)
             {
+                node::pointer_t n(list->get_child(idx));
                 result += sep;
                 result += n->recursive_to_as2js();
                 sep = ",";
@@ -605,7 +608,7 @@ std::string node::recursive_to_as2js() const
             std::string const sql_pattern(f_children[1]->get_string());
             std::string regex_pattern;
             char close('\0');
-            bool first(false);
+            int count(0);
             std::size_t const max(sql_pattern.size());
             for(std::size_t idx(0); idx < max; ++idx)
             {
@@ -634,26 +637,43 @@ std::string node::recursive_to_as2js() const
                         regex_pattern += ".";
                         break;
 
-                    case '|':   // Note: the following does not (currently)
-                    case '*':   //       get verified here.
+                    case '|':
+                    case '*':
                     case '+':
                     case '?':
-                    case '(':
-                    case ')':
+                        if(regex_pattern.empty())
+                        {
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                            msg << f_location.get_location()
+                                << "SIMILAR pattern characters '|', '*', '+', '?' cannot appear at the start of a pattern.";
+                            throw invalid_token(msg.str());
+                        }
                         regex_pattern += c;
                         break;
 
+                    case '(':
+                        close = ')';
+                        count = 0;
+                        goto copy_to_close;
+
                     case '{':
+                        if(regex_pattern.empty())
+                        {
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                            msg << f_location.get_location()
+                                << "SIMILAR pattern character '{' cannot appear at the start of a pattern.";
+                            throw invalid_token(msg.str());
+                        }
                         close = '}';
-                        first = false;
+                        count = 0;
                         goto copy_to_close;
 
                     case '[':
                         close = ']';
-                        first = true;
+                        count = -1;
 copy_to_close:
                         regex_pattern += c;
-                        for(;; first = false)
+                        for(;; ++count)
                         {
                             ++idx;
                             if(idx >= max)
@@ -667,9 +687,19 @@ copy_to_close:
                             }
                             c = sql_pattern[idx];
                             regex_pattern += c;
-                            if(!first
+                            if(count >= 0
                             && c == close)
                             {
+                                if(count == 0
+                                && close != ']')
+                                {
+                                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                                    msg << f_location.get_location()
+                                        << "SIMILAR found empty pattern between brackets ('"
+                                        << close
+                                        << "').";
+                                    throw invalid_token(msg.str());
+                                }
                                 break;
                             }
                         }
@@ -695,7 +725,12 @@ copy_to_close:
 
             std::string compare("/");
             compare += regex_pattern;
-            compare += "/.test(";
+            compare += '/';
+            if(f_token == token_t::TOKEN_ILIKE)
+            {
+                compare += 'i';
+            }
+            compare += ".test(";
             compare += f_children[0]->recursive_to_as2js();
             compare += ')';
 

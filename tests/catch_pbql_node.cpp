@@ -91,7 +91,7 @@ CATCH_TEST_CASE("node", "[node][pbql]")
         CATCH_REQUIRE(loc.get_line() == static_cast<int>(line));
 
         CATCH_REQUIRE(n->get_string() == std::string());
-        CATCH_REQUIRE(n->get_integer() == prinbee::uint512_t());
+        CATCH_REQUIRE(n->get_integer() == prinbee::int512_t());
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(n->get_floating_point(), 0.0L, 0.0L));
         CATCH_REQUIRE(n->get_parent() == nullptr);
         CATCH_REQUIRE(n->get_children_size() == 0);
@@ -119,7 +119,7 @@ CATCH_TEST_CASE("node", "[node][pbql]")
 
         for(int i(0); i < 10; ++i)
         {
-            prinbee::uint512_t a;
+            prinbee::int512_t a;
             SNAP_CATCH2_NAMESPACE::rand512(a);
             n->set_integer(a);
             CATCH_REQUIRE(n->get_integer() == a);
@@ -756,7 +756,7 @@ CATCH_TEST_CASE("node", "[node][pbql]")
                 .f_extra = prinbee::pbql::token_t::TOKEN_UNKNOWN,
                 .f_output = '/'
                           + value_right_string
-                          + "/.test(\""
+                          + "/i.test(\""
                           + value_left_string
                           + "\")",
             },
@@ -865,6 +865,388 @@ CATCH_TEST_CASE("node", "[node][pbql]")
             }
             std::string const result(parent->to_as2js());
             CATCH_REQUIRE(result == e.f_output);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("node: string with escape codes to_as2js()")
+    {
+        struct string_expression_t
+        {
+            char const *        f_in = nullptr;
+            char const *        f_out = nullptr;
+        };
+        string_expression_t const strings[] =
+        {
+            {
+                .f_in = "test",
+                .f_out = "\"test\"",
+            },
+            {
+                .f_in = "double \" quote",
+                .f_out = "\"double \\\" quote\"",
+            },
+            {
+                .f_in = "\back",
+                .f_out = "\"\\back\"",
+            },
+            {
+                .f_in = "\forward",
+                .f_out = "\"\\forward\"",
+            },
+            {
+                .f_in = "\newline",
+                .f_out = "\"\\newline\"",
+            },
+            {
+                .f_in = "\return",
+                .f_out = "\"\\return\"",
+            },
+            {
+                .f_in = "\tab",
+                .f_out = "\"\\tab\"",
+            },
+            {
+                .f_in = "\vertical",
+                .f_out = "\"\\vertical\"",
+            },
+            { // kept as is
+                .f_in = "\001 Ctrl-A",
+                .f_out = "\"\001 Ctrl-A\"",
+            },
+        };
+
+        for(auto const & s : strings)
+        {
+            prinbee::pbql::location l;
+
+            prinbee::pbql::node::pointer_t n(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            n->set_string(s.f_in);
+            std::string const result(n->to_as2js());
+            CATCH_REQUIRE(result == s.f_out);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("node: function calls 0 to 10 parameters")
+    {
+        prinbee::pbql::location l;
+
+        // 0 parameters
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("myFunc");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "myFunc()");
+        }
+
+        // 1 parameter
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("sin");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            prinbee::pbql::node::pointer_t p1(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p1->set_floating_point(3.14159);
+            list->insert_child(-1, p1);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "sin(3.14159)");
+        }
+
+        // 2 parameters
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("Math.atan2");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            prinbee::pbql::node::pointer_t p1(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p1->set_floating_point(0.56172);
+            list->insert_child(-1, p1);
+            prinbee::pbql::node::pointer_t p2(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p2->set_floating_point(0.29819);
+            list->insert_child(-1, p2);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "Math.atan2(0.56172,0.29819)");
+        }
+
+        // 3 parameters
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("String.concat");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            prinbee::pbql::node::pointer_t p1(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            p1->set_string("prefix");
+            list->insert_child(-1, p1);
+            prinbee::pbql::node::pointer_t p2(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p2->set_floating_point(9180.21911);
+            list->insert_child(-1, p2);
+            prinbee::pbql::node::pointer_t p3(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_INTEGER, l));
+            p3->set_integer(290119);
+            list->insert_child(-1, p3);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "String.concat(\"prefix\",9180.21911,290119)");
+        }
+
+        // 4 parameters
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("hisFunc");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            prinbee::pbql::node::pointer_t p1(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            p1->set_string("prefix");
+            list->insert_child(-1, p1);
+            prinbee::pbql::node::pointer_t p2(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            p2->set_string("left");
+            list->insert_child(-1, p2);
+            prinbee::pbql::node::pointer_t p3(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            p3->set_string("right");
+            list->insert_child(-1, p3);
+            prinbee::pbql::node::pointer_t p4(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            p4->set_string("suffix");
+            list->insert_child(-1, p4);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "hisFunc(\"prefix\",\"left\",\"right\",\"suffix\")");
+        }
+
+        // 5 parameters
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("Math.min");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            prinbee::pbql::node::pointer_t p1(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_INTEGER, l));
+            p1->set_integer(55);
+            list->insert_child(-1, p1);
+            prinbee::pbql::node::pointer_t p2(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_INTEGER, l));
+            p2->set_integer(101);
+            list->insert_child(-1, p2);
+            prinbee::pbql::node::pointer_t p3(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_INTEGER, l));
+            p3->set_integer(-67);
+            list->insert_child(-1, p3);
+            prinbee::pbql::node::pointer_t p4(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_INTEGER, l));
+            p4->set_integer(31);
+            list->insert_child(-1, p4);
+            prinbee::pbql::node::pointer_t p5(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_INTEGER, l));
+            p5->set_integer(-96);
+            list->insert_child(-1, p5);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "Math.min(55,101,-67,31,-96)");
+        }
+
+        // 6 parameters
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("Math.max");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            prinbee::pbql::node::pointer_t p1(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p1->set_floating_point(5.5);
+            list->insert_child(-1, p1);
+            prinbee::pbql::node::pointer_t p2(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p2->set_floating_point(10.21);
+            list->insert_child(-1, p2);
+            prinbee::pbql::node::pointer_t p3(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p3->set_floating_point(-6.7);
+            list->insert_child(-1, p3);
+            prinbee::pbql::node::pointer_t p4(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p4->set_floating_point(3.1);
+            list->insert_child(-1, p4);
+            prinbee::pbql::node::pointer_t p5(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p5->set_floating_point(-0.96);
+            list->insert_child(-1, p5);
+            prinbee::pbql::node::pointer_t p6(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p6->set_floating_point(96.689);
+            list->insert_child(-1, p6);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "Math.max(5.5,10.21,-6.7,3.1,-0.96,96.689)");
+        }
+
+        // 7 parameters
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("yourFunction");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            prinbee::pbql::node::pointer_t p1(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_INTEGER, l));
+            p1->set_integer(159);
+            list->insert_child(-1, p1);
+            prinbee::pbql::node::pointer_t p2(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p2->set_floating_point(10.21);
+            list->insert_child(-1, p2);
+            prinbee::pbql::node::pointer_t p3(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p3->set_floating_point(-6.7);
+            list->insert_child(-1, p3);
+            prinbee::pbql::node::pointer_t p4(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            p4->set_string("this string");
+            list->insert_child(-1, p4);
+            prinbee::pbql::node::pointer_t p5(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p5->set_floating_point(-0.96);
+            list->insert_child(-1, p5);
+            prinbee::pbql::node::pointer_t p6(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p6->set_floating_point(96.689);
+            list->insert_child(-1, p6);
+            prinbee::pbql::node::pointer_t p7(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_TRUE, l));
+            list->insert_child(-1, p7);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "yourFunction(159,10.21,-6.7,\"this string\",-0.96,96.689,true)");
+        }
+
+        // 8 parameters
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("getProperties");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            prinbee::pbql::node::pointer_t p1(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            p1->set_string("x");
+            list->insert_child(-1, p1);
+            prinbee::pbql::node::pointer_t p2(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_INTEGER, l));
+            p2->set_integer(1012);
+            list->insert_child(-1, p2);
+            prinbee::pbql::node::pointer_t p3(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FALSE, l));
+            list->insert_child(-1, p3);
+            prinbee::pbql::node::pointer_t p4(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p4->set_floating_point(3.1);
+            list->insert_child(-1, p4);
+            prinbee::pbql::node::pointer_t p5(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_TRUE, l));
+            list->insert_child(-1, p5);
+            prinbee::pbql::node::pointer_t p6(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p6->set_floating_point(96.689);
+            list->insert_child(-1, p6);
+            prinbee::pbql::node::pointer_t p7(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            p7->set_string("one before last");
+            list->insert_child(-1, p7);
+            prinbee::pbql::node::pointer_t p8(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p8->set_floating_point(0.002);
+            list->insert_child(-1, p8);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "getProperties(\"x\",1012,false,3.1,true,96.689,\"one before last\",0.002)");
+        }
+
+        // 9 parameters
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("Math.average");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            prinbee::pbql::node::pointer_t p1(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p1->set_floating_point(501.3);
+            list->insert_child(-1, p1);
+            prinbee::pbql::node::pointer_t p2(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p2->set_floating_point(1.012);
+            list->insert_child(-1, p2);
+            prinbee::pbql::node::pointer_t p3(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p3->set_floating_point(7.902);
+            list->insert_child(-1, p3);
+            prinbee::pbql::node::pointer_t p4(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p4->set_floating_point(3.1);
+            list->insert_child(-1, p4);
+            prinbee::pbql::node::pointer_t p5(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p5->set_floating_point(907.231);
+            list->insert_child(-1, p5);
+            prinbee::pbql::node::pointer_t p6(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p6->set_floating_point(96.689);
+            list->insert_child(-1, p6);
+            prinbee::pbql::node::pointer_t p7(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p7->set_floating_point(1.0216);
+            list->insert_child(-1, p7);
+            prinbee::pbql::node::pointer_t p8(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p8->set_floating_point(0.002);
+            list->insert_child(-1, p8);
+            prinbee::pbql::node::pointer_t p9(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p9->set_floating_point(0.202);
+            list->insert_child(-1, p9);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "Math.average(501.3,1.012,7.902,3.1,907.231,96.689,1.0216,0.002,0.202)");
+        }
+
+        // 10 parameters
+        {
+            prinbee::pbql::node::pointer_t f(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FUNCTION_CALL, l));
+            f->set_string("Math.sum");
+            prinbee::pbql::node::pointer_t list(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIST, l));
+            f->insert_child(-1, list);
+            prinbee::pbql::node::pointer_t p1(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p1->set_floating_point(501.3);
+            list->insert_child(-1, p1);
+            prinbee::pbql::node::pointer_t p2(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p2->set_floating_point(1.012);
+            list->insert_child(-1, p2);
+            prinbee::pbql::node::pointer_t p3(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p3->set_floating_point(7.902);
+            list->insert_child(-1, p3);
+            prinbee::pbql::node::pointer_t p4(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p4->set_floating_point(3.1);
+            list->insert_child(-1, p4);
+            prinbee::pbql::node::pointer_t p5(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p5->set_floating_point(907.231);
+            list->insert_child(-1, p5);
+            prinbee::pbql::node::pointer_t p6(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p6->set_floating_point(96.689);
+            list->insert_child(-1, p6);
+            prinbee::pbql::node::pointer_t p7(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p7->set_floating_point(1.0216);
+            list->insert_child(-1, p7);
+            prinbee::pbql::node::pointer_t p8(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p8->set_floating_point(0.002);
+            list->insert_child(-1, p8);
+            prinbee::pbql::node::pointer_t p9(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p9->set_floating_point(0.202);
+            list->insert_child(-1, p9);
+            prinbee::pbql::node::pointer_t p10(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_FLOATING_POINT, l));
+            p10->set_floating_point(0.202);
+            list->insert_child(-1, p10);
+            std::string const result(f->to_as2js());
+            CATCH_REQUIRE(result == "Math.sum(501.3,1.012,7.902,3.1,907.231,96.689,1.0216,0.002,0.202,0.202)");
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("node: LIKE, ILIKE, SIMILAR to regex")
+    {
+        prinbee::pbql::location l;
+
+        // make sure all the characters except '%' are properly escaped (LIKE)
+        {
+            prinbee::pbql::node::pointer_t like(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_LIKE, l));
+            prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            value->set_string("value being checked using ILIKE");
+            like->insert_child(-1, value);
+            prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            pattern->set_string("/(LIKE+ | p_a_t_t_e_r_n? \\with* % and [nothing] {el,se}.)/");
+            like->insert_child(-1, pattern);
+            std::string const result(like->to_as2js());
+            CATCH_REQUIRE(result == "/\\/\\(LIKE\\+ \\| p_a_t_t_e_r_n\\? \\\\with\\* .* and \\[nothing\\] \\{el,se\\}\\.\\)\\//.test(\"value being checked using ILIKE\")");
+        }
+
+        // make sure all the characters except '%' are properly escaped (ILIKE)
+        {
+            prinbee::pbql::node::pointer_t ilike(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_ILIKE, l));
+            prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            value->set_string("value being checked using ILIKE");
+            ilike->insert_child(-1, value);
+            prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            pattern->set_string("/(LIKE+ | p_a_t_t_e_r_n? \\with* % and [nothing] {el,se}.)/");
+            ilike->insert_child(-1, pattern);
+            std::string const result(ilike->to_as2js());
+            CATCH_REQUIRE(result == "/\\/\\(LIKE\\+ \\| p_a_t_t_e_r_n\\? \\\\with\\* .* and \\[nothing\\] \\{el,se\\}\\.\\)\\//i.test(\"value being checked using ILIKE\")");
+        }
+
+        // make sure all the special characters properly converted (SIMILAR)
+        {
+            prinbee::pbql::node::pointer_t similar(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SIMILAR, l));
+            prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            value->set_string("value being checked using SIMILAR");
+            similar->insert_child(-1, value);
+            prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+            pattern->set_string("(plus)+ (asterisk)* any:% [a-z0-9]? []]+ any+repeat:_* (one{1} | two{5,} | three{3,9})?");
+            similar->insert_child(-1, pattern);
+            std::string const result(similar->to_as2js());
+            CATCH_REQUIRE(result == "/(plus)+ (asterisk)* any:.* [a-z0-9]? []]+ any+repeat:.* (one{1} | two{5,} | three{3,9})?/.test(\"value being checked using SIMILAR\")");
         }
     }
     CATCH_END_SECTION()
@@ -1012,6 +1394,130 @@ CATCH_TEST_CASE("node_error", "[node][pbql][error]")
                               "prinbee_exception: node token type cannot be converted to as2js script ("
                             + std::string(u.f_name)
                             + ")."));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("node: SIMILAR with invalid patterns")
+    {
+        prinbee::pbql::location l;
+
+        // |, *, +, ? cannot be at the start of a pattern
+        {
+            char const repeat[] = { '|', '*', '+', '?' };
+            for(auto const r : repeat)
+            {
+                prinbee::pbql::node::pointer_t similar(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SIMILAR, l));
+                prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+                value->set_string("ignored");
+                similar->insert_child(-1, value);
+                prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+                std::string p;
+                p += r;
+                p += " and some other stuff";
+                pattern->set_string(p);
+                similar->insert_child(-1, pattern);
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          similar->to_as2js()
+                        , prinbee::invalid_token
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: 1:1: SIMILAR pattern characters '|', '*', '+', '?' cannot appear at the start of a pattern."));
+            }
+        }
+
+        // '{...}' cannot be at the start of a pattern
+        {
+            char const * bad_repeat[] = {
+                "{3} exact repeat",
+                "{3,} three or more",
+                "{3,9} three to nine",
+            };
+            for(auto const r : bad_repeat)
+            {
+                prinbee::pbql::node::pointer_t similar(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SIMILAR, l));
+                prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+                value->set_string("ignored");
+                similar->insert_child(-1, value);
+                prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+                pattern->set_string(r);
+                similar->insert_child(-1, pattern);
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          similar->to_as2js()
+                        , prinbee::invalid_token
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: 1:1: SIMILAR pattern character '{' cannot appear at the start of a pattern."));
+            }
+        }
+
+        // '{...}', '(...)', '[...]' not closed
+        {
+            struct not_closed_t
+            {
+                char const *        f_bad_pattern = nullptr;
+                char                f_missing_close = '?';
+            };
+            not_closed_t not_closed[] = {
+                { "foo{", '}' },
+                { "foo{3 oops", '}' },
+                { "foo{3, oh!", '}' },
+                { "foo{3,9 duh", '}' },
+                { "(", ')' },
+                { "(group all of this", ')' },
+                { "[a-z and more", ']' },
+                { "[", ']' },
+                { "[]a-z and more", ']' },
+            };
+            for(auto const r : not_closed)
+            {
+                prinbee::pbql::node::pointer_t similar(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SIMILAR, l));
+                prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+                value->set_string("ignored");
+                similar->insert_child(-1, value);
+                prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+                pattern->set_string(r.f_bad_pattern);
+                similar->insert_child(-1, pattern);
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          similar->to_as2js()
+                        , prinbee::invalid_token
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: 1:1: SIMILAR pattern missing closing bracket ('"
+                                + std::string(1, r.f_missing_close)
+                                + "' not found or there were no characters within those brackets)."));
+            }
+        }
+
+        // '{}', '()' empty
+        {
+            struct not_closed_t
+            {
+                char const *        f_bad_pattern = nullptr;
+                char                f_missing_close = '?';
+            };
+            not_closed_t not_closed[] = {
+                { "foo{} empty?", '}' },
+                { "() empty?", ')' },
+            };
+            for(auto const r : not_closed)
+            {
+                prinbee::pbql::node::pointer_t similar(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SIMILAR, l));
+                prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+                value->set_string("ignored");
+                similar->insert_child(-1, value);
+                prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
+                pattern->set_string(r.f_bad_pattern);
+                similar->insert_child(-1, pattern);
+
+                CATCH_REQUIRE_THROWS_MATCHES(
+                          similar->to_as2js()
+                        , prinbee::invalid_token
+                        , Catch::Matchers::ExceptionMessage(
+                                  "prinbee_exception: 1:1: SIMILAR found empty pattern between brackets ('"
+                                + std::string(1, r.f_missing_close)
+                                + "')."));
+            }
         }
     }
     CATCH_END_SECTION()

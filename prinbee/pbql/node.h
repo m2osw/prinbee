@@ -145,8 +145,8 @@ public:
     std::string         get_string_lower() const;
     std::string         get_string_upper() const;
     std::string         get_string_auto_convert() const;
-    void                set_integer(uint512_t i);
-    uint512_t           get_integer();
+    void                set_integer(int512_t i);
+    int512_t            get_integer();
     void                set_floating_point(long double d);
     long double         get_floating_point();
 
@@ -165,7 +165,7 @@ private:
     location            f_location = location();
 
     std::string         f_string = std::string();
-    uint512_t           f_integer = uint512_t();
+    int512_t            f_integer = int512_t();
     long double         f_floating_point = 0.0;
 
     weak_ptr_t          f_parent = weak_ptr_t();

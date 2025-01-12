@@ -452,7 +452,18 @@ node::pointer_t expr_state::parse_expr_matching()
                 //
                 n->insert_child(-1, parse_expr_other());
 
-                result = n;
+                if(negate)
+                {
+                    // Note: ... NOT {[I]LIKE | SIMILAR TO} ...
+                    //       NOT ( ... {[I]LIKE | SIMILAR} ... )
+                    //
+                    result = std::make_shared<node>(token_t::TOKEN_LOGICAL_NOT, n->get_location());
+                    result->insert_child(-1, n);
+                }
+                else
+                {
+                    result = n;
+                }
             }
         }
     }
@@ -554,6 +565,12 @@ node::pointer_t expr_state::parse_expr_other()
     {
         result = std::make_shared<node>(token_t::TOKEN_FUNCTION_CALL, l);
         result->set_string(name);
+        if(params->get_token() != token_t::TOKEN_LIST)
+        {
+            node::pointer_t list(std::make_shared<node>(token_t::TOKEN_LIST, params->get_location()));
+            list->insert_child(-1, params);
+            params = list;
+        }
         result->insert_child(-1, params);
         return result;
     };
@@ -897,7 +914,7 @@ node::pointer_t expr_state::parse_expr_other()
             break;
 
         case token_t::TOKEN_REGULAR_EXPRESSION:
-            // TBD: we could also create TOKEN_PERIOD + the new RegExpr
+            // TBD: we could also create TOKEN_PERIOD + the new RegExp
             //      on the left handside and the test() call on the right
             //      handside--however, done in this way we can detect
             //      whether the two sides are string literal and if so
