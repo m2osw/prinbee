@@ -924,7 +924,7 @@ CATCH_TEST_CASE("lexer_error", "[lexer] [pbql] [error]")
                   lexer->get_next_token()
                 , prinbee::invalid_number
                 , Catch::Matchers::ExceptionMessage(
-                          "prinbee_exception: an hexadecimal number needs at least one digit after the \"0x\"."));
+                          "prinbee_exception: a hexadecimal number needs at least one digit after the \"0x\"."));
     }
     CATCH_END_SECTION()
 
@@ -938,7 +938,7 @@ CATCH_TEST_CASE("lexer_error", "[lexer] [pbql] [error]")
                   lexer->get_next_token()
                 , prinbee::invalid_number
                 , Catch::Matchers::ExceptionMessage(
-                          "prinbee_exception: an hexadecimal string needs to end with a quote (')."));
+                          "prinbee_exception: a hexadecimal string needs to end with a quote (')."));
     }
     CATCH_END_SECTION()
 

@@ -330,6 +330,174 @@ SNAP_LOG_WARNING << "got command for expression! [" << e.f_unary << "] max=" << 
         }
     }
     CATCH_END_SECTION()
+
+    CATCH_START_SECTION("expression: exponentiation")
+    {
+        struct postfix_t
+        {
+            char const *        f_exponentiation = nullptr;
+            std::vector<std::string>
+                                f_expected = std::vector<std::string>();
+        };
+        postfix_t const exponentiation_expressions[] =
+        {
+            {
+                "SELECT 2^8, 3^3, 5 ^ 7;",
+                { "256", "27", "78125" },
+            },
+            {
+                "SELECT '2'^8, 3^'3', '5' ^ '7';",
+                { "256", "27", "78125" },
+            },
+            {
+                "SELECT 4.11^2, 0.03^3;",
+                { "16.8921", "0.000027" },
+            },
+            {
+                "SELECT 2.01^3.11, 0.5^4.03;",
+                { "8.768791", "0.061214" },
+            },
+            {
+                "SELECT '2.01'^3.11, 0.5^'4.03';",
+                { "8.768791", "0.061214" },
+            },
+            {
+                "SELECT a^b, a^2, a^2^b, 3^2^d, a^2^3;",
+                { "(a**b)", "(a**2)", "((a**2)**b)", "(9**d)", "((a**2)**3)" },
+            },
+        };
+        for(auto const & e : exponentiation_expressions)
+        {
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(e.f_exponentiation, "exponentiation-expression.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+            prinbee::pbql::command::vector_t const & commands(parser->parse());
+
+//SNAP_LOG_WARNING << "got command for expression! [" << e.f_exponentiation << "] max=" << e.f_expected.size() << SNAP_LOG_SEND;
+            CATCH_REQUIRE(commands.size() == 1);
+
+            // BEGIN
+            CATCH_REQUIRE(commands[0]->get_command() == prinbee::pbql::command_t::COMMAND_SELECT);
+            // SCHEMA/DATA
+            std::size_t const max(e.f_expected.size());
+            CATCH_REQUIRE(max <= prinbee::pbql::MAX_EXPRESSIONS);
+            for(std::size_t idx(0); idx < max; ++idx)
+            {
+                CATCH_REQUIRE(commands[0]->is_defined_as(prinbee::pbql::param_t::PARAM_EXPRESSION + idx) == prinbee::pbql::param_type_t::PARAM_TYPE_STRING);
+                CATCH_REQUIRE(commands[0]->get_string(prinbee::pbql::param_t::PARAM_EXPRESSION + idx) == e.f_expected[idx]);
+            }
+            CATCH_REQUIRE(commands[0]->is_defined_as(prinbee::pbql::param_t::PARAM_EXPRESSION + max) == prinbee::pbql::param_type_t::PARAM_TYPE_UNKNOWN);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("expression: multiplicative")
+    {
+        struct postfix_t
+        {
+            char const *        f_multiplicative = nullptr;
+            std::vector<std::string>
+                                f_expected = std::vector<std::string>();
+        };
+        postfix_t const multiplicative_expressions[] =
+        {
+            {
+                "SELECT 2*8, 3 *3, 5 * 7, 5* 4;",
+                { "16", "9", "35", "20" },
+            },
+            {
+                "SELECT '2'*8, 3*'3', '5' * '7', 5* '4';",
+                { "16", "9", "35", "20" },
+            },
+            {
+                "SELECT 4.11*2, 0.03*3;",
+                { "8.22", "0.09" },
+            },
+            {
+                "SELECT 2.01*3.11, 0.5*4.03;",
+                { "6.2511", "2.015" },
+            },
+            {
+                "SELECT '2.01'*3.11, 0.5*'4.03';",
+                { "6.2511", "2.015" },
+            },
+            {
+                "SELECT a*b, a*2, a*2*b, 3*2*d, a*2*3;",
+                { "a*b", "a*2", "a*2*b", "6*d", "a*2*3" },
+            },
+            {
+                "SELECT 8/2, 13 /3, 85 / 7, 5/ 4;",
+                { "4", "4", "12", "1" },
+            },
+            {
+                "SELECT '8'/2, 13/'3', '85' / '7', 5/ '4';",
+                { "4", "4", "12", "1" },
+            },
+            {
+                "SELECT 4.11/2, 0.03/3;",
+                { "2.055", "0.01" },
+            },
+            {
+                "SELECT 2.01/3.11, 0.5/4.03;",
+                { "0.646302", "0.124069" },
+            },
+            {
+                "SELECT '2.01'/3.11, 0.5/'4.03';",
+                { "0.646302", "0.124069" },
+            },
+            {
+                "SELECT a/b, a/2, a/2/b, 3/2/d, a/2/3;",
+                { "a/b", "a/2", "a/2/b", "1/d", "a/2/3" },
+            },
+            {
+                "SELECT 8%5, 13 %3, 85 % 7, 5% 4;",
+                { "3", "1", "1", "1" },
+            },
+            {
+                "SELECT '8'%5, 23%'3', '85' % '7', 7% '4';",
+                { "3", "2", "1", "3" },
+            },
+            {
+                "SELECT 4.11%2, 0.03%3;",
+                { "0.11", "0.03" },
+            },
+            {
+                "SELECT 2.01%3.11, 0.5%4.03;",
+                { "2.01", "0.5" },
+            },
+            {
+                "SELECT '2.01'%3.11, 0.5%'4.03';",
+                { "2.01", "0.5" },
+            },
+            {
+                "SELECT a%b, a%2, a%2%b, 3%2%d, a%2%3;",
+                { "a%b", "a%2", "a%2%b", "1%d", "a%2%3" },
+            },
+        };
+        for(auto const & e : multiplicative_expressions)
+        {
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(e.f_multiplicative, "multiplicative-expression.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+            prinbee::pbql::command::vector_t const & commands(parser->parse());
+
+SNAP_LOG_WARNING << "got command for expression! [" << e.f_multiplicative << "] max=" << e.f_expected.size() << SNAP_LOG_SEND;
+            CATCH_REQUIRE(commands.size() == 1);
+
+            // BEGIN
+            CATCH_REQUIRE(commands[0]->get_command() == prinbee::pbql::command_t::COMMAND_SELECT);
+            // SCHEMA/DATA
+            std::size_t const max(e.f_expected.size());
+            CATCH_REQUIRE(max <= prinbee::pbql::MAX_EXPRESSIONS);
+            for(std::size_t idx(0); idx < max; ++idx)
+            {
+                CATCH_REQUIRE(commands[0]->is_defined_as(prinbee::pbql::param_t::PARAM_EXPRESSION + idx) == prinbee::pbql::param_type_t::PARAM_TYPE_STRING);
+                CATCH_REQUIRE(commands[0]->get_string(prinbee::pbql::param_t::PARAM_EXPRESSION + idx) == e.f_expected[idx]);
+            }
+            CATCH_REQUIRE(commands[0]->is_defined_as(prinbee::pbql::param_t::PARAM_EXPRESSION + max) == prinbee::pbql::param_type_t::PARAM_TYPE_UNKNOWN);
+        }
+    }
+    CATCH_END_SECTION()
 }
 
 

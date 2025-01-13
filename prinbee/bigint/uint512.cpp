@@ -32,6 +32,11 @@
 #include    "prinbee/exception.h"
 
 
+// snapdev
+//
+#include    <snapdev/hexadecimal_string.h>
+
+
 // C++
 //
 #include    <algorithm>
@@ -681,6 +686,93 @@ bool uint512_t::operator > (uint512_t const & rhs) const
 bool uint512_t::operator >= (uint512_t const & rhs) const
 {
     return compare(rhs) >= 0;
+}
+
+
+void uint512_t::from_string(std::string const & s)
+{
+    zero();
+    if(s.empty())
+    {
+        return;
+    }
+
+    // TODO: detect overflows in loops below
+
+    std::size_t const max(s.length());
+    if(s[0] == '0'
+    && max >= 3)
+    {
+        if(s[1] == 'b'
+        || s[1] == 'B')
+        {
+            for(std::size_t idx(2); idx < max; ++idx)
+            {
+                char const c(s[idx]);
+                if(c < '0'
+                || c > '1')
+                {
+                    throw unexpected_token(
+                              "expected a hexadecimal digit, found character "
+                            + std::to_string(static_cast<int>(c))
+                            + " instead.");
+                }
+                lsl(1);
+                operator += (c - '0');
+            }
+            return;
+        }
+        if(s[1] == 'o'
+        || s[1] == 'O')
+        {
+            for(std::size_t idx(2); idx < max; ++idx)
+            {
+                char const c(s[idx]);
+                if(c < '0'
+                || c > '7')
+                {
+                    throw unexpected_token(
+                              "expected an octal digit, found character "
+                            + std::to_string(static_cast<int>(c))
+                            + " instead.");
+                }
+                lsl(3);
+                operator += (c - '0');
+            }
+        }
+        if(s[1] == 'x'
+        || s[1] == 'X')
+        {
+            for(std::size_t idx(2); idx < max; ++idx)
+            {
+                char const c(s[idx]);
+                if(!snapdev::is_hexdigit(c))
+                {
+                    throw unexpected_token(
+                              "expected a hexadecimal digit, found character "
+                            + std::to_string(static_cast<int>(c))
+                            + " instead.");
+                }
+                lsl(4);
+                operator += (snapdev::hexdigit_to_number(c));
+            }
+            return;
+        }
+    }
+
+    for(auto const c : s)
+    {
+        if(c < '0'
+        || c > '9')
+        {
+            throw unexpected_token(
+                      "expected a decimal digit, found character "
+                    + std::to_string(static_cast<int>(c))
+                    + " instead.");
+        }
+        operator *= (10);
+        operator += (c - '0');
+    }
 }
 
 

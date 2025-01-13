@@ -65,6 +65,7 @@ struct uint512_t
     bool                            is_zero() const;
     int                             compare(uint512_t const & rhs) const;
     uint512_t &                     div(uint512_t const & rhs, uint512_t & remainder);
+    void                            from_string(std::string const & s);
     std::string                     to_string(int base = 10, bool introducer = false, bool uppercase = false) const;
 
     uint512_t                       operator ~ () const;

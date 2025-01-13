@@ -145,6 +145,8 @@ public:
     std::string         get_string_lower() const;
     std::string         get_string_upper() const;
     std::string         get_string_auto_convert() const;
+    int512_t            get_integer_auto_convert() const;
+    long double         get_floating_point_auto_convert() const;
     void                set_integer(int512_t i);
     int512_t            get_integer();
     void                set_floating_point(long double d);

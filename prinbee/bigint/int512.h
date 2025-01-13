@@ -50,6 +50,7 @@ struct int512_t
                                     int512_t(uint512_t const & rhs);
                                     int512_t(std::initializer_list<std::uint64_t> rhs);
                                     int512_t(std::int64_t rhs);
+                                    int512_t(std::string s);
 
     int512_t &                      operator = (int512_t const & rhs) = default;
 
@@ -63,6 +64,8 @@ struct int512_t
     std::size_t                     bit_size() const;
     void                            lsl(int count);
     void                            asr(int count);
+    int512_t &                      div(int512_t const & rhs, int512_t & remainder);
+    void                            from_string(std::string const & s);
     std::string                     to_string(int base = 10, bool introducer = false, bool uppercase = false) const;
 
     int512_t                        operator - () const;
@@ -70,6 +73,14 @@ struct int512_t
     int512_t &                      operator += (std::int64_t rhs);
     int512_t &                      operator -= (int512_t const & rhs);
     int512_t &                      operator -= (std::int64_t rhs);
+    int512_t                        operator * (int512_t const & rhs) const;
+    int512_t &                      operator *= (int512_t const & rhs);
+    int512_t &                      operator *= (std::int64_t const rhs);
+    int512_t                        operator / (int512_t const & rhs) const;
+    int512_t &                      operator /= (int512_t const & rhs);
+    int512_t &                      operator /= (std::int64_t const rhs);
+    int512_t                        operator % (int512_t const & rhs) const;
+    int512_t &                      operator %= (int512_t const & rhs);
     int512_t &                      operator <<= (int shift);
     int512_t                        operator << (int shift) const;
     int512_t &                      operator >>= (int shift);

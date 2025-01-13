@@ -18,10 +18,9 @@
 
 
 /** \file
- * \brief Database file implementation.
+ * \brief Signed 512 bit number implementation.
  *
- * Each table uses one or more files. Each file is handled by a dbfile
- * object and a corresponding set of blocks.
+ * This implementation allows us to do some basic math over 512 bit numbers.
  */
 
 // self
@@ -117,6 +116,12 @@ int512_t::int512_t(std::int64_t rhs)
     f_value[5] =
     f_value[6] = rhs < 0 ? 0xFFFFFFFFFFFFFFFFULL : 0ULL;
     f_high_value = rhs < 0 ? -1LL : 0LL;
+}
+
+
+int512_t::int512_t(std::string s)
+{
+    from_string(s);
 }
 
 
@@ -334,6 +339,102 @@ void int512_t::asr(int count)
 }
 
 
+int512_t & int512_t::div(int512_t const & const_rhs, int512_t & remainder)
+{
+    if(const_rhs.is_zero())
+    {
+        throw logic_error("int512_t: division by zero not allowed.");
+    }
+
+    int512_t lhs(*this);
+    bool const negative(lhs.is_negative());
+    if(negative)
+    {
+        lhs = -lhs;
+    }
+    int512_t rhs(const_rhs);
+    if(rhs.is_negative())
+    {
+        rhs = -rhs;
+    }
+    if(lhs.is_negative()
+    || rhs.is_negative())
+    {
+        throw invalid_number("division of 0x800..000 or by 0x800..000 is not currently supported.");
+    }
+
+    int c(lhs.compare(rhs));
+    if(c == -1)
+    {
+        // a < b so:
+        //
+        // a / (a + n) = 0 (remainder = a)   where n > 0
+        //
+        remainder = *this;
+        zero();
+        return *this;
+    }
+
+    int512_t one;
+    one.f_value[0] = 1;
+
+    if(c == 0)
+    {
+        // a = b so:
+        //
+        // a / a = 1 (remainder = 0)
+        //
+        remainder.zero();
+        *this = one;
+        if(negative)
+        {
+            *this = -*this;
+        }
+        return *this;
+    }
+
+    // in this case we have to do the division
+    //
+    // TBD: we could also use these size to handle the two previous
+    //      special cases; we'd have to determine which of the compare()
+    //      and the bit_size() is faster...
+    //
+    std::size_t const lhs_size(lhs.bit_size());
+    std::size_t const rhs_size(rhs.bit_size());
+    std::size_t gap(lhs_size - rhs_size);
+
+    remainder = *this;
+    zero();
+
+    int512_t divisor(rhs);
+    divisor.lsl(gap);
+
+    // this is it! this loop calculates the division the very slow way
+    //
+    // TODO we need to use (a / b) and (a % b) and do all the math and
+    // it will be much faster... the bit by bit operations are slow even
+    // if they work like magic
+    //
+    for(++gap; gap > 0; --gap)
+    {
+        lsl(1);
+        c = remainder.compare(divisor);
+        if(c >= 0)
+        {
+            remainder -= divisor;
+            operator += (one);
+        }
+        divisor.asr(1);
+    }
+
+    if(negative)
+    {
+        *this = -*this;
+    }
+    return *this;
+}
+
+
 int512_t int512_t::operator - () const
 {
     int512_t neg;
@@ -367,6 +468,92 @@ int512_t & int512_t::operator -= (std::int64_t rhs)
 {
     int512_t const b(rhs);
     return *this -= b;
+}
+
+
+int512_t int512_t::operator * (int512_t const & rhs) const
+{
+    int512_t result(*this);
+    return result *= rhs;
+}
+
+
+int512_t & int512_t::operator *= (int512_t const & rhs)
+{
+    // this is a very slow way to do a multiplication, but very easy,
+    // we do not use it much so we're fine for now...
+    //
+    int512_t lhs(*this);
+
+    int512_t factor(rhs);
+    if((factor.f_value[0] & 1) == 0)
+    {
+        zero();
+    }
+
+    for(;;)
+    {
+        factor.asr(1);
+        if(factor.is_zero())
+        {
+            break;
+        }
+
+        lhs.lsl(1);
+        if((factor.f_value[0] & 1) != 0)
+        {
+            *this += lhs;
+        }
+    }
+
+    return *this;
+}
+
+
+int512_t & int512_t::operator *= (std::int64_t const rhs)
+{
+    int512_t const b(rhs);
+    return *this *= b;
+}
+
+
+int512_t int512_t::operator / (int512_t const & rhs) const
+{
+    int512_t remainder;
+    int512_t v(*this);
+    return v.div(rhs, remainder);
+}
+
+
+int512_t & int512_t::operator /= (int512_t const & rhs)
+{
+    int512_t remainder;
+    return div(rhs, remainder);
+}
+
+
+int512_t & int512_t::operator /= (std::int64_t const rhs)
+{
+    int512_t const b(rhs);
+    return *this /= b;
+}
+
+
+int512_t int512_t::operator % (int512_t const & rhs) const
+{
+    int512_t remainder;
+    int512_t v(*this);
+    v.div(rhs, remainder);
+    return remainder;
+}
+
+
+int512_t & int512_t::operator %= (int512_t const & rhs)
+{
+    int512_t remainder;
+    div(rhs, remainder);
+    *this = remainder;
+    return *this;
 }
 
 
@@ -630,6 +817,46 @@ bool int512_t::operator > (int512_t const & rhs) const
 bool int512_t::operator >= (int512_t const & rhs) const
 {
     return compare(rhs) >= 0;
+}
+
+
+void int512_t::from_string(std::string const & s)
+{
+    bool negate(false);
+    uint512_t v;
+    if(!s.empty())
+    {
+        if(s[0] == '+')
+        {
+            v.from_string(s.substr(1));
+        }
+        else if(s[1] == '-')
+        {
+            v.from_string(s.substr(1));
+            negate = true;
+        }
+        else
+        {
+            // no sign
+            //
+            v.from_string(s);
+        }
+    }
+    // else -- empty string is equivalent to 0
+
+    f_value[0] = v.f_value[0];
+    f_value[1] = v.f_value[1];
+    f_value[2] = v.f_value[2];
+    f_value[3] = v.f_value[3];
+    f_value[4] = v.f_value[4];
+    f_value[5] = v.f_value[5];
+    f_value[6] = v.f_value[6];
+    f_high_value = v.f_value[7];
+
+    if(negate)
+    {
+        *this = -*this;
+    }
 }
 
 

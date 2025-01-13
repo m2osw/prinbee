@@ -146,6 +146,7 @@
 
 // snapdev
 //
+#include    <snapdev/math.h>
 #include    <snapdev/to_lower.h>
 
 
@@ -960,7 +961,7 @@ node::pointer_t expr_state::parse_expr_additive()
 
 node::pointer_t expr_state::parse_expr_multiplicative()
 {
-    node::pointer_t result(parse_expr_exponentiation());
+    node::pointer_t lhs(parse_expr_exponentiation());
     for(;;)
     {
         switch(f_node->get_token())
@@ -968,14 +969,90 @@ node::pointer_t expr_state::parse_expr_multiplicative()
         case token_t::TOKEN_MULTIPLY:
         case token_t::TOKEN_DIVIDE:
         case token_t::TOKEN_MODULO:
-            f_node->insert_child(-1, result);
-            result = f_node;
-            f_node = f_lexer->get_next_token();
-            result->insert_child(-1, parse_expr_exponentiation());
+            {
+                //f_node->insert_child(-1, result);
+                node::pointer_t multiplicative(f_node);
+                f_node = f_lexer->get_next_token();
+                node::pointer_t rhs(parse_expr_exponentiation());
+
+                if(lhs->is_literal(token_t::TOKEN_NUMBER)
+                && rhs->is_literal(token_t::TOKEN_NUMBER))
+                {
+                    // do computation on the fly
+                    //
+                    if(lhs->is_literal(token_t::TOKEN_INTEGER)
+                    && rhs->is_literal(token_t::TOKEN_INTEGER))
+                    {
+                        int512_t const a(lhs->get_integer_auto_convert());
+                        int512_t const b(rhs->get_integer_auto_convert());
+
+                        int512_t r;
+                        switch(multiplicative->get_token())
+                        {
+                        case token_t::TOKEN_MULTIPLY:
+                            r = a * b;
+                            break;
+
+                        case token_t::TOKEN_DIVIDE:
+                            r = a / b;
+                            break;
+
+                        case token_t::TOKEN_MODULO:
+                            r = a % b;
+                            break;
+
+                        default:
+                            throw logic_error("unsupported token in sub-switch (integer).");
+
+                        }
+
+                        if(lhs->get_token() != token_t::TOKEN_INTEGER)
+                        {
+                            lhs = std::make_shared<node>(token_t::TOKEN_INTEGER, lhs->get_location());
+                        }
+                        lhs->set_integer(r);
+                    }
+                    else
+                    {
+                        long double const a(lhs->get_floating_point_auto_convert());
+                        long double const b(rhs->get_floating_point_auto_convert());
+                        long double r;
+                        switch(multiplicative->get_token())
+                        {
+                        case token_t::TOKEN_MULTIPLY:
+                            r = a * b;
+                            break;
+
+                        case token_t::TOKEN_DIVIDE:
+                            r = a / b;
+                            break;
+
+                        case token_t::TOKEN_MODULO:
+                            r = fmodl(a, b);
+                            break;
+
+                        default:
+                            throw logic_error("unsupported token in sub-switch (floating point).");
+
+                        }
+                        if(lhs->get_token() != token_t::TOKEN_FLOATING_POINT)
+                        {
+                            lhs = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, lhs->get_location());
+                        }
+                        lhs->set_floating_point(r);
+                    }
+                }
+                else
+                {
+                    multiplicative->insert_child(-1, lhs);
+                    multiplicative->insert_child(-1, rhs);
+                    lhs = multiplicative;
+                }
+            }
             break;
 
         default:
-            return result;
+            return lhs;
 
         }
     }
@@ -985,28 +1062,71 @@ node::pointer_t expr_state::parse_expr_multiplicative()
 
 node::pointer_t expr_state::parse_expr_exponentiation()
 {
-    node::pointer_t result(parse_expr_unary());
+    node::pointer_t lhs(parse_expr_unary());
     for(;;)
     {
         switch(f_node->get_token())
         {
         case token_t::TOKEN_POWER:
-            // Note: in as2js the exponentiation is right to left
-            //       (like in math/Ada); but here it's left to right!
-            //
-            f_node->insert_child(-1, result);
-            result = f_node;
-            f_node = f_lexer->get_next_token();
-            result->insert_child(-1, parse_expr_unary());
+            {
+                // Note: in as2js the exponentiation is right to left
+                //       (like in math/Ada); but here it's left to right!
+                //
+                node::pointer_t power(f_node);
+                f_node = f_lexer->get_next_token();
+                node::pointer_t rhs(parse_expr_unary());
+
+                if(lhs->is_literal(token_t::TOKEN_NUMBER)
+                && rhs->is_literal(token_t::TOKEN_NUMBER))
+                {
+                    // do computation on the fly
+                    //
+                    if(lhs->is_literal(token_t::TOKEN_INTEGER)
+                    && rhs->is_literal(token_t::TOKEN_INTEGER))
+                    {
+                        int512_t const a(lhs->get_integer_auto_convert());
+                        int512_t const b(rhs->get_integer_auto_convert());
+
+                        // TODO: add support for a int512_t.pow() function
+                        //       (see snapdev::pow() for a way to implement)
+                        //
+                        //int512_t const r(snapdev::pow(a, b));
+                        std::int64_t const r(snapdev::pow(a.f_value[0], b.f_value[0]));
+
+                        if(lhs->get_token() != token_t::TOKEN_INTEGER)
+                        {
+                            lhs = std::make_shared<node>(token_t::TOKEN_INTEGER, lhs->get_location());
+                        }
+                        lhs->set_integer(r);
+                    }
+                    else
+                    {
+                        long double const a(lhs->get_floating_point_auto_convert());
+                        long double const b(rhs->get_floating_point_auto_convert());
+                        long double const r = powl(a, b);
+                        if(lhs->get_token() != token_t::TOKEN_FLOATING_POINT)
+                        {
+                            lhs = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, lhs->get_location());
+                        }
+                        lhs->set_floating_point(r);
+                    }
+                }
+                else
+                {
+                    power->insert_child(-1, lhs);
+                    power->insert_child(-1, rhs);
+                    lhs = power;
+                }
+            }
             break;
 
         default:
-            return result;
+            return lhs;
 
         }
     }
     snapdev::NOT_REACHED();
-}
+} // LCOV_EXCL_LINE
 
 
 node::pointer_t expr_state::parse_expr_unary()
@@ -1111,7 +1231,7 @@ node::pointer_t expr_state::parse_expr_postfix()
                     n->set_string(type_name);
                     n->insert_child(-1, result);
                     return n;
-                };
+                }; // LCOV_EXCL_LINE
                 std::string keyword(f_node->get_string_upper());
                 bool found(true);
                 switch(keyword[0])

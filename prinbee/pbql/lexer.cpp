@@ -594,7 +594,7 @@ parse_hexadecimal_number:
                                     if(c != '\'')
                                     {
                                         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                                        msg << "an hexadecimal string needs to end with a quote (').";
+                                        msg << "a hexadecimal string needs to end with a quote (').";
                                         throw invalid_number(msg.str());
                                     }
                                 }
@@ -611,7 +611,7 @@ parse_hexadecimal_number:
                         if(!found)
                         {
                             snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                            msg << "an hexadecimal number needs at least one digit after the \"0x\".";
+                            msg << "a hexadecimal number needs at least one digit after the \"0x\".";
                             throw invalid_number(msg.str());
                         }
                         node::pointer_t n(std::make_shared<node>(token_t::TOKEN_INTEGER, l));

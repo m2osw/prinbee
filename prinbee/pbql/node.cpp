@@ -46,6 +46,7 @@
 #include    <snapdev/escape_special_regex_characters.h>
 #include    <snapdev/floating_point_to_string.h>
 #include    <snapdev/not_reached.h>
+#include    <snapdev/not_used.h>
 #include    <snapdev/string_replace_many.h>
 #include    <snapdev/safe_variable.h>
 #include    <snapdev/to_lower.h>
@@ -269,6 +270,27 @@ bool node::is_literal(token_t match_type) const
     switch(f_token)
     {
     case token_t::TOKEN_STRING:
+        if(match_type == token_t::TOKEN_NUMBER
+        || match_type == token_t::TOKEN_FLOATING_POINT)
+        {
+            char * e(nullptr);
+            errno = 0;
+            snapdev::NOT_USED(strtold(f_string.c_str(), &e));
+            return errno == 0 && (e == nullptr || *e == '\0');
+        }
+        if(match_type == token_t::TOKEN_INTEGER)
+        {
+            // TBD: should we support binary, octal, hexadecimal notation too?
+            //
+            for(auto const c : f_string)
+            {
+                if(c < '0' || c > '9')
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
         return match_type == token_t::TOKEN_UNKNOWN || match_type == f_token;
 
     case token_t::TOKEN_INTEGER:
@@ -340,6 +362,63 @@ std::string node::get_string_auto_convert() const
 
     default:
         throw logic_error("node is not a literal and it cannot be converted to a string.");
+
+    }
+}
+
+
+int512_t node::get_integer_auto_convert() const
+{
+    switch(f_token)
+    {
+    case token_t::TOKEN_STRING:
+        // the f_integer parameter is not otherwise used when f_token is TOKEN_STRING
+        //
+        const_cast<node *>(this)->f_integer.from_string(f_string);
+        [[fallthrough]];
+    case token_t::TOKEN_INTEGER:
+        return f_integer;
+
+    case token_t::TOKEN_FLOATING_POINT:
+        // TODO: support "all" bits (implement that in int512.cpp)
+        return static_cast<int64_t>(f_floating_point);
+
+    default:
+        throw logic_error("node is not a literal representing a number and it cannot be converted to an integer.");
+
+    }
+}
+
+
+long double node::get_floating_point_auto_convert() const
+{
+    switch(f_token)
+    {
+    case token_t::TOKEN_STRING:
+        // the f_floating_point parameter is not otherwise used when f_token is TOKEN_STRING
+        //
+        {
+            char * e(nullptr);
+            errno = 0;
+            const_cast<node *>(this)->f_floating_point = strtold(f_string.c_str(), &e);
+            if(errno != 0
+            || (e != nullptr && *e != '\0'))
+            {
+                throw invalid_number(
+                      "string \""
+                    + f_string
+                    + "\" does not represent a valid floating point number.");
+            }
+        }
+        [[fallthrough]];
+    case token_t::TOKEN_FLOATING_POINT:
+        return f_floating_point;
+
+    case token_t::TOKEN_INTEGER:
+        return f_integer.f_value[0];
+
+    default:
+        throw logic_error("node is not a literal representing a number and it cannot be converted to a floating point.");
 
     }
 }
