@@ -50,16 +50,21 @@ struct int512_t
                                     int512_t(uint512_t const & rhs);
                                     int512_t(std::initializer_list<std::uint64_t> rhs);
                                     int512_t(std::int64_t rhs);
-                                    int512_t(std::string s);
+                                    int512_t(std::string rhs);
 
     int512_t &                      operator = (int512_t const & rhs) = default;
+    int512_t &                      operator = (std::int64_t rhs);
+    int512_t &                      operator = (std::string const & rhs);
 
     bool                            is_positive() const { return f_high_value >= 0; }
     bool                            is_negative() const { return f_high_value < 0; }
     int512_t                        abs() const { if(f_high_value < 0) return -*this; else return *this; }
     int512_t &                      zero();
     bool                            is_zero() const;
+    int512_t &                      min();
+    int512_t &                      max();
     int                             compare(int512_t const & rhs) const;
+    long double                     to_floating_point() const;
 
     std::size_t                     bit_size() const;
     void                            lsl(int count);
@@ -69,8 +74,10 @@ struct int512_t
     std::string                     to_string(int base = 10, bool introducer = false, bool uppercase = false) const;
 
     int512_t                        operator - () const;
+    int512_t                        operator + (int512_t const & rhs) const;
     int512_t &                      operator += (int512_t const & rhs);
     int512_t &                      operator += (std::int64_t rhs);
+    int512_t                        operator - (int512_t const & rhs) const;
     int512_t &                      operator -= (int512_t const & rhs);
     int512_t &                      operator -= (std::int64_t rhs);
     int512_t                        operator * (int512_t const & rhs) const;

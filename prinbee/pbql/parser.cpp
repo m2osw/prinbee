@@ -958,6 +958,12 @@ void parser::parse_select()
 
             n = f_lexer->get_next_token();
         }
+        else
+        {
+            std::string name("__col");
+            name += std::to_string(count + 1);
+            command->set_string(static_cast<param_t>(static_cast<int>(param_t::PARAM_COLUMN_NAME) + count), name);
+        }
 
         if(n->get_token() != token_t::TOKEN_COMMA)
         {
@@ -1158,6 +1164,7 @@ void parser::expect_semi_colon(std::string const & command, node::pointer_t n)
             << command
             << "' command; not "
             << to_string(n->get_token())
+            << (n->get_token() == token_t::TOKEN_IDENTIFIER ? " " + n->get_string() : "")
             << ".";
         throw invalid_token(msg.str());
     }

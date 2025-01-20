@@ -74,13 +74,13 @@ namespace
 struct token_name_t
 {
     token_t                 f_token = token_t::TOKEN_UNKNOWN;
-    char                    f_name[32] = {};
+    char const              f_name[32] = {};
 };
 
 #define TOKEN_NAME(name)    { token_t::TOKEN_##name, #name }
 #define TOKEN_CHAR(name)    { token_t::TOKEN_##name, { static_cast<char>(token_t::TOKEN_##name), '\0' } }
 
-struct token_name_t g_token_names[] =
+struct token_name_t const g_token_names[] =
 {
     // that one doesn't work because EOF gets transformed to -1 ahead of time
     //
@@ -157,7 +157,7 @@ struct token_name_t g_token_names[] =
 
 
 
-char const * to_string(token_t t)
+std::string to_string(token_t t, bool quote_char)
 {
     std::uint32_t i(0);
     std::uint32_t j(std::size(g_token_names));
@@ -175,11 +175,15 @@ char const * to_string(token_t t)
         }
         else
         {
+            if(quote_char && g_token_names[p].f_name[1] == '\0')
+            {
+                return std::string(1, '\'') + g_token_names[p].f_name + '\'';
+            }
             return g_token_names[p].f_name;
         }
     }
 
-    return nullptr;
+    return std::string();
 }
 
 
@@ -415,7 +419,7 @@ long double node::get_floating_point_auto_convert() const
         return f_floating_point;
 
     case token_t::TOKEN_INTEGER:
-        return f_integer.f_value[0];
+        return f_integer.to_floating_point();
 
     default:
         throw logic_error("node is not a literal representing a number and it cannot be converted to a floating point.");
@@ -546,8 +550,25 @@ std::string node::recursive_to_as2js() const
     case token_t::TOKEN_MULTIPLY:
         return f_children[0]->recursive_to_as2js() + "*" + f_children[1]->recursive_to_as2js();
 
+    case token_t::TOKEN_PLUS:
+        if(f_children.size() == 2)
+        {
+            return f_children[0]->recursive_to_as2js() + '+' + f_children[1]->recursive_to_as2js();
+        }
+        else
+        {
+            throw logic_error("identity (+) operator found in the to_as2js() function.");
+        }
+
     case token_t::TOKEN_MINUS:
-        return '-' + f_children[0]->recursive_to_as2js();
+        if(f_children.size() == 2)
+        {
+            return f_children[0]->recursive_to_as2js() + '-' + f_children[1]->recursive_to_as2js();
+        }
+        else
+        {
+            return '-' + f_children[0]->recursive_to_as2js();
+        }
 
     case token_t::TOKEN_PERIOD:
         return f_children[0]->recursive_to_as2js() + "." + f_children[1]->recursive_to_as2js();

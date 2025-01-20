@@ -245,31 +245,36 @@ CATCH_TEST_CASE("node", "[node][pbql]")
             { prinbee::pbql::token_t::TOKEN_NUMBER, "NUMBER" },
         };
 
-        char const * previous(nullptr);
+        std::string previous;
         for(auto const & t : token_names)
         {
-            char const * const s(prinbee::pbql::to_string(t.f_token));
-            if(s == nullptr)
+            std::string const s(prinbee::pbql::to_string(t.f_token, false));
+            if(s.empty())
             {
                 SNAP_LOG_FATAL
                     << "token number "
                     << static_cast<int>(t.f_token)
                     << " is not defined in prinbee::pbql::to_string() (previous token was: "
-                    << (previous == nullptr ? "<no previous token>" : previous)
+                    << (previous.empty() ? "<no previous token>" : previous)
                     << ")."
                     << SNAP_LOG_SEND;
             }
-            CATCH_REQUIRE(s != nullptr);    // that token is missing
-            CATCH_REQUIRE(strcmp(s, t.f_name) == 0);
+            CATCH_REQUIRE_FALSE(s.empty());    // token missing?
+            CATCH_REQUIRE(s == t.f_name);
+            if(s.length() == 1)
+            {
+                CATCH_REQUIRE(prinbee::pbql::to_string(t.f_token, true) == "'" + s + "'");
+                CATCH_REQUIRE(prinbee::pbql::to_string(t.f_token) == "'" + s + "'");
+            }
             previous = s;
         }
 
         // also test the two "not a token" enums
         {
-            char const * p(prinbee::pbql::to_string(prinbee::pbql::token_t::TOKEN_other));
-            CATCH_REQUIRE(p == nullptr);
-            p = prinbee::pbql::to_string(prinbee::pbql::token_t::TOKEN_max);
-            CATCH_REQUIRE(p == nullptr);
+            std::string p(prinbee::pbql::to_string(prinbee::pbql::token_t::TOKEN_other));
+            CATCH_REQUIRE(p.empty());
+            p = prinbee::pbql::to_string(prinbee::pbql::token_t::TOKEN_max, false);
+            CATCH_REQUIRE(p.empty());
         }
     }
     CATCH_END_SECTION()
@@ -1392,7 +1397,7 @@ CATCH_TEST_CASE("node_error", "[node][pbql][error]")
                     , prinbee::invalid_token
                     , Catch::Matchers::ExceptionMessage(
                               "prinbee_exception: node token type cannot be converted to as2js script ("
-                            + std::string(u.f_name)
+                            + (u.f_name[1] == '\0' ? std::string(1, '\'') + u.f_name + '\'' : std::string(u.f_name))
                             + ")."));
         }
     }

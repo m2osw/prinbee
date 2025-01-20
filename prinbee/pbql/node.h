@@ -121,7 +121,7 @@ enum class token_t
 };
 
 
-char const *        to_string(token_t t);
+std::string             to_string(token_t t, bool quote_char = true);
 
 
 #pragma GCC diagnostic push

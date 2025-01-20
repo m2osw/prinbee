@@ -55,6 +55,7 @@
  * +--------------------------------+----------------+---------------------------------------------------------+
  * | <?> . <name>                   | left           | context, table, column, or record name separator        |
  * | <?> . *                        | left           | all fields                                              |
+ * | <function> ( <?> [, <?> ...] ) | left           | function call                                           |
  * +--------------------------------+----------------+---------------------------------------------------------+
  * | <?> :: <?>                     | left           | type cast (Postgres compatible)                         |
  * +--------------------------------+----------------+---------------------------------------------------------+
@@ -76,7 +77,6 @@
  * |                                |                |                                                         |
  * | <type> <?>                     | left           | type cast                                               |
  * | <type>(<?>)                    | left           | type cast like a function                               |
- * | <function>(<?>[, <?> ...])     | left           | function call                                           |
  * | |/ <?>                         | right          | square root                                             |
  * | ||/ <?>                        | right          | cubic root                                              |
  * | @ <?>                          | right          | absolute value                                          |
@@ -174,10 +174,50 @@ namespace
 
 
 
+enum class function_t
+{
+    FUNCTION_ABS,
+    FUNCTION_ACOS,
+    FUNCTION_ACOSH,
+    FUNCTION_ASIN,
+    FUNCTION_ASINH,
+    FUNCTION_ATAN,
+    FUNCTION_ATAN2,
+    FUNCTION_ATANH,
+    FUNCTION_CBRT,
+    FUNCTION_CEIL,
+    FUNCTION_CONCAT,
+    FUNCTION_COS,
+    FUNCTION_COSH,
+    FUNCTION_EXP,
+    FUNCTION_EXPM1,
+    FUNCTION_FLOOR,
+    FUNCTION_HYPOT,
+    FUNCTION_IMUL,
+    FUNCTION_LENGTH,
+    FUNCTION_LOG,
+    FUNCTION_LOG1P,
+    FUNCTION_LOG10,
+    FUNCTION_LOG2,
+    FUNCTION_MAX,
+    FUNCTION_MIN,
+    FUNCTION_POW,
+    FUNCTION_RAND,
+    FUNCTION_ROUND,
+    FUNCTION_SIGN,
+    FUNCTION_SIN,
+    FUNCTION_SINH,
+    FUNCTION_SQRT,
+    FUNCTION_TAN,
+    FUNCTION_TANH,
+    FUNCTION_TRUNC,
+};
+
+
 struct expr_state
 {
     lexer::pointer_t    f_lexer = lexer::pointer_t();
-    node::pointer_t     f_node = node::pointer_t();
+    node::pointer_t     f_node = node::pointer_t(); // current token
     node::pointer_t     f_tree = node::pointer_t(); // resulting tree
     int                 f_temp = 0;
 
@@ -197,6 +237,8 @@ struct expr_state
     node::pointer_t     parse_expr_unary();
     node::pointer_t     parse_expr_postfix();
     node::pointer_t     parse_expr_primary();
+
+    node::pointer_t     function_call(location const & l, function_t func, node::pointer_t params);
 };
 
 
@@ -481,7 +523,6 @@ node::pointer_t expr_state::parse_expr_matching()
 
 node::pointer_t expr_state::parse_expr_function_parameters(std::string const & keyword, int count)
 {
-    f_node = f_lexer->get_next_token();
     if(f_node->get_token() != token_t::TOKEN_OPEN_PARENTHESIS)
     {
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
@@ -521,18 +562,17 @@ node::pointer_t expr_state::parse_expr_function_parameters(std::string const & k
             << " instead.";
         throw invalid_parameter(msg.str());
     }
+    f_node = f_lexer->get_next_token();
     return result;
 }
 
 
 node::pointer_t expr_state::parse_expr_cast_value(std::string const & type_name)
 {
-    bool has_parenthesis(false);
     location const l(f_node->get_location());
-    f_node = f_lexer->get_next_token();
-    if(f_node->get_token() == token_t::TOKEN_OPEN_PARENTHESIS)
+    bool const has_parenthesis(f_node->get_token() == token_t::TOKEN_OPEN_PARENTHESIS);
+    if(has_parenthesis)
     {
-        has_parenthesis = true;
         f_node = f_lexer->get_next_token();
     }
     node::pointer_t value(parse_expr_logical_or());
@@ -557,281 +597,39 @@ node::pointer_t expr_state::parse_expr_cast_value(std::string const & type_name)
 node::pointer_t expr_state::parse_expr_other()
 {
     // this one is really strange since it can start with a primary like
-    // expression (@ <?> and |/ <?> for example)
+    // expression (@ <?> and |/ <?> for example) however I had to move
+    // the function calls to postfix so it would work properly
     //
     node::pointer_t result;
     location const l(f_node->get_location());
 
-    auto function_call = [&](std::string const & name, node::pointer_t params)
-    {
-        result = std::make_shared<node>(token_t::TOKEN_FUNCTION_CALL, l);
-        result->set_string(name);
-        if(params->get_token() != token_t::TOKEN_LIST)
-        {
-            node::pointer_t list(std::make_shared<node>(token_t::TOKEN_LIST, params->get_location()));
-            list->insert_child(-1, params);
-            params = list;
-        }
-        result->insert_child(-1, params);
-        return result;
-    };
+    //auto function_call = [&](std::string const & name, node::pointer_t params)
+    //{
+    //    result = std::make_shared<node>(token_t::TOKEN_FUNCTION_CALL, l);
+    //    result->set_string(name);
+    //    if(params->get_token() != token_t::TOKEN_LIST)
+    //    {
+    //        node::pointer_t list(std::make_shared<node>(token_t::TOKEN_LIST, params->get_location()));
+    //        list->insert_child(-1, params);
+    //        params = list;
+    //    }
+    //    result->insert_child(-1, params);
+    //    return result;
+    //};
 
     switch(f_node->get_token())
     {
     case token_t::TOKEN_ABSOLUTE_VALUE:
-        return function_call("Math.abs", parse_expr_other());
+        f_node = f_lexer->get_next_token();
+        return function_call(l, function_t::FUNCTION_ABS, parse_expr_other());
 
     case token_t::TOKEN_SQUARE_ROOT:
-        return function_call("Math.sqrt", parse_expr_other());
+        f_node = f_lexer->get_next_token();
+        return function_call(l, function_t::FUNCTION_SQRT, parse_expr_other());
 
     case token_t::TOKEN_CUBE_ROOT:
-        return function_call("Math.cbrt", parse_expr_other());
-
-    case token_t::TOKEN_IDENTIFIER:
-        // type cast or function call
-        {
-            int parameter_count(-2);
-            std::string keyword(f_node->get_string_upper());
-            switch(keyword[0])
-            {
-            case 'A':
-                if(keyword == "ABS"
-                || keyword == "ACOS"
-                || keyword == "ACOSH"
-                || keyword == "ASIN"
-                || keyword == "ASINH"
-                || keyword == "ATANH")
-                {
-                    parameter_count = 1;
-                }
-                else if(keyword == "ATAN")
-                {
-                    node::pointer_t params(parse_expr_function_parameters(keyword, -1));
-                    if(params->get_children_size() == 1)
-                    {
-                        return function_call("Math.atan", params);
-                    }
-                    else if(params->get_children_size() == 2)
-                    {
-                        return function_call("Math.atan2", params);
-                    }
-                    else
-                    {
-                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                        msg << f_node->get_location().get_location()
-                            << "expected 1 or 2 parameters to ATAN(), found "
-                            << params->get_children_size()
-                            << " instead.";
-                        throw invalid_parameter(msg.str());
-                    }
-                    snapdev::NOT_REACHED();
-                }
-                break;
-
-            case 'B':
-                if(keyword == "BIGINT")
-                {
-                    return parse_expr_cast_value("Integer");
-                }
-                else if(keyword == "BOOLEAN")
-                {
-                    return parse_expr_cast_value("Boolean");
-                }
-                break;
-
-            case 'C':
-                if(keyword == "CBRT"
-                || keyword == "CEIL"
-                || keyword == "COS"
-                || keyword == "COSH")
-                {
-                    parameter_count = 1;
-                }
-                else if(keyword == "CHAR")
-                {
-                    return parse_expr_cast_value("String");
-                }
-                break;
-
-            case 'D':
-                if(keyword == "DOUBLE")
-                {
-                    f_node = f_lexer->get_next_token();
-                    if(f_node->get_token() != token_t::TOKEN_IDENTIFIER
-                    || f_node->get_string_upper() != "PRECISION")
-                    {
-                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                        msg << f_node->get_location().get_location()
-                            << "expected DOUBLE to be followed by the word PRECISION.";
-                        throw invalid_token(msg.str());
-                    }
-                    return parse_expr_cast_value("Number");
-                }
-                break;
-
-            case 'E':
-                if(keyword == "EXP"
-                || keyword == "EXPM1")
-                {
-                    parameter_count = 1;
-                }
-                break;
-
-            case 'F':
-                if(keyword == "FLOOR"
-                || keyword == "FROUND")
-                {
-                    parameter_count = 1;
-                }
-                else if(keyword == "FLOAT2"
-                     || keyword == "FLOAT4"
-                     || keyword == "FLOAT10")
-                {
-                    return parse_expr_cast_value("Number");
-                }
-                break;
-
-            case 'H':
-                if(keyword == "HYPOT")
-                {
-                    // with 0 parameters, the function returns 0
-                    // with 1 parameter, the function returns that parameter as is
-                    // with 2 or more, it returns the square root of the sum of the squares
-                    //
-                    parameter_count = -1;
-                }
-                break;
-
-            case 'I':
-                if(keyword == "INUL")
-                {
-                    parameter_count = 1;
-                }
-                else if(keyword == "INT"
-                     || keyword == "INT1"
-                     || keyword == "INT2"
-                     || keyword == "INT4"
-                     || keyword == "INT8"
-                     || keyword == "INT16"
-                     || keyword == "INT32"
-                     || keyword == "INT64"
-                     || keyword == "INTEGER")
-                {
-                    // TODO: add support for bigint in as2js so larger numbers
-                    //       can be more than 64 bits
-                    //
-                    return parse_expr_cast_value("Integer");
-                }
-                break;
-
-            case 'L':
-                if(keyword == "LOG"
-                || keyword == "LOG1P"
-                || keyword == "LOG10"
-                || keyword == "LOG2")
-                {
-                    parameter_count = 1;
-                }
-                break;
-
-            case 'M':
-                if(keyword == "MAX"
-                || keyword == "MIN")
-                {
-                    parameter_count = -1;
-                }
-                break;
-
-            case 'P':
-                if(keyword == "POW")
-                {
-                    parameter_count = 2;
-                }
-                break;
-
-            case 'R':
-                if(keyword == "RAND")
-                {
-                    parameter_count = 0;
-                }
-                else if(keyword == "REAL")
-                {
-                    return parse_expr_cast_value("Number");
-                }
-                else if(keyword == "ROUND")
-                {
-                    parameter_count = 1;
-                }
-                break;
-
-            case 'S':
-                if(keyword == "SIGN"
-                || keyword == "SIN"
-                || keyword == "SINH"
-                || keyword == "SQRT")
-                {
-                    parameter_count = 1;
-                }
-                else if(keyword == "SMALLINT")
-                {
-                    return parse_expr_cast_value("Integer");
-                }
-                break;
-
-            case 'T':
-                if(keyword == "TAN"
-                || keyword == "TANH"
-                || keyword == "TRUNC")
-                {
-                    parameter_count = 1;
-                }
-                else if(keyword == "TEXT")
-                {
-                    return parse_expr_cast_value("String");
-                }
-                break;
-
-            case 'U':
-                if(keyword == "UNSIGNED")
-                {
-                    f_node = f_lexer->get_next_token();
-                    if(f_node->get_token() != token_t::TOKEN_IDENTIFIER)
-                    {
-                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                        msg << f_node->get_location().get_location()
-                            << "expected an integer name to follow the UNSIGNED word.";
-                        throw invalid_token(msg.str());
-                    }
-                    keyword = f_node->get_string_upper();
-                    if(keyword == "BIGINT"
-                    || keyword == "INT"
-                    || keyword == "INT1"
-                    || keyword == "INT2"
-                    || keyword == "INT4"
-                    || keyword == "INT8"
-                    || keyword == "INT16"
-                    || keyword == "INT32"
-                    || keyword == "INT64"
-                    || keyword == "INTEGER"
-                    || keyword == "SMALLINT")
-                    {
-                        // TODO: add support for bigint so larger numbers
-                        //       can be more than 64 bits
-                        //
-                        return parse_expr_cast_value("Integer");
-                    }
-                }
-                break;
-
-            }
-            if(parameter_count != -2)
-            {
-                return function_call(
-                              "Math." + snapdev::to_lower(keyword)
-                            , parse_expr_function_parameters(keyword, parameter_count));
-            }
-        }
-        break;
+        f_node = f_lexer->get_next_token();
+        return function_call(l, function_t::FUNCTION_CBRT, parse_expr_other());
 
     default:
         break;
@@ -909,7 +707,7 @@ node::pointer_t expr_state::parse_expr_other()
                 }
                 else
                 {
-                    result = function_call("String.concat", params);
+                    result = function_call(l, function_t::FUNCTION_CONCAT, params);
                 }
             }
             break;
@@ -937,26 +735,93 @@ node::pointer_t expr_state::parse_expr_other()
 
 node::pointer_t expr_state::parse_expr_additive()
 {
-    node::pointer_t result(parse_expr_multiplicative());
+    node::pointer_t lhs(parse_expr_multiplicative());
     for(;;)
     {
         switch(f_node->get_token())
         {
         case token_t::TOKEN_PLUS:
         case token_t::TOKEN_MINUS:
-            f_node->insert_child(-1, result);
-            result = f_node;
-            f_node = f_lexer->get_next_token();
-            result->insert_child(-1, parse_expr_multiplicative());
+            {
+                node::pointer_t additive(f_node);
+                f_node = f_lexer->get_next_token();
+                node::pointer_t rhs(parse_expr_multiplicative());
+
+                if(lhs->is_literal(token_t::TOKEN_NUMBER)
+                && rhs->is_literal(token_t::TOKEN_NUMBER))
+                {
+                    // do computation on the fly
+                    //
+                    if(lhs->is_literal(token_t::TOKEN_INTEGER)
+                    && rhs->is_literal(token_t::TOKEN_INTEGER))
+                    {
+                        int512_t const a(lhs->get_integer_auto_convert());
+                        int512_t const b(rhs->get_integer_auto_convert());
+
+                        int512_t r;
+                        switch(additive->get_token())
+                        {
+                        case token_t::TOKEN_PLUS:
+                            r = a + b;
+                            break;
+
+                        case token_t::TOKEN_MINUS:
+                            r = a - b;
+                            break;
+
+                        default: // LCOV_EXCL_LINE
+                            throw logic_error("unsupported token in sub-switch (integer)."); // LCOV_EXCL_LINE
+
+                        }
+
+                        if(lhs->get_token() != token_t::TOKEN_INTEGER)
+                        {
+                            lhs = std::make_shared<node>(token_t::TOKEN_INTEGER, lhs->get_location());
+                        }
+                        lhs->set_integer(r);
+                    }
+                    else
+                    {
+                        long double const a(lhs->get_floating_point_auto_convert());
+                        long double const b(rhs->get_floating_point_auto_convert());
+                        long double r;
+                        switch(additive->get_token())
+                        {
+                        case token_t::TOKEN_PLUS:
+                            r = a + b;
+                            break;
+
+                        case token_t::TOKEN_MINUS:
+                            r = a - b;
+                            break;
+
+                        default: // LCOV_EXCL_LINE
+                            throw logic_error("unsupported token in sub-switch (floating point)."); // LCOV_EXCL_LINE
+
+                        }
+                        if(lhs->get_token() != token_t::TOKEN_FLOATING_POINT)
+                        {
+                            lhs = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, lhs->get_location());
+                        }
+                        lhs->set_floating_point(r);
+                    }
+                }
+                else
+                {
+                    additive->insert_child(-1, lhs);
+                    additive->insert_child(-1, rhs);
+                    lhs = additive;
+                }
+            }
             break;
 
         default:
-            return result;
+            return lhs;
 
         }
     }
     snapdev::NOT_REACHED();
-}
+} // LCOV_EXCL_LINE
 
 
 node::pointer_t expr_state::parse_expr_multiplicative()
@@ -970,7 +835,6 @@ node::pointer_t expr_state::parse_expr_multiplicative()
         case token_t::TOKEN_DIVIDE:
         case token_t::TOKEN_MODULO:
             {
-                //f_node->insert_child(-1, result);
                 node::pointer_t multiplicative(f_node);
                 f_node = f_lexer->get_next_token();
                 node::pointer_t rhs(parse_expr_exponentiation());
@@ -1001,8 +865,8 @@ node::pointer_t expr_state::parse_expr_multiplicative()
                             r = a % b;
                             break;
 
-                        default:
-                            throw logic_error("unsupported token in sub-switch (integer).");
+                        default: // LCOV_EXCL_LINE
+                            throw logic_error("unsupported token in sub-switch (integer)."); // LCOV_EXCL_LINE
 
                         }
 
@@ -1031,8 +895,8 @@ node::pointer_t expr_state::parse_expr_multiplicative()
                             r = fmodl(a, b);
                             break;
 
-                        default:
-                            throw logic_error("unsupported token in sub-switch (floating point).");
+                        default: // LCOV_EXCL_LINE
+                            throw logic_error("unsupported token in sub-switch (floating point)."); // LCOV_EXCL_LINE
 
                         }
                         if(lhs->get_token() != token_t::TOKEN_FLOATING_POINT)
@@ -1057,7 +921,7 @@ node::pointer_t expr_state::parse_expr_multiplicative()
         }
     }
     snapdev::NOT_REACHED();
-}
+} // LCOV_EXCL_LINE
 
 
 node::pointer_t expr_state::parse_expr_exponentiation()
@@ -1158,7 +1022,26 @@ node::pointer_t expr_state::parse_expr_unary()
         default:
             if(result != nullptr)
             {
-                result->insert_child(-1, parse_expr_postfix());
+                node::pointer_t n(parse_expr_postfix());
+                if(n->is_literal(token_t::TOKEN_INTEGER))
+                {
+                    if(n->get_token() == token_t::TOKEN_INTEGER)
+                    {
+                        n->set_integer(-n->get_integer());
+                    }
+                    else
+                    {
+SNAP_LOG_WARNING << "this is happening then?" << SNAP_LOG_SEND;
+                        n->set_integer(-n->get_integer());
+                    }
+                    return n;
+                }
+                if(n->is_literal(token_t::TOKEN_FLOATING_POINT))
+                {
+                    n->set_floating_point(-n->get_floating_point());
+                    return n;
+                }
+                result->insert_child(-1, n);
                 return result;
             }
             return parse_expr_postfix();
@@ -1354,7 +1237,7 @@ node::pointer_t expr_state::parse_expr_postfix()
                         {
                             snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
                             msg << f_node->get_location().get_location()
-                                << "expected an integer name to follow the UNSIGNED word.";
+                                << "expected an integer name to follow the UNSIGNED word (post casting).";
                             throw invalid_token(msg.str());
                         }
                         keyword = f_node->get_string_upper();
@@ -1418,6 +1301,524 @@ node::pointer_t expr_state::parse_expr_postfix()
                 throw invalid_token(msg.str());
             }
             f_node = f_lexer->get_next_token();
+            break;
+
+        case token_t::TOKEN_OPEN_PARENTHESIS:
+            // type cast or function call
+            //
+            if(result->get_token() != token_t::TOKEN_IDENTIFIER)
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << f_node->get_location().get_location()
+                    << "unexpected opening parenthesis ('(').";
+                throw invalid_token(msg.str());
+            }
+            else
+            {
+                location loc(f_node->get_location());
+                std::string const l(loc.get_location());
+
+                std::string keyword(result->get_string_upper());
+                bool found(true);
+                //f_node = f_lexer->get_next_token(); -- do NOT skip parenthesis, function_call() does it for us
+                //                                       and parse_expr_cast_value() counts on it to know whether a ')' is required
+                switch(keyword[0])
+                {
+                case 'A':
+                    if(keyword == "ABS")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_ABS, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "ACOS")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_ACOS, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "ACOSH")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_ACOSH, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "ASIN")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_ASIN, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "ASINH")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_ASINH, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "ATAN")
+                    {
+                        node::pointer_t params(parse_expr_function_parameters(keyword, -1));
+                        if(params->get_children_size() == 1)
+                        {
+                            result = function_call(loc, function_t::FUNCTION_ATAN, params);
+                        }
+                        else if(params->get_children_size() == 2)
+                        {
+                            result = function_call(loc, function_t::FUNCTION_ATAN2, params);
+                        }
+                        else
+                        {
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                            msg << f_node->get_location().get_location()
+                                << "expected 1 or 2 parameters to ATAN(), found "
+                                << params->get_children_size()
+                                << " instead.";
+                            throw invalid_parameter(msg.str());
+                        }
+                    }
+                    else if(keyword == "ATANH")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_ATANH, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'B':
+                    if(keyword == "BIGINT")
+                    {
+                        result = parse_expr_cast_value("Integer");
+                    }
+                    else if(keyword == "BOOLEAN")
+                    {
+                        result = parse_expr_cast_value("Boolean");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'C':
+                    if(keyword == "CBRT")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_CBRT, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "CEIL")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_CEIL, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "CHAR")
+                    {
+                        result = parse_expr_cast_value("String");
+                    }
+                    else if(keyword == "COS")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_COS, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "COSH")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_COSH, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'E':
+                    if(keyword == "EXP")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_EXP, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "EXPM1")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_EXPM1, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'F':
+                    if(keyword == "FLOOR")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_FLOOR, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "FLOAT2"
+                         || keyword == "FLOAT4"
+                         || keyword == "FLOAT10")
+                    {
+                        result = parse_expr_cast_value("Number");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'H':
+                    if(keyword == "HYPOT")
+                    {
+                        // with 0 parameters, the function returns 0
+                        // with 1 parameter, the function returns that parameter as is
+                        // with 2 or more, it returns the square root of the sum of the squares
+                        //
+                        result = function_call(loc, function_t::FUNCTION_HYPOT, parse_expr_function_parameters(keyword, -1));
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'I':
+                    if(keyword == "IMUL")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_IMUL, parse_expr_function_parameters(keyword, 2));
+                    }
+                    else if(keyword == "INT"
+                         || keyword == "INT1"
+                         || keyword == "INT2"
+                         || keyword == "INT4"
+                         || keyword == "INT8"
+                         || keyword == "INT16"
+                         || keyword == "INT32"
+                         || keyword == "INT64"
+                         || keyword == "INTEGER")
+                    {
+                        // TODO: add support for bigint in as2js so larger numbers
+                        //       can be more than 64 bits
+                        //
+                        result = parse_expr_cast_value("Integer");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'L':
+                    if(keyword == "LENGTH")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_LENGTH, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "LOG")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_LOG, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "LOG1P")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_LOG1P, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "LOG10")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_LOG10, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "LOG2")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_LOG2, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'M':
+                    if(keyword == "MAX")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_MAX, parse_expr_function_parameters(keyword, -1));
+                    }
+                    else if(keyword == "MIN")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_MIN, parse_expr_function_parameters(keyword, -1));
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'P':
+                    if(keyword == "POW")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_POW, parse_expr_function_parameters(keyword, 2));
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'R':
+                    if(keyword == "RAND")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_RAND, parse_expr_function_parameters(keyword, 0));
+                    }
+                    else if(keyword == "REAL")
+                    {
+                        result = parse_expr_cast_value("Number");
+                    }
+                    else if(keyword == "ROUND")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_ROUND, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'S':
+                    if(keyword == "SIGN")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_SIGN, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "SIN")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_SIN, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "SINH")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_SINH, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "SQRT")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_SQRT, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "SMALLINT")
+                    {
+                        result = parse_expr_cast_value("Integer");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'T':
+                    if(keyword == "TAN")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_TAN, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "TANH")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_TANH, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "TRUNC")
+                    {
+                        result = function_call(loc, function_t::FUNCTION_TRUNC, parse_expr_function_parameters(keyword, 1));
+                    }
+                    else if(keyword == "TEXT")
+                    {
+                        result = parse_expr_cast_value("String");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                default:
+                    found = false;
+                    break;
+
+                }
+                if(!found)
+                {
+                    // TBD: at some point we may want to support any function
+                    //      call or user defined type (i.e. for other as2js
+                    //      functions and user defined functions)
+                    //
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    msg << f_node->get_location().get_location()
+                        << "unknown function or type "
+                        << keyword
+                        << "().";
+                    throw type_not_found(msg.str());
+                }
+            }
+            break;
+
+        case token_t::TOKEN_IDENTIFIER:
+            // two identifiers one after the other may be a double word
+            // representing a type
+            //
+            if(result->get_token() == token_t::TOKEN_IDENTIFIER)
+            {
+                location loc(f_node->get_location());
+                std::string const l(loc.get_location());
+
+                std::string keyword(result->get_string_upper());
+                bool found(true);
+                //f_node = f_lexer->get_next_token(); -- do NOT skip parenthesis, function_call() does it for us
+                //                                       and parse_expr_cast_value() counts on it to know whether a ')' is required
+                switch(keyword[0])
+                {
+                case 'B':
+                    if(keyword == "BIGINT")
+                    {
+                        result = parse_expr_cast_value("Integer");
+                    }
+                    else if(keyword == "BOOLEAN")
+                    {
+                        result = parse_expr_cast_value("Boolean");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'C':
+                    if(keyword == "CHAR")
+                    {
+                        result = parse_expr_cast_value("String");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'D':
+                    if(keyword == "DOUBLE")
+                    {
+                        if(f_node->get_token() != token_t::TOKEN_IDENTIFIER
+                        || f_node->get_string_upper() != "PRECISION")
+                        {
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                            msg << f_node->get_location().get_location()
+                                << "expected DOUBLE to be followed by the word PRECISION.";
+                            throw invalid_token(msg.str());
+                        }
+                        f_node = f_lexer->get_next_token();
+                        result = parse_expr_cast_value("Number");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'I':
+                    if(keyword == "INT"
+                    || keyword == "INT1"
+                    || keyword == "INT2"
+                    || keyword == "INT4"
+                    || keyword == "INT8"
+                    || keyword == "INT16"
+                    || keyword == "INT32"
+                    || keyword == "INT64"
+                    || keyword == "INTEGER")
+                    {
+                        result = parse_expr_cast_value("Integer");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'F':
+                    if(keyword == "FLOAT2"
+                    || keyword == "FLOAT4"
+                    || keyword == "FLOAT10")
+                    {
+                        result = parse_expr_cast_value("Number");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'R':
+                    if(keyword == "REAL")
+                    {
+                        result = parse_expr_cast_value("Number");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'S':
+                    if(keyword == "SMALLINT")
+                    {
+                        result = parse_expr_cast_value("Integer");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'T':
+                    if(keyword == "TEXT")
+                    {
+                        result = parse_expr_cast_value("String");
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                case 'U':
+                    if(keyword == "UNSIGNED")
+                    {
+                        if(f_node->get_token() != token_t::TOKEN_IDENTIFIER)
+                        {
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                            msg << f_node->get_location().get_location()
+                                << "expected an integer name to follow the UNSIGNED word (pre-casting).";
+                            throw invalid_token(msg.str());
+                        }
+                        keyword = f_node->get_string_upper();
+                        if(keyword == "BIGINT"
+                        || keyword == "INT"
+                        || keyword == "INT1"
+                        || keyword == "INT2"
+                        || keyword == "INT4"
+                        || keyword == "INT8"
+                        || keyword == "INT16"
+                        || keyword == "INT32"
+                        || keyword == "INT64"
+                        || keyword == "INTEGER"
+                        || keyword == "SMALLINT")
+                        {
+                            // TODO: add support for bigint so larger numbers
+                            //       can be more than 64 bits
+                            //
+                            f_node = f_lexer->get_next_token();
+                            result = parse_expr_cast_value("Integer");
+                        }
+                        else
+                        {
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                            msg << f_node->get_location().get_location()
+                                << "expected an integer name to follow the UNSIGNED word, not "
+                                << keyword
+                                << " (pre-casting).";
+                            throw invalid_token(msg.str());
+                        }
+                    }
+                    else
+                    {
+                        found = false;
+                    }
+                    break;
+
+                default:
+                    found = false;
+                    break;
+
+                }
+                if(!found)
+                {
+                    return result;
+                }
+            }
+            else
+            {
+                return result;
+            }
             break;
 
         default:
@@ -1514,6 +1915,627 @@ node::pointer_t expr_state::parse_expr_primary()
     snapdev::NOT_REACHED(); // LCOV_EXCL_LINE
 }
 
+
+node::pointer_t expr_state::function_call(location const & l, function_t func, node::pointer_t params)
+{
+    // create result node
+    //
+    node::pointer_t result(std::make_shared<node>(token_t::TOKEN_FUNCTION_CALL, l));
+
+    // make sure parameters are in a list
+    //
+    if(params->get_token() != token_t::TOKEN_LIST)
+    {
+        node::pointer_t list(std::make_shared<node>(token_t::TOKEN_LIST, params->get_location()));
+        list->insert_child(-1, params);
+        params = list;
+    }
+
+    // check whether our parameters are all literals
+    //
+    auto all_literals = [](node::pointer_t list, token_t match_type)
+    {
+        std::size_t const size(list->get_children_size());
+        for(std::size_t idx(0); idx < size; ++idx)
+        {
+            node::pointer_t p(list->get_child(idx));
+            if(!p->is_literal(match_type))
+            {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    node::pointer_t n;
+    switch(func)
+    {
+    case function_t::FUNCTION_ABS:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_INTEGER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+            result->set_integer(n->get_integer_auto_convert().abs());
+            return result;
+        }
+        if(n->is_literal(token_t::TOKEN_FLOATING_POINT))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(fabsl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        if(n->get_token() == token_t::TOKEN_MINUS
+        && n->get_children_size() == 1) // 1 -- it's a negate, 2 -- it's a subtraction, which we cannot optimize here
+        {
+            // abs(-n) => abs(n)
+            //
+            params->set_child(0, n->get_child(0));
+        }
+        result->set_string("Math.abs");
+        break;
+
+    case function_t::FUNCTION_ACOS:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(acos(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.acos");
+        break;
+
+    case function_t::FUNCTION_ACOSH:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(acosh(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.acosh");
+        break;
+
+    case function_t::FUNCTION_ASIN:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(asin(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.asin");
+        break;
+
+    case function_t::FUNCTION_ASINH:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(asinh(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.asinh");
+        break;
+
+    case function_t::FUNCTION_ATAN:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(atan(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.atan");
+        break;
+
+    case function_t::FUNCTION_ATAN2:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            node::pointer_t m(params->get_child(1));
+            if(m->is_literal(token_t::TOKEN_NUMBER))
+            {
+                result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+                result->set_floating_point(atan2(n->get_floating_point_auto_convert(),
+                                                 m->get_floating_point_auto_convert()));
+                return result;
+            }
+        }
+        result->set_string("Math.atan2");
+        break;
+
+    case function_t::FUNCTION_ATANH:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(atanh(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.atanh");
+        break;
+
+    case function_t::FUNCTION_CBRT:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(cbrtl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.cbrt");
+        break;
+
+    case function_t::FUNCTION_CEIL:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_INTEGER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+            result->set_integer( n->get_integer_auto_convert());
+            return result;
+        }
+        if(n->is_literal(token_t::TOKEN_FLOATING_POINT))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            long double a(ceill(n->get_floating_point_auto_convert()));
+            result->set_floating_point(a);
+            return result;
+        }
+        result->set_string("Math.ceil");
+        break;
+
+    case function_t::FUNCTION_CONCAT:
+        result->set_string("String.concat");
+        break;
+
+    case function_t::FUNCTION_COS:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(cos(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.cos");
+        break;
+
+    case function_t::FUNCTION_COSH:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(cosh(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.cosh");
+        break;
+
+    case function_t::FUNCTION_EXP:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(exp(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.exp");
+        break;
+
+    case function_t::FUNCTION_EXPM1:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(expm1(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.expm1");
+        break;
+
+    case function_t::FUNCTION_FLOOR:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_INTEGER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+            result->set_integer(n->get_integer_auto_convert());
+            return result;
+        }
+        if(n->is_literal(token_t::TOKEN_FLOATING_POINT))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            long double a(floorl(n->get_floating_point_auto_convert()));
+            result->set_floating_point(a);
+            return result;
+        }
+        result->set_string("Math.floor");
+        break;
+
+    case function_t::FUNCTION_HYPOT:
+        if(params->get_children_size() == 0)
+        {
+            // a floating point node is 0.0 by default, so we can directly return it
+            //
+            return std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, params->get_location());
+        }
+        else if(all_literals(params, token_t::TOKEN_NUMBER))
+        {
+            n = params->get_child(0);
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            long double sum(0.0);
+            std::size_t const size(params->get_children_size());
+            for(std::size_t idx(0); idx < size; ++idx)
+            {
+                node::pointer_t p(params->get_child(idx));
+                long double value(p->get_floating_point_auto_convert());
+                sum += value * value;
+            }
+            result->set_floating_point(sqrtl(sum));
+            return result;
+        }
+        if(params->get_children_size() == 1)
+        {
+            // this is much more efficient (|/ a ^ 2 = @ a)
+            // (however, abs() of an integer will return an integer in as2js...)
+            //
+            result->set_string("Math.abs");
+        }
+        else
+        {
+            result->set_string("Math.hypot");
+        }
+        break;
+
+    case function_t::FUNCTION_IMUL:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            node::pointer_t m(params->get_child(1));
+            if(m->is_literal(token_t::TOKEN_NUMBER))
+            {
+                result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+                result->set_integer(n->get_integer_auto_convert() * m->get_integer_auto_convert());
+                return result;
+            }
+        }
+        result->set_string("Math.imul");
+        break;
+
+    case function_t::FUNCTION_LENGTH:
+        n = params->get_child(0);
+        if(n->is_literal())
+        {
+            result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+            result->set_integer(n->get_string_auto_convert().length());
+            return result;
+        }
+        // in JavaScript, LENGTH is actually a field of a string
+        //
+        result = std::make_shared<node>(token_t::TOKEN_PERIOD, n->get_location());
+        result->insert_child(-1, n);
+        n = std::make_shared<node>(token_t::TOKEN_IDENTIFIER, n->get_location());
+        n->set_string("length");
+        result->insert_child(-1, n);
+        break;
+
+    case function_t::FUNCTION_LOG:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(logl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.log");
+        break;
+
+    case function_t::FUNCTION_LOG1P:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(log1pl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.log1p");
+        break;
+
+    case function_t::FUNCTION_LOG10:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(log10l(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.log10");
+        break;
+
+    case function_t::FUNCTION_LOG2:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(log2l(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.log2");
+        break;
+
+    case function_t::FUNCTION_MAX:
+        if(params->get_children_size() == 0)
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, params->get_location());
+            result->set_floating_point(-std::numeric_limits<long double>::infinity());
+            return result;
+        }
+        else if(all_literals(params, token_t::TOKEN_NUMBER))
+        {
+            n = params->get_child(0);
+            if(all_literals(params, token_t::TOKEN_INTEGER))
+            {
+                result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+                int512_t max;
+                max.min();
+                std::size_t const size(params->get_children_size());
+                for(std::size_t idx(0); idx < size; ++idx)
+                {
+                    node::pointer_t p(params->get_child(idx));
+                    int512_t const value(p->get_integer_auto_convert());
+                    if(value > max)
+                    {
+                        max = value;
+                    }
+                }
+                result->set_integer(max);
+            }
+            else
+            {
+                result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+                long double max(-std::numeric_limits<long double>::infinity());
+                std::size_t const size(params->get_children_size());
+                for(std::size_t idx(0); idx < size; ++idx)
+                {
+                    node::pointer_t p(params->get_child(idx));
+                    long double value(p->get_floating_point_auto_convert());
+                    if(value > max)
+                    {
+                        max = value;
+                    }
+                }
+                result->set_floating_point(max);
+            }
+            return result;
+        }
+        result->set_string("Math.max");
+        break;
+
+    case function_t::FUNCTION_MIN:
+        if(params->get_children_size() == 0)
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, params->get_location());
+            result->set_floating_point(std::numeric_limits<long double>::infinity());
+            return result;
+        }
+        else if(all_literals(params, token_t::TOKEN_NUMBER))
+        {
+            n = params->get_child(0);
+            if(all_literals(params, token_t::TOKEN_INTEGER))
+            {
+                result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+                int512_t min;
+                min.max();
+                std::size_t const size(params->get_children_size());
+                for(std::size_t idx(0); idx < size; ++idx)
+                {
+                    node::pointer_t p(params->get_child(idx));
+                    int512_t const value(p->get_integer_auto_convert());
+                    if(value < min)
+                    {
+                        min = value;
+                    }
+                }
+                result->set_integer(min);
+            }
+            else
+            {
+                result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+                long double min(std::numeric_limits<long double>::infinity());
+                std::size_t const size(params->get_children_size());
+                for(std::size_t idx(0); idx < size; ++idx)
+                {
+                    node::pointer_t p(params->get_child(idx));
+                    long double value(p->get_floating_point_auto_convert());
+                    if(value < min)
+                    {
+                        min = value;
+                    }
+                }
+                result->set_floating_point(min);
+            }
+            return result;
+        }
+        result->set_string("Math.min");
+        break;
+
+    case function_t::FUNCTION_POW:
+        {
+            n = params->get_child(0);
+            node::pointer_t m(params->get_child(1));
+
+            if(n->is_literal(token_t::TOKEN_NUMBER))
+            {
+                if(m->is_literal(token_t::TOKEN_NUMBER))
+                {
+                    if(n->is_literal(token_t::TOKEN_INTEGER)
+                    && m->is_literal(token_t::TOKEN_INTEGER))
+                    {
+                        result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+                        int512_t const a(n->get_integer_auto_convert());
+                        int512_t const b(m->get_integer_auto_convert());
+                        // TODO: replace with int512_t::pow() once available
+                        std::int64_t const r(snapdev::pow(a.f_value[0], b.f_value[0]));
+                        result->set_integer(r);
+                    }
+                    else
+                    {
+                        result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+                        result->set_floating_point(powl(n->get_floating_point_auto_convert(),
+                                                        m->get_floating_point_auto_convert()));
+                    }
+                    return result;
+                }
+            }
+
+            // use the as2js '**' operator instead of the Math.pow() function
+            //
+            result = std::make_shared<node>(token_t::TOKEN_POWER, n->get_location());
+            result->insert_child(-1, n);
+            result->insert_child(-1, m);
+            return result;
+        }
+        break;
+
+    case function_t::FUNCTION_RAND:
+        result->set_string("Math.rand");
+        break;
+
+    case function_t::FUNCTION_ROUND:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_INTEGER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+            result->set_integer(n->get_integer_auto_convert());
+            return result;
+        }
+        if(n->is_literal(token_t::TOKEN_FLOATING_POINT))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+            result->set_integer(roundl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.round");
+        break;
+
+    case function_t::FUNCTION_SIGN:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_INTEGER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+            int512_t number(n->get_integer_auto_convert());
+            if(!number.is_zero())
+            {
+                if(number.is_negative())
+                {
+                    number = -1;
+                }
+                else
+                {
+                    number = 1;
+                }
+            }
+            result->set_integer(number);
+            return result;
+        }
+        if(n->is_literal(token_t::TOKEN_FLOATING_POINT))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+            long double a(floorl(n->get_floating_point_auto_convert()));
+            std::int64_t number(0);
+            if(a < 0.0)
+            {
+                number = -1;
+            }
+            else if(a > 0.0)
+            {
+                number = 1;
+            }
+            result->set_integer(number);
+            return result;
+        }
+        result->set_string("Math.sign");
+        break;
+
+    case function_t::FUNCTION_SIN:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(sinl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.sin");
+        break;
+
+    case function_t::FUNCTION_SINH:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(sinhl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.sinh");
+        break;
+
+    case function_t::FUNCTION_SQRT:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(sqrtl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.sqrt");
+        break;
+
+    case function_t::FUNCTION_TAN:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(tanl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.tan");
+        break;
+
+    case function_t::FUNCTION_TANH:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_NUMBER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(tanhl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.tanh");
+        break;
+
+    case function_t::FUNCTION_TRUNC:
+        n = params->get_child(0);
+        if(n->is_literal(token_t::TOKEN_INTEGER))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_INTEGER, n->get_location());
+            result->set_integer(n->get_integer_auto_convert());
+            return result;
+        }
+        if(n->is_literal(token_t::TOKEN_FLOATING_POINT))
+        {
+            result = std::make_shared<node>(token_t::TOKEN_FLOATING_POINT, n->get_location());
+            result->set_floating_point(truncl(n->get_floating_point_auto_convert()));
+            return result;
+        }
+        result->set_string("Math.trunc");
+        break;
+
+    }
+
+    // there was no optimization, save those parameters and return
+    // the full function call
+    //
+    result->insert_child(-1, params);
+    return result;
+}
 
 
 } // no name namespace

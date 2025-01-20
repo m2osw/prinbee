@@ -119,9 +119,30 @@ int512_t::int512_t(std::int64_t rhs)
 }
 
 
-int512_t::int512_t(std::string s)
+int512_t::int512_t(std::string rhs)
 {
-    from_string(s);
+    from_string(rhs);
+}
+
+
+int512_t & int512_t::operator = (std::int64_t rhs)
+{
+    f_value[0] = rhs;
+    f_value[1] =
+    f_value[2] =
+    f_value[3] =
+    f_value[4] =
+    f_value[5] =
+    f_value[6] =
+    f_high_value = (rhs < 0 ? -1 : 0);
+    return *this;
+}
+
+
+int512_t & int512_t::operator = (std::string const & rhs)
+{
+    from_string(rhs);
+    return *this;
 }
 
 
@@ -152,6 +173,34 @@ bool int512_t::is_zero() const
 }
 
 
+int512_t & int512_t::min()
+{
+    f_value[0] = 0;
+    f_value[1] = 0;
+    f_value[2] = 0;
+    f_value[3] = 0;
+    f_value[4] = 0;
+    f_value[5] = 0;
+    f_value[6] = 0;
+    f_high_value = 0x8000000000000000;
+    return *this;
+}
+
+
+int512_t & int512_t::max()
+{
+    f_value[0] = 0xffffffffffffffff;
+    f_value[1] = 0xffffffffffffffff;
+    f_value[2] = 0xffffffffffffffff;
+    f_value[3] = 0xffffffffffffffff;
+    f_value[4] = 0xffffffffffffffff;
+    f_value[5] = 0xffffffffffffffff;
+    f_value[6] = 0xffffffffffffffff;
+    f_high_value = 0x7fffffffffffffff;
+    return *this;
+}
+
+
 int int512_t::compare(int512_t const & rhs) const
 {
     if(f_high_value != rhs.f_high_value)
@@ -168,6 +217,45 @@ int int512_t::compare(int512_t const & rhs) const
     }
 
     return 0;
+}
+
+
+long double int512_t::to_floating_point() const
+{
+    if(is_zero())
+    {
+        return 0.0;
+    }
+
+    union u_t
+    {
+        std::uint64_t       f_data[2];
+        long double         f_double;
+    };
+    u_t a;
+    int512_t positive(abs());
+    if(is_negative())
+    {
+        a.f_data[1] = 1UL << 15;
+    }
+    else
+    {
+        a.f_data[1] = 0;
+    }
+    std::size_t const sz(positive.bit_size());
+    if(sz < 63)
+    {
+        int const shift(64 - sz);
+        positive.lsl(shift);
+    }
+    else if(sz > 64)
+    {
+        int const shift(sz - 64);
+        positive.asr(shift);
+    }
+    a.f_data[0] = positive.f_value[0];
+    a.f_data[1] |= 16382 + sz;
+    return a.f_double;
 }
 
 
@@ -443,6 +531,13 @@ int512_t int512_t::operator - () const
 }
 
 
+int512_t int512_t::operator + (int512_t const & rhs) const
+{
+    int512_t result(*this);
+    return result += rhs;
+}
+
+
 int512_t & int512_t::operator += (int512_t const & rhs)
 {
     add512(f_value, rhs.f_value);       // the add includes the high value
@@ -454,6 +549,13 @@ int512_t & int512_t::operator += (std::int64_t rhs)
 {
     int512_t const b(rhs);
     return *this += b;
+}
+
+
+int512_t int512_t::operator - (int512_t const & rhs) const
+{
+    int512_t result(*this);
+    return result -= rhs;
 }
 
 

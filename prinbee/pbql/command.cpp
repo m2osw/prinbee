@@ -18,10 +18,11 @@
 
 
 /** \file
- * \brief State of the Prinbee Query Language.
+ * \brief Describe and manage a Prinbee PSQL command.
  *
- * The Prinbee Query Language (PBQL) uses the state to keep track of the
- * contexts it is working with.
+ * The Prinbee Query Language (PBQL) is parsed into commands that then get
+ * executed. This file implements that commands with all of their
+ * parameters.
  */
 
 // self
