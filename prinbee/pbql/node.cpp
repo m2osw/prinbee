@@ -127,6 +127,7 @@ struct token_name_t const g_token_names[] =
     TOKEN_NAME(SCOPE),
     TOKEN_NAME(SHIFT_LEFT),
     TOKEN_NAME(SHIFT_RIGHT),
+    TOKEN_NAME(UNMATCHED_REGULAR_EXPRESSION),
     TOKEN_NAME(STRING_CONCAT),
 
     TOKEN_NAME(ALL_FIELDS),
@@ -142,8 +143,8 @@ struct token_name_t const g_token_names[] =
     TOKEN_NAME(LOGICAL_AND),
     TOKEN_NAME(LOGICAL_NOT),
     { token_t::TOKEN_NULL, "NULL" },  // NULL is transformed to 0 ahead of time (see EOF above)
-    TOKEN_NAME(SIMILAR),
     TOKEN_NAME(TRUE),
+    TOKEN_NAME(TYPE),
 
     TOKEN_NAME(BOOLEAN),
     TOKEN_NAME(NUMBER),
@@ -155,6 +156,43 @@ struct token_name_t const g_token_names[] =
 
 } // no name namespace
 
+
+
+char const * cast_type_to_as2js_type(type_t const type)
+{
+    switch(type)
+    {
+    case type_t::TYPE_BOOLEAN:
+        return "Boolean";
+
+    case type_t::TYPE_INT1:
+    case type_t::TYPE_INT2:
+    case type_t::TYPE_INT4:
+    case type_t::TYPE_INT8:
+    case type_t::TYPE_INT16:
+    case type_t::TYPE_INT32:
+    case type_t::TYPE_INT64:
+    case type_t::TYPE_UNSIGNED_INT1:
+    case type_t::TYPE_UNSIGNED_INT2:
+    case type_t::TYPE_UNSIGNED_INT4:
+    case type_t::TYPE_UNSIGNED_INT8:
+    case type_t::TYPE_UNSIGNED_INT16:
+    case type_t::TYPE_UNSIGNED_INT32:
+    case type_t::TYPE_UNSIGNED_INT64:
+        return "Integer";
+
+    case type_t::TYPE_FLOAT4:
+    case type_t::TYPE_FLOAT8:
+    case type_t::TYPE_FLOAT10:
+        return "Number";
+
+    case type_t::TYPE_TEXT:
+        return "String";
+
+    }
+
+    return "undefined";
+}
 
 
 std::string to_string(token_t t, bool quote_char)
@@ -229,6 +267,7 @@ node::node(token_t token, location const & l)
     case token_t::TOKEN_SCOPE:
     case token_t::TOKEN_SHIFT_LEFT:
     case token_t::TOKEN_SHIFT_RIGHT:
+    case token_t::TOKEN_UNMATCHED_REGULAR_EXPRESSION:
     case token_t::TOKEN_STRING_CONCAT:
     case token_t::TOKEN_ALL_FIELDS:
     case token_t::TOKEN_AT:
@@ -243,8 +282,8 @@ node::node(token_t token, location const & l)
     case token_t::TOKEN_LOGICAL_AND:
     case token_t::TOKEN_LOGICAL_NOT:
     case token_t::TOKEN_NULL:
-    case token_t::TOKEN_SIMILAR:
     case token_t::TOKEN_TRUE:
+    case token_t::TOKEN_TYPE:
         break;
 
     default:
@@ -280,14 +319,32 @@ bool node::is_literal(token_t match_type) const
             char * e(nullptr);
             errno = 0;
             snapdev::NOT_USED(strtold(f_string.c_str(), &e));
-            return errno == 0 && (e == nullptr || *e == '\0');
+            return errno == 0
+                && (e == nullptr || *e == '\0')
+                && f_string.c_str() != e;
         }
         if(match_type == token_t::TOKEN_INTEGER)
         {
             // TBD: should we support binary, octal, hexadecimal notation too?
             //
-            for(auto const c : f_string)
+            std::size_t const max(f_string.length());
+            if(max == 0)
             {
+                return false;
+            }
+            std::size_t idx(0);
+            if(f_string[0] == '+'
+            || f_string[0] == '-')
+            {
+                ++idx;
+                if(idx >= max)
+                {
+                    return false;
+                }
+            }
+            for(; idx < max; ++idx)
+            {
+                char c(f_string[idx]);
                 if(c < '0' || c > '9')
                 {
                     return false;
@@ -295,13 +352,28 @@ bool node::is_literal(token_t match_type) const
             }
             return true;
         }
+        if(match_type == token_t::TOKEN_BOOLEAN)
+        {
+            std::string const keyword(get_string_upper());
+            if(keyword.length() <= 4
+            && std::string("TRUE").starts_with(keyword))
+            {
+                return true;
+            }
+            if(keyword.length() <= 5
+            && std::string("FALSE").starts_with(keyword))
+            {
+                return true;
+            }
+            return false;
+        }
         return match_type == token_t::TOKEN_UNKNOWN || match_type == f_token;
 
     case token_t::TOKEN_INTEGER:
-        return match_type == token_t::TOKEN_UNKNOWN || match_type == f_token || match_type == token_t::TOKEN_NUMBER;
+        return match_type == token_t::TOKEN_UNKNOWN || match_type == f_token || match_type == token_t::TOKEN_NUMBER || match_type == token_t::TOKEN_BOOLEAN;
 
     case token_t::TOKEN_FLOATING_POINT:
-        return match_type == token_t::TOKEN_UNKNOWN || match_type == f_token || match_type == token_t::TOKEN_NUMBER;
+        return match_type == token_t::TOKEN_UNKNOWN || match_type == f_token || match_type == token_t::TOKEN_NUMBER || match_type == token_t::TOKEN_BOOLEAN;
 
     case token_t::TOKEN_NULL:
         return match_type == token_t::TOKEN_UNKNOWN || match_type == f_token;
@@ -371,6 +443,49 @@ std::string node::get_string_auto_convert() const
 }
 
 
+bool node::get_boolean_auto_convert() const
+{
+    switch(f_token)
+    {
+    case token_t::TOKEN_STRING:
+        {
+            std::string const keyword(get_string_upper());
+            if(keyword.length() <= 4
+            && std::string("TRUE").starts_with(keyword))
+            {
+                return true;
+            }
+            if(keyword.length() <= 5
+            && std::string("FALSE").starts_with(keyword))
+            {
+                return false;
+            }
+        }
+        break;
+
+    case token_t::TOKEN_INTEGER:
+        return !f_integer.is_zero();
+
+    case token_t::TOKEN_FLOATING_POINT:
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+        return f_floating_point != 0.0;
+#pragma GCC diagnostic pop
+
+    case token_t::TOKEN_TRUE:
+        return true;
+
+    case token_t::TOKEN_FALSE:
+        return false;
+
+    default:
+        break;
+
+    }
+    throw logic_error("node is not a literal representing a Boolean and as a result it cannot be converted to a Boolean.");
+}
+
+
 int512_t node::get_integer_auto_convert() const
 {
     switch(f_token)
@@ -378,14 +493,21 @@ int512_t node::get_integer_auto_convert() const
     case token_t::TOKEN_STRING:
         // the f_integer parameter is not otherwise used when f_token is TOKEN_STRING
         //
+        if(f_string.empty())
+        {
+            throw invalid_number(
+                  "string \""
+                + f_string
+                + "\" does not represent a valid integer.");
+        }
         const_cast<node *>(this)->f_integer.from_string(f_string);
         [[fallthrough]];
     case token_t::TOKEN_INTEGER:
         return f_integer;
 
     case token_t::TOKEN_FLOATING_POINT:
-        // TODO: support "all" bits (implement that in int512.cpp)
-        return static_cast<int64_t>(f_floating_point);
+        // TODO: support "all" bits (implement that in int512.cpp--we already have the opposite)
+        return static_cast<std::int64_t>(f_floating_point);
 
     default:
         throw logic_error("node is not a literal representing a number and it cannot be converted to an integer.");
@@ -406,7 +528,8 @@ long double node::get_floating_point_auto_convert() const
             errno = 0;
             const_cast<node *>(this)->f_floating_point = strtold(f_string.c_str(), &e);
             if(errno != 0
-            || (e != nullptr && *e != '\0'))
+            || (e != nullptr && *e != '\0')
+            || f_string.c_str() == e)
             {
                 throw invalid_number(
                       "string \""
@@ -557,7 +680,7 @@ std::string node::recursive_to_as2js() const
         }
         else
         {
-            throw logic_error("identity (+) operator found in the to_as2js() function.");
+            throw logic_error("identity (+) operator found in the to_as2js() function."); // LCOV_EXCL_LINE
         }
 
     case token_t::TOKEN_MINUS:
@@ -663,7 +786,26 @@ std::string node::recursive_to_as2js() const
         }
 
     case token_t::TOKEN_CAST:
-        return "new " + f_string + "(" + f_children[0]->recursive_to_as2js() + ")";
+        {
+            std::string cast;
+            if(static_cast<type_t>(f_integer.f_value[0]) == type_t::TYPE_BOOLEAN)
+            {
+                // This is much shorter in JavaScript
+                //
+                cast += "!!";
+            }
+            else
+            {
+                // TBD: for Number, we could look into using 1.0*(<expr>)?
+                //
+                cast += "new ";
+                cast += cast_type_to_as2js_type(static_cast<type_t>(f_integer.f_value[0]));
+            }
+            cast += '(';
+            cast += f_children[0]->recursive_to_as2js();
+            cast += ')';
+            return cast;
+        }
 
     case token_t::TOKEN_FALSE:
         return "false";
@@ -703,133 +845,26 @@ std::string node::recursive_to_as2js() const
 
     case token_t::TOKEN_ILIKE:
     case token_t::TOKEN_LIKE:
-    case token_t::TOKEN_SIMILAR:
         {
-            std::string const sql_pattern(f_children[1]->get_string());
             std::string regex_pattern;
-            char close('\0');
-            int count(0);
-            std::size_t const max(sql_pattern.size());
-            for(std::size_t idx(0); idx < max; ++idx)
+            if(f_children[1]->is_literal())
             {
-                // % denotes any number of characters (i.e. ".*" in regex; only character supported by LIKE and ILIKE)
-                // _ denotes one character (i.e. "." in regex)
-                // | denotes alternation (either of two alternatives).
-                // * denotes repetition of the previous item zero or more times.
-                // + denotes repetition of the previous item one or more times.
-                // ? denotes repetition of the previous item zero or one time.
-                // {m} denotes repetition of the previous item exactly m times.
-                // {m,} denotes repetition of the previous item m or more times.
-                // {m,n} denotes repetition of the previous item at least m and not more than n times.
-                // Parentheses () can be used to group items into a single logical item.
-                // A bracket expression [...] specifies a character class, just as in POSIX regular expressions.
-
-                char c(sql_pattern[idx]);
-                if(c == '%')
-                {
-                    regex_pattern += ".*";
-                }
-                else if(f_token == token_t::TOKEN_SIMILAR)
-                {
-                    switch(c)
-                    {
-                    case '_':
-                        regex_pattern += ".";
-                        break;
-
-                    case '|':
-                    case '*':
-                    case '+':
-                    case '?':
-                        if(regex_pattern.empty())
-                        {
-                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                            msg << f_location.get_location()
-                                << "SIMILAR pattern characters '|', '*', '+', '?' cannot appear at the start of a pattern.";
-                            throw invalid_token(msg.str());
-                        }
-                        regex_pattern += c;
-                        break;
-
-                    case '(':
-                        close = ')';
-                        count = 0;
-                        goto copy_to_close;
-
-                    case '{':
-                        if(regex_pattern.empty())
-                        {
-                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                            msg << f_location.get_location()
-                                << "SIMILAR pattern character '{' cannot appear at the start of a pattern.";
-                            throw invalid_token(msg.str());
-                        }
-                        close = '}';
-                        count = 0;
-                        goto copy_to_close;
-
-                    case '[':
-                        close = ']';
-                        count = -1;
-copy_to_close:
-                        regex_pattern += c;
-                        for(;; ++count)
-                        {
-                            ++idx;
-                            if(idx >= max)
-                            {
-                                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                                msg << f_location.get_location()
-                                    << "SIMILAR pattern missing closing bracket ('"
-                                    << close
-                                    << "' not found or there were no characters within those brackets).";
-                                throw invalid_token(msg.str());
-                            }
-                            c = sql_pattern[idx];
-                            regex_pattern += c;
-                            if(count >= 0
-                            && c == close)
-                            {
-                                if(count == 0
-                                && close != ']')
-                                {
-                                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                                    msg << f_location.get_location()
-                                        << "SIMILAR found empty pattern between brackets ('"
-                                        << close
-                                        << "').";
-                                    throw invalid_token(msg.str());
-                                }
-                                break;
-                            }
-                        }
-                        break;
-
-                    default:
-                        // escape anything else as required
-                        {
-                            char buf[2] = { c, '\0' };
-                            regex_pattern += snapdev::escape_special_regex_characters(std::string(buf));
-                        }
-                        break;
-
-                    }
-                }
-                else
-                {
-                    // escape character if required
-                    char buf[2] = { c, '\0' };
-                    regex_pattern += snapdev::escape_special_regex_characters(std::string(buf));
-                }
+                regex_pattern += '"';
+                regex_pattern += convert_like_pattern(f_children[1]->get_string_auto_convert());
+                regex_pattern += '"';
+            }
+            else
+            {
+                regex_pattern = f_children[1]->recursive_to_as2js();
             }
 
-            std::string compare("/");
+            std::string compare("new RegExp(");
             compare += regex_pattern;
-            compare += '/';
             if(f_token == token_t::TOKEN_ILIKE)
             {
-                compare += 'i';
+                compare += ",\"i\"";
             }
+            compare += ')';
             compare += ".test(";
             compare += f_children[0]->recursive_to_as2js();
             compare += ')';
@@ -840,12 +875,141 @@ copy_to_close:
 
     default:
         throw invalid_token(
-              "node token type cannot be converted to as2js script ("
+              "node with token type "
             + std::string(to_string(f_token))
-            + ").");
+            + (f_token == token_t::TOKEN_TYPE
+                    ? " (" + to_string(f_integer) + ')'
+                    : "")
+            + " cannot directly be converted to as2js script.");
 
     }
 }
+
+
+std::string node::convert_like_pattern(std::string const sql_pattern) const
+{
+    // note: the C++ patterns do not require the '^' and '$' characters, but
+    //       JavaScript does so make sure to include them
+    //
+    std::string regex_pattern(1, '^');
+    for(auto c : sql_pattern)
+    {
+        // in a LIKE or ILIKE pattern, we may find '%' which denotes any
+        // number of characters (i.e. ".*" in regex); the rest is copied
+        // as is, although special characters need to be escaped
+        //
+        if(c == '%')
+        {
+            regex_pattern += ".*";
+        }
+        else
+        {
+            // escape character if required
+            //
+            char buf[2] = { c, '\0' };
+            regex_pattern += snapdev::escape_special_regex_characters(std::string(buf));
+        }
+    }
+    regex_pattern += '$';
+
+    return regex_pattern;
+} // LCOV_EXCL_LINE
+
+
+std::string node::to_tree(int indent) const
+{
+    std::string result(indent * 2, ' ');
+
+    result += to_string(f_token);
+
+    switch(f_token)
+    {
+    case token_t::TOKEN_EOF:
+    case token_t::TOKEN_UNKNOWN:
+    case token_t::TOKEN_BITWISE_XOR:
+    case token_t::TOKEN_MODULO:
+    case token_t::TOKEN_BITWISE_AND:
+    case token_t::TOKEN_OPEN_PARENTHESIS:
+    case token_t::TOKEN_CLOSE_PARENTHESIS:
+    case token_t::TOKEN_MULTIPLY:
+    case token_t::TOKEN_PLUS:
+    case token_t::TOKEN_COMMA:
+    case token_t::TOKEN_MINUS:
+    case token_t::TOKEN_PERIOD:
+    case token_t::TOKEN_DIVIDE:
+    case token_t::TOKEN_COLON:
+    case token_t::TOKEN_SEMI_COLON:
+    case token_t::TOKEN_LESS:
+    case token_t::TOKEN_EQUAL:
+    case token_t::TOKEN_GREATER:
+    case token_t::TOKEN_ABSOLUTE_VALUE:
+    case token_t::TOKEN_OPEN_BRACKET:
+    case token_t::TOKEN_CLOSE_BRACKET:
+    case token_t::TOKEN_POWER:
+    case token_t::TOKEN_BITWISE_OR:
+    case token_t::TOKEN_REGULAR_EXPRESSION:
+    case token_t::TOKEN_other:
+    case token_t::TOKEN_NOT_EQUAL:
+    case token_t::TOKEN_LESS_EQUAL:
+    case token_t::TOKEN_GREATER_EQUAL:
+    case token_t::TOKEN_SQUARE_ROOT:
+    case token_t::TOKEN_CUBE_ROOT:
+    case token_t::TOKEN_SCOPE:
+    case token_t::TOKEN_SHIFT_LEFT:
+    case token_t::TOKEN_SHIFT_RIGHT:
+    case token_t::TOKEN_UNMATCHED_REGULAR_EXPRESSION:
+    case token_t::TOKEN_STRING_CONCAT:
+    case token_t::TOKEN_ALL_FIELDS:
+    case token_t::TOKEN_AT:
+    case token_t::TOKEN_BETWEEN:
+    case token_t::TOKEN_CAST:
+    case token_t::TOKEN_FALSE:
+    case token_t::TOKEN_ILIKE:
+    case token_t::TOKEN_LIKE:
+    case token_t::TOKEN_LIST:
+    case token_t::TOKEN_LOGICAL_OR:
+    case token_t::TOKEN_LOGICAL_AND:
+    case token_t::TOKEN_LOGICAL_NOT:
+    case token_t::TOKEN_NULL:
+    case token_t::TOKEN_TRUE:
+    case token_t::TOKEN_BOOLEAN:
+    case token_t::TOKEN_NUMBER:
+    case token_t::TOKEN_max:
+        break;
+
+    case token_t::TOKEN_FUNCTION_CALL:
+    case token_t::TOKEN_STRING:
+    case token_t::TOKEN_IDENTIFIER:
+        result += " S:\"";
+        result += f_string;
+        result += '"';
+        break;
+
+    case token_t::TOKEN_INTEGER:
+        result += " I:";
+        result += f_integer.to_string();
+        break;
+
+    case token_t::TOKEN_FLOATING_POINT:
+        result += " F:";
+        result += std::to_string(f_floating_point);
+        break;
+
+    case token_t::TOKEN_TYPE:
+        result += " T:";
+        result += std::to_string(f_integer.f_value[0]);
+        break;
+
+    }
+    result += '\n';
+
+    for(auto const & c : f_children)
+    {
+        result += c->to_tree(indent + 2);
+    }
+
+    return result;
+} // LCOV_EXCL_LINE
 
 
 

@@ -117,10 +117,23 @@ node::pointer_t lexer::get_next_token()
         case '^':
         case '=':
         case '~':
+            return std::make_shared<node>(static_cast<token_t>(c), l);
+
+        case '!':
+            c = f_input->getc();
+            if(c == '~')
             {
-                node::pointer_t n(std::make_shared<node>(static_cast<token_t>(c), l));
-                return n;
+                return std::make_shared<node>(token_t::TOKEN_UNMATCHED_REGULAR_EXPRESSION, l);
             }
+            else
+            {
+                f_input->ungetc(c);
+
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << "unexpected token (!).";
+                throw unexpected_token(msg.str());
+            }
+            break;
 
         case ':':
             c = f_input->getc();
@@ -128,6 +141,7 @@ node::pointer_t lexer::get_next_token()
             {
                 // this is the "scope" operator (used to cast things in SQL)
                 //
+SNAP_LOG_WARNING << "found :: at position: " << l.get_location() << " right?" << SNAP_LOG_SEND;
                 node::pointer_t n(std::make_shared<node>(token_t::TOKEN_SCOPE, l));
                 return n;
             }

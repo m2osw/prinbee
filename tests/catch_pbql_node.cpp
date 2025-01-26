@@ -141,6 +141,47 @@ CATCH_TEST_CASE("node", "[node][pbql]")
     }
     CATCH_END_SECTION()
 
+    CATCH_START_SECTION("node: verify cast types")
+    {
+        struct type_name_t
+        {
+            prinbee::pbql::type_t   f_type = static_cast<prinbee::pbql::type_t>(-1);
+            char const *            f_name = nullptr;
+        };
+
+        type_name_t names[] =
+        {
+            { prinbee::pbql::type_t::TYPE_BOOLEAN,          "Boolean"   },
+            { prinbee::pbql::type_t::TYPE_INT1,             "Integer"   },
+            { prinbee::pbql::type_t::TYPE_INT2,             "Integer"   },
+            { prinbee::pbql::type_t::TYPE_INT4,             "Integer"   },
+            { prinbee::pbql::type_t::TYPE_INT8,             "Integer"   },
+            { prinbee::pbql::type_t::TYPE_INT16,            "Integer"   },
+            { prinbee::pbql::type_t::TYPE_INT32,            "Integer"   },
+            { prinbee::pbql::type_t::TYPE_INT64,            "Integer"   },
+            { prinbee::pbql::type_t::TYPE_UNSIGNED_INT1,    "Integer"   },
+            { prinbee::pbql::type_t::TYPE_UNSIGNED_INT2,    "Integer"   },
+            { prinbee::pbql::type_t::TYPE_UNSIGNED_INT4,    "Integer"   },
+            { prinbee::pbql::type_t::TYPE_UNSIGNED_INT8,    "Integer"   },
+            { prinbee::pbql::type_t::TYPE_UNSIGNED_INT16,   "Integer"   },
+            { prinbee::pbql::type_t::TYPE_UNSIGNED_INT32,   "Integer"   },
+            { prinbee::pbql::type_t::TYPE_UNSIGNED_INT64,   "Integer"   },
+            { prinbee::pbql::type_t::TYPE_FLOAT4,           "Number"    },
+            { prinbee::pbql::type_t::TYPE_FLOAT8,           "Number"    },
+            { prinbee::pbql::type_t::TYPE_FLOAT10,          "Number"    },
+            { prinbee::pbql::type_t::TYPE_TEXT,             "String"    },
+            { static_cast<prinbee::pbql::type_t>(-1),       "undefined" },
+        };
+
+        for(auto const & n : names)
+        {
+            char const * name_from_lib(cast_type_to_as2js_type(n.f_type));
+            CATCH_REQUIRE(name_from_lib != nullptr);
+            CATCH_REQUIRE(strcmp(name_from_lib, n.f_name) == 0);
+        }
+    }
+    CATCH_END_SECTION()
+
     CATCH_START_SECTION("node: verify tree")
     {
         prinbee::pbql::location l;
@@ -239,8 +280,8 @@ CATCH_TEST_CASE("node", "[node][pbql]")
             { prinbee::pbql::token_t::TOKEN_LOGICAL_AND, "LOGICAL_AND" },
             { prinbee::pbql::token_t::TOKEN_LOGICAL_NOT, "LOGICAL_NOT" },
             { prinbee::pbql::token_t::TOKEN_NULL, "NULL" },
-            { prinbee::pbql::token_t::TOKEN_SIMILAR, "SIMILAR" },
             { prinbee::pbql::token_t::TOKEN_TRUE, "TRUE" },
+            { prinbee::pbql::token_t::TOKEN_TYPE, "TYPE" },
             { prinbee::pbql::token_t::TOKEN_BOOLEAN, "BOOLEAN" },
             { prinbee::pbql::token_t::TOKEN_NUMBER, "NUMBER" },
         };
@@ -337,8 +378,8 @@ CATCH_TEST_CASE("node", "[node][pbql]")
             { prinbee::pbql::token_t::TOKEN_LOGICAL_AND,        false },
             { prinbee::pbql::token_t::TOKEN_LOGICAL_NOT,        false },
             { prinbee::pbql::token_t::TOKEN_NULL,               true },
-            { prinbee::pbql::token_t::TOKEN_SIMILAR,            false },
             { prinbee::pbql::token_t::TOKEN_TRUE,               true },
+            { prinbee::pbql::token_t::TOKEN_TYPE,               false },
         };
 
         for(auto const & t : token_literals)
@@ -697,9 +738,7 @@ CATCH_TEST_CASE("node", "[node][pbql]")
                 .f_left = prinbee::pbql::token_t::TOKEN_FLOATING_POINT,
                 .f_right = prinbee::pbql::token_t::TOKEN_UNKNOWN,
                 .f_extra = prinbee::pbql::token_t::TOKEN_UNKNOWN,
-                .f_output = "new "
-                          + value_parent_identifier
-                          + '('
+                .f_output = "new Integer("
                           + snapdev::floating_point_to_string<double, char>(value_left_double)
                           + ')',
             },
@@ -759,9 +798,9 @@ CATCH_TEST_CASE("node", "[node][pbql]")
                 .f_left = prinbee::pbql::token_t::TOKEN_STRING,
                 .f_right = prinbee::pbql::token_t::TOKEN_STRING,
                 .f_extra = prinbee::pbql::token_t::TOKEN_UNKNOWN,
-                .f_output = '/'
+                .f_output = "new RegExp(\"^"
                           + value_right_string
-                          + "/i.test(\""
+                          + "$\",\"i\").test(\""
                           + value_left_string
                           + "\")",
             },
@@ -770,20 +809,9 @@ CATCH_TEST_CASE("node", "[node][pbql]")
                 .f_left = prinbee::pbql::token_t::TOKEN_STRING,
                 .f_right = prinbee::pbql::token_t::TOKEN_STRING,
                 .f_extra = prinbee::pbql::token_t::TOKEN_UNKNOWN,
-                .f_output = '/'
+                .f_output = "new RegExp(\"^"
                           + value_right_string
-                          + "/.test(\""
-                          + value_left_string
-                          + "\")",
-            },
-            {
-                .f_parent = prinbee::pbql::token_t::TOKEN_SIMILAR,
-                .f_left = prinbee::pbql::token_t::TOKEN_STRING,
-                .f_right = prinbee::pbql::token_t::TOKEN_STRING,
-                .f_extra = prinbee::pbql::token_t::TOKEN_UNKNOWN,
-                .f_output = '/'
-                          + value_right_string
-                          + "/.test(\""
+                          + "$\").test(\""
                           + value_left_string
                           + "\")",
             },
@@ -794,10 +822,16 @@ CATCH_TEST_CASE("node", "[node][pbql]")
             prinbee::pbql::location l;
 
             prinbee::pbql::node::pointer_t parent(std::make_shared<prinbee::pbql::node>(e.f_parent, l));
-            parent->set_integer(value_parent_integer);
+            if(e.f_parent == prinbee::pbql::token_t::TOKEN_CAST)
+            {
+                parent->set_integer(static_cast<int>(prinbee::pbql::type_t::TYPE_INT4));
+            }
+            else
+            {
+                parent->set_integer(value_parent_integer);
+            }
             parent->set_floating_point(value_parent_double);
-            if(e.f_parent == prinbee::pbql::token_t::TOKEN_IDENTIFIER
-            || e.f_parent == prinbee::pbql::token_t::TOKEN_CAST)
+            if(e.f_parent == prinbee::pbql::token_t::TOKEN_IDENTIFIER)
             {
                 parent->set_string(value_parent_identifier);
             }
@@ -1211,7 +1245,7 @@ CATCH_TEST_CASE("node", "[node][pbql]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("node: LIKE, ILIKE, SIMILAR to regex")
+    CATCH_START_SECTION("node: LIKE and ILIKE to regex")
     {
         prinbee::pbql::location l;
 
@@ -1225,7 +1259,7 @@ CATCH_TEST_CASE("node", "[node][pbql]")
             pattern->set_string("/(LIKE+ | p_a_t_t_e_r_n? \\with* % and [nothing] {el,se}.)/");
             like->insert_child(-1, pattern);
             std::string const result(like->to_as2js());
-            CATCH_REQUIRE(result == "/\\/\\(LIKE\\+ \\| p_a_t_t_e_r_n\\? \\\\with\\* .* and \\[nothing\\] \\{el,se\\}\\.\\)\\//.test(\"value being checked using ILIKE\")");
+            CATCH_REQUIRE(result == "new RegExp(\"^\\/\\(LIKE\\+ \\| p_a_t_t_e_r_n\\? \\\\with\\* .* and \\[nothing\\] \\{el,se\\}\\.\\)\\/$\").test(\"value being checked using ILIKE\")");
         }
 
         // make sure all the characters except '%' are properly escaped (ILIKE)
@@ -1238,20 +1272,244 @@ CATCH_TEST_CASE("node", "[node][pbql]")
             pattern->set_string("/(LIKE+ | p_a_t_t_e_r_n? \\with* % and [nothing] {el,se}.)/");
             ilike->insert_child(-1, pattern);
             std::string const result(ilike->to_as2js());
-            CATCH_REQUIRE(result == "/\\/\\(LIKE\\+ \\| p_a_t_t_e_r_n\\? \\\\with\\* .* and \\[nothing\\] \\{el,se\\}\\.\\)\\//i.test(\"value being checked using ILIKE\")");
+            CATCH_REQUIRE(result == "new RegExp(\"^\\/\\(LIKE\\+ \\| p_a_t_t_e_r_n\\? \\\\with\\* .* and \\[nothing\\] \\{el,se\\}\\.\\)\\/$\",\"i\").test(\"value being checked using ILIKE\")");
         }
+    }
+    CATCH_END_SECTION()
 
-        // make sure all the special characters properly converted (SIMILAR)
+    CATCH_START_SECTION("node: convert to tree")
+    {
+        struct token_to_tree_t
         {
-            prinbee::pbql::node::pointer_t similar(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SIMILAR, l));
-            prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
-            value->set_string("value being checked using SIMILAR");
-            similar->insert_child(-1, value);
-            prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
-            pattern->set_string("(plus)+ (asterisk)* any:% [a-z0-9]? []]+ any+repeat:_* (one{1} | two{5,} | three{3,9})?");
-            similar->insert_child(-1, pattern);
-            std::string const result(similar->to_as2js());
-            CATCH_REQUIRE(result == "/(plus)+ (asterisk)* any:.* [a-z0-9]? []]+ any+repeat:.* (one{1} | two{5,} | three{3,9})?/.test(\"value being checked using SIMILAR\")");
+            prinbee::pbql::token_t      f_token = prinbee::pbql::token_t::TOKEN_UNKNOWN;
+            std::string                 f_tree = std::string();
+        };
+
+        token_to_tree_t token_to_tree[] =
+        {
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_EOF,
+                .f_tree = "EOF",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_BITWISE_XOR,
+                .f_tree = "#",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_MODULO,
+                .f_tree = "%",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_BITWISE_AND,
+                .f_tree = "&",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_OPEN_PARENTHESIS,
+                .f_tree = "(",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_CLOSE_PARENTHESIS,
+                .f_tree = ")",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_MULTIPLY,
+                .f_tree = "*",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_PLUS,
+                .f_tree = "+",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_COMMA,
+                .f_tree = ",",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_MINUS,
+                .f_tree = "-",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_PERIOD,
+                .f_tree = ".",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_DIVIDE,
+                .f_tree = "/",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_COLON,
+                .f_tree = ":",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_SEMI_COLON,
+                .f_tree = ";",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_LESS,
+                .f_tree = "<",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_EQUAL,
+                .f_tree = "=",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_GREATER,
+                .f_tree = ">",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_ABSOLUTE_VALUE,
+                .f_tree = "@",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_OPEN_BRACKET,
+                .f_tree = "[",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_CLOSE_BRACKET,
+                .f_tree = "]",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_POWER,
+                .f_tree = "^",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_BITWISE_OR,
+                .f_tree = "|",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_REGULAR_EXPRESSION,
+                .f_tree = "~",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_IDENTIFIER,
+                .f_tree = "IDENTIFIER S:\"\"",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_STRING,
+                .f_tree = "STRING S:\"\"",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_INTEGER,
+                .f_tree = "INTEGER I:0",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_FLOATING_POINT,
+                .f_tree = "FLOATING_POINT F:0.000000",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_NOT_EQUAL,
+                .f_tree = "NOT_EQUAL",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_LESS_EQUAL,
+                .f_tree = "LESS_EQUAL",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_GREATER_EQUAL,
+                .f_tree = "GREATER_EQUAL",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_SQUARE_ROOT,
+                .f_tree = "SQUARE_ROOT",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_CUBE_ROOT,
+                .f_tree = "CUBE_ROOT",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_SCOPE,
+                .f_tree = "SCOPE",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_SHIFT_LEFT,
+                .f_tree = "SHIFT_LEFT",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_SHIFT_RIGHT,
+                .f_tree = "SHIFT_RIGHT",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_UNMATCHED_REGULAR_EXPRESSION,
+                .f_tree = "UNMATCHED_REGULAR_EXPRESSION",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_STRING_CONCAT,
+                .f_tree = "STRING_CONCAT",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_ALL_FIELDS,
+                .f_tree = "ALL_FIELDS",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_AT,
+                .f_tree = "AT",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_BETWEEN,
+                .f_tree = "BETWEEN",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_CAST,
+                .f_tree = "CAST",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_FALSE,
+                .f_tree = "FALSE",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_FUNCTION_CALL,
+                .f_tree = "FUNCTION_CALL S:\"\"",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_ILIKE,
+                .f_tree = "ILIKE",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_LIKE,
+                .f_tree = "LIKE",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_LIST,
+                .f_tree = "LIST",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_LOGICAL_OR,
+                .f_tree = "LOGICAL_OR",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_LOGICAL_AND,
+                .f_tree = "LOGICAL_AND",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_LOGICAL_NOT,
+                .f_tree = "LOGICAL_NOT",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_NULL,
+                .f_tree = "NULL",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_TRUE,
+                .f_tree = "TRUE",
+            },
+            {
+                .f_token = prinbee::pbql::token_t::TOKEN_TYPE,
+                .f_tree = "TYPE T:0",
+            },
+        };
+
+        prinbee::pbql::location l;
+        for(auto const & t : token_to_tree)
+        {
+            prinbee::pbql::node::pointer_t n(std::make_shared<prinbee::pbql::node>(t.f_token, l));
+            std::string const tree(n->to_tree(0));
+            if(t.f_tree.length() == 1)
+            {
+                CATCH_REQUIRE('\'' + t.f_tree + "'\n" == tree);
+            }
+            else
+            {
+                CATCH_REQUIRE(t.f_tree + '\n' == tree);
+            }
         }
     }
     CATCH_END_SECTION()
@@ -1396,133 +1654,85 @@ CATCH_TEST_CASE("node_error", "[node][pbql][error]")
                       n->to_as2js()
                     , prinbee::invalid_token
                     , Catch::Matchers::ExceptionMessage(
-                              "prinbee_exception: node token type cannot be converted to as2js script ("
+                              "prinbee_exception: node with token type "
                             + (u.f_name[1] == '\0' ? std::string(1, '\'') + u.f_name + '\'' : std::string(u.f_name))
-                            + ")."));
+                            + " cannot directly be converted to as2js script."));
         }
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("node: SIMILAR with invalid patterns")
+    CATCH_START_SECTION("node_error: invalid nodes for auto-convert")
     {
-        prinbee::pbql::location l;
+        { // totally wrong node
+            prinbee::pbql::location l;
+            prinbee::pbql::node::pointer_t n(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SHIFT_LEFT, l));
 
-        // |, *, +, ? cannot be at the start of a pattern
-        {
-            char const repeat[] = { '|', '*', '+', '?' };
-            for(auto const r : repeat)
-            {
-                prinbee::pbql::node::pointer_t similar(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SIMILAR, l));
-                prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
-                value->set_string("ignored");
-                similar->insert_child(-1, value);
-                prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
-                std::string p;
-                p += r;
-                p += " and some other stuff";
-                pattern->set_string(p);
-                similar->insert_child(-1, pattern);
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      n->get_string_auto_convert()
+                    , prinbee::logic_error
+                    , Catch::Matchers::ExceptionMessage(
+                              "logic_error: node is not a literal and it cannot be converted to a string."));
 
-                CATCH_REQUIRE_THROWS_MATCHES(
-                          similar->to_as2js()
-                        , prinbee::invalid_token
-                        , Catch::Matchers::ExceptionMessage(
-                                  "prinbee_exception: 1:1: SIMILAR pattern characters '|', '*', '+', '?' cannot appear at the start of a pattern."));
-            }
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      n->get_boolean_auto_convert()
+                    , prinbee::logic_error
+                    , Catch::Matchers::ExceptionMessage(
+                              "logic_error: node is not a literal representing a Boolean and as a result it cannot be converted to a Boolean."));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      n->get_integer_auto_convert()
+                    , prinbee::logic_error
+                    , Catch::Matchers::ExceptionMessage(
+                              "logic_error: node is not a literal representing a number and it cannot be converted to an integer."));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      n->get_floating_point_auto_convert()
+                    , prinbee::logic_error
+                    , Catch::Matchers::ExceptionMessage(
+                              "logic_error: node is not a literal representing a number and it cannot be converted to a floating point."));
         }
 
-        // '{...}' cannot be at the start of a pattern
-        {
-            char const * bad_repeat[] = {
-                "{3} exact repeat",
-                "{3,} three or more",
-                "{3,9} three to nine",
-            };
-            for(auto const r : bad_repeat)
-            {
-                prinbee::pbql::node::pointer_t similar(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SIMILAR, l));
-                prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
-                value->set_string("ignored");
-                similar->insert_child(-1, value);
-                prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
-                pattern->set_string(r);
-                similar->insert_child(-1, pattern);
+        { // string not representing a valid boolean
+            prinbee::pbql::location l;
+            prinbee::pbql::node::pointer_t n(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
 
-                CATCH_REQUIRE_THROWS_MATCHES(
-                          similar->to_as2js()
-                        , prinbee::invalid_token
-                        , Catch::Matchers::ExceptionMessage(
-                                  "prinbee_exception: 1:1: SIMILAR pattern character '{' cannot appear at the start of a pattern."));
-            }
+            n->set_string("not-boolean");
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      n->get_boolean_auto_convert()
+                    , prinbee::logic_error
+                    , Catch::Matchers::ExceptionMessage(
+                              "logic_error: node is not a literal representing a Boolean and as a result it cannot be converted to a Boolean."));
+
+            n->set_string("trues");
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      n->get_boolean_auto_convert()
+                    , prinbee::logic_error
+                    , Catch::Matchers::ExceptionMessage(
+                              "logic_error: node is not a literal representing a Boolean and as a result it cannot be converted to a Boolean."));
+
+            n->set_string("falses");
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      n->get_boolean_auto_convert()
+                    , prinbee::logic_error
+                    , Catch::Matchers::ExceptionMessage(
+                              "logic_error: node is not a literal representing a Boolean and as a result it cannot be converted to a Boolean."));
         }
 
-        // '{...}', '(...)', '[...]' not closed
-        {
-            struct not_closed_t
-            {
-                char const *        f_bad_pattern = nullptr;
-                char                f_missing_close = '?';
-            };
-            not_closed_t not_closed[] = {
-                { "foo{", '}' },
-                { "foo{3 oops", '}' },
-                { "foo{3, oh!", '}' },
-                { "foo{3,9 duh", '}' },
-                { "(", ')' },
-                { "(group all of this", ')' },
-                { "[a-z and more", ']' },
-                { "[", ']' },
-                { "[]a-z and more", ']' },
-            };
-            for(auto const r : not_closed)
-            {
-                prinbee::pbql::node::pointer_t similar(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SIMILAR, l));
-                prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
-                value->set_string("ignored");
-                similar->insert_child(-1, value);
-                prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
-                pattern->set_string(r.f_bad_pattern);
-                similar->insert_child(-1, pattern);
+        { // string not representing a valid numbers (empty)
+            prinbee::pbql::location l;
+            prinbee::pbql::node::pointer_t n(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
 
-                CATCH_REQUIRE_THROWS_MATCHES(
-                          similar->to_as2js()
-                        , prinbee::invalid_token
-                        , Catch::Matchers::ExceptionMessage(
-                                  "prinbee_exception: 1:1: SIMILAR pattern missing closing bracket ('"
-                                + std::string(1, r.f_missing_close)
-                                + "' not found or there were no characters within those brackets)."));
-            }
-        }
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      n->get_integer_auto_convert()
+                    , prinbee::invalid_number
+                    , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: string \"\" does not represent a valid integer."));
 
-        // '{}', '()' empty
-        {
-            struct not_closed_t
-            {
-                char const *        f_bad_pattern = nullptr;
-                char                f_missing_close = '?';
-            };
-            not_closed_t not_closed[] = {
-                { "foo{} empty?", '}' },
-                { "() empty?", ')' },
-            };
-            for(auto const r : not_closed)
-            {
-                prinbee::pbql::node::pointer_t similar(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_SIMILAR, l));
-                prinbee::pbql::node::pointer_t value(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
-                value->set_string("ignored");
-                similar->insert_child(-1, value);
-                prinbee::pbql::node::pointer_t pattern(std::make_shared<prinbee::pbql::node>(prinbee::pbql::token_t::TOKEN_STRING, l));
-                pattern->set_string(r.f_bad_pattern);
-                similar->insert_child(-1, pattern);
-
-                CATCH_REQUIRE_THROWS_MATCHES(
-                          similar->to_as2js()
-                        , prinbee::invalid_token
-                        , Catch::Matchers::ExceptionMessage(
-                                  "prinbee_exception: 1:1: SIMILAR found empty pattern between brackets ('"
-                                + std::string(1, r.f_missing_close)
-                                + "')."));
-            }
+            CATCH_REQUIRE_THROWS_MATCHES(
+                      n->get_floating_point_auto_convert()
+                    , prinbee::invalid_number
+                    , Catch::Matchers::ExceptionMessage(
+                              "prinbee_exception: string \"\" does not represent a valid floating point number."));
         }
     }
     CATCH_END_SECTION()

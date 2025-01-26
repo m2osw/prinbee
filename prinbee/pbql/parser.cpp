@@ -556,6 +556,34 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
         }
         n = f_lexer->get_next_token();
         expr = parse_expression(n);
+        if(n->get_token() == token_t::TOKEN_IDENTIFIER)
+        {
+            if(n->get_string_upper() != "OTHERWISE")
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << n->get_location().get_location()
+                    << "expected OTHERWISE after the IF expression of COMMIT or ROLLBACK.";
+                throw invalid_token(msg.str());
+            }
+            n = f_lexer->get_next_token();
+
+            char const * expects(cmd == command_t::COMMAND_COMMIT
+                                            ? "ROLLBACK"
+                                            : "COMMIT");
+            if(n->get_token() != token_t::TOKEN_IDENTIFIER
+            || n->get_string_upper() != expects)
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << n->get_location().get_location()
+                    << "expected "
+                    << expects
+                    << " after OTHERWISE for command "
+                    << cmd_name
+                    << ".";
+                throw invalid_token(msg.str());
+            }
+            n = f_lexer->get_next_token();
+        }
     }
 
     expect_semi_colon(cmd_name, n);
@@ -666,12 +694,14 @@ void parser::parse_create_context()
     std::string const context_name(n->get_string_lower());
     if(!validate_name(context_name.c_str()))
     {
+        // LCOV_EXCL_START
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
         msg << n->get_location().get_location()
             << "context name \""
             << context_name
             << "\" is not considered valid.";
         throw invalid_token(msg.str());
+        // LCOV_EXCL_STOP
     }
     command->set_string(param_t::PARAM_NAME, context_name);
 
@@ -813,7 +843,7 @@ void parser::parse_create_context()
                     {
                         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
                         msg << n->get_location().get_location()
-                            << "expected a string or an identifier after WITH ( OWNER <owern>[:<group>] ).";
+                            << "expected a string or an identifier after WITH ( OWNER <owner>[:<group>] ).";
                         throw invalid_token(msg.str());
                     }
                 }
@@ -954,7 +984,7 @@ void parser::parse_select()
                     << "SELECT <expression> AS ... is expected to be followed by a name (an identifier).";
                 throw invalid_token(msg.str());
             }
-            command->set_string(static_cast<param_t>(static_cast<int>(param_t::PARAM_COLUMN_NAME) + count), n->get_string());
+            command->set_string(static_cast<param_t>(static_cast<int>(param_t::PARAM_COLUMN_NAME) + count), n->get_string_lower());
 
             n = f_lexer->get_next_token();
         }
@@ -967,6 +997,7 @@ void parser::parse_select()
 
         if(n->get_token() != token_t::TOKEN_COMMA)
         {
+SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
             break;
         }
         n = f_lexer->get_next_token();
@@ -1140,6 +1171,7 @@ void parser::parse_select()
         }
     }
 
+SNAP_LOG_WARNING << "--- check for SELECT ';'..." << SNAP_LOG_SEND;
 if(n->get_token() == token_t::TOKEN_IDENTIFIER)
 {
 SNAP_LOG_WARNING << "identifier [" << n->get_string() << "] instead of ';' ?!" << SNAP_LOG_SEND;
@@ -1184,20 +1216,24 @@ node::pointer_t parser::keyword_string(
     {
         std::string k(keywords[idx]);
 #ifdef _DEBUG
+        // LCOV_EXCL_START
         if(k.empty())
         {
             throw logic_error("keywords in keyword_string() cannot be empty words.");
         }
+        // LCOV_EXCL_STOP
 #endif
         bool const optional(k[0] == '?');
         if(optional)
         {
             k = k.substr(1);
 #ifdef _DEBUG
+            // LCOV_EXCL_START
             if(k.empty())
             {
                 throw logic_error("keywords in keyword_string() cannot just be \"?\".");
             }
+            // LCOV_EXCL_STOP
 #endif
         }
         n = f_lexer->get_next_token();
@@ -1252,7 +1288,7 @@ node::pointer_t parser::keyword_string(
             << to_string(next_token_type)
             << " after "
             << commands
-            << " not "
+            << ", not a "
             << to_string(n->get_token())
             << ".";
         throw invalid_token(msg.str());

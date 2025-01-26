@@ -46,6 +46,33 @@ namespace pbql
 
 
 
+enum class type_t
+{
+    TYPE_BOOLEAN,
+    TYPE_INT1,
+    TYPE_INT2,
+    TYPE_INT4,
+    TYPE_INT8,
+    TYPE_INT16,
+    TYPE_INT32,
+    TYPE_INT64,
+    TYPE_UNSIGNED_INT1,
+    TYPE_UNSIGNED_INT2,
+    TYPE_UNSIGNED_INT4,
+    TYPE_UNSIGNED_INT8,
+    TYPE_UNSIGNED_INT16,
+    TYPE_UNSIGNED_INT32,
+    TYPE_UNSIGNED_INT64,
+    TYPE_FLOAT4,
+    TYPE_FLOAT8,
+    TYPE_FLOAT10,
+    TYPE_TEXT,
+};
+
+
+char const * cast_type_to_as2js_type(type_t const type);
+
+
 enum class token_t
 {
     TOKEN_EOF = -1,
@@ -93,6 +120,7 @@ enum class token_t
     TOKEN_SCOPE,
     TOKEN_SHIFT_LEFT,
     TOKEN_SHIFT_RIGHT,
+    TOKEN_UNMATCHED_REGULAR_EXPRESSION,
     TOKEN_STRING_CONCAT,
 
     // parser additional tokens (glue in our tree)
@@ -110,8 +138,8 @@ enum class token_t
     TOKEN_LOGICAL_AND,
     TOKEN_LOGICAL_NOT,
     TOKEN_NULL,
-    TOKEN_SIMILAR,
     TOKEN_TRUE,
+    TOKEN_TYPE, // basic types (INT, REAL, TEXT...)
 
     // meta types -- used by is_literal()
     TOKEN_BOOLEAN,      // true or false
@@ -145,6 +173,7 @@ public:
     std::string         get_string_lower() const;
     std::string         get_string_upper() const;
     std::string         get_string_auto_convert() const;
+    bool                get_boolean_auto_convert() const;
     int512_t            get_integer_auto_convert() const;
     long double         get_floating_point_auto_convert() const;
     void                set_integer(int512_t i);
@@ -159,6 +188,8 @@ public:
     void                insert_child(int position, pointer_t child);
 
     std::string         to_as2js() const;
+    std::string         convert_like_pattern(std::string const sql_pattern) const;
+    std::string         to_tree(int indent = 0) const;
 
 private:
     std::string         recursive_to_as2js() const;

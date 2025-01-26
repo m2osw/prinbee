@@ -742,14 +742,14 @@ int512_t & int512_t::operator |= (int512_t const & rhs)
 int512_t int512_t::operator ^ (int512_t const & rhs) const
 {
     int512_t r(*this);
-    return r |= rhs;
+    return r ^= rhs;
 }
 
 
 int512_t int512_t::operator ^ (std::int64_t rhs) const
 {
     int512_t r(*this);
-    return r |= rhs;
+    return r ^= rhs;
 }
 
 
@@ -932,7 +932,7 @@ void int512_t::from_string(std::string const & s)
         {
             v.from_string(s.substr(1));
         }
-        else if(s[1] == '-')
+        else if(s[0] == '-')
         {
             v.from_string(s.substr(1));
             negate = true;

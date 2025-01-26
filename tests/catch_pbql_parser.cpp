@@ -109,7 +109,7 @@ CATCH_TEST_CASE("parser", "[parser][pbql]")
         {
             for(int work(0); work < 3; ++work)
             {
-                for(int type(0); type < 5; ++type)
+                for(int type(0); type < 7; ++type)
                 {
                     // BEGIN
                     std::string script("BEGIN");
@@ -132,16 +132,18 @@ CATCH_TEST_CASE("parser", "[parser][pbql]")
 
                     // SCHEMA/DATA
                     prinbee::pbql::transaction_t expected_transaction(prinbee::pbql::transaction_t::TRANSACTION_UNDEFINED);
-                    if(type == 1 || type == 3)
+                    if(type == 1 || type == 3 || type == 5)
                     {
                         script += " SCHEMA";
                         expected_transaction = prinbee::pbql::transaction_t::TRANSACTION_SCHEMA;
                     }
-                    else if(type == 2 || type == 4)
+                    else if(type == 2 || type == 4 || type == 6)
                     {
                         script += " DATA";
                         expected_transaction = prinbee::pbql::transaction_t::TRANSACTION_DATA;
                     }
+
+                    // no IF for a BEGIN, type 5 and 6 are not use here
 
                     script += ";\n";
 
@@ -166,15 +168,26 @@ CATCH_TEST_CASE("parser", "[parser][pbql]")
 
                     // SCHEMA/DATA
                     //prinbee::pbql::transaction_t expected_transaction(prinbee::pbql::transaction_t::TRANSACTION_UNDEFINED);
-                    if(type == 1 || type == 3)
+                    if(type == 1 || type == 3 || type == 5)
                     {
                         script += " SCHEMA";
                         //expected_transaction = prinbee::pbql::transaction_t::TRANSACTION_SCHEMA;
                     }
-                    else if(type == 2 || type == 4)
+                    else if(type == 2 || type == 4 || type == 6)
                     {
                         script += " DATA";
                         //expected_transaction = prinbee::pbql::transaction_t::TRANSACTION_DATA;
+                    }
+
+                    // IF <condition>
+                    if(type == 5 || type == 6)
+                    {
+                        script += " IF a > b";
+                        if(type == 6)
+                        {
+                            script += " OTHERWISE ";
+                            script += state >= 2 ? "COMMIT" : "ROLLBACK"; // test flip from above
+                        }
                     }
 
                     script += ";\n";
@@ -199,6 +212,15 @@ SNAP_LOG_WARNING << "script [" << script << "]" << SNAP_LOG_SEND;
                     // SCHEMA/DATA
                     CATCH_REQUIRE(commands[1]->is_defined_as(prinbee::pbql::param_t::PARAM_TYPE) == prinbee::pbql::param_type_t::PARAM_TYPE_INT64);
                     CATCH_REQUIRE(commands[1]->get_int64(prinbee::pbql::param_t::PARAM_TYPE) == static_cast<std::int64_t>(expected_transaction));
+                    if(type == 5 || type == 6)
+                    {
+                        CATCH_REQUIRE(commands[1]->is_defined_as(prinbee::pbql::param_t::PARAM_CONDITION) == prinbee::pbql::param_type_t::PARAM_TYPE_STRING);
+                        CATCH_REQUIRE(commands[1]->get_string(prinbee::pbql::param_t::PARAM_CONDITION) == "a>b");
+                    }
+                    else
+                    {
+                        CATCH_REQUIRE(commands[1]->is_defined_as(prinbee::pbql::param_t::PARAM_CONDITION) == prinbee::pbql::param_type_t::PARAM_TYPE_UNKNOWN);
+                    }
                 }
             }
         }
@@ -370,7 +392,7 @@ SNAP_LOG_WARNING << "script [" << script << "]" << SNAP_LOG_SEND;
 
 CATCH_TEST_CASE("parser_error", "[parser][pbql][error]")
 {
-    CATCH_START_SECTION("parser: missing lexer")
+    CATCH_START_SECTION("parser_error: missing lexer")
     {
         prinbee::pbql::lexer::pointer_t lexer;
         CATCH_REQUIRE_THROWS_MATCHES(
@@ -378,6 +400,241 @@ CATCH_TEST_CASE("parser_error", "[parser][pbql][error]")
                 , prinbee::logic_error
                 , Catch::Matchers::ExceptionMessage(
                           "logic_error: lexer missing."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("parser_error: create context errors")
+    {
+        {
+            // CREATE CONTEXT <identifier>
+            std::string script("CREATE CONTEXT 123;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:16: expected an identifier after CREATE CONTEXT."));
+        }
+
+        {
+            // CREATE CONTEXT IF <NOT>
+            std::string script("CREATE CONTEXT IF FOO;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:19: expected the NOT identifier after CREATE CONTEXT IF, not \"FOO\"."));
+        }
+
+        {
+            // CREATE CONTEXT IF NOT EXIST<S>
+            std::string script("CREATE CONTEXT IF NOT EXIST;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:23: expected the EXISTS identifier after CREATE CONTEXT IF NOT, not \"EXIST\"."));
+        }
+
+        {
+            // CREATE CONTEXT IF NOT EXISTS <identifier>
+            std::string script("CREATE CONTEXT IF NOT EXISTS 123;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:30: expected a IDENTIFIER after CREATE CONTEXT IF NOT EXISTS, not a INTEGER."));
+        }
+
+        {
+            // CREATE CONTEXT my_context USING 123;
+            std::string script("CREATE CONTEXT my_context USING 123;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:33: expected a path after the USING keyword of CREATE CONTEXT."));
+        }
+
+        {
+            // CREATE CONTEXT my_context USING 'path' <USING>;
+            std::string script("CREATE CONTEXT my_context USING 'path' USING;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:40: USING keyword found twice after CREATE CONTEXT."));
+        }
+
+        {
+            // CREATE CONTEXT my_context USING '<empty>';
+            std::string script("CREATE CONTEXT my_context USING '';");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:33: expected a non-empty path after the USING keyword of CREATE CONTEXT."));
+        }
+
+        {
+            // CREATE CONTEXT my_context WITH <comment>;
+            std::string script("CREATE CONTEXT my_context WITH comment;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:32: WITH feature definitions must be defined between parenthesis, '(' missing in CREATE CONTEXT."));
+        }
+
+        {
+            // CREATE CONTEXT my_context WITH ( <123>;
+            std::string script("CREATE CONTEXT my_context WITH ( 123;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:34: WITH feature definitions must be named using an identifier in CREATE CONTEXT."));
+        }
+
+        {
+            // CREATE CONTEXT my_context WITH ( OWNER name:'group';
+            std::string script("CREATE CONTEXT my_context WITH ( OWNER name:'group';");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:46: "
+                          "expected a group name after ':' in CREATE CONTEXT ... WITH ( OWNER <user>:<group> ), not a STRING."));
+        }
+
+        {
+            // CREATE CONTEXT my_context WITH ( OWNER name:group, OWNER;
+            std::string script("CREATE CONTEXT my_context WITH ( OWNER name:group, OWNER;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:58: "
+                          "WITH OWNER found twice after CREATE CONTEXT."));
+        }
+
+        {
+            // CREATE CONTEXT my_context WITH ( OWNER = 3.5;
+            std::string script("CREATE CONTEXT my_context WITH ( OWNER = 3.5;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:42: "
+                          "expected a string or an identifier after WITH ( OWNER <owner>[:<group>] )."));
+        }
+
+        {
+            // CREATE CONTEXT my_context WITH ( COMMENT TRUE;
+            std::string script("CREATE CONTEXT my_context WITH ( COMMENT TRUE;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:42: "
+                          "expected a string for <description> in CREATE CONTEXT ... WITH ( COMMENT <description> ) got a IDENTIFIER."));
+        }
+
+        {
+            // CREATE CONTEXT my_context WITH ( COMMENT 'good', COMMENT;
+            std::string script("CREATE CONTEXT my_context WITH ( COMMENT 'good', COMMENT;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:58: "
+                          "WITH COMMENT found twice after CREATE CONTEXT."));
+        }
+
+        {
+            // CREATE CONTEXT my_context WITH ( COMMENT 'good'?;
+            std::string script("CREATE CONTEXT my_context WITH ( COMMENT 'good' 123;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "create-context-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: create-context-test.pbql:1:49: "
+                          "expected a comma to separate feature definitions in CREATE CONTEXT."));
+        }
     }
     CATCH_END_SECTION()
 }
