@@ -23,6 +23,17 @@ fails, return the first entry that exist in the database.
 
 # Dependencies
 
+## To be removed
+
+We should be able to remove the dependency on OpenSSL since that library
+should be used by eventdispatcher under the hood. Our library, at the
+moment, leaks some #include of that library directly in their headers.
+
+Once the eventdispatcher was fixed, we can fix prinbee as well by removing
+the dependency.
+
+## Installation
+
 These need to be installed properly using the corresponding variables
 (see the iplock project for example on how to do this).
 
@@ -50,8 +61,9 @@ These need to be installed properly using the corresponding variables
 * data/script -- 
 * database/table -- 
 * `file/file_snap_database_table` -- 
-* block/... -- in progress
+* block/... -- in progress [well, this will still be used, but only by indexes]
 * data/structure -- in progress (fields are done, structure requires blocks & virtual blocks)
+* pbql/... -- in progress
 
 # query ideas
 
