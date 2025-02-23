@@ -21,6 +21,7 @@ cmake_minimum_required(VERSION 3.10.2)
 # The Snap! C++ Versatile Database Support
 project(prinbee_project)
 
+find_package(As2Js            REQUIRED)
 find_package(AdvGetOpt        REQUIRED)
 find_package(BasicXml         REQUIRED)
 find_package(AtomicNames      REQUIRED)

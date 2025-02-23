@@ -23,24 +23,35 @@
 project(prinbee-daemon)
 
 add_executable(${PROJECT_NAME}
-    prinbee-daemon.cpp
+    main.cpp
+
+    interrupt.cpp
+    messenger.cpp
+    prinbeed.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         ${ADVGETOPT_INCLUDE_DIRS}
-        #${COMMUNICATORD_INCLUDE_DIRS}
+        ${COMMUNICATORD_INCLUDE_DIRS}
         #${CPPPROCESS_INCLUDE_DIRS}
-        #${EVENTDISPATCHER_INCLUDE_DIRS}
-        #${FLUIDSETTINGS_INCLUDE_DIRS}
-        #${LIBADDR_INCLUDE_DIRS}
-        #${LIBEXCEPT_INCLUDE_DIRS}
-        #${SNAPLOGGER_INCLUDE_DIRS}
+        ${EVENTDISPATCHER_INCLUDE_DIRS}
+        ${FLUIDSETTINGS_INCLUDE_DIRS}
+        ${LIBADDR_INCLUDE_DIRS}
+        ${LIBEXCEPT_INCLUDE_DIRS}
+        ${SNAPLOGGER_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}
     prinbee
     ${ADVGETOPT_LIBRARIES}
+    ${COMMUNICATORD_LIBRARIES}
+    #${CPPPROCESS_LIBRARIES}
+    ${EVENTDISPATCHER_LIBRARIES}
+    ${FLUIDSETTINGS_LIBRARIES}
+    ${LIBADDR_LIBRARIES}
+    ${LIBEXCEPT_LIBRARIES}
+    ${SNAPLOGGER_LIBRARIES}
 )
 
 install(

@@ -7,7 +7,7 @@ all of our data through one single system. It's 100% written in C++.
 The basic features include:
 
 * Replication -- data gets duplicated on multiple computers
-* Horizontal Groth -- you can just add more computers to handle more data
+* Horizontal Growth -- you can just add more computers to handle more data
 * Resilience -- the network connections can be down and data is not lost
 
 
@@ -151,7 +151,7 @@ All rows must have the following columns:
   gets used:
 
       UPDATE <table>
-          SET <column> = <value>   ' repeat for all columns
+          SET <column> = <value>   -- repeat for all columns
           WHERE Key = key
             AND Timestamp > timestamp
 

@@ -2357,7 +2357,7 @@ CATCH_TEST_CASE("structure", "[structure][valid]")
 
         CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_FREE_SPACE);
         CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(25, 312));
-        CATCH_REQUIRE(description->get_uinteger("_structure_version") == prinbee::version_t(25, 312));
+        CATCH_REQUIRE(description->get_uinteger("_structure_version") == prinbee::version_t(25, 312).to_binary());
         CATCH_REQUIRE(description->get_uinteger("sub_field") == sub_field);
         CATCH_REQUIRE(description->get_large_integer("data") == large_number);
         CATCH_REQUIRE(description->get_uinteger("software_version.major") == major);

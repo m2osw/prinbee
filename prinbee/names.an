@@ -4,9 +4,12 @@ introducer=name
 project=prinbee
 
 [public]
-cmd_database_ready=DATABASE_READY
-cmd_no_database=NO_DATABASE
-cmd_database_status=DATABASE_STATUS
+cmd_connect_to_prinbee=CONNECT_TO_PRINBEE
+cmd_interconnect=INTERCONNECT
+cmd_prinbee_client_listener=PRINBEE_CLIENT_LISTENER
+cmd_prinbee_current_status=PRINBEE_CURRENT_STATUS
+cmd_prinbee_get_status=PRINBEE_GET_STATUS
+cmd_prinbee_server_listener=PRINBEE_SERVER_LISTENER
 
 # Name of structure fields
 fld_blob_limit=blob_limit
@@ -45,5 +48,7 @@ fld_validation_script=validation_script
 fld_value=value
 fld_values=values
 fld_versioned_rows=versioned_rows
+
+service_prinbee=prinbee
 
 # vim: syntax=dosini

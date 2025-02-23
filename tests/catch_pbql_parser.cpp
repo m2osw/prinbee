@@ -637,6 +637,115 @@ CATCH_TEST_CASE("parser_error", "[parser][pbql][error]")
         }
     }
     CATCH_END_SECTION()
+
+    CATCH_START_SECTION("parser_error: BEGIN/COMMIT/ROLLBACK mistakes")
+    {
+        {
+            // BEGIN ON <123>
+            std::string script("BEGIN ON 123;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "transaction-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: transaction-test.pbql:1:10: expected identifier SCHEMA or DATA after BEGIN ON."));
+        }
+
+        {
+            // BEGIN ON TABLE
+            std::string script("BEGIN ON TABLE;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "transaction-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: transaction-test.pbql:1:10: expected identifier SCHEMA or DATA after BEGIN ON."));
+        }
+
+        {
+            // BEGIN ON SCHEMA IF
+            std::string script("BEGIN ON SCHEMA IF;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "transaction-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: transaction-test.pbql:1:17: expected ';' at the end of 'BEGIN' command; not IDENTIFIER IF."));
+        }
+
+        {
+            // COMMIT WORK ON SCHEMA WHEN
+            std::string script("COMMIT WORK ON SCHEMA WHEN;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "transaction-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: transaction-test.pbql:1:23: expected IF clause or ';' at the end of a COMMIT or ROLLBACK."));
+        }
+
+        {
+            // COMMIT TRANSACTION ON SCHEMA IF a <> b THEN
+            std::string script("COMMIT TRANSACTION ON SCHEMA IF a <> b THEN;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "transaction-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: transaction-test.pbql:1:40: expected OTHERWISE after the IF expression of COMMIT or ROLLBACK."));
+        }
+
+        {
+            // COMMIT TRANSACTION ON SCHEMA IF a <> b THEN
+            std::string script("COMMIT TRANSACTION ON SCHEMA IF a <> b OTHERWISE 123;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "transaction-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: transaction-test.pbql:1:50: expected ROLLBACK after OTHERWISE for command COMMIT."));
+        }
+
+        {
+            // COMMIT TRANSACTION ON SCHEMA IF a <> b THEN
+            std::string script("ROLLBACK TRANSACTION ON DATA IF a = b OTHERWISE 123;");
+
+            prinbee::pbql::lexer::pointer_t lexer(std::make_shared<prinbee::pbql::lexer>());
+            lexer->set_input(std::make_shared<prinbee::pbql::input>(script, "transaction-test.pbql"));
+            prinbee::pbql::parser::pointer_t parser(std::make_shared<prinbee::pbql::parser>(lexer));
+
+            CATCH_REQUIRE_THROWS_MATCHES(
+                  parser->parse()
+                , prinbee::invalid_token
+                , Catch::Matchers::ExceptionMessage(
+                          "prinbee_exception: transaction-test.pbql:1:49: expected COMMIT after OTHERWISE for command ROLLBACK."));
+        }
+    }
+    CATCH_END_SECTION()
 }
 
 

@@ -79,6 +79,9 @@ add_library(${PROJECT_NAME} SHARED
     data/structure.cpp
     data/virtual_buffer.cpp
 
+    network/binary_server.cpp
+    network/prinbee_connection.cpp
+
     pbql/command.cpp
     pbql/input.cpp
     pbql/lexer.cpp
@@ -89,6 +92,7 @@ add_library(${PROJECT_NAME} SHARED
 
     error.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
+    state.cpp
     utils.cpp
     version.cpp
 )
@@ -105,9 +109,12 @@ target_include_directories(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME}
+    ${AS2JS_LIBRARIES}
     ${ADVGETOPT_LIBRARIES}
     ${BASIC_XML_LIBRARIES}
+    ${COMMUNICATORD_LIBRARIES}
     ${CPPTHREAD_LIBRARIES}
+    ${EVENTDISPATCHER_LIBRARIES}
     ${LIBEXCEPT_LIBRARIES}
     ${LIBUFTF8_LIBRARIES}
     ${MURMUR3_LIBRARIES}

@@ -51,6 +51,7 @@
 #include    <snapdev/safe_variable.h>
 #include    <snapdev/to_lower.h>
 #include    <snapdev/to_upper.h>
+#include    <snapdev/trim_string.h>
 
 
 // last include
@@ -354,16 +355,19 @@ bool node::is_literal(token_t match_type) const
         }
         if(match_type == token_t::TOKEN_BOOLEAN)
         {
-            std::string const keyword(get_string_upper());
-            if(keyword.length() <= 4
-            && std::string("TRUE").starts_with(keyword))
+            std::string const keyword(snapdev::trim_string(get_string_upper()));
+            if(!keyword.empty())
             {
-                return true;
-            }
-            if(keyword.length() <= 5
-            && std::string("FALSE").starts_with(keyword))
-            {
-                return true;
+                if(keyword.length() <= 4
+                && std::string("TRUE").starts_with(keyword))
+                {
+                    return true;
+                }
+                if(keyword.length() <= 5
+                && std::string("FALSE").starts_with(keyword))
+                {
+                    return true;
+                }
             }
             return false;
         }
@@ -449,16 +453,19 @@ bool node::get_boolean_auto_convert() const
     {
     case token_t::TOKEN_STRING:
         {
-            std::string const keyword(get_string_upper());
-            if(keyword.length() <= 4
-            && std::string("TRUE").starts_with(keyword))
+            std::string const keyword(snapdev::trim_string(get_string_upper()));
+            if(!keyword.empty())
             {
-                return true;
-            }
-            if(keyword.length() <= 5
-            && std::string("FALSE").starts_with(keyword))
-            {
-                return false;
+                if(keyword.length() <= 4
+                && std::string("TRUE").starts_with(keyword))
+                {
+                    return true;
+                }
+                if(keyword.length() <= 5
+                && std::string("FALSE").starts_with(keyword))
+                {
+                    return false;
+                }
             }
         }
         break;
