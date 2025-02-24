@@ -31,26 +31,27 @@
 #include    "prinbee/network/binary_server.h"
 
 //#include    "prinbeed.h"
+#include    "prinbee/network/binary_server_client.h"
+
+
+// snaplogger
 //
+#include    <snaplogger/message.h>
+
+
+// eventdispatcher
 //
-//// prinbee
-////
-//#include    <prinbee/names.h>
-//
-//
-//// eventdispatcher
-////
-//#include    <eventdispatcher/names.h>
-//
-//
+#include    <eventdispatcher/communicator.h>
+
+
 //// communicatord
 ////
 //#include    <communicatord/names.h>
+
+
+// last include
 //
-//
-//// last include
-////
-//#include    <snapdev/poison.h>
+#include    <snapdev/poison.h>
 
 
 
@@ -67,6 +68,9 @@ namespace prinbee
  * The class is used in the proxy services and the prinbee daemons.
  *
  * Once a connection is obtained, it creates a binary_client object.
+ *
+ * \warning
+ * This class is considered private to the prinbee environment.
  */
 
 
@@ -93,9 +97,44 @@ binary_server::~binary_server()
 
 void binary_server::process_accept()
 {
+    // a new client just connected, create a new service_connection
+    // object and add it to the ed::communicator object.
+    //
+    ed::tcp_bio_client::pointer_t const new_client(accept());
+    if(new_client == nullptr)
+    {
+        // an error occurred, report in the logs
+        //
+        int const e(errno);
+        SNAP_LOG_ERROR
+            << "somehow accept() of a binary connection failed with errno: "
+            << e
+            << " -- "
+            << strerror(e)
+            << SNAP_LOG_SEND;
+        return;
+    }
+
+    binary_server_client::pointer_t service(std::make_shared<binary_server_client>(new_client));
+    addr::addr const remote_addr(service->get_remote_address());
+    service->set_name(
+              "in: "
+            + remote_addr.to_ipv4or6_string(addr::STRING_IP_BRACKET_ADDRESS | addr::STRING_IP_PORT));
+
+    if(!ed::communicator::instance()->add_connection(service))
+    {
+        // this should never happen here since each new creates a
+        // new pointer
+        //
+        SNAP_LOG_ERROR
+            << "new client \""
+            << service->get_name()
+            << "\" connection could not be added to the ed::communicator list of connections."
+            << SNAP_LOG_SEND;
+    }
 }
 
 
 
-} // namespace prinbee_daemon
+} // namespace prinbee
 // vim: ts=4 sw=4 et

@@ -1,6 +1,6 @@
 // Copyright (c) 2016-2024  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/cluck
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
 // This program is free software: you can redistribute it and/or modify
@@ -19,22 +19,22 @@
 
 // eventdispatcher
 //
-#include    <eventdispatcher/tcp_server_connection.h>
+#include    <eventdispatcher/tcp_client_connection.h>
 
 
 
-namespace prinbee_daemon
+namespace prinbee
 {
 
 
 
 class binary_client
-    : public ed::tcp_server_client_connection
+    : public ed::tcp_client_connection
 {
 public:
     typedef std::shared_ptr<binary_client>  pointer_t;
 
-                                binary_client();
+                                binary_client(addr::addr const & a);
                                 binary_client(binary_client const &) = delete;
     virtual                     ~binary_client() override;
 
@@ -42,12 +42,12 @@ public:
 
     // ed::connection implementation
     //
-    virtual void                process_accept() override;
+    virtual void                process_read() override;
 
 private:
 };
 
 
 
-} // namespace prinbee_deamon
+} // namespace prinbee
 // vim: ts=4 sw=4 et

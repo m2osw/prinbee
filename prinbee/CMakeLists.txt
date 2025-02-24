@@ -79,7 +79,9 @@ add_library(${PROJECT_NAME} SHARED
     data/structure.cpp
     data/virtual_buffer.cpp
 
-    network/binary_server.cpp
+    network/binary_client.cpp  # client use this to connect to a server
+    network/binary_server.cpp  # server listening for client connections
+    network/binary_server_client.cpp  # connection to a client from a server (from the accept() call)
     network/prinbee_connection.cpp
 
     pbql/command.cpp
@@ -102,6 +104,7 @@ target_include_directories(${PROJECT_NAME}
         ${ADVGETOPT_INCLUDE_DIRS}
         ${BASIC_XML_DIRS}
         ${CPPTHREAD_INCLUDE_DIRS}
+        ${EDHTTP_INCLUDE_DIRS}
         ${LIBEXCEPT_INCLUDE_DIRS}
         ${LIBUFTF8_INCLUDE_DIRS}
         ${MURMUR3_INCLUDE_DIRS}
@@ -115,6 +118,7 @@ target_link_libraries(${PROJECT_NAME}
     ${BASIC_XML_LIBRARIES}
     ${COMMUNICATORD_LIBRARIES}
     ${CPPTHREAD_LIBRARIES}
+    ${EDHTTP_LIBRARIES}
     ${EVENTDISPATCHER_LIBRARIES}
     ${LIBEXCEPT_LIBRARIES}
     ${LIBUFTF8_LIBRARIES}

@@ -26,22 +26,19 @@
 
 // self
 //
-#include    "prinbee/network/binary_client.h"
+#include    "prinbee/network/binary_server_client.h"
 
-
-
-//// prinbee
-////
+//#include    "prinbeed.h"
 //#include    <prinbee/names.h>
+
+
+// eventdispatcher
 //
-//
-//// eventdispatcher
-////
 //#include    <eventdispatcher/names.h>
+
+
+// communicatord
 //
-//
-//// communicatord
-////
 //#include    <communicatord/names.h>
 
 
@@ -55,11 +52,17 @@ namespace prinbee
 {
 
 
-/** \class binary_client
+/** \class binary_server_client
  * \brief Handle messages from clients, proxies, Prinbee daemons.
  *
  * This class is an implementation of the event dispatcher TCP server
- * connection used to connect to the Proxy or Prinbee Daemon.
+ * client connection used to handle messages received by a client after
+ * the accept() function was called.
+ *
+ * The class is used in the proxy services and the prinbee daemons.
+ *
+ * \warning
+ * This class is considered private to the prinbee environment.
  */
 
 
@@ -68,22 +71,26 @@ namespace prinbee
  *
  * This connection is used to communicate between clients, proxies, and
  * daemons using binary messages which are way more compact than the
- * communicator daemon messages that use text.
+ * communicator daemon message that use text.
  *
- * \param[in] a  The address to connect to.
+ * This specific class implements the BIO client created by the accept()
+ * function of the tcp_server_connection(). It is a \em client managed
+ * by the server side of the communicator duo.
+ *
+ * \param[in] client  The BIO client object returned by accept().
  */
-binary_client::binary_client(addr::addr const & a)
-    : tcp_client_connection(a)
+binary_server_client::binary_server_client(ed::tcp_bio_client::pointer_t client)
+    : tcp_server_client_connection(client)
 {
 }
 
 
-binary_client::~binary_client()
+binary_server_client::~binary_server_client()
 {
 }
 
 
-void binary_client::process_read()
+void binary_server_client::process_read()
 {
 }
 

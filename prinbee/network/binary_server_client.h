@@ -19,7 +19,7 @@
 
 // eventdispatcher
 //
-#include    <eventdispatcher/tcp_server_connection.h>
+#include    <eventdispatcher/tcp_server_client_connection.h>
 
 
 
@@ -28,24 +28,23 @@ namespace prinbee
 
 
 
-class prinbeed;
-
-
-class binary_server
-    : public ed::tcp_server_connection
+class binary_server_client
+    : public ed::tcp_server_client_connection
 {
 public:
-    typedef std::shared_ptr<binary_server>  pointer_t;
+    typedef std::shared_ptr<binary_server_client>  pointer_t;
 
-                                binary_server(addr::addr const & a);
-                                binary_server(binary_server const &) = delete;
-    virtual                     ~binary_server() override;
+                                binary_server_client(ed::tcp_bio_client::pointer_t client);
+                                binary_server_client(binary_server_client const &) = delete;
+    virtual                     ~binary_server_client() override;
 
-    binary_server &             operator = (binary_server const &) = delete;
+    binary_server_client &      operator = (binary_server_client const &) = delete;
 
     // ed::connection implementation
     //
-    virtual void                process_accept() override;
+    virtual void                process_read() override;
+
+private:
 };
 
 
