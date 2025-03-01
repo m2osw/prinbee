@@ -83,6 +83,7 @@ add_library(${PROJECT_NAME} SHARED
     network/binary_server.cpp  # server listening for client connections
     network/binary_server_client.cpp  # connection to a client from a server (from the accept() call)
     network/prinbee_connection.cpp
+    network/crc16.cpp
 
     pbql/command.cpp
     pbql/input.cpp

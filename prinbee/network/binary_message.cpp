@@ -17,21 +17,20 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /** \file
- * \brief Messenger for the prinbee daemon.
+ * \brief Binary message definition.
  *
- * The Prinbee daemon has a normal messenger connection. This is used to
- * find the daemons and connect to them. The clients make use of a
- * direct connection so communication can happen with large binary data
- * (i.e. large files are to be sent to the backends).
+ * Prinbee primarily communicates using binary messages. This is much more
+ * efficient than using the communicator daemon. This file implements the
+ * binary message header used by the low level binary interface.
  */
 
 
 // self
 //
-#include    "prinbee/network/binary_server.h"
+#include    "prinbee/network/binary_message.h"
 
 //#include    "prinbeed.h"
-#include    "prinbee/network/binary_server_client.h"
+//#include    "prinbee/network/binary_server_client.h"
 
 
 // snaplogger
@@ -41,7 +40,7 @@
 
 // eventdispatcher
 //
-#include    <eventdispatcher/communicator.h>
+//#include    <eventdispatcher/communicator.h>
 
 
 //// communicatord
@@ -59,33 +58,54 @@ namespace prinbee
 {
 
 
-/** \class binary_server
- * \brief Handle messages from clients, proxies, Prinbee daemons.
+namespace
+{
+
+
+
+struct_description_t g_binary_message_header[] =
+{
+    define_description( // the magic
+          FieldName("magic=2")
+        , FieldType(struct_type_t::STRUCT_TYPE_CHAR)
+        , FieldDefaultValue("bm")
+    ),
+    define_description( // the message name (on 4 bytes, a bit a la IFF)
+          FieldName("message=4")
+        , FieldType(struct_type_t::STRUCT_TYPE_CHAR)
+    ),
+    define_description( // size of the following buffer
+          FieldName(g_name_prinbee_fld_length)
+        , FieldType(struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    define_description( // for: ( <expression> ) [column_id is 0 when this is defined and vice versa]
+          FieldName(g_name_prinbee_fld_key_script)
+        , FieldType(struct_type_t::STRUCT_TYPE_P32STRING)
+    ),
+    end_descriptions()
+};
+
+
+
+} // no name namespace
+
+
+/** \class binary_message
+ * \brief Handle the binary message header.
  *
- * This class is an implementation of the event dispatcher TCP server
- * connection used to accept connections used to handle binary messages.
- *
- * The class is used in the proxy services and the prinbee daemons.
- *
- * Once a connection is obtained, it creates a binary_client object.
- *
- * \warning
- * This class is considered private to the prinbee environment.
+ * This class is an implementation of the structure used to define the
+ * message header used by the binary communication interface.
  */
 
 
 
-/** \brief A binary_server to listen for connection requests.
+/** \brief A binary_message to interpret a message on a binary connection.
  *
- * This connection is used to listen for new connection requests between
- * clients, proxies, and daemons using binary messages which are much
- * more compact than the communicator daemon messages that use text.
  *
  * \param[in] a  The address to listen on, it can be ANY.
  * \param[in] opts  The options received from the command line.
  */
-binary_server::binary_server(addr::addr const & a)
-    : tcp_server_connection(a, std::string(), std::string())
+binary_message::binary_message()
 {
 }
 
