@@ -34,6 +34,7 @@ if(SnapCatch2_FOUND)
         catch_dbfile.cpp
         catch_hash.cpp
         catch_journal.cpp
+        catch_network.cpp
         catch_pbql_expression.cpp
         catch_pbql_input.cpp
         catch_pbql_lexer.cpp

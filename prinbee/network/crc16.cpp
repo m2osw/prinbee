@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2024  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2025  Made to Order Software Corp.  All Rights Reserved
 //
 // https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
@@ -27,26 +27,23 @@
 
 // self
 //
-//#include    "prinbee/network/crc16.h"
+#include    "prinbee/network/crc16.h"
 
 
 
 // C++
 //
-#include    <cstdint>
+//#include    <cstdint>
 
 
 // last include
 //
-//#include    <snapdev/poison.h>
+#include    <snapdev/poison.h>
 
 
 
 namespace prinbee
 {
-
-
-
 namespace
 {
 
@@ -103,7 +100,7 @@ std::uint16_t next_crc(std::uint16_t crc, std::uint8_t byte)
 
 /** \brief Compute a CRC16.
  *
- * This function computes a CRC16 of the data in buffer.
+ * This function computes a CRC16 of the data in a buffer.
  *
  * If you'd like, you can save that value at the end of the buffer, in the
  * same endian as your computer, and you will get a CRC16 of zero when
@@ -111,14 +108,15 @@ std::uint16_t next_crc(std::uint16_t crc, std::uint8_t byte)
  *
  * \code
  *     // first compute the CRC16 of the existing data
+ *     // (assuming buffer is a vector of std::uint8_t bytes)
  *     //
- *     std::uint16_t const crc16(crc16_calc(buffer));
+ *     std::uint16_t const crc16(crc16_compute(buffer.data(), buffer.size()));
  *
  *     // add the result to the buffer (in little endian on AMD64)
  *     //
  *     buffer.push_back(crc16);
  *     buffer.push_back(crc16 >> 8);
- *     if(crc16_calc(buffer) != 0)
+ *     if(crc16_compute(buffer.data(), buffer.size()) != 0)
  *     {
  *         std::cerr << "error: bad CRC16.\n";
  *         return 1;
@@ -128,9 +126,9 @@ std::uint16_t next_crc(std::uint16_t crc, std::uint8_t byte)
  * \param[in] data  The buffer from which the CRC16 is to be calculated.
  * \param[in] size  The number of bytes in buffer.
  *
- * \return The CRC16 of buffer.
+ * \return The CRC16 of data.
  */
-std::uint16_t crc16_calc(std::uint8_t const * data, std::size_t size)
+std::uint16_t crc16_compute(std::uint8_t const * data, std::size_t size)
 {
     std::uint16_t crc16(0);
     for(std::size_t i(0); i < size; ++i, ++data)
@@ -139,65 +137,6 @@ std::uint16_t crc16_calc(std::uint8_t const * data, std::size_t size)
     }
     return crc16;
 }
-
-
-
-// this version (which generate a different number...) is about half the
-// speed compare to the other CRC16 function so we keep the other one
-//
-std::uint16_t gen_crc16(std::uint8_t const * data, std::size_t size)
-{
-    if(data == nullptr)
-    {
-        return 0;
-    }
-
-    constexpr std::uint16_t CRC16 = 0x8005;
-
-    std::uint16_t crc = 0;
-    std::int_fast8_t bits_read = 0;
-    while(size > 0)
-    {
-        int const bit_flag(crc >> 15);
-
-        // get next bit
-        //
-        crc <<= 1;
-        crc |= (*data >> bits_read) & 1; // work from the least significant bits
-
-        // increment bit counter
-        //
-        ++bits_read;
-        if(bits_read > 7)
-        {
-            bits_read = 0;
-            ++data;
-            --size;
-        }
-
-        // cycle check
-        //
-        if(bit_flag != 0)
-        {
-            crc ^= CRC16;
-        }
-    }
-
-    // push the last 16 bits
-    //
-    for(int i(0); i < 16; ++i)
-    {
-        int const bit_flag(crc >> 15);
-        crc <<= 1;
-        if(bit_flag != 0)
-        {
-            crc ^= CRC16;
-        }
-    }
-
-    return crc;
-}
-
 
 
 

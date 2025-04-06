@@ -80,6 +80,7 @@ add_library(${PROJECT_NAME} SHARED
     data/virtual_buffer.cpp
 
     network/binary_client.cpp  # client use this to connect to a server
+    network/binary_message.cpp
     network/binary_server.cpp  # server listening for client connections
     network/binary_server_client.cpp  # connection to a client from a server (from the accept() call)
     network/prinbee_connection.cpp
@@ -223,6 +224,7 @@ install(
 install(
     FILES
         network/consistency.h
+        network/crc16.h
 
     DESTINATION
         include/prinbee/network
