@@ -7,7 +7,7 @@ although right now I have no need outside of the database.
 However, the multiplication and division are both very slow and would need
 to be fixed (i.e. use the more complex but much faster algorithms available).
 
-Another library we should probably use is GMP:
+Another library we should probably use is GMP, instead of our own:
 https://gmplib.org/
 
 # Languages
@@ -29,7 +29,7 @@ We should be able to remove the dependency on OpenSSL since that library
 should be used by eventdispatcher under the hood. Our library, at the
 moment, leaks some #include of that library directly in their headers.
 
-Once the eventdispatcher was fixed, we can fix prinbee as well by removing
+Once the eventdispatcher is fixed, we can fix prinbee as well by removing
 the dependency.
 
 ## Installation
@@ -78,6 +78,6 @@ These need to be installed properly using the corresponding variables
 
 * This tool is probably just a development tool and it should not be installed?
 * The tool will apply a DELETE or TRUNCATE if that journal is setup that way;
-  it seems that this should be a read-only function... at the moment we cannot
+  it seems that this should be a read-only tool... at the moment we cannot
   just change the parameter since that would change the .conf file
 
