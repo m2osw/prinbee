@@ -112,12 +112,6 @@ struct_description_t g_binary_message_header[] =
 
 
 
-/** \class binary_message
- * \brief A binary_message to interpret a message on a binary connection.
- *
- * This class is used to manage a binary message. It handles the message
- * name, flags, data, and CRC16 to make ensure the message integrity.
- */
 
 
 /** \brief Initialize a binary_message object.
@@ -225,9 +219,14 @@ void binary_message::set_data_by_pointer(void * data, std::size_t size)
  * This function returns the data pointer and sets the \p size parameter to
  * the number of bytes defined in that buffer.
  *
+ * To know whether the data pointer is defined, use the has_pointer()
+ * function.
+ *
  * \param[out] size  The size of the buffer.
  *
  * \return The pointer to the data in this binary message. It may be null.
+ *
+ * \sa has_pointer()
  */
 void * binary_message::get_data_pointer(std::size_t & size) const
 {

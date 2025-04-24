@@ -17,10 +17,16 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-// eventdispatcher
+// prinbee
 //
-#include    <eventdispatcher/tcp_server_connection.h>
+#include    <prinbee/exception.h>
 
+
+// C++
+//
+#include    <cstdint>
+#include    <memory>
+#include    <vector>
 
 
 namespace prinbee
@@ -35,9 +41,12 @@ typedef std::uint32_t           message_name_t;
  *
  * This function transforms a string in a message_name_t value.
  *
- * The message names cannot be the empty string.
+ * The message names cannot be the empty string or more than 4 characters.
  *
- * \exception std::invalid_argument
+ * \note
+ * The output is not affected by endianess.
+ *
+ * \exception prinbee::invalid_parameter
  * This exception is raised if the input string is nullptr, the empty string,
  * or the string is more than 4 characters.
  *
@@ -47,28 +56,40 @@ constexpr message_name_t create_message_name(char const * const name)
 {
     if(name == nullptr)
     {
-        throw std::invalid_argument("name cannot be null.");
+        throw prinbee::invalid_parameter("name cannot be null.");
     }
     if(name[0] == '\0')
     {
-        throw std::invalid_argument("name cannot be empty.");
+        throw prinbee::invalid_parameter("name cannot be empty.");
     }
 
     message_name_t result(0);
-
-    result |= name[0];
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    constexpr int const s1 = 24;
+    constexpr int const s2 = 16;
+    constexpr int const s3 = 8;
+    constexpr int const s4 = 0;
+#elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    constexpr int const s1 = 0;
+    constexpr int const s2 = 8;
+    constexpr int const s3 = 16;
+    constexpr int const s4 = 24;
+#else
+#error "Unsupported endianess"
+#endif
+    result |= name[0] << s1;
     if(name[1] != '\0')
     {
-        result |= name[1] << 8;
+        result |= name[1] << s2;
         if(name[2] != '\0')
         {
-            result |= name[2] << 16;
+            result |= name[2] << s3;
             if(name[3] != '\0')
             {
-                result |= name[3] << 24;
+                result |= name[3] << s4;
                 if(name[4] != '\0')
                 {
-                    throw std::invalid_argument("name cannot be more than 4 characters.");
+                    throw prinbee::invalid_parameter("name cannot be more than 4 characters.");
                 }
             }
         }
@@ -79,13 +100,13 @@ constexpr message_name_t create_message_name(char const * const name)
 
 
 
-constexpr message_name_t    g_message_unknown = 0;
-constexpr message_name_t    g_message_ping = create_message_name("PING");
-constexpr message_name_t    g_message_pong = create_message_name("PONG");
+constexpr message_name_t        g_message_unknown = 0;
+constexpr message_name_t        g_message_ping = create_message_name("PING");
+constexpr message_name_t        g_message_pong = create_message_name("PONG");
 
 
 
-constexpr uint8_t const     g_binary_message_version = 1;
+constexpr std::uint8_t const    g_binary_message_version = 1;
 
 
 
