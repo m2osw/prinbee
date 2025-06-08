@@ -41,7 +41,9 @@ namespace prinbee
 
 
 
-std::uint16_t crc16_compute(std::uint8_t const * data, std::size_t size);
+typedef std::uint16_t       crc16_t;
+
+crc16_t crc16_compute(std::uint8_t const * data, std::size_t size);
 
 
 

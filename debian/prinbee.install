@@ -6,6 +6,7 @@ usr/lib/lib*.so.*
 #
 # TBD: some of those tools may be considered low admin tools
 #
+usr/bin/crc16
 usr/bin/prinbee-journal
 
 # Configuration Files

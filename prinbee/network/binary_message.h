@@ -20,6 +20,7 @@
 // prinbee
 //
 #include    <prinbee/exception.h>
+#include    <prinbee/network/crc16.h>
 
 
 // C++
@@ -29,12 +30,17 @@
 #include    <vector>
 
 
+
 namespace prinbee
 {
 
 
 
+typedef std::uint8_t            message_version_t;
 typedef std::uint32_t           message_name_t;
+
+
+constexpr message_version_t     g_binary_message_version = 1;
 
 
 /** \brief Create a binary message name from a string.
@@ -99,14 +105,13 @@ constexpr message_name_t create_message_name(char const * const name)
 }
 
 
-
 constexpr message_name_t        g_message_unknown = 0;
 constexpr message_name_t        g_message_ping = create_message_name("PING");
 constexpr message_name_t        g_message_pong = create_message_name("PONG");
 
 
 
-constexpr std::uint8_t const    g_binary_message_version = 1;
+
 
 
 
@@ -122,6 +127,14 @@ public:
     void                        set_name(message_name_t name);
     message_name_t              get_name() const;
 
+    static std::size_t          get_message_header_size();
+    void                        set_message_header_data(void const * data, std::size_t size);
+    void                        add_message_header_byte(std::uint8_t data);
+    bool                        is_message_header_valid() const;
+    std::size_t                 get_data_size() const;
+    void const *                get_header();
+
+    bool                        has_data() const;
     bool                        has_pointer() const;
     void                        set_data_by_pointer(void * data, std::size_t size);
     void *                      get_data_pointer(std::size_t & size) const;
@@ -130,11 +143,23 @@ public:
                                 get_data() const;
 
 private:
-    message_name_t              f_name = g_message_unknown;
+    struct header_t
+    {
+        char                f_magic[2] = { 'b', 'm' };
+        message_version_t   f_version = g_binary_message_version;   // 1 to 255
+        std::uint8_t        f_flags = 0;
+        message_name_t      f_name = g_message_unknown;
+        std::uint32_t       f_size = 0;                             // size of following data
+        crc16_t             f_data_crc16 = 0;                       // following data CRC16
+        crc16_t             f_header_crc16 = 0;                     // CRC16 of this header
+    };
+
+    header_t                    f_header = header_t();
     void *                      f_data = nullptr;
-    std::size_t                 f_size = 0;
     std::vector<std::uint8_t>   f_buffer = std::vector<std::uint8_t>();
 };
+
+
 
 
 

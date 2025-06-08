@@ -351,7 +351,7 @@ struct min_max_version_t
  * to have strings with a fixed size (the result being that we'd then have
  * a table with a fixed size schema which can help in all sorts of ways).
  */
-enum class struct_type_t : uint16_t
+enum class struct_type_t : std::uint16_t
 {
     STRUCT_TYPE_END,
     STRUCT_TYPE_VOID,
@@ -583,6 +583,7 @@ constexpr struct_description_t define_description(ARGS ...args)
     constexpr std::uint32_t FIELD_MUST_HAVE_VERSION             = 0x0004;
     constexpr std::uint32_t FIELD_IS_A_BIT_FIELD                = 0x0008;
     constexpr std::uint32_t FIELD_IS_A_CHAR_FIELD               = 0x0010;
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
     constexpr std::uint32_t const verifications[static_cast<int>(struct_type_t::STRUCT_TYPE_RENAMED) + 1] =
@@ -725,7 +726,10 @@ constexpr struct_description_t define_description(ARGS ...args)
         {
             if(!validate_name(s.f_field_name))
             {
-                throw invalid_parameter("this structure field name is not considered valid.");
+                throw invalid_parameter(
+                          "this structure field name, \""
+                        + std::string(s.f_field_name)
+                        + "\" is not considered valid.");
             }
         }
 
@@ -907,7 +911,10 @@ public:
     typedef std::weak_ptr<structure>        weak_pointer_t;
     typedef std::vector<pointer_t>          vector_t;
 
-                                            structure(struct_description_t const * descriptions, pointer_t parent = pointer_t());
+                                            structure(
+                                                  struct_description_t const * descriptions
+                                                , pointer_t parent = pointer_t()
+                                                , bool verify_start = true);
                                             structure(structure const & rhs) = delete;
 
     structure &                             operator = (structure const & rhs) = delete;

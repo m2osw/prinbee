@@ -69,4 +69,32 @@ target_link_libraries(${PROJECT_NAME}
     ${LIBUTF8_LIBRARIES}
 )
 
+##
+## Tool to compute CRC16 from hex or files
+##
+project(crc16)
+
+add_executable(${PROJECT_NAME}
+    crc16.cpp
+)
+
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        ${ADVGETOPT_INCLUDE_DIRS}
+        ${SNAPDEV_INCLUDE_DIRS}
+)
+
+target_link_libraries(${PROJECT_NAME}
+    prinbee
+    ${ADVGETOPT_LIBRARIES}
+)
+
+install(
+    TARGETS
+        ${PROJECT_NAME}
+
+    DESTINATION
+        bin
+)
+
 # vim: ts=4 sw=4 et

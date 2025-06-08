@@ -17,6 +17,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+// prinbee
+//
+#include    <prinbee/network/binary_message.h>
+
+
 // eventdispatcher
 //
 #include    <eventdispatcher/tcp_client_connection.h>
@@ -40,11 +45,37 @@ public:
 
     binary_client &             operator = (binary_client const &) = delete;
 
-    // ed::connection implementation
+    //bool                        has_input() const;
+    //bool                        has_output() const;
+    void                        send_message(binary_message & msg);
+
+    // ed::tcp_client_connection implementation
     //
+    virtual ssize_t             write(void const * buf, std::size_t count) override;
+    virtual bool                is_writer() const override;
     virtual void                process_read() override;
+    virtual void                process_write() override;
+    virtual void                process_hup() override;
+
+    // new callback
+    //
+    virtual void                process_message(binary_message & msg) = 0;
 
 private:
+    enum read_state_t
+    {
+        READ_STATE_HEADER,
+        READ_STATE_HEADER_ADJUST,
+        READ_STATE_DATA,
+    };
+
+    read_state_t                f_read_state = read_state_t::READ_STATE_HEADER;
+    std::vector<char>           f_data = std::vector<char>();
+    std::size_t                 f_data_size = 0;
+    binary_message              f_binary_message = binary_message();
+
+    std::vector<char>           f_output = std::vector<char>();
+    std::size_t                 f_position = 0;
 };
 
 

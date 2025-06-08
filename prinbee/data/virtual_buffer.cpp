@@ -24,6 +24,10 @@
  * straight memory buffer but instead scattered between blocks on disk and
  * memory buffers (when the amount of data increases we allocate temporary
  * memory buffers until we flush the data to file).
+ *
+ * It can also be used as a buffer in memory. An efficient way to manage
+ * large amount of data by allocating separate buffers instead of resizing
+ * buffers.
  */
 
 // self
@@ -612,6 +616,83 @@ SNAP_LOG_ERROR << "--- perase CASE 11 -- delete inside of block: offset=" << off
 
     f_modified = bytes_erased != 0;
     return bytes_erased;
+}
+
+
+int virtual_buffer::pshift(std::int64_t size, std::uint64_t offset, std::uint8_t in)
+{
+    if(size == 0)
+    {
+        return 0;
+    }
+
+    char buf[4096];
+    std::uint64_t bytes_moved(0);
+    if(size > 0)
+    {
+        throw invalid_size("Shift right not yet implemented.");
+    }
+    else
+    {
+        //          +---------------+
+        //          |               |
+        //          v               |
+        // +-------+----------------+--------+
+        //         ^                         ^
+        //         |<--------------->        |
+        //         |        size             +--- f_total_size
+        //         |
+        //         +--- offset
+        //
+
+        // TODO: optimize with a memmove() + memset() when there is a single vbuf
+
+        size = -size;
+        std::size_t total_size(f_total_size - offset - size);
+        while(total_size > 0)
+        {
+            int const sz(std::min(sizeof(buf), total_size));
+            if(pread(buf, sz, offset + size, true) != sz)
+            {
+                // LCOV_EXCL_START
+                throw io_error(
+                      "expected to read "
+                    + std::to_string(sz)
+                    + " bytes from virtual buffer.");
+                // LCOV_EXCL_STOP
+            }
+            if(pwrite(buf, sz, offset, false) != sz)
+            {
+                // LCOV_EXCL_START
+                throw io_error(
+                      "expected to write "
+                    + std::to_string(sz)
+                    + " bytes from virtual buffer.");
+                // LCOV_EXCL_STOP
+            }
+            offset += sz;
+            total_size -= sz;
+            bytes_moved += sz;
+        }
+        memset(buf, in, std::min(sizeof(buf), f_total_size - offset));
+        while(offset < f_total_size)
+        {
+            int const sz(std::min(sizeof(buf), f_total_size - offset));
+            if(pwrite(buf, sz, offset, false) != sz)
+            {
+                // LCOV_EXCL_START
+                throw io_error(
+                      "expected to write "
+                    + std::to_string(sz)
+                    + " bytes from virtual buffer.");
+                // LCOV_EXCL_STOP
+            }
+            offset += sz;
+            bytes_moved += sz;
+        }
+    }
+
+    return bytes_moved;
 }
 
 

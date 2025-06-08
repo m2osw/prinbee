@@ -49,7 +49,7 @@ namespace
 
 
 
-constexpr std::uint16_t const g_crc16_tbl[] = {
+constexpr crc16_t const g_crc16_tbl[] = {
     0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241,
     0xC601, 0x06C0, 0x0780, 0xC741, 0x0500, 0xC5C1, 0xC481, 0x0440,
     0xCC01, 0x0CC0, 0x0D80, 0xCD41, 0x0F00, 0xCFC1, 0xCE81, 0x0E40,
@@ -85,10 +85,10 @@ constexpr std::uint16_t const g_crc16_tbl[] = {
 };
 
 
-std::uint16_t next_crc(std::uint16_t crc, std::uint8_t byte)
+crc16_t next_crc(crc16_t crc, std::uint8_t byte)
 {
     int const index((crc & 0xFF) ^ byte);
-    std::uint16_t const crc16int(g_crc16_tbl[index]);
+    crc16_t const crc16int(g_crc16_tbl[index]);
     return (crc >> 8) ^ crc16int;
 }
 
@@ -110,7 +110,7 @@ std::uint16_t next_crc(std::uint16_t crc, std::uint8_t byte)
  *     // first compute the CRC16 of the existing data
  *     // (assuming buffer is a vector of std::uint8_t bytes)
  *     //
- *     std::uint16_t const crc16(crc16_compute(buffer.data(), buffer.size()));
+ *     crc16_t const crc16(crc16_compute(buffer.data(), buffer.size()));
  *
  *     // add the result to the buffer (in little endian on AMD64)
  *     //
@@ -128,9 +128,9 @@ std::uint16_t next_crc(std::uint16_t crc, std::uint8_t byte)
  *
  * \return The CRC16 of data.
  */
-std::uint16_t crc16_compute(std::uint8_t const * data, std::size_t size)
+crc16_t crc16_compute(std::uint8_t const * data, std::size_t size)
 {
-    std::uint16_t crc16(0);
+    crc16_t crc16(0);
     for(std::size_t i(0); i < size; ++i, ++data)
     {
         crc16 = next_crc(crc16, *data);

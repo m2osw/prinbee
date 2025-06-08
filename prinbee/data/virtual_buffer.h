@@ -24,7 +24,7 @@
  * When dealing with a block, we at times have to reduce or enlarge it.
  * Several resizing events may occur before it settles. It is best not
  * to resize the entire block for each event. _To ease the damage,_ we
- * want to use separate memory buffer to handle growths. Once we are
+ * want to use separate memory buffers to handle growths. Once we are
  * done with a structure, we can then request for the final data to
  * be written to file.
  *
@@ -34,6 +34,11 @@
  * practical because that way we do not have to handle the fact that
  * the buffer is multiple buffers. The virtual buffer gives us one
  * linear offset starting at `0` and going up to `size - 1`.
+ *
+ * The virtual buffer can also be used as an efficient memory buffer.
+ * Whenever you write data to it, it allocates a new block instead
+ * if trying to enlarge an existing block. This is way faster than
+ * an std::stringstream, for example.
  */
 
 // self
@@ -76,6 +81,7 @@ public:
     int                                 pwrite(void const * buf, std::uint64_t size, std::uint64_t offset, bool allow_growth = false);
     int                                 pinsert(void const * buf, std::uint64_t size, std::uint64_t offset);
     int                                 perase(std::uint64_t size, std::uint64_t offset);
+    int                                 pshift(std::int64_t size, std::uint64_t offset, std::uint8_t in);
 
 private:
     struct vbuf_t

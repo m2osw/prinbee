@@ -23,6 +23,7 @@
 
 // prinbee
 //
+#include    <prinbee/network/binary_client.h>
 #include    <prinbee/network/binary_message.h>
 #include    <prinbee/network/crc16.h>
 
@@ -39,6 +40,20 @@
 #include    <snapdev/raii_generic_deleter.h>
 
 
+// eventdispatcher
+//
+#include    <eventdispatcher/communicator.h>
+//#include    <eventdispatcher/dispatcher.h>
+//#include    <eventdispatcher/names.h>
+//#include    <eventdispatcher/tcp_client_permanent_message_connection.h>
+
+#include    <eventdispatcher/reporter/executor.h>
+//#include    <eventdispatcher/reporter/lexer.h>
+#include    <eventdispatcher/reporter/parser.h>
+//#include    <eventdispatcher/reporter/state.h>
+//#include    <eventdispatcher/reporter/variable_string.h>
+
+
 // C++
 //
 //#include    <iomanip>
@@ -53,6 +68,48 @@
 namespace
 {
 
+
+
+addr::addr get_address()
+{
+    addr::addr a;
+    sockaddr_in ip = {
+        .sin_family = AF_INET,
+        .sin_port = htons(20002),
+        .sin_addr = {
+            .s_addr = htonl(0x7f000001),
+        },
+        .sin_zero = {},
+    };
+    a.set_ipv4(ip);
+    return a;
+}
+
+
+class binary_client_test
+    : public prinbee::binary_client
+{
+public:
+    binary_client_test(addr::addr const & a)
+        : binary_client(a)
+    {
+    }
+
+    virtual void process_message(prinbee::binary_message & msg) override
+    {
+        throw std::runtime_error("boom -- " + std::to_string(msg.get_data_size()));
+    }
+
+    virtual void connection_added() override
+    {
+SNAP_LOG_ERROR << "--------- connection added!" << SNAP_LOG_SEND;
+        prinbee::binary_message msg;
+        msg.set_name(prinbee::g_message_ping);
+        send_message(msg);
+    }
+
+private:
+};
 
 
 
@@ -123,7 +180,7 @@ CATCH_TEST_CASE("network_crc16", "[crc16][valid][invalid]")
 }
 
 
-CATCH_TEST_CASE("network_message", "[message][valid]")
+CATCH_TEST_CASE("network_message", "[network][message][valid]")
 {
     CATCH_START_SECTION("network_message: verify name")
     {
@@ -265,7 +322,7 @@ CATCH_TEST_CASE("network_message", "[message][valid]")
 }
 
 
-CATCH_TEST_CASE("network_message_invalid", "[message][invalid]")
+CATCH_TEST_CASE("network_message_invalid", "[network][message][invalid]")
 {
     CATCH_START_SECTION("network_message_invalid: the nullptr string is not a valid name")
     {
@@ -294,6 +351,51 @@ CATCH_TEST_CASE("network_message_invalid", "[message][invalid]")
                 , prinbee::invalid_parameter
                 , Catch::Matchers::ExceptionMessage(
                           "prinbee_exception: name cannot be more than 4 characters."));
+    }
+    CATCH_END_SECTION()
+}
+
+
+CATCH_TEST_CASE("network_binary_client", "[network][message][valid]")
+{
+    CATCH_START_SECTION("network_binary_client: verify readiness")
+    {
+        std::string const source_dir(SNAP_CATCH2_NAMESPACE::g_source_dir());
+        std::string const filename(source_dir + "/tests/rprtr/binary_client.rprtr");
+        SNAP_CATCH2_NAMESPACE::reporter::lexer::pointer_t l(SNAP_CATCH2_NAMESPACE::reporter::create_lexer(filename));
+        CATCH_REQUIRE(l != nullptr);
+        SNAP_CATCH2_NAMESPACE::reporter::state::pointer_t s(std::make_shared<SNAP_CATCH2_NAMESPACE::reporter::state>());
+        SNAP_CATCH2_NAMESPACE::reporter::parser::pointer_t p(std::make_shared<SNAP_CATCH2_NAMESPACE::reporter::parser>(l, s));
+        p->parse_program();
+        SNAP_CATCH2_NAMESPACE::reporter::executor::pointer_t e(std::make_shared<SNAP_CATCH2_NAMESPACE::reporter::executor>(s));
+        e->start();
+        binary_client_test::pointer_t client(std::make_shared<binary_client_test>(get_address()));
+        ed::communicator::instance()->add_connection(client);
+        e->set_thread_done_callback([client]()
+            {
+                ed::communicator::instance()->remove_connection(client);
+            });
+        try
+        {
+            CATCH_REQUIRE(e->run());
+        }
+        catch(std::exception const & ex)
+        {
+            SNAP_LOG_FATAL
+                << "an exception occurred while running cluckd (1 cluckd): "
+                << ex
+                << SNAP_LOG_SEND;
+            libexcept::exception_base_t const * b(dynamic_cast<libexcept::exception_base_t const *>(&ex));
+            if(b != nullptr) for(auto const & line : b->get_stack_trace())
+            {
+                SNAP_LOG_FATAL
+                    << "    "
+                    << line
+                    << SNAP_LOG_SEND;
+            }
+            throw;
+        }
+        CATCH_REQUIRE(s->get_exit_code() == 0);
     }
     CATCH_END_SECTION()
 }

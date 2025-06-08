@@ -37,9 +37,9 @@
 //#include    <eventdispatcher/names.h>
 
 
-// communicatord
+// snaplogger
 //
-//#include    <communicatord/names.h>
+#include    <snaplogger/message.h>
 
 
 // last include
@@ -82,6 +82,7 @@ namespace prinbee
 binary_server_client::binary_server_client(ed::tcp_bio_client::pointer_t client)
     : tcp_server_client_connection(client)
 {
+    set_name("binary_server_client");
 }
 
 
@@ -92,6 +93,7 @@ binary_server_client::~binary_server_client()
 
 void binary_server_client::process_read()
 {
+SNAP_LOG_ERROR << "+++++++++++++++++ process_read() called +++++++++++++++" << SNAP_LOG_SEND;
 }
 
 

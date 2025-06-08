@@ -46,11 +46,11 @@ namespace prinbee
 
 
 
-typedef uint64_t                    reference_t;
+typedef std::uint64_t               reference_t;
 typedef std::vector<reference_t>    reference_vector_t;
-typedef uint64_t                    oid_t;
-typedef uint8_t *                   data_t;
-typedef uint8_t const *             const_data_t;
+typedef std::uint64_t               oid_t;
+typedef std::uint8_t *              data_t;
+typedef std::uint8_t const *        const_data_t;
 
 constexpr reference_t               NULL_FILE_ADDR = static_cast<reference_t>(0);
 constexpr oid_t                     NULL_OID = static_cast<oid_t>(0);

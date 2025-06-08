@@ -39,14 +39,9 @@
 #include    <snaplogger/message.h>
 
 
-// eventdispatcher
+// snapdev
 //
-//#include    <eventdispatcher/communicator.h>
-
-
-//// communicatord
-////
-//#include    <communicatord/names.h>
+#include    <snapdev/to_string_literal.h>
 
 
 // last include
@@ -64,39 +59,8 @@ namespace
 
 
 
-struct_description_t g_binary_message_header[] =
-{
-    define_description( // the magic
-          FieldName("magic=2")
-        , FieldType(struct_type_t::STRUCT_TYPE_CHAR)
-        , FieldDefaultValue("bm")
-    ),
-    define_description( // version (1 to 255)
-          FieldName(g_name_prinbee_fld_version)
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT8)
-    ),
-    define_description( // flags (unused at the moment)
-          FieldName(g_name_prinbee_fld_flags)
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT8)
-    ),
-    define_description( // the message name (on 4 bytes, a bit a la IFF)
-          FieldName("message=4")
-        , FieldType(struct_type_t::STRUCT_TYPE_CHAR)
-    ),
-    define_description( // size of the following buffer
-          FieldName(g_name_prinbee_fld_size)
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT32)
-    ),
-    define_description( // CRC16 of the data (instead of putting that at the end of the data, which would be a little more work)
-          FieldName(g_name_prinbee_fld_data_crc16)
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
-    ),
-    define_description( // CRC16 of the header; computing the CRC16 including these 16 bits returns 0
-          FieldName(g_name_prinbee_fld_header_crc16)
-        , FieldType(struct_type_t::STRUCT_TYPE_UINT16)
-    ),
-    end_descriptions()
-};
+
+
 
 
 
@@ -134,8 +98,8 @@ binary_message::binary_message()
 /** \brief Set the name of the message.
  *
  * This function saves the name of the message in this object. The name
- * is a 1 to 4 letter string that was converted to a message_name_t type
- * (an std::uint32_t integer).
+ * is a 1 to 4 Latin 1 letter string that was converted to a message_name_t
+ * type (an std::uint32_t integer).
  *
  * By default, the name is set to "unknown" (g_message_unknown). That
  * special value cannot be used to send a message. That also means you
@@ -145,7 +109,7 @@ binary_message::binary_message()
  */
 void binary_message::set_name(message_name_t name)
 {
-    f_name = name;
+    f_header.f_name = name;
 }
 
 
@@ -162,7 +126,175 @@ void binary_message::set_name(message_name_t name)
  */
 message_name_t binary_message::get_name() const
 {
-    return f_name;
+    return f_header.f_name;
+}
+
+
+/** \brief Return the size of the message header.
+ *
+ * This function parses the message header and then computes the static
+ * size. If the static size computation fails, there is an invalid field
+ * in the header and the whole thing crashes.
+ *
+ * \return The size of the message header.
+ */
+std::size_t binary_message::get_message_header_size()
+{
+    return sizeof(header_t);
+}
+
+
+void binary_message::set_message_header_data(void const * data, std::size_t size)
+{
+#ifdef _DEBUG
+    if(sizeof(header_t) != size)
+    {
+        throw invalid_size("incorrect size for the binary message header; expected "
+            + std::to_string(sizeof(header_t))
+            + ", called with "
+            + std::to_string(size)
+            + " instead.");
+    }
+#endif
+    memcpy(&f_header, data, size);
+}
+
+
+void binary_message::add_message_header_byte(std::uint8_t data)
+{
+    memmove(reinterpret_cast<char *>(&f_header), reinterpret_cast<char *>(&f_header) + 1, sizeof(f_header) - 1);
+    reinterpret_cast<char *>(&f_header)[sizeof(f_header) - 1] = data;
+}
+
+
+bool binary_message::is_message_header_valid() const
+{
+    // header starts with "bm" (magic)
+    //
+    if(f_header.f_magic[0] != 'b'
+    || f_header.f_magic[1] != 'm')
+    {
+        return false;
+    }
+
+    // version cannot be 0
+    //
+    if(f_header.f_version != 0)
+    {
+        return false;
+    }
+
+    // message name must be defined (cannot be "unknown")
+    //
+    if(f_header.f_name == g_message_unknown)
+    {
+        return false;
+    }
+
+    // crc16 must be valid; read the entire entry in a buffer and compute
+    //
+    if(crc16_compute(reinterpret_cast<std::uint8_t const *>(&f_header), sizeof(f_header)) != 0)
+    {
+        return false;
+    }
+
+    // everything looks good
+    //
+    return true;
+}
+
+
+/** \brief Get the size of the following buffer.
+ *
+ * This function returns the size of the buffer after the header. This is
+ * the size as saved in the header. You must make sure that the header
+ * is valid before calling this function. The function may zero.
+ *
+ * If you are creating a message to send to the other side, then this
+ * function won't work properly. Instead, you want to get the data or
+ * data pointer.
+ *
+ * \return Size of the data following the header in a binary message.
+ *
+ * \sa is_message_header_valid()
+ */
+std::size_t binary_message::get_data_size() const
+{
+    return f_header.f_size;
+}
+
+
+/** \brief Get a pointer to the message header.
+ *
+ * This function returns a pointer to the header structure. This pointer
+ * can be used to send the message header over the network or make a
+ * copy for later use. The header is stable as long as not setter is
+ * called and the binary_message object is not destroyed.
+ *
+ * The function returns a const buffer. You are not expected to update
+ * the buffer. You may parse it in another binary_message using the
+ * set_message_header_data() function.
+ *
+ * \note
+ * The function is not const because it may need to re-evaluate the
+ * CRC16's.
+ *
+ * \return A pointer to the message header.
+ */
+void const * binary_message::get_header()
+{
+    // at this time, I think it's fine to (re-)compute the CRC16's because
+    // we call this function only once when we send the message over the
+    // network
+    //
+    f_header.f_header_crc16 = crc16_compute(
+              reinterpret_cast<std::uint8_t const *>(&f_header)
+            , sizeof(f_header) - sizeof(f_header.f_header_crc16));
+
+    if(has_data())
+    {
+        if(has_pointer())
+        {
+            f_header.f_data_crc16 = crc16_compute(
+                      reinterpret_cast<std::uint8_t const *>(f_data)
+                    , f_header.f_size);
+        }
+        else
+        {
+#ifdef _DEBUG
+            if(f_buffer.size() != f_header.f_size)
+            {
+                throw invalid_size("the buffer size ("
+                    + std::to_string(f_buffer.size())
+                    + ") does not match the size saved in the message header ("
+                    + std::to_string(f_header.f_size)
+                    + ").");
+            }
+#endif
+            f_header.f_header_crc16 = crc16_compute(f_buffer.data(), f_header.f_size);
+        }
+    }
+
+    return &f_header;
+}
+
+
+/** \brief Check whether the message has data attached to it.
+ *
+ * The has_data() function checks whether the f_data or f_buffer holds
+ * some data (i.e. are not empty buffers).
+ *
+ * To clear the data of a message, do:
+ *
+ * \code
+ *     message.set_data_by_pointer(nullptr, 0);
+ * \endcode
+ *
+ * \return true if at least one of the buffers is not empty.
+ */
+bool binary_message::has_data() const
+{
+    return f_header.f_size != 0;
 }
 
 
@@ -209,7 +341,7 @@ bool binary_message::has_pointer() const
 void binary_message::set_data_by_pointer(void * data, std::size_t size)
 {
     f_data = data;
-    f_size = size;
+    f_header.f_size = size;
     f_buffer.clear();
 }
 
@@ -230,16 +362,16 @@ void binary_message::set_data_by_pointer(void * data, std::size_t size)
  */
 void * binary_message::get_data_pointer(std::size_t & size) const
 {
-    size = f_size;
+    size = f_header.f_size;
     return f_data;
 }
 
 
 /** \brief Set the data of the message.
  *
- * This function saves the data at \p data om this binary message buffer.
- * The input data can be discarded at any time. The function makes a copy
- * of it.
+ * This function saves the data at \p data in this binary message buffer.
+ * The input data can be discarded at any time after this call. The
+ * function makes a copy of it.
  *
  * \param[in] data  The data to save in the binary message buffer.
  * \param[in] size  The size of the \p data buffer in bytes.
@@ -247,7 +379,7 @@ void * binary_message::get_data_pointer(std::size_t & size) const
 void binary_message::set_data(void const * data, std::size_t size)
 {
     f_data = nullptr;
-    f_size = 0;
+    f_header.f_size = size;
     f_buffer.resize(size);
     memcpy(f_buffer.data(), data, size);
 }

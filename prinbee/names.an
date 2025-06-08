@@ -34,6 +34,7 @@ fld_inline_limit=inline_limit
 fld_last_updated_on=last_updated_on
 fld_length=length
 fld_maximum_length=maximum_length
+fld_message=message
 fld_minimum_length=minimum_length
 fld_maximum_value=maximum_value
 fld_minimum_value=minimum_value

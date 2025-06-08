@@ -913,7 +913,7 @@ structure::pointer_t field_t::operator [] (int idx) const
 
 
 
-structure::structure(struct_description_t const * descriptions, pointer_t parent)
+structure::structure(struct_description_t const * descriptions, pointer_t parent, bool verify_start)
     : f_descriptions(descriptions)
     , f_parent(parent)
 {
@@ -922,7 +922,8 @@ structure::structure(struct_description_t const * descriptions, pointer_t parent
         throw logic_error("the description parameter of a structure object cannot be null.");
     }
 
-    if(parent == nullptr)
+    if(verify_start
+    && parent == nullptr)
     {
         // no parent, then the description must start with sequence:
         // 1. a magic field
@@ -1036,15 +1037,15 @@ virtual_buffer::pointer_t structure::get_virtual_buffer(reference_t & start_offs
 
 
 
-/** \brief Get the static size or get 0.
+/** \brief Get the static size or 0.
  *
  * This function returns the size of the structure if the size is static.
  *
- * Most structures are no static, though, they will have variable fields
- * such as a string or a buffer. This function returns 0 for those
- * structures. You can still get a size using the get_current_size()
- * function, just keep in mind that the size may change as the data
- * varies in the structure.
+ * Most structures are not static. Many have variable fields such as a
+ * string or a buffer. This function returns 0 for those structures.
+ * You can still get a size using the get_current_size() function, just
+ * keep in mind that the size may change as the data is updated in the
+ * structure.
  *
  * \note
  * A sub-structure is considered static as long as all of its fields are
@@ -3293,7 +3294,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             field_name = field_name.substr(0, pos);
         }
 
-SNAP_LOG_WARNING << "--- saving field named [" << field_name << "]" << SNAP_LOG_SEND;
+//SNAP_LOG_WARNING << "--- saving field named [" << field_name << "]" << SNAP_LOG_SEND;
         const_cast<structure *>(this)->f_fields_by_name[field_name] = f;
 
         previous = f;

@@ -22,6 +22,7 @@
 project(unittest)
 
 find_package(SnapCatch2)
+find_package(Reporter)
 
 if(SnapCatch2_FOUND)
 
@@ -50,16 +51,24 @@ if(SnapCatch2_FOUND)
     target_include_directories(${PROJECT_NAME}
         PUBLIC
             ${CMAKE_BINARY_DIR}
-            ${PROJECT_SOURCE_DIR}
-            ${SNAPCATCH2_INCLUDE_DIRS}
+            ${EVENTDISPATCHER_INCLUDE_DIRS}
             ${LIBEXCEPT_INCLUDE_DIRS}
             ${LIBUTF8_INCLUDE_DIRS}
+            ${PROJECT_SOURCE_DIR}
+            ${REPORTER_INCLUDE_DIRS}
+            ${SNAPCATCH2_INCLUDE_DIRS}
     )
 
+        message("event dispatcher + report = " ${EVENTDISPATCHER_LIBRARIES} " -- " ${REPORTER_LIBRARIES})
     target_link_libraries(${PROJECT_NAME}
         prinbee
-        ${SNAPCATCH2_LIBRARIES}
+        ${ADVGETOPT_LIBRARIES}
+        ${EVENTDISPATCHER_LIBRARIES}
+        ${LIBADDR_LIBRARIES}
+        ${LIBEXCEPT_LIBRARIES}
         ${LIBUTF8_LIBRARIES}
+        ${REPORTER_LIBRARIES}
+        ${SNAPCATCH2_LIBRARIES}
     )
 
 else(SnapCatch2_FOUND)

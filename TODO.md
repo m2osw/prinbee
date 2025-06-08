@@ -81,3 +81,23 @@ These need to be installed properly using the corresponding variables
   it seems that this should be a read-only tool... at the moment we cannot
   just change the parameter since that would change the .conf file
 
+# Next Version
+
+## Structure & Virtual Buffer
+
+The virtual buffer and corresponding classes (such as the structure) should
+be moved to a project of their own and moved under the eventdispatcher
+project so that it can be used for bufferized data in our connections.
+
+The data structure manager is practical to make use of binary blocks of
+data which can easily be shared between processes and it is much more
+advanced than the brs.h implementation (i.e. it allows for multiple versions
+without having to save the field name for each field).
+
+## BigInt
+
+We should really consider using a library which has all the operations handy
+and implemented in a really fast way. Although in our case, the database
+mainly wants to read & write those large numbers as UUID, hashes, etc. so
+no mathematical operations are required against them 99% of the time.
+

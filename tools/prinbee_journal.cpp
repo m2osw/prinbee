@@ -122,9 +122,6 @@ constexpr char const * const g_configuration_files[] =
     nullptr
 };
 
-// TODO: once we have stdc++20, remove all defaults & pragma
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wpedantic"
 advgetopt::options_environment const g_options_environment =
 {
     .f_project_name = "prinbee-journal",
@@ -150,7 +147,6 @@ advgetopt::options_environment const g_options_environment =
     .f_build_time = UTC_BUILD_TIME,
     .f_groups = g_group_descriptions
 };
-//#pragma GCC diagnostic pop
 
 
 
