@@ -11,6 +11,8 @@
         adc         %rax, \offset(%rdi)
     .endm
 
+    .section    .note.GNU-stack,"",@progbits
+
     .text
     .p2align    4,,15
     .globl      _ZN7prinbee6add256EPmPKm

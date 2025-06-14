@@ -6,6 +6,8 @@
 //    }
 //
 
+    .section    .note.GNU-stack,"",@progbits
+
     .text
     .p2align    4,,15
     .globl      _ZN7prinbee6sub128EPmPKm

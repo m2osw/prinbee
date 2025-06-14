@@ -40,11 +40,12 @@
 #include    <snaplogger/message.h>
 
 
-//// eventdispatcher
-////
-//#include    <eventdispatcher/names.h>
+// eventdispatcher
 //
-//
+#include    <eventdispatcher/exception.h>
+#include    <eventdispatcher/tcp_client_connection.h>
+
+
 //// communicatord
 ////
 //#include    <communicatord/names.h>
@@ -67,52 +68,63 @@ namespace
 constexpr std::size_t const     PRINBEE_NETWORK_PAGE_SIZE = 4096;
 
 
+
 } // no name namespace
 
 
-/** \class binary_client
- * \brief Handle messages from clients, proxies, Prinbee daemons.
- *
- * This class is an implementation of the event dispatcher TCP server
- * connection used to connect to the Proxy or Prinbee Daemon.
- */
 
-
-
-/** \brief A binary connection to communicate with Prinbee.
- *
- * This connection is used to communicate between clients, proxies, and
- * daemons using binary messages which are way more compact than the
- * communicator daemon messages that use text.
- *
- * The socket is automatically made non-blocking.
- *
- * \note
- * At the moment, there is no limit to the size of a message. However,
- * many really large messages are likely to cause memory issues in the
- * long run. For example, one may want to manage large files and transfer
- * such in one large message (say 250Mb). It works, but it breaks the
- * memory by allocating one such large buffer (and the class does not
- * free that buffer until the whole client is destructed). It will
- * not in itself fragment the memory, but it will also use a very long
- * time to transfer that one single message not allowing any other
- * messages from being transferred in between. Our current strategy
- * will be to limit messages to 64Kb. That way, other intersperse
- * messages can happen quickly, memory management is much better,
- * and we can make use of a journal to get the entire message saved
- * on the other side before processing it.
- *
- * \todo
- * Consider using UDP since with a TCP connection, we get congestions
- * when one thing fails to go through or is really large, which can
- * prevent out of bounds communication.
- *
- * \param[in] a  The address to connect to.
- */
-binary_client::binary_client(addr::addr const & a)
-    : tcp_client_connection(a)
+namespace detail
 {
-    set_name("binary_client");
+
+
+
+class binary_client_impl
+    : public ed::tcp_client_connection
+{
+public:
+    typedef std::shared_ptr<binary_client>              pointer_t;
+
+                                binary_client_impl(binary_client * parent, addr::addr const & a);
+                                binary_client_impl(binary_client_impl const &) = delete;
+    virtual                     ~binary_client_impl() override;
+
+    binary_client_impl &        operator = (binary_client_impl const &) = delete;
+
+    void                        send_message(binary_message & msg);
+
+    // ed::tcp_client_connection implementation
+    //
+    virtual ssize_t             write(void const * buf, std::size_t count) override;
+    virtual bool                is_writer() const override;
+    virtual void                process_read() override;
+    virtual void                process_write() override;
+    virtual void                process_hup() override;
+
+private:
+    enum read_state_t
+    {
+        READ_STATE_HEADER,
+        READ_STATE_HEADER_ADJUST,
+        READ_STATE_DATA,
+    };
+
+    binary_client *             f_parent = nullptr;
+
+    read_state_t                f_read_state = read_state_t::READ_STATE_HEADER;
+    std::vector<char>           f_data = std::vector<char>();
+    std::size_t                 f_data_size = 0;
+    binary_message              f_binary_message = binary_message();
+
+    std::vector<char>           f_output = std::vector<char>();
+    std::size_t                 f_position = 0;
+};
+
+
+binary_client_impl::binary_client_impl(binary_client * parent, addr::addr const & a)
+    : tcp_client_connection(a)
+    , f_parent(parent)
+{
+    set_name("binary_client_impl");
     non_blocking();
 
     // to a minimum we need a buffer which is sufficient to read the header
@@ -123,12 +135,12 @@ binary_client::binary_client(addr::addr const & a)
 }
 
 
-binary_client::~binary_client()
+binary_client_impl::~binary_client_impl()
 {
 }
 
 
-void binary_client::send_message(binary_message & msg)
+void binary_client_impl::send_message(binary_message & msg)
 {
     write(msg.get_header(), binary_message::get_message_header_size());
     if(msg.has_data())
@@ -148,7 +160,7 @@ void binary_client::send_message(binary_message & msg)
 }
 
 
-ssize_t binary_client::write(void const * buf, std::size_t count)
+ssize_t binary_client_impl::write(void const * buf, std::size_t count)
 {
     if(!valid_socket())
     {
@@ -197,7 +209,7 @@ SNAP_LOG_WARNING << "binary client write() -- caching data for later" << SNAP_LO
 }
 
 
-bool binary_client::is_writer() const
+bool binary_client_impl::is_writer() const
 {
     return valid_socket() && !f_output.empty();
 }
@@ -216,7 +228,7 @@ bool binary_client::is_writer() const
  * \sa set_event_limit()
  * \sa set_processing_time_limit()
  */
-void binary_client::process_read()
+void binary_client_impl::process_read()
 {
     if(valid_socket())
     {
@@ -288,7 +300,7 @@ void binary_client::process_read()
                             // we can directly process it
                             //
                             f_binary_message.set_data_by_pointer(nullptr, 0);
-                            process_message(f_binary_message);
+                            f_parent->process_message(f_binary_message);
                             ++count_messages;
 
                             // the state could be READ_STATE_HEADER_ADJUST
@@ -330,11 +342,10 @@ void binary_client::process_read()
                             throw invalid_size("the binary message data size is larger than the exact data size?!");
                         }
 #endif
-                        // there is no data attached to that message,
-                        // we can directly process it
+                        // we got the data now we can process the message
                         //
                         f_binary_message.set_data_by_pointer(f_data.data(), f_data_size);
-                        process_message(f_binary_message);
+                        f_parent->process_message(f_binary_message);
                         ++count_messages;
 
                         f_read_state = read_state_t::READ_STATE_HEADER;
@@ -381,7 +392,7 @@ void binary_client::process_read()
 }
 
 
-void binary_client::process_write()
+void binary_client_impl::process_write()
 {
     if(valid_socket())
     {
@@ -424,7 +435,7 @@ void binary_client::process_write()
 }
 
 
-void binary_client::process_hup()
+void binary_client_impl::process_hup()
 {
     // this connection is dead...
     //
@@ -435,6 +446,154 @@ void binary_client::process_hup()
     tcp_client_connection::process_hup();
 }
 
+
+
+
+
+} // namespace detail
+
+
+
+/** \class binary_client
+ * \brief Handle messages from clients, proxies, Prinbee daemons.
+ *
+ * This class is an implementation of the event dispatcher TCP server
+ * connection used to connect to the Proxy or Prinbee Daemon.
+ */
+
+
+
+/** \brief A binary connection to communicate with Prinbee.
+ *
+ * This connection is used to communicate between clients, proxies, and
+ * daemons using binary messages which are way more compact than the
+ * communicator daemon messages that use text.
+ *
+ * The socket is automatically made non-blocking.
+ *
+ * \note
+ * At the moment, there is no limit to the size of a message. However,
+ * many really large messages are likely to cause memory issues in the
+ * long run. For example, one may want to manage large files and transfer
+ * such in one large message (say 250Mb). It works, but it breaks the
+ * memory by allocating one such large buffer (and the class does not
+ * free that buffer until the whole client is destructed). It will
+ * not in itself fragment the memory, but it will also use a very long
+ * time to transfer that one single message not allowing any other
+ * messages from being transferred in between. Our current strategy
+ * will be to limit messages to 64Kb. That way, other intersperse
+ * messages can happen quickly, memory management is much better,
+ * and we can make use of a journal to get the entire message saved
+ * on the other side before processing it.
+ *
+ * \todo
+ * Consider using UDP since with a TCP connection, we get congestions
+ * when one thing fails to go through or is really large, which can
+ * prevent out of bounds communication.
+ *
+ * \param[in] a  The address to connect to.
+ */
+binary_client::binary_client(addr::addr const & a)
+    : timer(10)
+    , f_remote_address(a)
+{
+    set_name("binary_client");
+    set_timeout_delay(10);
+}
+
+
+binary_client::~binary_client()
+{
+}
+
+
+void binary_client::send_message(binary_message & msg)
+{
+    f_impl->send_message(msg);
+}
+
+
+binary_client::callback_manager_t::callback_id_t binary_client::add_message_callback(
+          message_name_t name
+        , callback_t callback
+        , callback_manager_t::priority_t priority)
+{
+    return f_callback_map[name].add_callback(callback, priority);
+}
+
+
+std::string const & binary_client::get_last_error() const
+{
+    return f_last_error;
+}
+
+
+void binary_client::process_timeout()
+{
+    if(is_done())
+    {
+        return;
+    }
+
+    std::string error_name;
+    try
+    {
+        f_impl = std::make_shared<detail::binary_client_impl>(this, f_remote_address);
+        process_connected();
+        return;
+    }
+    catch(ed::failed_connecting const & e)
+    {
+        error_name = "ed::failed_connecting";
+        f_last_error = e.what();
+    }
+    catch(ed::initialization_error const & e)
+    {
+        error_name = "ed::initialization_error";
+        f_last_error = e.what();
+    }
+    catch(ed::runtime_error const & e)
+    {
+        error_name = "ed::runtime_error";
+        f_last_error = e.what();
+    }
+    catch(std::exception const & e)
+    {
+        error_name = "std::exception";
+        f_last_error = e.what();
+    }
+    catch(...)
+    {
+        error_name = "a non-standard exception";
+        f_last_error = "Unknown exception";
+    }
+    f_impl.reset();
+
+    // connection failed... we will have to try again later
+    //
+    SNAP_LOG_ERROR
+        << "connection to "
+        << addr::setaddrmode(addr::STRING_IP_BRACKET_ADDRESS | addr::STRING_IP_PORT)
+        << f_remote_address
+        << " failed with: "
+        << f_last_error
+        << " ("
+        << error_name
+        << ")."
+        << SNAP_LOG_SEND;
+}
+
+
+void binary_client::process_connected()
+{
+    set_enable(false);
+}
+
+
+void binary_client::process_disconnected()
+{
+    set_enable(true);
+}
 
 
 /** \func void process_message(binary_message & msg);

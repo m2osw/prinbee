@@ -22,9 +22,19 @@
 #include    <prinbee/network/binary_message.h>
 
 
+// libaddr
+//
+#include    <libaddr/addr.h>
+
+
 // eventdispatcher
 //
-#include    <eventdispatcher/tcp_client_connection.h>
+#include    <eventdispatcher/timer.h>
+
+
+// snapdev
+//
+#include    <snapdev/callback_manager.h>
 
 
 
@@ -33,11 +43,26 @@ namespace prinbee
 
 
 
+namespace detail
+{
+
+
+
+class binary_client_impl;
+
+
+
+} // detail namespace
+
+
+
 class binary_client
-    : public ed::tcp_client_connection
+    : public ed::timer
 {
 public:
-    typedef std::shared_ptr<binary_client>  pointer_t;
+    typedef std::shared_ptr<binary_client>              pointer_t;
+    typedef std::function<bool(binary_message & msg)>   callback_t;
+    typedef snapdev::callback_manager<callback_t>       callback_manager_t;
 
                                 binary_client(addr::addr const & a);
                                 binary_client(binary_client const &) = delete;
@@ -48,14 +73,22 @@ public:
     //bool                        has_input() const;
     //bool                        has_output() const;
     void                        send_message(binary_message & msg);
+    callback_manager_t::callback_id_t
+                                add_message_callback(
+                                      message_name_t name
+                                    , callback_t callback
+                                    , callback_manager_t::priority_t priority = callback_manager_t::DEFAULT_PRIORITY);
+    std::string const &         get_last_error() const;
 
     // ed::tcp_client_connection implementation
     //
-    virtual ssize_t             write(void const * buf, std::size_t count) override;
-    virtual bool                is_writer() const override;
-    virtual void                process_read() override;
-    virtual void                process_write() override;
-    virtual void                process_hup() override;
+    //virtual ssize_t             write(void const * buf, std::size_t count) override;
+    //virtual bool                is_writer() const override;
+    //virtual void                process_write() override;
+    //virtual void                process_hup() override;
+    virtual void                process_timeout() override;
+    virtual void                process_connected();
+    virtual void                process_disconnected();
 
     // new callback
     //
@@ -69,13 +102,22 @@ private:
         READ_STATE_DATA,
     };
 
-    read_state_t                f_read_state = read_state_t::READ_STATE_HEADER;
-    std::vector<char>           f_data = std::vector<char>();
-    std::size_t                 f_data_size = 0;
-    binary_message              f_binary_message = binary_message();
+    typedef std::map<message_name_t, callback_manager_t>    callback_map_t;
 
-    std::vector<char>           f_output = std::vector<char>();
-    std::size_t                 f_position = 0;
+    addr::addr                  f_remote_address = addr::addr();
+
+    //read_state_t                f_read_state = read_state_t::READ_STATE_HEADER;
+    //std::vector<char>           f_data = std::vector<char>();
+    //std::size_t                 f_data_size = 0;
+    //binary_message              f_binary_message = binary_message();
+
+    //std::vector<char>           f_output = std::vector<char>();
+    //std::size_t                 f_position = 0;
+    callback_map_t              f_callback_map = callback_map_t();
+
+    std::shared_ptr<detail::binary_client_impl>
+                                f_impl = std::shared_ptr<detail::binary_client_impl>();
+    std::string                 f_last_error = std::string();
 };
 
 

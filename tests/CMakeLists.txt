@@ -24,7 +24,7 @@ project(unittest)
 find_package(SnapCatch2)
 find_package(Reporter)
 
-if(SnapCatch2_FOUND)
+if(SnapCatch2_FOUND AND Reporter_FOUND)
 
     add_executable(${PROJECT_NAME}
         catch_main.cpp
@@ -71,15 +71,15 @@ if(SnapCatch2_FOUND)
         ${SNAPCATCH2_LIBRARIES}
     )
 
-else(SnapCatch2_FOUND)
+else(SnapCatch2_FOUND AND Reporter_FOUND)
 
     message("snapcatch2 not found... no unit test will be built.")
 
-endif(SnapCatch2_FOUND)
+endif(SnapCatch2_FOUND AND Reporter_FOUND)
 
 add_subdirectory(bloomfilter)
 
-if(SnapCatch2_FOUND)
+if(SnapCatch2_FOUND AND Reporter_FOUND)
 
     find_package(SnapTestRunner)
     AddUnitTestsTarget(
@@ -87,7 +87,7 @@ if(SnapCatch2_FOUND)
             rununittests
     )
 
-endif(SnapCatch2_FOUND)
+endif(SnapCatch2_FOUND AND Reporter_FOUND)
 
 
 # vim: ts=4 sw=4 et

@@ -566,7 +566,7 @@ send_data(values: [
     0x50, 0x4F, 0x4E, 0x47, // message name PONG
     0x00, 0x00, 0x00, 0x00, // size of buffer
     0x00, 0x00,             // header CRC16
-    0x00, 0x00 ])           // buffer CRC16
+    0xCD, 0x46 ])           // buffer CRC16
 return()
 
 // Function: send READY
