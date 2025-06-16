@@ -100,12 +100,17 @@ public:
         throw std::runtime_error("boom -- " + std::to_string(msg.get_data_size()));
     }
 
-    virtual void connection_added() override
+    virtual void process_connected() override
     {
-SNAP_LOG_ERROR << "--------- connection added!" << SNAP_LOG_SEND;
+SNAP_LOG_ERROR << "--------- process connected!" << SNAP_LOG_SEND;
         prinbee::binary_message msg;
         msg.set_name(prinbee::g_message_ping);
         send_message(msg);
+
+        // important, we need to call this one to disable the timer otherwise
+        // we'll try to reconnect over and over again
+        //
+        binary_client::process_connected();
     }
 
 private:

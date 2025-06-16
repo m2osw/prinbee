@@ -11,6 +11,9 @@ call(label: func_expect_ping)
 print(message: "--- send reply: PONG... ---")
 call(label: func_send_pong)
 
+print(message: "--- Script is done...")
+exit()
+
 call(label: func_send_help)
 call(label: func_send_ready)
 

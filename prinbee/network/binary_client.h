@@ -82,17 +82,13 @@ public:
 
     // ed::tcp_client_connection implementation
     //
-    //virtual ssize_t             write(void const * buf, std::size_t count) override;
-    //virtual bool                is_writer() const override;
-    //virtual void                process_write() override;
-    //virtual void                process_hup() override;
     virtual void                process_timeout() override;
-    virtual void                process_connected();
-    virtual void                process_disconnected();
 
     // new callback
     //
     virtual void                process_message(binary_message & msg) = 0;
+    virtual void                process_connected();
+    virtual void                process_disconnected();
 
 private:
     enum read_state_t
