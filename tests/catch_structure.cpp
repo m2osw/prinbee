@@ -2089,7 +2089,7 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure][valid]")
                   )
                 , prinbee::invalid_parameter
                 , Catch::Matchers::ExceptionMessage(
-                          "prinbee_exception: this structure field name is not considered valid."));
+                          "prinbee_exception: this structure field name, \"\" is not considered valid."));
 
         for(int i(0); i < 100; ++i)
         {
@@ -2155,7 +2155,9 @@ CATCH_TEST_CASE("structure_invalid_field", "[structure][valid]")
                       )
                     , prinbee::invalid_parameter
                     , Catch::Matchers::ExceptionMessage(
-                              "prinbee_exception: this structure field name is not considered valid."));
+                              std::string("prinbee_exception: this structure field name, \"")
+                            + name
+                            + "\" is not considered valid."));
         }
     }
     CATCH_END_SECTION()
