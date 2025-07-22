@@ -1,11 +1,13 @@
-prinbee (1.0.0.5~bionic) bionic; urgency=high
+prinbee (1.0.0.5~noble) noble; urgency=high
 
   * Fixed the offset while reading the file.
   * Fixed the seekg/p() with "end", it has to be size() + offset.
   * Increased test coverage.
   * Fixed double space location in the prinbee-journal command line tool.
+  * Moved the debian/compat version to the debian/control dependencies.
+  * Many many other changes. It's still not working.
 
- -- Alexis Wilke <alexis@m2osw.com>  Mon, 25 Dec 2023 16:48:25 -0800
+ -- Alexis Wilke <alexis@m2osw.com>  Mon, 21 Jul 2025 20:10:43 -0700
 
 prinbee (1.0.0.4~bionic) bionic; urgency=high
 
