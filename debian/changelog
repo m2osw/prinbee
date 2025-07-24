@@ -1,3 +1,9 @@
+prinbee (1.0.0.6~jammy) jammy; urgency=high
+
+  * Bumped build version to rebuild on Launchpad.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Wed, 23 Jul 2025 19:19:59 -0700
+
 prinbee (1.0.0.5~noble) noble; urgency=high
 
   * Fixed the offset while reading the file.
