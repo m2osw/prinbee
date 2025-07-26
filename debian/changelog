@@ -1,4 +1,4 @@
-prinbee (1.0.0.6~jammy) jammy; urgency=high
+prinbee (1.0.0.6~noble) noble; urgency=high
 
   * Bumped build version to rebuild on Launchpad.
 
