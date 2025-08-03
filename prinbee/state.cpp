@@ -576,8 +576,6 @@ std::string state::to_json(state_t states) const
  *
  * \param[in] states  The list of states to convert, other states are ignored.
  * \param[in] json  The JSON string to convert.
- *
- * \return The state as a JSON string.
  */
 void state::from_json(state_t states, std::string const & json)
 {

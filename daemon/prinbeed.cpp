@@ -150,12 +150,12 @@
  * communicatord->prinbeed2 [label="INTERCONNECT"];
  *
  * ---  [label="If prinbee2.IP > prinbee1.IP"];
- * prinbee2->prinbeed1 [label="<direct connection to binary port>"];
+ * prinbeed2->prinbeed1 [label="<direct connection to binary port>"];
  *
  * ---  [label="If prinbee2.IP < prinbee1.IP"];
  * prinbeed2->communicatord [label="INTERCONNECT"];
- * communicatord->prinbee1 [label="INTERCONNECT"];
- * prinbee1->prinbeed2 [label="<direct connection to binary port>"];
+ * communicatord->prinbeed1 [label="INTERCONNECT"];
+ * prinbeed1->prinbeed2 [label="<direct connection to binary port>"];
  * \endmsc
  *
  * The client and server connections make use of a similar protocol,
