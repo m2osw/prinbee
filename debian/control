@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Alexis Wilke <alexis@m2osw.com>
 Build-Depends: basic-xml-dev (>= 1.0.0.0~noble),
     cmake,
-    cluck-dev (>= 1.0.1.0~noble)
+    cluck-dev (>= 1.0.1.0~noble),
     communicatord-dev (>= 2.0.0.0~noble),
     cppprocess-dev (>= 1.1.52.0~noble),
     cppthread-dev (>= 1.1.13.0~noble),
