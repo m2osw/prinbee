@@ -191,6 +191,11 @@
 #include    <communicatord/names.h>
 
 
+// cluck
+//
+#include    <cluck/cluck_status.h>
+
+
 // cppprocess
 //
 #include    <cppprocess/io_capture_pipe.h>
@@ -518,6 +523,24 @@ void prinbeed::set_clock_status(bool status)
 }
 
 
+/** \brief Save the current lock status.
+ *
+ * Whenever we start the prinbee daemon, we want to be able to lock
+ * multiple computers whenever certain operations happen. In particular,
+ * changes to the schema have to happen in synchrony so make sure it
+ * happens on all computers concerned by said schema.
+ */
+void prinbeed::lock_status_changed()
+{
+    if(!f_lock_ready
+    && cluck::is_lock_ready())
+    {
+        f_lock_ready = true;
+        start_binary_connection();
+    }
+}
+
+
 /** \brief Run the prinbee daemon.
  *
  * This function is the core function of the daemon. It runs the loop
@@ -658,6 +681,18 @@ void prinbeed::start_binary_connection()
     // so the clock has to be up and running properly on each system
     //
     if(!f_stable_clock)
+    {
+        return;
+    }
+
+    // check whether the lock system (cluckd) is ready
+    //
+    // many operations require a lock so we must make sure that the lock
+    // is ready before we start (we may actually ease this later because
+    // we probably want the journal to be active even without the lock
+    // since that's a local operation and thus cluckd is not required)
+    //
+    if(!f_lock_ready)
     {
         return;
     }

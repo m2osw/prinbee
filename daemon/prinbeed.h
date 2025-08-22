@@ -59,6 +59,7 @@ public:
     bool                        is_ipwall_installed() const;
     void                        set_ipwall_status(bool status);
     void                        set_clock_status(bool status);
+    void                        lock_status_changed();
     void                        register_prinbee_daemon(ed::message & msg);
     int                         run();
     void                        start_binary_connection();
@@ -82,6 +83,7 @@ private:
     bool                                    f_ipwall_is_installed = false;
     bool                                    f_ipwall_is_up = false;
     bool                                    f_stable_clock = false;
+    bool                                    f_lock_ready = false;
 };
 
 

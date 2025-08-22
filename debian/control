@@ -2,33 +2,34 @@ Source: prinbee
 Section: net
 Priority: optional
 Maintainer: Alexis Wilke <alexis@m2osw.com>
-Build-Depends: basic-xml-dev (>= 1.0.0.0~jammy),
+Build-Depends: basic-xml-dev (>= 1.0.0.0~noble),
     cmake,
-    communicatord-dev (>= 2.0.0.0~jammy),
-    cppprocess-dev (>= 1.1.52.0~jammy),
-    cppthread-dev (>= 1.1.13.0~jammy),
+    cluck-dev (>= 1.0.1.0~noble)
+    communicatord-dev (>= 2.0.0.0~noble),
+    cppprocess-dev (>= 1.1.52.0~noble),
+    cppthread-dev (>= 1.1.13.0~noble),
     debhelper-compat (= 13),
     dh-exec,
     dh-sysuser,
     doxygen,
-    eventdispatcher-dev (>= 1.1.51.0~jammy),
-    fluid-settings-dev (>= 1.0.0.0~jammy),
+    eventdispatcher-dev (>= 1.1.51.0~noble),
+    fluid-settings-dev (>= 1.0.0.0~noble),
     graphviz,
-    libaddr-dev (>= 1.0.8.215~jammy),
-    libadvgetopt-dev (>= 2.0.4.0~jammy),
-    libas2js-dev (>= 0.1.39.0~jammy),
+    libaddr-dev (>= 1.0.8.215~noble),
+    libadvgetopt-dev (>= 2.0.4.0~noble),
+    libas2js-dev (>= 0.1.39.0~noble),
     libboost-dev,
-    libexcept-dev (>= 1.0.2.250~jammy),
+    libexcept-dev (>= 1.0.2.250~noble),
     libicu-dev,
     libssl-dev (>= 1.0.1),
-    libutf8-dev (>= 1.0.13.0~jammy),
-    murmur3-dev (>= 1.0.5.0~jammy),
-    reporter (>= 1.1.58.0~jammy),
-    serverplugins-dev (>= 2.0.4.0~jammy),
-    snapcatch2 (>= 2.9.1.0~jammy),
-    snapcmakemodules (>= 1.0.35.3~jammy),
-    snapdev (>= 1.0.0.0~jammy),
-    snaplogger-dev (>= 1.0.0.0~jammy)
+    libutf8-dev (>= 1.0.13.0~noble),
+    murmur3-dev (>= 1.0.5.0~noble),
+    reporter (>= 1.1.58.0~noble),
+    serverplugins-dev (>= 2.0.4.0~noble),
+    snapcatch2 (>= 2.9.1.0~noble),
+    snapcmakemodules (>= 1.0.35.3~noble),
+    snapdev (>= 1.0.0.0~noble),
+    snaplogger-dev (>= 1.0.0.0~noble)
 Standards-Version: 3.9.4
 Homepage: https://snapwebsites.org/
 Vcs-Git: https://github.com/m2osw/snapcpp.git

@@ -38,6 +38,11 @@
 #include    <prinbee/names.h>
 
 
+// cluck
+//
+#include    <cluck/cluck_status.h>
+
+
 // eventdispatcher
 //
 #include    <eventdispatcher/names.h>
@@ -98,6 +103,10 @@ messenger::messenger(prinbeed * p, advgetopt::getopt & opts)
             DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_get_status,                &messenger::msg_prinbee_get_status),
     });
     f_dispatcher->add_communicator_commands();
+    cluck::listen_to_cluck_status(
+              std::dynamic_pointer_cast<ed::connection_with_send_message>(shared_from_this())
+            , f_dispatcher
+            , std::bind(&messenger::msg_lock_status, this, std::placeholders::_1));
 
 #ifdef _DEBUG
     // further dispatcher initialization
@@ -256,6 +265,21 @@ void messenger::msg_prinbee_current_status(ed::message & msg)
 void messenger::msg_prinbee_get_status(ed::message & msg)
 {
     f_prinbeed->send_our_status(&msg);
+}
+
+
+/** \brief Handle a change in lock status.
+ *
+ * This function is called whenever we receive a NO_LOCK or LOCK_READY
+ * message from the cluck service. We react by checking whether we can
+ * open our binary connections or not.
+ *
+ * \param[in,out] msg  The NO_LOCK or LOCK_READY message.
+ */
+void messenger::msg_lock_status(ed::message & msg)
+{
+    snapdev::NOT_USED(msg);
+    f_prinbeed->lock_status_changed();
 }
 
 

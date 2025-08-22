@@ -33,6 +33,7 @@ add_executable(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         ${ADVGETOPT_INCLUDE_DIRS}
+        ${CLUCK_INCLUDE_DIRS}
         ${COMMUNICATORD_INCLUDE_DIRS}
         ${CPPPROCESS_INCLUDE_DIRS}
         ${EVENTDISPATCHER_INCLUDE_DIRS}
@@ -44,6 +45,7 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
     prinbee
+    ${CLUCK_LIBRARIES}
     ${COMMUNICATORD_LIBRARIES}
     ${CPPPROCESS_LIBRARIES}
     ${EVENTDISPATCHER_LIBRARIES}
