@@ -50,7 +50,12 @@ namespace prinbee_daemon
  * incoming Unix signals.
  *
  * Specifically, it listens on the SIGINT signal, which is the equivalent
- * to the Ctrl-C.
+ * to Ctrl-C.
+ *
+ * \note
+ * When stopping a service we are expected to first send it a STOP or QUIT
+ * message. If that fails, then send a SIGINT. If that fails too, use the
+ * SIGKILL as a last resort.
  *
  * \param[in] p  The prinbee server we are listening for.
  */

@@ -11,6 +11,11 @@ cmd_prinbee_current_status=PRINBEE_CURRENT_STATUS
 cmd_prinbee_get_status=PRINBEE_GET_STATUS
 cmd_prinbee_server_listener=PRINBEE_SERVER_LISTENER
 
+# message parameters
+param_name=name
+param_node_ip=node_ip
+param_proxy_ip=proxy_ip
+
 # Name of structure fields
 fld_blob_limit=blob_limit
 fld_blob_compressor=blob_compressor
@@ -54,6 +59,7 @@ fld_values=values
 fld_version=version
 fld_versioned_rows=versioned_rows
 
+# services
 service_prinbee=prinbee
 
 # vim: syntax=dosini

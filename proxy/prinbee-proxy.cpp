@@ -314,19 +314,12 @@ advgetopt::group_description const g_group_descriptions[] =
 };
 
 
-// until we have C++20, remove warnings this way
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
 advgetopt::options_environment const g_options_environment =
 {
     .f_project_name = "prinbee-proxy",
     .f_group_name = "prinbee",
     .f_options = g_options,
-    .f_options_files_directory = nullptr,
-    .f_environment_variable_name = "PRINBEE-PROXY",
-    .f_environment_variable_intro = nullptr,
-    .f_section_variables_name = nullptr,
-    .f_configuration_files = nullptr,
+    .f_environment_variable_name = "PRINBEE_PROXY",
     .f_configuration_filename = "prinbee-proxy.conf",
     .f_configuration_directories = g_configuration_directories,
     .f_environment_flags = advgetopt::GETOPT_ENVIRONMENT_FLAG_PROCESS_SYSTEM_PARAMETERS,
@@ -334,19 +327,12 @@ advgetopt::options_environment const g_options_environment =
                      "where --<opt> is one or more of:",
     .f_help_footer = "%c",
     .f_version = SNAPLOGGER_VERSION_STRING,
-    .f_license = "GNU GPL v2",
+    .f_license = "GNU GPL v3",
     .f_copyright = "Copyright (c) 2013-"
                    BOOST_PP_STRINGIZE(UTC_BUILD_YEAR)
                    " by Made to Order Software Corporation -- All Rights Reserved",
-    .f_build_date = UTC_BUILD_DATE,
-    .f_build_time = UTC_BUILD_TIME,
     .f_groups = g_group_descriptions
 };
-#pragma GCC diagnostic pop
-
-
-
-
 
 
 

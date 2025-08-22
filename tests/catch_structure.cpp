@@ -265,7 +265,7 @@ constexpr prinbee::struct_description_t g_description5_sub1[] =
 //  early_version.size       1
 //  early_version.parts      1 + 0
 //  sixteen_bits             2
-//  tag                     15      (the current value does not chnage this size)
+//  tag                     15      (the current value does not change this size)
 //  name                     1
 //                   ---------
 //  total                   52

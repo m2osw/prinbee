@@ -80,13 +80,15 @@ int main(int argc, char * argv[])
     {
         errmsg = "prinbeed:error: ";
         errmsg += e.what();
+        errmsg += " (stack information may be available in the logs)";
+        SNAP_LOG_FATAL << "uncaught exception: " << e.what() << SNAP_LOG_SEND_WITH_STACK_TRACE(e);
     }
     catch(...)
     {
         errmsg = "prinbeed:error: unknown exception caught!";
+        SNAP_LOG_FATAL << errmsg << SNAP_LOG_SEND;
     }
 
-    SNAP_LOG_FATAL << errmsg << SNAP_LOG_SEND;
     if(isatty(STDERR_FILENO))
     {
         std::cerr << errmsg << std::endl;

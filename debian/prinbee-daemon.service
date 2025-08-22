@@ -5,6 +5,11 @@
 Description=Prinbee Daemon (NoSQL Multi-Index Database Manager)
 Documentation=https://snapwebsites.org/project/prinbee file:/usr/share/doc/prinbee-doc/html/
 
+# Unfortunately, ipload is not a dependency, so we cannot start after
+# Instead we use the IPWALL_GET_STATUS message to make sure everything is ready
+# (actually ipload depends on prinbee...)
+#After=ipload.service
+
 [Service]
 Type=simple
 WorkingDirectory=~

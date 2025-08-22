@@ -61,6 +61,7 @@ DECLARE_EXCEPTION(prinbee_exception, file_still_in_use);
 DECLARE_EXCEPTION(prinbee_exception, full);
 DECLARE_EXCEPTION(prinbee_exception, id_already_assigned);
 DECLARE_EXCEPTION(prinbee_exception, id_missing);
+DECLARE_EXCEPTION(prinbee_exception, invalid_address);
 DECLARE_EXCEPTION(prinbee_exception, invalid_entity);
 DECLARE_EXCEPTION(prinbee_exception, invalid_name);
 DECLARE_EXCEPTION(prinbee_exception, invalid_number);

@@ -56,11 +56,7 @@ public:
                                     , std::string const & value) override;
 
 private:
-    void                        msg_clock_stable(ed::message & msg);
-    void                        msg_clock_unstable(ed::message & msg);
     void                        msg_ipwall_current_status(ed::message & msg);
-    void                        msg_prinbee_current_status(ed::message & msg);
-    void                        msg_prinbee_get_status(ed::message & msg);
 
     prinbeed *                  f_prinbeed = nullptr;
     ed::dispatcher::pointer_t   f_dispatcher = ed::dispatcher::pointer_t();

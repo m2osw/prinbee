@@ -89,6 +89,7 @@ namespace prinbee
 prinbee_connection::prinbee_connection(advgetopt::getopt & opts)
     : f_opts(opts)
 {
+throw logic_error("this object is for clients, however, the message to be sent (PRINBEE_GET_STATUS) needs to go to the local proxy if there isn't a prinbeed running on that computer.");
 }
 
 
@@ -175,7 +176,7 @@ void prinbee_connection::msg_ready(ed::message & msg)
     ed::connection_with_send_message * c(dynamic_cast<ed::connection_with_send_message *>(this));
     if(c == nullptr)
     {
-        throw logic_error("the prinbee_connection class must also represent a connection_with_send_message.");
+        throw logic_error("the prinbee_connection class must also represent a connection_with_send_message."); // LCOV_EXCL_LINE
     }
 
     // send a PRINBEE_GET_STATUS query message to get the current database

@@ -21,6 +21,25 @@ region (i.e. `fr_FR`, `fr_BE`, etc.) If all of those fail, try again with
 the same mechanism using the default language of the website. If that also
 fails, return the first entry that exist in the database.
 
+# Support Multiple Clusters
+
+Within one Snap! C++ cluster, we cannot run more than one prinbee cluster.
+This is because all the prinbee nodes are going to talk to all the other
+prinbee nodes, no matter what.
+
+In order to allow for multiple separate databases, we need to find a
+way to separate each cluster within the same Snap! C++ cluster. This
+is simple in theory: give each cluster a name. If the name does not
+match, then do not connect to that prinbee node.
+
+It's really simple in principle, but not that easy because we need to
+get the name from somewhere and at the moment that would be fluid settings
+which means all the prinbee nodes receive the exact same name. Having to
+edit the .conf on each computer is not a good option...
+
+Another way is to view the prinbee cluster as a separate Snap! C++ cluster
+than the website front end / back end, mail server, etc. Something TBD.
+
 # Dependencies
 
 ## To be removed

@@ -1,7 +1,7 @@
 
 # Introduction
 
-The prinbee is an amorphic database system which allows us to manage
+Prinbee is an amorphic database system allowing us to manage
 all of our data through one single system. It's 100% written in C++.
 
 The basic features include:
@@ -13,7 +13,7 @@ The basic features include:
 
 # Database Access
 
-The library comes with a C++ library which allows clients to manage
+The library comes with a C++ library allowing clients to manage
 the data from a very simple set of C++ objects. As far as the C++ user
 is concerned, that's it.
 

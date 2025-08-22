@@ -17,12 +17,17 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /** \file
- * \brief Messenger for the prinbee daemon.
+ * \brief Messenger for the prinbee proxy.
  *
- * The Prinbee daemon has a normal messenger connection. This is used to
- * find the daemons and connect to them. The clients make use of a
- * direct connection so communication can happen with large binary data
- * (i.e. large files are to be sent to the backends).
+ * The Prinbee proxy has a normal messenger connection. This is used to:
+ *
+ * 1. Find the Prinbee daemons and connect to them
+ * 2. Get the Prinbee daemon binary connection information
+ * 2. Let clients find the Proxy
+ * 3. Give clients the binary connection information
+ *
+ * The messenger is also used to make sure that the firewall is up and
+ * running before opening the binary connection.
  */
 
 
@@ -30,7 +35,7 @@
 //
 #include    "messenger.h"
 
-#include    "prinbeed.h"
+#include    "proxyd.h"
 
 
 // prinbee
@@ -91,17 +96,13 @@ messenger::messenger(prinbeed * p, advgetopt::getopt & opts)
     set_dispatcher(f_dispatcher);
     add_fluid_settings_commands();
     f_dispatcher->add_matches({
-            DISPATCHER_MATCH(communicatord::g_name_communicatord_cmd_clock_stable,          &messenger::msg_clock_stable),
-            DISPATCHER_MATCH(communicatord::g_name_communicatord_cmd_clock_unstable,        &messenger::msg_clock_unstable),
             DISPATCHER_MATCH(communicatord::g_name_communicatord_cmd_ipwall_current_status, &messenger::msg_ipwall_current_status),
-            DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_current_status,            &messenger::msg_prinbee_current_status),
-            DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_get_status,                &messenger::msg_prinbee_get_status),
     });
     f_dispatcher->add_communicator_commands();
 
-#ifdef _DEBUG
     // further dispatcher initialization
     //
+#ifdef _DEBUG
     f_dispatcher->set_trace();
     f_dispatcher->set_show_matches();
 #endif
@@ -128,134 +129,44 @@ void messenger::finish_parsing()
 /** \brief Messenger received the READY message.
  *
  * Whenever we receive the READY message, we also receive our IP address
- * as the "my_address" parameter. This is made available via the
- * get_my_address() function.
+ * as the "my_address" parameter. This gets copied in the prinbeed object.
  *
  * \param[in,out] msg  The READY message.
- *
- * \sa connection_with_send_message::msg_ready()
- * \sa connection_with_send_message::get_my_address()
  */
 void messenger::ready(ed::message & msg)
 {
     fluid_settings_connection::ready(msg);
+    f_prinbeed->start_binary_connection();
 
     // check the ipwall service status using the IPWALL_GET_STATUS message
     //
-    // WARNING: we do need to use the message because package wise, iplock
-    //          depends on prinbee and thus we cannot be sure it is even
-    //          installed without testing; similarly, the prinbee daemon
-    //          service cannot wait on ipload to run ahead of time since
-    //          it may want to use the database... a chicken and the egg
-    //          issue.
+    // TODO: I do not think we need the dynamic ipwall for prinbee; just
+    //       the ipload being active would be sufficient (i.e. we open a
+    //       LAN port so anyone on our LAN can connect; it's not all wide
+    //       open; at the same time, the admin can setup that IP address
+    //       as the public IP address so it could be semi-dangerous)
     //
-    if(f_prinbeed->is_ipwall_installed())
-    {
-        ed::message ipwall_get_status;
-        ipwall_get_status.set_server(".");
-        ipwall_get_status.set_service("ipwall"); // WARNING: iplock depends on prinbee so we cannot use the iplock names.an info
-        ipwall_get_status.set_command(communicatord::g_name_communicatord_cmd_ipwall_get_status);
-        ipwall_get_status.add_parameter(
-                  communicatord::g_name_communicatord_param_cache
-                , communicatord::g_name_communicatord_value_no);
-        send_message(ipwall_get_status);
-    }
-
-    // request the current clock status
-    //
-    ed::message clock_status;
-    clock_status.reply_to(msg); // the message is from the communicatord so we can use reply_to() here
-    clock_status.set_command(communicatord::g_name_communicatord_cmd_clock_status);
-    clock_status.add_parameter(
+    ed::message ipwall_get_status;
+    ipwall_get_status.reply_to(msg);
+    ipwall_get_status.set_command(communicatord::g_name_communicatord_cmd_ipwall_get_status);
+    ipwall_get_status.add_parameter(
               communicatord::g_name_communicatord_param_cache
             , communicatord::g_name_communicatord_value_no);
-    send_message(clock_status);
-
-    // for completeness, call the following, however:
-    //
-    // * the firewall, if installed, will not yet have responded
-    // * the clock status will not have had time to respond either
-    // * the fluid-settings service is not registered yet
-    //
-    // the prinbee daemon just never expects any of the necessary messages
-    // before the READY message is received
-    //
-    f_prinbeed->start_binary_connection();
-}
-
-
-/** \brief Handle the CLOCK_STABLE message.
- *
- * This function gets called whenever the daemon receives the
- * CLOCK_STABLE message.
- *
- * \param[in,out] msg  The CLOCK_STABLE message.
- */
-void messenger::msg_clock_stable(ed::message & msg)
-{
-    f_prinbeed->set_clock_status(msg.get_parameter(communicatord::g_name_communicatord_param_clock_resolution)
-                                        == communicatord::g_name_communicatord_value_verified);
-}
-
-
-/** \brief Handle the CLOCK_UNSTABLE message.
- *
- * This function gets called whenever the daemon receives the
- * CLOCK_UNSTABLE message.
- *
- * \param[in,out] msg  The CLOCK_UNSTABLE message.
- */
-void messenger::msg_clock_unstable(ed::message & msg)
-{
-    snapdev::NOT_USED(msg);
-
-    f_prinbeed->set_clock_status(false);
+    send_message(ipwall_get_status);
 }
 
 
 /** \brief Handle the IPWALL_CURRENT_STATUS message.
  *
  * This function gets called whenever the daemon receives the
- * IPWALL_CURRENT_STATUS message.
+ * IPWALL_CURRENT_STATUS
  *
- * \param[in,out] msg  The IPWALL_CURRENT_STATUS message.
+ * \param[in] msg  The IPWALL_CURRENT_STATUS message.
  */
 void messenger::msg_ipwall_current_status(ed::message & msg)
 {
     f_prinbeed->set_ipwall_status(msg.get_parameter(communicatord::g_name_communicatord_param_status)
                                         == communicatord::g_name_communicatord_value_up);
-}
-
-
-/** \brief Handle the PRINBEE_CURRENT_STATUS message.
- *
- * This function gets called whenever the daemon receives the
- * PRINBEE_CURRENT_STATUS message. This happens whenever another
- * prinbee daemon broadcasts that message. This is also used as a
- * gossip to interconnect all the prinbee daemon together.
- *
- * \param[in,out] msg  The PRINBEE_CURRENT_STATUS message.
- */
-void messenger::msg_prinbee_current_status(ed::message & msg)
-{
-    f_prinbeed->register_prinbee_daemon(msg);
-}
-
-
-/** \brief Handle the PRINBEE_GET_STATUS message.
- *
- * This function gets called whenever the daemon receives the
- * PRINBEE_GET_STATUS message. This happens whenever another
- * prinbee daemon broadcasts that message. This is also used as a
- * gossip to interconnect all the prinbee daemon together.
- *
- * This server replies with a PRINBEE_CURRENT_STATUS.
- *
- * \param[in,out] msg  The PRINBEE_GET_STATUS message.
- */
-void messenger::msg_prinbee_get_status(ed::message & msg)
-{
-    f_prinbeed->send_our_status(&msg);
 }
 
 

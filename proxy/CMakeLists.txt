@@ -18,7 +18,7 @@
 
 
 ##
-## build the front end proxy service
+## build the proxy service
 ##
 project(prinbee-proxy)
 

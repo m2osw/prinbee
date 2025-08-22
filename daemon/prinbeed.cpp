@@ -30,7 +30,7 @@
  *                          |    |
  *                          |    +---> Application Journal
  *                          |
- *                          | Communicator Daemon + Binary Connection
+ *                          | Communicator Proxy + Binary Connection
  *                          v
  *      Prinbee Proxy + Prinbee Library
  *                          |    |
@@ -61,7 +61,7 @@
  * * the state of the transport between the application and the daemon
  * ** not connected (application journal only)
  * ** proxy connection (application can communicate with the proxy)
- * ** daemon connection (application can communicate with the daemon)
+ * ** daemon connection (application can communicate with a daemon)
  * * the state of the cluster of Nodes in terms of connections
  * ** not connected
  * ** connected
@@ -180,22 +180,23 @@
 
 // prinbee
 //
-//#include    <prinbee/exception.h>
-//#include    <prinbee/names.h>
+#include    <prinbee/exception.h>
+#include    <prinbee/names.h>
 #include    <prinbee/version.h>
 
 
 // communicatord
 //
 //#include    <communicatord/flags.h>
-//#include    <communicatord/names.h>
+#include    <communicatord/names.h>
+
+
+// cppprocess
 //
-//
-//// as2js
-////
-//#include    <as2js/json.h>
-//
-//
+#include    <cppprocess/io_capture_pipe.h>
+#include    <cppprocess/process.h>
+
+
 //// eventdispatcher
 ////
 //#include    <eventdispatcher/names.h>
@@ -260,6 +261,14 @@ namespace
 
 advgetopt::option const g_options[] =
 {
+    advgetopt::define_option(
+          advgetopt::Name("cluster-name")
+        , advgetopt::Flags(advgetopt::all_flags<
+                      advgetopt::GETOPT_FLAG_REQUIRED
+                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("Specify the name of this prinbee cluster.")
+        , advgetopt::DefaultValue("prinbee")
+    ),
     advgetopt::define_option(
           advgetopt::Name("proxy-listen")
         , advgetopt::Flags(advgetopt::all_flags<
@@ -431,6 +440,19 @@ void prinbeed::add_connections()
 }
 
 
+/** \brief Set the ipwall status from the IPWALL_CURRENT_STATUS message.
+ *
+ * The daemon listens for IPWALL_CURRENT_STATUS messages, it accepts
+ * connections on the binary connection only after the status is UP.
+ *
+ * \note
+ * If later the status goes down, this daemon continues to listen on the
+ * same connections. This is safe because the ipwall should never go
+ * down once it was up (i.e. we never clear the firewall dry).
+ *
+ * \param[in] status  The new ipwall status, if true, the firewall is
+ *                    considered to be up.
+ */
 void prinbeed::set_ipwall_status(bool status)
 {
     if(status
@@ -442,11 +464,65 @@ void prinbeed::set_ipwall_status(bool status)
 }
 
 
+/** \brief Handle the PRINBEE_CURRENT_STATUS message.
+ *
+ * This function handles the PRINBEE_CURRENT_STATUS message. This means
+ * registering the prinbee daemon that sent that message and if not
+ * yet connected with it, create a connection.
+ *
+ * Note that like with the communicator daemon, we want to connect from
+ * one prinbee daemon to another only if the one has a smaller IP address.
+ * Otherwise, do nothing (i.e. the other daemon will connect to us
+ * automatically when it receives this very message).
+ *
+ * \param[in,out] msg  The PRINBEE_CURRENT_STATUS message.
+ */
+void prinbeed::register_prinbee_daemon(ed::message & msg)
+{
+    if(!msg.has_parameter(communicatord::g_name_communicatord_param_status))
+    {
+        return;
+    }
+
+    if(msg.get_parameter(communicatord::g_name_communicatord_param_status)
+                            != communicatord::g_name_communicatord_value_up)
+    {
+        return;
+    }
+
+}
+
+
+/** \brief Set the clock status from the CLOCK_STABLE message.
+ *
+ * The daemon listens for CLOCK_STABLE messages, it accepts
+ * connections on the binary connection only after the click is
+ * considered stable (a.k.a. synchronized with an NTP server).
+ *
+ * \todo
+ * If later the status goes down, this daemon continues to run with an
+ * invalid clock. This is because once we opened the binary connections,
+ * we just don't take them back down until we quit.
+ *
+ * \param[in] status  The new clock status, if true, the clock is
+ *                    considered to be stable.
+ */
+void prinbeed::set_clock_status(bool status)
+{
+    if(status
+    && !f_stable_clock)
+    {
+        f_stable_clock = true;
+        start_binary_connection();
+    }
+}
+
+
 /** \brief Run the prinbee daemon.
  *
  * This function is the core function of the daemon. It runs the loop
- * used to lock processes from any number of computers that have access
- * to the prinbee daemon network.
+ * used to accept messenger and direct binary connections between the
+ * database daemon (prinbeed) and proxy.
  *
  * \sa add_connections()
  */
@@ -456,6 +532,8 @@ int prinbeed::run()
         << "--------------------------------- prinbeed started."
         << SNAP_LOG_SEND;
 
+    is_ipwall_installed();
+
     // now run our listening loop
     //
     f_communicator->run();
@@ -464,18 +542,86 @@ int prinbeed::run()
 }
 
 
+/** \brief Check whether we can find iplock.
+ *
+ * The system checks whether the firewall is in place by waiting for the
+ * ipload and ipwall to be ready. This works by sending an IPWALL_GET_STATUS
+ * message and expecting the IPWALL_CURRENT_STATUS as the reply.
+ *
+ * Only, the iplock services depends on the prinbee services. This is because
+ * the iplock system wants to have access to a table in the database. So to
+ * make things work, we instead use the messages. However, the messages will
+ * never happen if the packages weren't installed, which is a possible
+ * installation scheme. After all, if you have prinbee installed on a
+ * back end system with firewall on other computers, it would not be
+ * required to have iplock running on its own computers.
+ *
+ * So here we check whether the iplock system is installed. If not, we'll
+ * skip on the IPWALL_CURRENT_STATUS altogether.
+ */
+void prinbeed::check_ipwall_status()
+{
+    cppprocess::process p("is ipwall active?");
+    p.set_command("systemctl");
+    p.add_argument("is-enabled");
+    p.add_argument("ipwall");
+    cppprocess::io_capture_pipe::pointer_t out(std::make_shared<cppprocess::io_capture_pipe>());
+    p.set_output_io(out);
+    int r(p.start());
+    if(r == 0)
+    {
+        r = p.wait();
+    }
+    SNAP_LOG_VERBOSE
+        << '"'
+        << p.get_command_line()
+        << "\" query output ("
+        << r
+        << "): "
+        << out->get_trimmed_output()
+        << SNAP_LOG_SEND;
+
+    f_ipwall_is_installed = r == 0;
+}
 
 
-/** \brief Check whether the binary connection can be started and if so open it.
+bool prinbeed::is_ipwall_installed() const
+{
+    return f_ipwall_is_installed;
+}
+
+
+/** \brief Start the binary connection.
  *
- * This function starts listening for binary connections from proxies.
+ * First, this function makes sure it can start the binary connections.
+ * This means:
  *
- * The function does nothing if the following conditions are met:
+ * \li The firewall is up
+ * \li The clock on this computer is considered stable
+ * \li The connection to the communicatord is ready
+ * \li The connection to the fluid settings server is ready
  *
- * \li the binary connection already exists
- * \li the system needs to be ready (we did not yet receive the READY message)
- * \li the firewall is not yet in place (we did not yet received a "favorable"
- *     status from the ipwall service via the IPWALL_CURRENT_STATUS message)
+ * Once ready, it starts the two binary connections:
+ *
+ * \li A socket to accept connections from proxies
+ * \li A socket to accept connections from other daemons
+ *
+ * The daemons use a complete network, meaning that all the nodes within
+ * a cluster connect to all the other nodes in that cluster. In most cases,
+ * inter-cluster communication uses only one connection to better control
+ * costs.
+ *
+ * \note
+ * Since the service receives different messages that trigger a call to
+ * this function, the function checks the server current status every time.
+ * This includes a test to see whether the connections are already in place.
+ * If so, nothing happens.
+ *
+ * \exception prinbee::invalid_address
+ * The messenger has this computer's IP address defined. It gets used by
+ * the proxy listener. If the address happens to be invalid (i.e. not
+ * usable to listen on--i.e. documentation IPv6 address) then this
+ * exception is raised.
  */
 void prinbeed::start_binary_connection()
 {
@@ -501,9 +647,17 @@ void prinbeed::start_binary_connection()
         return;
     }
 
-    // is the firewall in place?
+    // did we receive IPWALL_CURRENT_STATUS message with status UP?
     //
     if(!f_ipwall_is_up)
+    {
+        return;
+    }
+
+    // in a cluster of synchronized nodes, the synchronization uses time
+    // so the clock has to be up and running properly on each system
+    //
+    if(!f_stable_clock)
     {
         return;
     }
@@ -513,43 +667,118 @@ void prinbeed::start_binary_connection()
     // receive the READY message from the communicator daemon
     //
     addr::addr my_address(f_messenger->get_my_address());
-    if(my_address.is_default())
+    switch(my_address.get_network_type())
     {
-        return;
+    case addr::network_type_t::NETWORK_TYPE_PUBLIC:
+    case addr::network_type_t::NETWORK_TYPE_PRIVATE:
+    case addr::network_type_t::NETWORK_TYPE_LOOPBACK:
+        break;
+
+    default:
+        throw prinbee::invalid_address("the messenger address is not a valid address.");
+
     }
 
     // the daemon is ready to listen for connections, open the ports
     //
-    addr::addr listen_address(addr::string_to_addr(
+    addr::addr node_address(addr::string_to_addr(
+                          f_opts.get_string("node_listen")
+                        , std::string()
+                        , NODE_BINARY_PORT));
+    my_address.set_port(node_address.get_port());
+    if(node_address.is_default())
+    {
+        node_address = my_address;
+    }
+    f_node_address = my_address.to_ipv4or6_string(
+                          addr::STRING_IP_ADDRESS
+                        | addr::STRING_IP_BRACKET_ADDRESS
+                        | addr::STRING_IP_PORT);
+
+    addr::addr proxy_address(addr::string_to_addr(
                           f_opts.get_string("proxy_listen")
                         , std::string()
                         , PROXY_BINARY_PORT));
-    if(listen_address.is_default())
+    my_address.set_port(proxy_address.get_port());
+    if(proxy_address.is_default())
     {
-        my_address.set_port(listen_address.get_port());
-        listen_address = my_address;
+        proxy_address = my_address;
     }
+    f_proxy_address = my_address.to_ipv4or6_string(
+                          addr::STRING_IP_ADDRESS
+                        | addr::STRING_IP_BRACKET_ADDRESS
+                        | addr::STRING_IP_PORT);
 
-    // Note: I use an intermediate pointer so if the second allocation
-    //       throws, we can avoid saving a half opened server
-    //
     // TODO: add support for TLS connections
     //
-    prinbee::binary_server::pointer_t proxy_listener(std::make_shared<prinbee::binary_server>(listen_address));
+    f_node_listener = std::make_shared<prinbee::binary_server>(node_address);
+    f_communicator->add_connection(f_node_listener);
 
-    listen_address = addr::string_to_addr(
-                          f_opts.get_string("node_listen")
-                        , std::string()
-                        , NODE_BINARY_PORT);
-    if(listen_address.is_default())
+    f_proxy_listener = std::make_shared<prinbee::binary_server>(proxy_address);
+    f_communicator->add_connection(f_proxy_listener);
+
+    // request the current status of the prinbee cluster
+    //
+    ed::message prinbee_get_status;
+    prinbee_get_status.set_command(prinbee::g_name_prinbee_cmd_prinbee_get_status);
+    prinbee_get_status.set_service(prinbee::g_name_prinbee_service_prinbee);
+    prinbee_get_status.set_server(communicatord::g_name_communicatord_service_private_broadcast);
+    prinbee_get_status.add_parameter(
+              communicatord::g_name_communicatord_param_cache
+            , communicatord::g_name_communicatord_value_no);
+    f_messenger->send_message(prinbee_get_status);
+
+    // we also need to send our status to everyone else
+    //
+    send_our_status(nullptr);
+}
+
+
+void prinbeed::send_our_status(ed::message * msg)
+{
+    // we send our status which generates an equivalent of a gossip message
+    // since this message is used to interconnect all the prinbee daemons
+    // and prinbee proxies in a cluster
+    //
+    ed::message prinbee_current_status;
+    prinbee_current_status.set_command(prinbee::g_name_prinbee_cmd_prinbee_current_status);
+    if(msg == nullptr)
     {
-        my_address.set_port(listen_address.get_port());
-        listen_address = my_address;
+        prinbee_current_status.set_service(communicatord::g_name_communicatord_service_private_broadcast);
+    }
+    else
+    {
+        prinbee_current_status.reply_to(*msg);
     }
 
-    f_node_listener = std::make_shared<prinbee::binary_server>(listen_address);
+    prinbee_current_status.add_parameter(
+              prinbee::g_name_prinbee_param_name
+            , f_opts.get_string("cluster_name"));
+    prinbee_current_status.add_parameter(
+              communicatord::g_name_communicatord_param_cache
+            , communicatord::g_name_communicatord_value_no);
 
-    f_proxy_listener = proxy_listener;
+    if(f_node_address.empty()
+    || f_proxy_address.empty())
+    {
+        prinbee_current_status.add_parameter(
+                  communicatord::g_name_communicatord_param_status
+                , communicatord::g_name_communicatord_value_down);
+    }
+    else
+    {
+        prinbee_current_status.add_parameter(
+                  communicatord::g_name_communicatord_param_status
+                , communicatord::g_name_communicatord_value_up);
+        prinbee_current_status.add_parameter(
+                  prinbee::g_name_prinbee_param_node_ip
+                , f_node_address);
+        prinbee_current_status.add_parameter(
+                  prinbee::g_name_prinbee_param_proxy_ip
+                , f_proxy_address);
+    }
+
+    f_messenger->send_message(prinbee_current_status);
 }
 
 
@@ -578,6 +807,18 @@ void prinbeed::stop(bool quitting)
     {
         f_communicator->remove_connection(f_interrupt);
         f_interrupt.reset();
+    }
+
+    if(f_proxy_listener != nullptr)
+    {
+        f_communicator->add_connection(f_proxy_listener);
+        f_proxy_listener.reset();
+    }
+
+    if(f_node_listener != nullptr)
+    {
+        f_communicator->add_connection(f_node_listener);
+        f_node_listener.reset();
     }
 }
 
