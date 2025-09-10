@@ -75,12 +75,12 @@
  *
  * When the cluster status is quorum or complete the network is in place.
  * When state of each journal and node is healthy, then we are 100% in
- * good shape mean that everything is working as expected.
+ * good shape meaning that everything is working as expected.
  *
  * The following shows the exchange of messages between the client, proxy
  * and daemon (prinbeed). On startup, a client explicitly sends a
  * PRINBEE_GET_STATUS, that way it is immediately sent a
- * PRINBEE_CURRENT_STATUS message. The proxy will automatically sends
+ * PRINBEE_CURRENT_STATUS message. The proxy automatically sends
  * further PRINBEE_CURRENT_STATUS as the status changes over time.
  * A similar process happens between the proxy and the daemon.
  *
@@ -92,14 +92,17 @@
  * communicatord->proxy [label="PRINBEE_GET_STATUS"];
  * proxy->communicatord [label="PRINBEE_CURRENT_STATUS"];
  * communicatord->client [label="PRINBEE_CURRENT_STATUS"];
+ *
  * ... [label="proxy tells the client something changed"];
  * proxy->communicatord [label="PRINBEE_CURRENT_STATUS"];
  * communicatord->client [label="PRINBEE_CURRENT_STATUS"];
+ *
  * ... [label="proxy explicitly asks the daemon"];
  * proxy->communicatord [label="PRINBEE_GET_STATUS"];
  * communicatord->prinbeed [label="PRINBEE_GET_STATUS"];
  * prinbeed->communicatord [label="PRINBEE_CURRENT_STATUS"];
  * communicatord->proxy [label="PRINBEE_CURRENT_STATUS"];
+ *
  * ... [label="daemon tells the proxy something changed"];
  * prinbeed->communicatord [label="PRINBEE_CURRENT_STATUS"];
  * communicatord->proxy [label="PRINBEE_CURRENT_STATUS"];
@@ -169,12 +172,31 @@
  * The protocol uses structures which are transformed to binary using the
  * `prinbee/data/structure.*` classes and types. Each message is preceded
  * by one \em header structure which defines the structure type and size.
+ *
+ * The eventdispatcher setup includes the following:
+ *
+ * * interrupt -- intercept Ctrl-C and transform it in a STOP message
+ * * messenger -- connection between prinbeed and communicatord
+ * * node_client -- connection initiated by a prinbeed to another prinbeed
+ * * node_listener -- listen for connections from another prinbeed
+ * * proxy_listener -- listen for connections from a proxy
+ * * direct_listener -- listen for connections directly from a client
+ * * prinbee::binary_server_client -- binary connection (prinbeed, proxy, or client)
+ *
+ * The prinbee::binary_server_client gets used for incoming connections
+ * from node_listener, proxy_listener, direct_listener.
  */
 
 
 // self
 //
 #include    "prinbeed.h"
+
+#include    "connection_reference.h"
+#include    "node_client.h"
+#include    "node_listener.h"
+#include    "proxy_listener.h"
+#include    "direct_listener.h"
 
 
 
@@ -495,6 +517,31 @@ void prinbeed::register_prinbee_daemon(ed::message & msg)
         return;
     }
 
+// TODO: I think we have an array of IPs and also we only
+//       want to connect to another prinbeed if its IP is smaller
+    if(msg.has_parameter(prinbee::g_name_prinbee_param_node_ip))
+    {
+        std::string const node_address(msg.get_parameter(prinbee::g_name_prinbee_param_node_ip));
+        addr::addr const a(addr::string_to_addr(
+                          node_address
+                        , std::string()
+                        , NODE_BINARY_PORT));
+        switch(a.get_network_type())
+        {
+        case addr::network_type_t::NETWORK_TYPE_PUBLIC:
+        case addr::network_type_t::NETWORK_TYPE_PRIVATE:
+        case addr::network_type_t::NETWORK_TYPE_LOOPBACK:
+            break;
+
+        default:
+            throw prinbee::invalid_address("the other node address is not a valid address.");
+
+        }
+        std::string const name(msg.get_parameter(prinbee::g_name_prinbee_param_name));
+        connect_to_node(a, name);
+    }
+
+
 }
 
 
@@ -650,8 +697,9 @@ void prinbeed::start_binary_connection()
 {
     // already connected?
     //
-    if(f_proxy_listener != nullptr
-    && f_node_listener != nullptr)
+    if(f_node_listener != nullptr
+    && f_proxy_listener != nullptr
+    && f_direct_listener != nullptr)
     {
         return;
     }
@@ -744,13 +792,30 @@ void prinbeed::start_binary_connection()
                         | addr::STRING_IP_BRACKET_ADDRESS
                         | addr::STRING_IP_PORT);
 
+    addr::addr direct_address(addr::string_to_addr(
+                          f_opts.get_string("direct_listen")
+                        , std::string()
+                        , DIRECT_BINARY_PORT));
+    my_address.set_port(direct_address.get_port());
+    if(direct_address.is_default())
+    {
+        direct_address = my_address;
+    }
+    f_direct_address = my_address.to_ipv4or6_string(
+                          addr::STRING_IP_ADDRESS
+                        | addr::STRING_IP_BRACKET_ADDRESS
+                        | addr::STRING_IP_PORT);
+
     // TODO: add support for TLS connections
     //
-    f_node_listener = std::make_shared<prinbee::binary_server>(node_address);
+    f_node_listener = std::make_shared<node_listener>(this, node_address);
     f_communicator->add_connection(f_node_listener);
 
-    f_proxy_listener = std::make_shared<prinbee::binary_server>(proxy_address);
+    f_proxy_listener = std::make_shared<proxy_listener>(this, proxy_address);
     f_communicator->add_connection(f_proxy_listener);
+
+    f_direct_listener = std::make_shared<direct_listener>(this, direct_address);
+    f_communicator->add_connection(f_direct_listener);
 
     // request the current status of the prinbee cluster
     //
@@ -794,7 +859,8 @@ void prinbeed::send_our_status(ed::message * msg)
             , communicatord::g_name_communicatord_value_no);
 
     if(f_node_address.empty()
-    || f_proxy_address.empty())
+    || f_proxy_address.empty()
+    || f_direct_address.empty())
     {
         prinbee_current_status.add_parameter(
                   communicatord::g_name_communicatord_param_status
@@ -811,9 +877,92 @@ void prinbeed::send_our_status(ed::message * msg)
         prinbee_current_status.add_parameter(
                   prinbee::g_name_prinbee_param_proxy_ip
                 , f_proxy_address);
+        prinbee_current_status.add_parameter(
+                  prinbee::g_name_prinbee_param_direct_ip
+                , f_direct_address);
     }
 
     f_messenger->send_message(prinbee_current_status);
+}
+
+
+void prinbeed::connect_to_node(addr::addr const & a, std::string const & name)
+{
+    node_client::pointer_t n(std::make_shared<node_client>(this, a));
+    n->add_callbacks();
+
+    register_connection(n, name);
+}
+
+
+void prinbeed::register_connection(ed::connection::pointer_t c, std::string const & name)
+{
+    connection_reference::pointer_t ref(std::make_shared<connection_reference>());
+    ref->set_name(name);
+    ref->set_connection(c);
+    f_connection_reference[name] = ref;
+}
+
+
+bool prinbeed::msg_err(
+      ed::connection::pointer_t //peer
+    , prinbee::binary_message & )//msg)
+{
+    return true;
+}
+
+
+bool prinbeed::msg_register(
+      ed::connection::pointer_t //peer
+    , prinbee::binary_message & msg)
+{
+    prinbee::register_t r;
+    if(!msg.deserialize_register_message(r))
+    {
+        return true;
+    }
+
+    // TODO: actually implement the register message
+
+    return true;
+}
+
+
+bool prinbeed::msg_ping(
+      ed::connection::pointer_t peer
+    , prinbee::binary_message & msg)
+{
+    snapdev::NOT_USED(msg);
+
+    prinbee::binary_message pong;
+    pong.set_name(prinbee::g_message_pong);
+    prinbee::binary_client::pointer_t client(std::dynamic_pointer_cast<prinbee::binary_client>(peer));
+    if(client != nullptr)
+    {
+        client->send_message(pong);
+    }
+    else
+    {
+        prinbee::binary_server_client::pointer_t server_client(std::dynamic_pointer_cast<prinbee::binary_server_client>(peer));
+        if(server_client != nullptr)
+        {
+            server_client->send_message(pong);
+        }
+        else
+        {
+            throw prinbee::logic_error("unknown peer type, cannot send message to it.");
+        }
+    }
+
+    return true;
+}
+
+
+bool prinbeed::msg_pong(
+      ed::connection::pointer_t //peer
+    , prinbee::binary_message & )//msg)
+{
+    return true;
 }
 
 
@@ -844,17 +993,25 @@ void prinbeed::stop(bool quitting)
         f_interrupt.reset();
     }
 
+    if(f_node_listener != nullptr)
+    {
+        f_communicator->add_connection(f_node_listener);
+        f_node_listener.reset();
+    }
+
     if(f_proxy_listener != nullptr)
     {
         f_communicator->add_connection(f_proxy_listener);
         f_proxy_listener.reset();
     }
 
-    if(f_node_listener != nullptr)
+    if(f_direct_listener != nullptr)
     {
-        f_communicator->add_connection(f_node_listener);
-        f_node_listener.reset();
+        f_communicator->add_connection(f_direct_listener);
+        f_direct_listener.reset();
     }
+
+// TODO: also close all the node_client connections
 }
 
 

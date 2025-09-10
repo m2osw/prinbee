@@ -65,7 +65,6 @@ namespace
 {
 
 
-constexpr std::size_t const     PRINBEE_NETWORK_PAGE_SIZE = 4096;
 
 
 
@@ -98,7 +97,10 @@ public:
     virtual bool                is_writer() const override;
     virtual void                process_read() override;
     virtual void                process_write() override;
+    virtual void                process_empty_buffer() override;
+    virtual void                process_error() override;
     virtual void                process_hup() override;
+    virtual void                process_invalid() override;
 
 private:
     enum read_state_t
@@ -435,6 +437,27 @@ void binary_client_impl::process_write()
 }
 
 
+void binary_client_impl::process_empty_buffer()
+{
+    tcp_client_connection::process_empty_buffer();
+    f_parent->process_empty_buffer();
+}
+
+
+void binary_client_impl::process_error()
+{
+    // this connection is dead...
+    //
+    close();
+
+    // process next level too
+    //
+    tcp_client_connection::process_error();
+
+    f_parent->process_disconnected();
+}
+
+
 void binary_client_impl::process_hup()
 {
     // this connection is dead...
@@ -444,6 +467,22 @@ void binary_client_impl::process_hup()
     // process next level too
     //
     tcp_client_connection::process_hup();
+
+    f_parent->process_disconnected();
+}
+
+
+void binary_client_impl::process_invalid()
+{
+    // this connection is dead...
+    //
+    close();
+
+    // process next level too
+    //
+    tcp_client_connection::process_invalid();
+
+    f_parent->process_disconnected();
 }
 
 
@@ -509,14 +548,17 @@ binary_client::~binary_client()
 
 void binary_client::send_message(binary_message & msg)
 {
-    f_impl->send_message(msg);
+    if(!is_done() && f_impl != nullptr)
+    {
+        f_impl->send_message(msg);
+    }
 }
 
 
-binary_client::callback_manager_t::callback_id_t binary_client::add_message_callback(
+binary_message::callback_manager_t::callback_id_t binary_client::add_message_callback(
           message_name_t name
-        , callback_t callback
-        , callback_manager_t::priority_t priority)
+        , binary_message::callback_t callback
+        , binary_message::callback_manager_t::priority_t priority)
 {
     return f_callback_map[name].add_callback(callback, priority);
 }
@@ -532,6 +574,15 @@ void binary_client::process_timeout()
 {
     if(is_done())
     {
+        return;
+    }
+
+    if(f_impl != nullptr)
+    {
+        set_enable(false);
+        SNAP_LOG_VERBOSE
+            << "The binary_client::process_timeout() function was called when the implementation object was already allocated."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -592,12 +643,12 @@ void binary_client::process_connected()
 
 void binary_client::process_disconnected()
 {
+    f_impl.reset();
     set_enable(true);
 }
 
 
-/** \func void process_message(binary_message & msg);
- * \brief Function called whenever a message is received.
+/** \brief Function called whenever a binary message is received.
  *
  * Whenever the process_read() function completes the receipt of a
  * binary message, it calls the process_message() function with
@@ -607,11 +658,31 @@ void binary_client::process_disconnected()
  * that data as a pointer to a temporary buffer. When the function
  * returns that temporary buffer will be reused for the next
  * message. So the function that processes the message must make
- * a copy of the data as required if that is important.
+ * a copy of the data as required if the data is necessary at a
+ * later time.
  *
- * \param[in] msg  The binary message including the name and a pointer
+ * \param[in,out] msg  The binary message including the name and a pointer
  * to the data if any was attached to that message.
  */
+void binary_client::process_message(binary_message & msg)
+{
+    message_name_t const name(msg.get_name());
+    auto it(f_callback_map.find(name));
+    if(it == f_callback_map.end())
+    {
+        // callback for an unknown/unsupported message?
+        //
+        it = f_callback_map.find(g_message_unknown);
+        if(it == f_callback_map.end())
+        {
+            return;
+        }
+    }
+
+    // we need to wrap the reference for the call
+    //
+    snapdev::NOT_USED(it->second.call(std::ref(msg)));
+}
 
 
 } // namespace prinbee

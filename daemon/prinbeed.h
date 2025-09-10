@@ -21,6 +21,7 @@
 //
 #include    "messenger.h"
 #include    "interrupt.h"
+#include    "connection_reference.h"
 
 
 // prinbee
@@ -39,8 +40,9 @@ namespace prinbee_daemon
 
 
 
-constexpr int const             PROXY_BINARY_PORT = 4010;
+constexpr int const             DIRECT_BINARY_PORT = 4012;
 constexpr int const             NODE_BINARY_PORT = 4011;
+constexpr int const             PROXY_BINARY_PORT = 4010;
 
 
 class prinbeed
@@ -61,23 +63,45 @@ public:
     void                        set_clock_status(bool status);
     void                        lock_status_changed();
     void                        register_prinbee_daemon(ed::message & msg);
+    void                        register_connection(
+                                      ed::connection::pointer_t c
+                                    , std::string const & name);
     int                         run();
     void                        start_binary_connection();
     void                        send_our_status(ed::message * msg);
     void                        stop(bool quitting);
 
+    bool                        msg_err(
+                                      ed::connection::pointer_t peer
+                                    , prinbee::binary_message & msg);
+    bool                        msg_register(
+                                      ed::connection::pointer_t peer
+                                    , prinbee::binary_message & msg);
+    bool                        msg_ping(
+                                      ed::connection::pointer_t peer
+                                    , prinbee::binary_message & msg);
+    bool                        msg_pong(
+                                      ed::connection::pointer_t peer
+                                    , prinbee::binary_message & msg);
+
 private:
     void                        check_ipwall_status();
+    void                        connect_to_node(
+                                      addr::addr const & a
+                                    , std::string const & name);
 
     advgetopt::getopt                       f_opts;
 
     ed::communicator::pointer_t             f_communicator = ed::communicator::pointer_t();
     messenger::pointer_t                    f_messenger = messenger::pointer_t();
     interrupt::pointer_t                    f_interrupt = interrupt::pointer_t();
-    prinbee::binary_server::pointer_t       f_proxy_listener = prinbee::binary_server::pointer_t();
     prinbee::binary_server::pointer_t       f_node_listener = prinbee::binary_server::pointer_t();
-    std::string                             f_proxy_address = std::string();
+    prinbee::binary_server::pointer_t       f_proxy_listener = prinbee::binary_server::pointer_t();
+    prinbee::binary_server::pointer_t       f_direct_listener = prinbee::binary_server::pointer_t();
     std::string                             f_node_address = std::string();
+    std::string                             f_proxy_address = std::string();
+    std::string                             f_direct_address = std::string();
+    connection_reference::map_t             f_connection_reference = connection_reference::map_t();
 
     bool                                    f_fluid_settings_ready = false;
     bool                                    f_ipwall_is_installed = false;

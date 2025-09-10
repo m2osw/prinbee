@@ -25,9 +25,14 @@ project(prinbee-daemon)
 add_executable(${PROJECT_NAME}
     main.cpp
 
+    connection_reference.cpp
+    direct_listener.cpp
     interrupt.cpp
     messenger.cpp
+    node_client.cpp
+    node_listener.cpp
     prinbeed.cpp
+    proxy_listener.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

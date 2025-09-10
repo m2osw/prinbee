@@ -46,10 +46,12 @@ public:
     void                        finish_parsing();
 
     // ed::connection_with_send_message implementation
+    //
     virtual void                ready(ed::message & msg);
     virtual void                stop(bool quitting);
 
     // fluid_settings::fluid_settings_connection implementation
+    //
     virtual void                fluid_settings_changed(
                                       fluid_settings::fluid_settings_status_t status
                                     , std::string const & name

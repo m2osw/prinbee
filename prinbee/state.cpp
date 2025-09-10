@@ -688,7 +688,7 @@ void state::signal_state_changed()
     if(f_state_changed)
     {
         f_state_changed = false;
-        f_state_callback.call(*this);
+        f_state_callback.call(std::ref(*this));
     }
 }
 

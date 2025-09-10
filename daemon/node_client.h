@@ -19,45 +19,51 @@
 
 // self
 //
-#include    <prinbee/network/binary_server_client.h>
+#include    "prinbeed.h"
 
 
-// eventdispatcher
+// prinbee
 //
-#include    <eventdispatcher/tcp_server_connection.h>
+#include    <prinbee/network/binary_client.h>
+
+
+// C
+//
+//#include    <signal.h>
 
 
 
-namespace prinbee
+namespace prinbee_daemon
 {
 
 
 
-class prinbeed;
-
-
-class binary_server
-    : public ed::tcp_server_connection
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+class node_client
+    : public prinbee::binary_client
 {
 public:
-    typedef std::shared_ptr<binary_server>  pointer_t;
+    typedef std::shared_ptr<node_client> pointer_t;
 
-                                binary_server(addr::addr const & a);
-                                binary_server(binary_server const &) = delete;
-    virtual                     ~binary_server() override;
+                                node_client(prinbeed * p, addr::addr const & a);
+                                node_client(node_client const & rhs) = delete;
+    virtual                     ~node_client() override;
 
-    binary_server &             operator = (binary_server const &) = delete;
+    node_client &               operator = (node_client const & rhs) = delete;
+
+    void                        add_callbacks();
 
     // ed::connection implementation
     //
-    virtual void                process_accept() override;
+    virtual void                process_signal() override;
 
-    // new callbacks
-    //
-    virtual void                process_new_connection(binary_server_client::pointer_t client);
+private:
+    prinbeed *                  f_prinbeed = nullptr;
 };
+#pragma GCC diagnostic pop
 
 
 
-} // namespace prinbee
+} // namespace prinbee_daemon
 // vim: ts=4 sw=4 et

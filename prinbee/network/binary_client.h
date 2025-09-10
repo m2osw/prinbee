@@ -32,11 +32,6 @@
 #include    <eventdispatcher/timer.h>
 
 
-// snapdev
-//
-#include    <snapdev/callback_manager.h>
-
-
 
 namespace prinbee
 {
@@ -60,9 +55,7 @@ class binary_client
     : public ed::timer
 {
 public:
-    typedef std::shared_ptr<binary_client>              pointer_t;
-    typedef std::function<bool(binary_message & msg)>   callback_t;
-    typedef snapdev::callback_manager<callback_t>       callback_manager_t;
+    typedef std::shared_ptr<binary_client>          pointer_t;
 
                                 binary_client(addr::addr const & a);
                                 binary_client(binary_client const &) = delete;
@@ -73,11 +66,11 @@ public:
     //bool                        has_input() const;
     //bool                        has_output() const;
     void                        send_message(binary_message & msg);
-    callback_manager_t::callback_id_t
+    binary_message::callback_manager_t::callback_id_t
                                 add_message_callback(
                                       message_name_t name
-                                    , callback_t callback
-                                    , callback_manager_t::priority_t priority = callback_manager_t::DEFAULT_PRIORITY);
+                                    , binary_message::callback_t callback
+                                    , binary_message::callback_manager_t::priority_t priority = binary_message::callback_manager_t::DEFAULT_PRIORITY);
     std::string const &         get_last_error() const;
 
     // ed::tcp_client_connection implementation
@@ -86,31 +79,14 @@ public:
 
     // new callback
     //
-    virtual void                process_message(binary_message & msg) = 0;
+    virtual void                process_message(binary_message & msg);
     virtual void                process_connected();
     virtual void                process_disconnected();
 
 private:
-    enum read_state_t
-    {
-        READ_STATE_HEADER,
-        READ_STATE_HEADER_ADJUST,
-        READ_STATE_DATA,
-    };
-
-    typedef std::map<message_name_t, callback_manager_t>    callback_map_t;
-
     addr::addr                  f_remote_address = addr::addr();
-
-    //read_state_t                f_read_state = read_state_t::READ_STATE_HEADER;
-    //std::vector<char>           f_data = std::vector<char>();
-    //std::size_t                 f_data_size = 0;
-    //binary_message              f_binary_message = binary_message();
-
-    //std::vector<char>           f_output = std::vector<char>();
-    //std::size_t                 f_position = 0;
-    callback_map_t              f_callback_map = callback_map_t();
-
+    binary_message::callback_map_t
+                                f_callback_map = binary_message::callback_map_t();
     std::shared_ptr<detail::binary_client_impl>
                                 f_impl = std::shared_ptr<detail::binary_client_impl>();
     std::string                 f_last_error = std::string();

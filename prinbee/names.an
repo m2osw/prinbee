@@ -12,6 +12,7 @@ cmd_prinbee_get_status=PRINBEE_GET_STATUS
 cmd_prinbee_server_listener=PRINBEE_SERVER_LISTENER
 
 # message parameters
+param_direct_ip=direct_ip
 param_name=name
 param_node_ip=node_ip
 param_proxy_ip=proxy_ip
@@ -61,5 +62,10 @@ fld_versioned_rows=versioned_rows
 
 # services
 service_prinbee=prinbee
+
+# other names
+protocol_version_node=0.1
+protocol_version_proxy=0.1
+protocol_version_client=0.1
 
 # vim: syntax=dosini

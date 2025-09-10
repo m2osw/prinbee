@@ -23,6 +23,12 @@
 #include    <prinbee/network/crc16.h>
 
 
+// snapdev
+//
+#include    <snapdev/callback_manager.h>
+#include    <snapdev/timespec_ex.h>
+
+
 // C++
 //
 #include    <cstdint>
@@ -34,6 +40,9 @@
 namespace prinbee
 {
 
+
+
+constexpr std::size_t const     PRINBEE_NETWORK_PAGE_SIZE = 4096;
 
 
 typedef std::uint8_t            message_version_t;
@@ -106,19 +115,56 @@ constexpr message_name_t create_message_name(char const * const name)
 
 
 constexpr message_name_t        g_message_unknown = 0;
+constexpr message_name_t        g_message_error = create_message_name("ERR");
 constexpr message_name_t        g_message_ping = create_message_name("PING");
 constexpr message_name_t        g_message_pong = create_message_name("PONG");
+constexpr message_name_t        g_message_register = create_message_name("REG");
+constexpr message_name_t        g_message_registered = create_message_name("REGD");
 
 
+std::string message_name_to_string(message_name_t name);
 
 
+// all the binary connections understand the PING and PONG messages;
+// when sending a PING, it is expected we receive a PONG as the reply
+
+
+/** \brief The data sent along the REGISTER message.
+ *
+ * Each binary connection understands the REGISTER message; the receiver
+ * has to verify the protocol version and the time has to be close (because
+ * the date of all the involved computers are used everywhere and they must
+ * "match").
+ *
+ * The receiver then replies with either REGISTERED or ERROR; on an error
+ * the connection is dropped and the error message includes the reason
+ * for the refusal (protocol not compatible or time mismatch).
+ *
+ * Note: the REGISTER message is sent using a bsr buffer for the data;
+ *       this means it can change over time without the need for the
+ *       structure to be compatible and yet still communicate the pertinent
+ *       data as expected (i.e. the bsr serializer uses names for fields
+ *       which is forward and backward compatible).
+ */
+struct register_t
+{
+    std::string             f_name = std::string();
+    std::string             f_protocol_version = std::string();
+    timespec                f_now = snapdev::now();
+};
 
 
 
 class binary_message
 {
 public:
-    typedef std::shared_ptr<binary_message>  pointer_t;
+    typedef std::shared_ptr<binary_message>                 pointer_t;
+
+    // for our cheap dispatcher like code
+    //
+    typedef std::function<bool(binary_message & msg)>       callback_t;
+    typedef snapdev::callback_manager<callback_t>           callback_manager_t;
+    typedef std::map<message_name_t, callback_manager_t>    callback_map_t;
 
                                 binary_message();
                                 binary_message(binary_message const &) = delete;
@@ -141,6 +187,10 @@ public:
     void                        set_data(void const * data, std::size_t size);
     std::vector<std::uint8_t> const &
                                 get_data() const;
+    void const *                get_either_pointer(std::size_t & size) const;
+
+    void                        create_register_message(std::string const & name, std::string const & protocol_version);
+    bool                        deserialize_register_message(register_t & pp);
 
 private:
     struct header_t
@@ -158,8 +208,6 @@ private:
     void *                      f_data = nullptr;
     std::vector<std::uint8_t>   f_buffer = std::vector<std::uint8_t>();
 };
-
-
 
 
 

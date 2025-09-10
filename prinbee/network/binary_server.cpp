@@ -132,6 +132,16 @@ void binary_server::process_accept()
             << "\" connection could not be added to the ed::communicator list of connections."
             << SNAP_LOG_SEND;
     }
+    else
+    {
+        process_new_connection(service);
+    }
+}
+
+
+void binary_server::process_new_connection(binary_server_client::pointer_t client)
+{
+    snapdev::NOT_USED(client);
 }
 
 

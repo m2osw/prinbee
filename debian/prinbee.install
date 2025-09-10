@@ -13,4 +13,5 @@ usr/bin/prinbee-journal
 #
 conf/README.md                                     etc/prinbee/
 conf/logger/README.md                              etc/prinbee/logger/
+usr/share/eventdispatcher/messages
 

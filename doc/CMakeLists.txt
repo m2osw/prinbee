@@ -20,6 +20,8 @@
 ##
 ## Documentation
 ##
+project(prinbee-documentation)
+
 find_package(SnapDoxygen)
 AddDoxygenTarget(
     prinbee

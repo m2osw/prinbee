@@ -41,6 +41,8 @@
 
 // snapdev
 //
+#include    <snapdev/brs.h>
+#include    <snapdev/memory_streambuf.h>
 #include    <snapdev/to_string_literal.h>
 
 
@@ -398,6 +400,123 @@ void binary_message::set_data(void const * data, std::size_t size)
 std::vector<std::uint8_t> const & binary_message::get_data() const
 {
     return f_buffer;
+}
+
+
+void const * binary_message::get_either_pointer(std::size_t & size) const
+{
+    if(f_data != nullptr)
+    {
+        size = f_header.f_size;
+        return f_data;
+    }
+    else
+    {
+        size = f_buffer.size();
+        return f_buffer.data();
+    }
+}
+
+
+std::string message_name_to_string(message_name_t name)
+{
+    // handle special case
+    //
+    if(name == g_message_unknown)
+    {
+        return "<unknown>";
+    }
+
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    constexpr int const s1 = 24;
+    constexpr int const s2 = 16;
+    constexpr int const s3 = 8;
+    constexpr int const s4 = 0;
+#elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    constexpr int const s1 = 0;
+    constexpr int const s2 = 8;
+    constexpr int const s3 = 16;
+    constexpr int const s4 = 24;
+#else
+#error "Unsupported endianess"
+#endif
+
+    std::string result;
+
+    result += name >> s1;
+    char c(static_cast<char>(name >> s2));
+    if(c != '\0')
+    {
+        result += c;
+        c = static_cast<char>(name >> s3);
+        if(c != '\0')
+        {
+            result += c;
+            c = static_cast<char>(name >> s4);
+            if(c != '\0')
+            {
+                result += c;
+            }
+        }
+    }
+
+    return result;
+}
+
+
+void binary_message::create_register_message(std::string const & name, std::string const & protocol_version)
+{
+    set_name(g_message_register);
+
+    timespec const now(snapdev::now());
+
+    std::stringstream buffer;
+    snapdev::serializer out(buffer);
+    out.add_value("name", name);
+    out.add_value("protocol_version", protocol_version);
+    out.add_value("now", now);
+    std::string const data(buffer.str());
+    set_data(data.data(), data.size());
+}
+
+
+bool binary_message::deserialize_register_message(register_t & r)
+{
+    auto callback([&r](snapdev::deserializer<std::iostream> & s, snapdev::field_t const & f)
+    {
+        if(f.f_name == "protocol")
+        {
+            if(s.read_data(r.f_protocol_version))
+            {
+                r.f_protocol_version.clear();
+            }
+        }
+        else if(f.f_name == "name")
+        {
+            if(!s.read_data(r.f_name))
+            {
+                r.f_name.clear();
+            }
+        }
+        else if(f.f_name == "now")
+        {
+            if(!s.read_data(r.f_now))
+            {
+                r.f_now = {};
+            }
+        }
+
+        return true;
+    });
+
+    std::size_t size(0L);
+    void const * data(get_either_pointer(size));
+    snapdev::memory_streambuf<char> buffer(data, size);
+    std::iostream in(&buffer);
+    snapdev::deserializer d(in);
+    d.deserialize(callback);
+
+    return true;
 }
 
 
