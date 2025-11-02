@@ -8,11 +8,11 @@ We have several parts:
 
 1. The _context_; which represents the equivalent of a Database in SQL.
 2. The _table_; which represents a table in SQL 
-3. The _blob_; which is the list of columns and their content
+3. The _blob_; which is the list of columns and their content definitions
 
-In concept, our tables are a one to one equivalent to an SQL table.
+In concept, our tables are one to one equivalent to SQL tables.
 However, our database does not force you to define all the columns in
-each row. When you try to access a column it can be NULL or non-existant
+each row. When you try to access a column it can be NULL or non-existent
 and the distinction can be important in some cases.
 
 Some columns are important because they are used to index the data, but
@@ -25,7 +25,7 @@ column names and their values to the specific type that column was
 assigned. The database keeps a copy of that information. The local
 library gets a copy through the local daemon which saves the information
 in a file locally. So we can access it very quickly on further reload
-(the `LISTEN` is used to know whether the schema changes.)
+(the `LISTEN` is used to know whether the schema changes).
 
 The schema is a list of tables.
 
@@ -37,7 +37,7 @@ Each table, though, has its own schema definition separate from the
 database as a whole. When you query that information, you get one
 table with the information from a table, not the database as a whole.
 
-See libsnapwebsites/src/snapwebsites/tables.xsd for some detail
+See `libsnapwebsites/src/snapwebsites/tables.xsd` for some detail
 documentation about the XML format we use to define tables.
 
 Note that we want to support many types. Those defined at the moment
@@ -129,9 +129,9 @@ fields having a given value. Indexes also allow us to get the data sorted
 (since to create the index we have to sort the rows).
 
 When reading the data from the row, we have a blob defined with
-column name identifiers, the specificy type if the column is defined
+column name identifiers, the specific type if the column is defined
 as `any`, and then the data. If the data has a variable size, it
-is preceeded by a `uint32_t` with the size.
+is preceded by a `uint32_t` with the size.
 
 * `<column identifier>` -- represents the column name
 * `<specific type>` -- only if the column type in the XML definition is `any`
@@ -144,7 +144,7 @@ is not variable.
 
 ### Column Names
 
-We limit the names of column to `[A-Za-z0-9_]` and it cannot start with
+We limit the names of a column to `[A-Za-z0-9_]` and it cannot start with
 a digit. This way we can easily have such name appear in a script.
 
 The length of a column name is limited to 128.
@@ -193,8 +193,6 @@ want to support.
 
 The `any` type means any of the other types can be used for this data.
 For this to work, we actually include the type along the data.
-TBD: we may use this special type when converting a column from one type
-to another.
 
 #### Composite: Structure
 

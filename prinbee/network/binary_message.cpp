@@ -61,8 +61,64 @@ namespace
 
 
 
+// sub-structure used to define an array of names (i.e. list of contexts)
+constexpr prinbee::struct_description_t g_name[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("name")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+    ),
+    prinbee::end_descriptions()
+};
 
 
+constexpr prinbee::struct_description_t g_list_contexts[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_magic)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        //, prinbee::FieldDefaultValue(prinbee::to_string(msg_message_t::MSG_LIST_CONTEXT))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_structure_version)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(1, 0)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("names")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY16) // limit to 64K contexts in one cluster
+        , prinbee::FieldSubDescription(g_name)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+constexpr prinbee::struct_description_t g_set_context[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_magic)
+        , prinbee::FieldType(struct_type_t::STRUCT_TYPE_MAGIC)
+        //, prinbee::FieldDefaultValue(prinbee::to_string(msg_message_t::MSG_SET_CONTEXT))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_structure_version)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(1, 0)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("context_name")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("description")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P32STRING)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("context_id")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::end_descriptions()
+};
 
 
 
@@ -418,6 +474,191 @@ void const * binary_message::get_either_pointer(std::size_t & size) const
 }
 
 
+void binary_message::create_error_message(err_code_t code, std::string const & error_message)
+{
+    set_name(g_message_error);
+
+    std::stringstream buffer;
+    snapdev::serializer out(buffer);
+    out.add_value("code", code);
+    out.add_value("msg", error_message);
+    std::string const data(buffer.str());
+    set_data(data.data(), data.size());
+}
+
+
+bool binary_message::deserialize_error_message(msg_error_t & err)
+{
+    auto callback([&err](snapdev::deserializer<std::iostream> & s, snapdev::field_t const & f)
+    {
+        if(f.f_name == "code")
+        {
+            if(!s.read_data(err.f_code))
+            {
+                err.f_code = err_code_t::ERR_CODE_NONE;
+            }
+        }
+        else if(f.f_name == "msg")
+        {
+            if(!s.read_data(err.f_message))
+            {
+                err.f_message.clear();
+            }
+        }
+
+        return true;
+    });
+
+    std::size_t size(0L);
+    void const * data(get_either_pointer(size));
+    snapdev::memory_streambuf<char> buffer(data, size);
+    std::iostream in(&buffer);
+    snapdev::deserializer d(in);
+    d.deserialize(callback);
+
+    return true;
+}
+
+
+void binary_message::create_register_message(std::string const & name, std::string const & protocol_version)
+{
+    set_name(g_message_register);
+
+    timespec const now(snapdev::now());
+
+    std::stringstream buffer;
+    snapdev::serializer out(buffer);
+    out.add_value("name", name);
+    out.add_value("protocol_version", protocol_version);
+    out.add_value("now", now);
+    std::string const data(buffer.str());
+    set_data(data.data(), data.size());
+}
+
+
+bool binary_message::deserialize_register_message(msg_register_t & r)
+{
+    auto callback([&r](snapdev::deserializer<std::iostream> & s, snapdev::field_t const & f)
+    {
+        if(f.f_name == "protocol")
+        {
+            if(s.read_data(r.f_protocol_version))
+            {
+                r.f_protocol_version.clear();
+            }
+        }
+        else if(f.f_name == "name")
+        {
+            if(!s.read_data(r.f_name))
+            {
+                r.f_name.clear();
+            }
+        }
+        else if(f.f_name == "now")
+        {
+            if(!s.read_data(r.f_now))
+            {
+                r.f_now = {};
+            }
+        }
+
+        return true;
+    });
+
+    std::size_t size(0L);
+    void const * data(get_either_pointer(size));
+    snapdev::memory_streambuf<char> buffer(data, size);
+    std::iostream in(&buffer);
+    snapdev::deserializer d(in);
+    d.deserialize(callback);
+
+    return true;
+}
+
+
+void binary_message::create_list_context_message(advgetopt::string_list_t const & list)
+{
+    set_name(g_message_list_contexts);
+
+    structure::pointer_t description(std::make_shared<structure>(g_list_contexts));
+
+    for(auto const & n : list)
+    {
+        structure::pointer_t name(description->new_array_item("names"));
+        name->set_string("name", n);
+    }
+
+    reference_t start_offset(0);
+    virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+    f_buffer.resize(buffer->size());
+    buffer->pread(
+          f_buffer.data()
+        , f_buffer.size()
+        , 0);
+}
+
+
+bool binary_message::deserialize_list_context_message(msg_list_context_t & context_list)
+{
+    std::size_t size(0L);
+    void const * data(get_either_pointer(size));
+
+    virtual_buffer::pointer_t buffer(std::make_shared<virtual_buffer>());
+    buffer->pwrite(data, size, 0, true);
+
+    structure::pointer_t description(std::make_shared<structure>(g_list_contexts));
+    description->set_virtual_buffer(buffer, 0);
+
+    structure::vector_t list(description->get_array("names"));
+    std::size_t const max(list.size());
+    for(std::size_t idx(0); idx < max; ++idx)
+    {
+        context_list.f_list.push_back(list[idx]->get_string("name"));
+    }
+
+    return true;
+}
+
+
+void binary_message::create_context_message(msg_context_t const & context)
+{
+    set_name(g_message_set_context);
+
+    structure::pointer_t description(std::make_shared<structure>(g_set_context));
+
+    description->set_string("context_name", context.f_context_name);
+    description->set_string("description", context.f_description);
+    description->set_integer("context_id", context.f_context_id);
+
+    reference_t start_offset(0);
+    virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+    f_buffer.resize(buffer->size());
+    buffer->pread(
+          f_buffer.data()
+        , f_buffer.size()
+        , 0);
+}
+
+
+bool binary_message::deserialize_context_message(msg_context_t & context)
+{
+    std::size_t size(0L);
+    void const * data(get_either_pointer(size));
+
+    virtual_buffer::pointer_t buffer(std::make_shared<virtual_buffer>());
+    buffer->pwrite(data, size, 0, true);
+
+    structure::pointer_t description(std::make_shared<structure>(g_set_context));
+    description->set_virtual_buffer(buffer, 0);
+
+    context.f_context_name = description->get_string("context_name");
+    context.f_description = description->get_string("description");
+    context.f_context_id = description->get_integer("context_id");
+
+    return true;
+}
+
+
 std::string message_name_to_string(message_name_t name)
 {
     // handle special case
@@ -461,62 +702,6 @@ std::string message_name_to_string(message_name_t name)
     }
 
     return result;
-}
-
-
-void binary_message::create_register_message(std::string const & name, std::string const & protocol_version)
-{
-    set_name(g_message_register);
-
-    timespec const now(snapdev::now());
-
-    std::stringstream buffer;
-    snapdev::serializer out(buffer);
-    out.add_value("name", name);
-    out.add_value("protocol_version", protocol_version);
-    out.add_value("now", now);
-    std::string const data(buffer.str());
-    set_data(data.data(), data.size());
-}
-
-
-bool binary_message::deserialize_register_message(register_t & r)
-{
-    auto callback([&r](snapdev::deserializer<std::iostream> & s, snapdev::field_t const & f)
-    {
-        if(f.f_name == "protocol")
-        {
-            if(s.read_data(r.f_protocol_version))
-            {
-                r.f_protocol_version.clear();
-            }
-        }
-        else if(f.f_name == "name")
-        {
-            if(!s.read_data(r.f_name))
-            {
-                r.f_name.clear();
-            }
-        }
-        else if(f.f_name == "now")
-        {
-            if(!s.read_data(r.f_now))
-            {
-                r.f_now = {};
-            }
-        }
-
-        return true;
-    });
-
-    std::size_t size(0L);
-    void const * data(get_either_pointer(size));
-    snapdev::memory_streambuf<char> buffer(data, size);
-    std::iostream in(&buffer);
-    snapdev::deserializer d(in);
-    d.deserialize(callback);
-
-    return true;
 }
 
 

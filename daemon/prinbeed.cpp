@@ -240,7 +240,7 @@
 //#include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/stringize.h>
 //#include    <snapdev/tokenize_string.h>
-//#include    <snapdev/to_string_literal.h>
+#include    <snapdev/to_lower.h>
 
 
 // snaplogger
@@ -293,8 +293,39 @@ advgetopt::option const g_options[] =
         , advgetopt::Flags(advgetopt::all_flags<
                       advgetopt::GETOPT_FLAG_REQUIRED
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
-        , advgetopt::Help("Specify the name of this prinbee cluster.")
+        , advgetopt::Help("Specify the name of the cluster this prinbee is a part of.")
         , advgetopt::DefaultValue("prinbee")
+    ),
+    advgetopt::define_option(
+          advgetopt::Name("node-name")
+        , advgetopt::Flags(advgetopt::all_flags<
+                      advgetopt::GETOPT_FLAG_REQUIRED
+                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("Specify the name of this prinbee node. By default we use the host name.")
+    ),
+    advgetopt::define_option(
+          advgetopt::Name("node-listen")
+        , advgetopt::Flags(advgetopt::all_flags<
+                      advgetopt::GETOPT_FLAG_REQUIRED
+                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("Specify an address and port to listen on for node connections; if the IP is not defined or set to ANY, then only the port is used and this computer public IP address is used.")
+        , advgetopt::DefaultValue(":4011")
+    ),
+    advgetopt::define_option(
+          advgetopt::Name("number-of-workers")
+        , advgetopt::Flags(advgetopt::all_flags<
+                      advgetopt::GETOPT_FLAG_REQUIRED
+                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("Specify the number of worker threads, minimum is 2 and maximum is the number of available CPU times 2; set to \"default\" to get one worker per CPU.")
+        , advgetopt::DefaultValue("/var/lib/prinbee")
+    ),
+    advgetopt::define_option(
+          advgetopt::Name("prinbee-path")
+        , advgetopt::Flags(advgetopt::all_flags<
+                      advgetopt::GETOPT_FLAG_REQUIRED
+                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("Specify a path where the database is to be saved.")
+        , advgetopt::DefaultValue("/var/lib/prinbee")
     ),
     advgetopt::define_option(
           advgetopt::Name("proxy-listen")
@@ -305,12 +336,11 @@ advgetopt::option const g_options[] =
         , advgetopt::DefaultValue(":4010")
     ),
     advgetopt::define_option(
-          advgetopt::Name("node-listen")
+          advgetopt::Name("owner")
         , advgetopt::Flags(advgetopt::all_flags<
                       advgetopt::GETOPT_FLAG_REQUIRED
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
-        , advgetopt::Help("Specify an address and port to listen on for node connections; if the IP is not defined or set to ANY, then only the port is used and this computer public IP address is used.")
-        , advgetopt::DefaultValue(":4011")
+        , advgetopt::Help("Specify the user and group names ([<user>][:<group>]). The names are optional.")
     ),
     advgetopt::end_options()
 };
@@ -421,7 +451,41 @@ prinbeed::prinbeed(int argc, char * argv[])
     f_opts.finish_parsing(argc, argv);
     if(!snaplogger::process_logger_options(f_opts, "/etc/prinbee/logger"))
     {
-        throw advgetopt::getopt_exit("logger options generated an error.", 0);
+        throw advgetopt::getopt_exit("logger options generated an error.", 1);
+    }
+
+    // setup the path to the prinbee data folder which includes things like
+    // the list of contexts
+    //
+    if(f_opts.is_defined("prinbee-path"))
+    {
+        prinbee::set_prinbee_path(f_opts.get_string("prinbee-path"));
+    }
+
+    f_cluster_name = snapdev::to_lower(f_opts.is_defined("cluster_name"));
+    if(!validate_name(f_cluster_name, 100))
+    {
+        throw advgetopt::getopt_exit("the cluster name is not considered a valid name.", 1);
+    }
+    if(f_opts.is_defined("node_name"))
+    {
+        f_node_name = f_opts.get_string("node_name");
+    }
+    else
+    {
+        f_node_name = snapdev::gethostname();
+    }
+    if(!validate_name(f_node_name, 100))
+    {
+        throw advgetopt::getopt_exit("the node name is not considered a valid name.", 1);
+    }
+
+    if(getuid() == 0
+    || geteuid() == 0
+    || getgid() == 0
+    || getegid() == 0)
+    {
+        throw invalid_user("the prinbee daemon (prinbeed) cannot run as root. Try using the \"prinbee\" user and group."); // LCOV_EXCL_LINE
     }
 }
 
@@ -438,7 +502,9 @@ prinbeed::~prinbeed()
 
 /** \brief Finish the prinbee daemon initialization.
  *
- * This function creates all the connections used by the prinbee daemon.
+ * This function creates all the connections used by the prinbee daemon and
+ * do some other initialization such as gathering the list of contexts and
+ * preparing worker threads.
  *
  * \note
  * This is separate from the run() function so we can run unit tests
@@ -446,7 +512,7 @@ prinbeed::~prinbeed()
  *
  * \sa run()
  */
-void prinbeed::add_connections()
+void prinbeed::finish_initialization()
 {
     f_communicator = ed::communicator::instance();
 
@@ -464,6 +530,49 @@ void prinbeed::add_connections()
     // communicator daemon
     //
     f_messenger->finish_parsing();
+
+    // initialize the worker threads
+    //
+    int const cpu_count(cppthread::get_number_of_available_processors());
+    int workers_count(std::max(cpu_count, 2));
+    if(f_opts.is_defined("number_of_workers"))
+    {
+        std::string const count(f_opts.get_string("number_of_workers"));
+        if(count != "default")
+        {
+            workers_count = std::clamp(f_opts.get_long("number_of_workers"), 2, cpu_count * 2);
+        }
+    }
+    f_worker_pool = std::make_shared<worker_pool>(this, workers_count);
+
+    if(f_opts.is_defined("owner"))
+    {
+        std::string owner(f_opts.get_string("owner"));
+        std::string::size_type const pos(owner.find(':'));
+        if(pos == std::string::npos)
+        {
+            if(!owner.empty())
+            {
+                prinbee::context_manager::set_user(owner);
+            }
+        }
+        else
+        {
+            std::string part(owner.substr(0, pos));
+            if(!part.empty())
+            {
+                prinbee::context_manager::set_user(part);
+            }
+
+            part = owner.substr(pos + 1);
+            if(!part.empty())
+            {
+                prinbee::context_manager::set_group(part);
+            }
+        }
+    }
+
+    f_context_manager = prinbee::context_manager::get_instance();
 }
 
 
@@ -506,42 +615,95 @@ void prinbeed::set_ipwall_status(bool status)
  */
 void prinbeed::register_prinbee_daemon(ed::message & msg)
 {
+    if(!msg.has_parameter(prinbee::g_name_prinbee_param_cluster_name))
+    {
+        SNAP_LOG_ERROR
+            << "PRINBEE_CURRENT_STATUS message is missing the parameter with the other prinbeed cluster name."
+            << SNAP_LOG_SEND;
+        return;
+    }
+    {
+        std::string const cluster_name(msg.get_parameter(prinbee::g_name_prinbee_param_cluster_name));
+        if(cluster_name != f_cluster_name)
+        {
+            // this is not an error, multiple Prinbee clusters can co-exist
+            // in the same communicator cluster
+            //
+            SNAP_LOG_NOISY
+                << "PRINBEE_CURRENT_STATUS message is for a different cluster (expected: \""
+                << f_cluster_name
+                << "\", got \""
+                << cluster_name
+                << "\")."
+                << SNAP_LOG_SEND;
+            return;
+        }
+    }
+
     if(!msg.has_parameter(communicatord::g_name_communicatord_param_status))
     {
+        SNAP_LOG_ERROR
+            << "PRINBEE_CURRENT_STATUS message is missing the status parameter."
+            << SNAP_LOG_SEND;
         return;
     }
 
     if(msg.get_parameter(communicatord::g_name_communicatord_param_status)
                             != communicatord::g_name_communicatord_value_up)
     {
+        SNAP_LOG_VERBOSE
+            << "received a PRINBEE_CURRENT_STATUS message where the status is not UP."
+            << SNAP_LOG_SEND;
         return;
     }
 
-// TODO: I think we have an array of IPs and also we only
-//       want to connect to another prinbeed if its IP is smaller
-    if(msg.has_parameter(prinbee::g_name_prinbee_param_node_ip))
+    if(!msg.has_parameter(prinbee::g_name_prinbee_param_node_ip))
     {
-        std::string const node_address(msg.get_parameter(prinbee::g_name_prinbee_param_node_ip));
-        addr::addr const a(addr::string_to_addr(
-                          node_address
-                        , std::string()
-                        , NODE_BINARY_PORT));
-        switch(a.get_network_type())
-        {
-        case addr::network_type_t::NETWORK_TYPE_PUBLIC:
-        case addr::network_type_t::NETWORK_TYPE_PRIVATE:
-        case addr::network_type_t::NETWORK_TYPE_LOOPBACK:
-            break;
+        SNAP_LOG_ERROR
+            << "PRINBEE_CURRENT_STATUS message is missing the node IP address."
+            << SNAP_LOG_SEND;
+        return;
+    }
 
-        default:
-            throw prinbee::invalid_address("the other node address is not a valid address.");
+    if(!msg.has_parameter(prinbee::g_name_prinbee_param_node_name))
+    {
+        SNAP_LOG_ERROR
+            << "PRINBEE_CURRENT_STATUS message is missing the parameter with the other prinbeed node name."
+            << SNAP_LOG_SEND;
+        return;
+    }
 
-        }
+    std::string const node_address(msg.get_parameter(prinbee::g_name_prinbee_param_node_ip));
+    addr::addr const a(addr::string_to_addr(
+                      node_address
+                    , std::string()
+                    , NODE_BINARY_PORT));
+    switch(a.get_network_type())
+    {
+    case addr::network_type_t::NETWORK_TYPE_PUBLIC:
+    case addr::network_type_t::NETWORK_TYPE_PRIVATE:
+    case addr::network_type_t::NETWORK_TYPE_LOOPBACK:
+        break;
+
+    default:
+        SNAP_LOG_ERROR
+            << "this other node address ("
+            << node_address
+            << ") is not a valid address for a node."
+            << SNAP_LOG_SEND;
+        return;
+
+    }
+
+    // check against our address and attempt a connection only if the
+    // other daemon's address is smaller
+    //
+    addr::addr const my_address(f_messenger->get_my_address());
+    if(a < my_address)
+    {
         std::string const name(msg.get_parameter(prinbee::g_name_prinbee_param_name));
         connect_to_node(a, name);
     }
-
-
 }
 
 
@@ -601,8 +763,6 @@ int prinbeed::run()
     SNAP_LOG_INFO
         << "--------------------------------- prinbeed started."
         << SNAP_LOG_SEND;
-
-    is_ipwall_installed();
 
     // now run our listening loop
     //
@@ -852,8 +1012,11 @@ void prinbeed::send_our_status(ed::message * msg)
     }
 
     prinbee_current_status.add_parameter(
-              prinbee::g_name_prinbee_param_name
-            , f_opts.get_string("cluster_name"));
+              prinbee::g_name_prinbee_param_cluster_name
+            , f_cluster_name);
+    prinbee_current_status.add_parameter(
+              prinbee::g_name_prinbee_param_node_name
+            , f_node_name);
     prinbee_current_status.add_parameter(
               communicatord::g_name_communicatord_param_cache
             , communicatord::g_name_communicatord_value_no);
@@ -889,42 +1052,98 @@ void prinbeed::send_our_status(ed::message * msg)
 void prinbeed::connect_to_node(addr::addr const & a, std::string const & name)
 {
     node_client::pointer_t n(std::make_shared<node_client>(this, a));
+    n->set_name(name);
     n->add_callbacks();
 
-    register_connection(n, name);
+    // this call just register the connection in a table in prinbeed
+    // it does not send the REG message to the other side which we do
+    // just after
+    //
+    register_connection(n);
+
+    // send a REG, we expect a REGD or ERR as a reply
+    //
+    prinbee::binary_message register_msg;
+    register_msg.create_register_message(
+          f_opts.get_string("node_name")
+        , prinbee::g_name_prinbee_protocol_version_node);
+    n->send_message(register_msg);
 }
 
 
-void prinbeed::register_connection(ed::connection::pointer_t c, std::string const & name)
+connection_reference::pointer_t prinbeed::register_connection(ed::connection::pointer_t c)
 {
     connection_reference::pointer_t ref(std::make_shared<connection_reference>());
+    std::string const & name(c->get_name());
     ref->set_name(name);
     ref->set_connection(c);
     f_connection_reference[name] = ref;
+    return ref;
 }
 
 
-bool prinbeed::msg_err(
-      ed::connection::pointer_t //peer
-    , prinbee::binary_message & )//msg)
+connection_reference::pointer_t prinbeed::find_connection(std::string const & name)
 {
-    return true;
-}
-
-
-bool prinbeed::msg_register(
-      ed::connection::pointer_t //peer
-    , prinbee::binary_message & msg)
-{
-    prinbee::register_t r;
-    if(!msg.deserialize_register_message(r))
+    auto it(f_connection_reference.find(name));
+    if(it == f_connection_reference.end())
     {
-        return true;
+        throw prinbee::logic_error(
+              "connection reference \""
+            + name
+            + "\" not found.");
     }
 
-    // TODO: actually implement the register message
+    return it->second;
+}
+
+
+bool prinbeed::msg_error(
+      ed::connection::pointer_t peer
+    , prinbee::binary_message & msg)
+{
+    std::string name;
+    ed::connection::pointer_t client(std::dynamic_pointer_cast<ed::connection>(peer));
+    if(client != nullptr)
+    {
+        throw prinbee::logic_error("peer is not an eventdispatcher connection, cannot retrieve its name.");
+    }
+    name = client->get_name();
+
+    prinbee::error_t err;
+    msg.deserialize_error_message(err);
+
+    SNAP_LOG_ERROR
+        << name
+        << ": "
+        << err.f_message
+        << " ("
+        << static_cast<int>(err.f_code)
+        << ")"
+        << SNAP_LOG_SEND;
 
     return true;
+}
+
+
+void prinbeed::send_message(
+      ed::connection::pointer_t peer
+    , prinbee::binary_message & msg)
+{
+    prinbee::binary_client::pointer_t client(std::dynamic_pointer_cast<prinbee::binary_client>(peer));
+    if(client != nullptr)
+    {
+        client->send_message(msg);
+        return;
+    }
+
+    prinbee::binary_server_client::pointer_t server_client(std::dynamic_pointer_cast<prinbee::binary_server_client>(peer));
+    if(server_client != nullptr)
+    {
+        server_client->send_message(msg);
+        return;
+    }
+
+    throw prinbee::logic_error("unknown peer type, cannot send message to it.");
 }
 
 
@@ -936,23 +1155,7 @@ bool prinbeed::msg_ping(
 
     prinbee::binary_message pong;
     pong.set_name(prinbee::g_message_pong);
-    prinbee::binary_client::pointer_t client(std::dynamic_pointer_cast<prinbee::binary_client>(peer));
-    if(client != nullptr)
-    {
-        client->send_message(pong);
-    }
-    else
-    {
-        prinbee::binary_server_client::pointer_t server_client(std::dynamic_pointer_cast<prinbee::binary_server_client>(peer));
-        if(server_client != nullptr)
-        {
-            server_client->send_message(pong);
-        }
-        else
-        {
-            throw prinbee::logic_error("unknown peer type, cannot send message to it.");
-        }
-    }
+    send_message(peer, pong);
 
     return true;
 }
@@ -962,6 +1165,122 @@ bool prinbeed::msg_pong(
       ed::connection::pointer_t //peer
     , prinbee::binary_message & )//msg)
 {
+    return true;
+}
+
+
+bool prinbeed::msg_register(
+      ed::connection::pointer_t peer
+    , prinbee::binary_message & msg)
+{
+    prinbee::register_t r;
+    if(!msg.deserialize_register_message(r))
+    {
+        return true;
+    }
+
+    // TODO: we may need to register failing connections to avoid re-trying
+    //       them and have some stats about the state of the cluster; at the
+    //       moment, I'm not too sure how to implement that part--my problem
+    //       is that unless it all works or all fails, the view of the
+    //       cluster's status will vary depending on the node you use to look
+    //       at said status
+
+    versiontheca::decimal::pointer_t their_protocol_trait(std::make_shared<versiontheca::decimal>());
+    versiontheca::versiontheca::pointer_t their_protocol(std::make_shared<versiontheca::versiontheca>(their_protocol_trait, r.f_protocol_version));
+    if(f_protocol_version->get_major() != their_protocol->get_major())
+    {
+        // the major version must be exactly equal or we cannot deal with
+        // that protocol (it would be too much work to be backward compatible)
+        //
+        prinbee::binary_message error_msg;
+        error_msg.create_error_message(
+              prinbee::err_code_t::ERR_CODE_PROTOCOL_UNSUPPORTED
+            , "protocol \""
+            + r.f_protocol_version
+            + "\" not supported.");
+        send_message(peer, error_msg);
+        return true;
+    }
+
+    snapdev::timespec_ex now(snapdev::now());
+    snapdev::timespec_ex diff(now - r.f_now);
+    if(diff < static_cast<std::int64_t>(0))
+    {
+        diff = -diff;
+    }
+    if(diff >= 0.01) // 10ms or more is bad for the database
+    {
+        prinbee::binary_message error_msg;
+        error_msg.create_error_message(
+              prinbee::err_code_t::ERR_CODE_TIME_DIFFERENCE_TOO_LARGE
+            , "time difference too large: "
+            + diff.to_string("%s.%N")
+            + " seconds.");
+        send_message(peer, error_msg);
+        return true;
+    }
+
+    peer->set_name(r.f_name);
+
+    connection_reference::pointer_t ref(register_connection(peer));
+    ref->set_protocol(their_protocol);
+
+    return true;
+}
+
+
+bool prinbeed::msg_process_workload(
+      ed::connection::pointer_t peer
+    , prinbee::binary_message::pointer_t msg)
+{
+    payload_t payload =
+    {
+        f_peer = peer,
+        f_message = msg,
+    };
+
+    f_worker_pool->push_back(payload);
+}
+
+
+void prinbeed::list_contexts(payload_t & payload)
+{
+    // there is nothing for us to deserialize
+    //prinbee::msg_list_context_t l;
+    //if(!payload.f_message->deserialize_list_context_message(l))
+    //{
+    //    return true; // LCOV_EXCL_LINE
+    //}
+
+    advgetopt::string_list_t const list(f_context_manager->get_context_list());
+    payload.f_message->serialize_list_context_message(list);
+    payload.f_peer->send_message(payload.f_message);
+
+    return true;
+}
+
+
+void prinbeed::get_context(payload_t & payload)
+{
+    prinbee::msg_context_t c;
+    if(!payload.f_message->deserialize_context_message(c))
+    {
+        return true; // LCOV_EXCL_LINE
+    }
+
+    return true;
+}
+
+
+void prinbeed::set_context(payload_t & payload)
+{
+    prinbee::msg_context_t c;
+    if(!payload.f_message->deserialize_context_message(c))
+    {
+        return true; // LCOV_EXCL_LINE
+    }
+
     return true;
 }
 

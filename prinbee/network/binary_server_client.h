@@ -43,8 +43,8 @@ class binary_server_client
 {
 public:
     typedef std::shared_ptr<binary_server_client>       pointer_t;
-    typedef std::function<bool(binary_message & msg)>   callback_t;
-    typedef snapdev::callback_manager<callback_t>       callback_manager_t;
+    //typedef std::function<bool(binary_message & msg)>   callback_t;
+    //typedef snapdev::callback_manager<callback_t>       callback_manager_t;
 
                                 binary_server_client(ed::tcp_bio_client::pointer_t client);
                                 binary_server_client(binary_server_client const &) = delete;
@@ -53,11 +53,11 @@ public:
     binary_server_client &      operator = (binary_server_client const &) = delete;
 
     void                        send_message(binary_message & msg);
-    callback_manager_t::callback_id_t
+    binary_message::callback_manager_t::callback_id_t
                                 add_message_callback(
                                       message_name_t name
-                                    , callback_t callback
-                                    , callback_manager_t::priority_t priority = callback_manager_t::DEFAULT_PRIORITY);
+                                    , binary_message::callback_t callback
+                                    , binary_message::callback_manager_t::priority_t priority = binary_message::callback_manager_t::DEFAULT_PRIORITY);
 
     // ed::tcp_server_client_connection implementation
     //
@@ -69,7 +69,7 @@ public:
 
     // new callback
     //
-    virtual void                process_message(binary_message & msg);
+    virtual void                process_message(binary_message::pointer_t msg);
 
 private:
     enum read_state_t
@@ -79,14 +79,18 @@ private:
         READ_STATE_DATA,
     };
 
-    typedef std::map<message_name_t, callback_manager_t>    callback_map_t;
+    //typedef std::map<message_name_t, binary_message::callback_manager_t>    callback_map_t;
 
-    callback_map_t              f_callback_map = callback_map_t();
+    binary_message::pointer_t   get_binary_message();
+    void                        reset_binary_message();
+
+    binary_message::callback_map_t
+                                f_callback_map = binary_message::callback_map_t();
 
     read_state_t                f_read_state = read_state_t::READ_STATE_HEADER;
     std::vector<char>           f_data = std::vector<char>();
     std::size_t                 f_data_size = 0;
-    binary_message              f_binary_message = binary_message();
+    binary_message::pointer_t   f_binary_message = binary_message::pointer_t();
 
     std::vector<char>           f_output = std::vector<char>();
     std::size_t                 f_position = 0;

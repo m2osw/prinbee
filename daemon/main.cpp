@@ -69,7 +69,7 @@ int main(int argc, char * argv[])
     try
     {
         prinbee_daemon::prinbeed daemon(argc, argv);
-        daemon.add_connections();
+        daemon.finish_initialization();
         return daemon.run();
     }
     catch(advgetopt::getopt_exit const & e)
@@ -80,7 +80,7 @@ int main(int argc, char * argv[])
     {
         errmsg = "prinbeed:error: ";
         errmsg += e.what();
-        errmsg += " (stack information may be available in the logs)";
+        errmsg += " (stack information may be available in the logs).";
         SNAP_LOG_FATAL << "uncaught exception: " << e.what() << SNAP_LOG_SEND_WITH_STACK_TRACE(e);
     }
     catch(...)

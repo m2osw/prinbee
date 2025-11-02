@@ -64,15 +64,16 @@ add_library(${PROJECT_NAME} SHARED
 
     journal/journal.cpp
 
+    database/cell.cpp
     database/conditions.cpp
     database/context.cpp
+    database/context_manager.cpp
     database/cursor.cpp
-    database/table.cpp
     database/row.cpp
-    database/cell.cpp
+    database/table.cpp
 
-    data/dbfile.cpp
     data/convert.cpp
+    data/dbfile.cpp
     data/language.cpp
     data/schema.cpp
     #data/script.cpp

@@ -176,7 +176,7 @@ create a blob and do a SET, or use a GET with a key (Well... pretty much).
 ### Bottleneck
 
 We have a bottleneck here because we have a "single" connection to
-the backend through the local deamon.
+the backend through the local daemon.
 
 In truth we have one connection per backend, so we could use a round robbin
 on a GET. The SET can't use that because it has to send all the data to all

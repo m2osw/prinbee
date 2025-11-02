@@ -717,14 +717,14 @@ block::pointer_t table_impl::allocate_block(dbtype_t type, reference_t offset)
  *
  * The update process happens dynamically and using this background
  * update process. The dynamic part happens because when reading a
- * row, we auto-update it to the latest version. So any future SELECT
- * and UPDATE will automatically see the new schema.
+ * row, the process auto-updates it to the latest version. So any
+ * future SELECT and UPDATE automatically see the new schema.
  *
  * The background update process actually makes use of the dynamic
  * update by doing a `SELECT * FROM \<table>` to read the entire
- * table once, but without a `LOCK` a standard system would impose.
+ * table once, but without a `LOCK` a standard system would impose
  * (this runs in the background with the lowest possible priority
- * so it does not take any time).
+ * so it does not take any client's time).
  *
  * The process can be stopped when the database stops. It will
  * automatically restart when the database is brought back up.
@@ -767,7 +767,6 @@ void table_impl::start_update_process(bool restart)
     //       which works on updating the database until all the rows are
     //       using the latest schema version; at that point, the process
     //       removes the BlockSchemaList and keep only the latest schema
-    //       in the header
     //
     // WARNING: in order for us to allow for a strong priority where
     //          this background process runs only if time allows, the

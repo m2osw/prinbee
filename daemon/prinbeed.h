@@ -22,10 +22,12 @@
 #include    "messenger.h"
 #include    "interrupt.h"
 #include    "connection_reference.h"
+#include    "worker_pool.h"
 
 
 // prinbee
 //
+#include    <prinbee/names.h>
 #include    <prinbee/network/binary_server.h>
 
 
@@ -56,33 +58,44 @@ public:
 
     prinbeed &                  operator = (prinbeed const & rhs) = delete;
 
-    void                        add_connections();
+    void                        finish_initialization();
     void                        set_fluid_settings_ready();
     bool                        is_ipwall_installed() const;
     void                        set_ipwall_status(bool status);
     void                        set_clock_status(bool status);
     void                        lock_status_changed();
     void                        register_prinbee_daemon(ed::message & msg);
-    void                        register_connection(
-                                      ed::connection::pointer_t c
-                                    , std::string const & name);
+    connection_reference::pointer_t
+                                register_connection(ed::connection::pointer_t c);
+    connection_reference::pointer_t
+                                find_connection(std::string const & name);
     int                         run();
     void                        start_binary_connection();
     void                        send_our_status(ed::message * msg);
     void                        stop(bool quitting);
+    void                        send_message(
+                                      ed::connection::pointer_t peer
+                                    , prinbee::binary_message::pointer_t msg);
 
-    bool                        msg_err(
+    bool                        msg_error(
                                       ed::connection::pointer_t peer
-                                    , prinbee::binary_message & msg);
-    bool                        msg_register(
-                                      ed::connection::pointer_t peer
-                                    , prinbee::binary_message & msg);
+                                    , prinbee::binary_message::pointer_t msg);
     bool                        msg_ping(
                                       ed::connection::pointer_t peer
-                                    , prinbee::binary_message & msg);
+                                    , prinbee::binary_message::pointer_t msg);
     bool                        msg_pong(
                                       ed::connection::pointer_t peer
-                                    , prinbee::binary_message & msg);
+                                    , prinbee::binary_message::pointer_t msg);
+    bool                        msg_register(
+                                      ed::connection::pointer_t peer
+                                    , prinbee::binary_message::pointer_t msg);
+    bool                        msg_process_workload(
+                                      ed::connection::pointer_t peer
+                                    , prinbee::binary_message::pointer_t msg);
+
+    void                        list_context(payload_t & payload);
+    void                        get_context(payload_t & payload);
+    void                        set_context(payload_t & payload);
 
 private:
     void                        check_ipwall_status();
@@ -102,6 +115,9 @@ private:
     std::string                             f_proxy_address = std::string();
     std::string                             f_direct_address = std::string();
     connection_reference::map_t             f_connection_reference = connection_reference::map_t();
+    versiontheca::decimal::pointer_t        f_protocol_trait = std::make_shared<versiontheca::decimal>();
+    versiontheca::versiontheca::pointer_t   f_protocol_version = std::make_shared<versiontheca::versiontheca>(f_protocol_trait, prinbee::g_name_prinbee_protocol_version_node);
+    worker_pool::pointer_t                  f_worker_pool = worker_pool::pointer_t();
 
     bool                                    f_fluid_settings_ready = false;
     bool                                    f_ipwall_is_installed = false;

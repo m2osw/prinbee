@@ -12,8 +12,9 @@ cmd_prinbee_get_status=PRINBEE_GET_STATUS
 cmd_prinbee_server_listener=PRINBEE_SERVER_LISTENER
 
 # message parameters
+param_cluster_name=cluster_name
 param_direct_ip=direct_ip
-param_name=name
+param_node_name=node_name
 param_node_ip=node_ip
 param_proxy_ip=proxy_ip
 
@@ -30,19 +31,20 @@ fld_description=description
 fld_encrypt_key_name=encrypt_key_name
 fld_enum_type=enum_type
 fld_enums=enums
-fld_header_crc16=header_crc16
-fld_key_script=key_script
 fld_external_file_compressor=external_file_compressor
 fld_fields=fields
 fld_filter_script=filter_script
 fld_flags=flags
+fld_header_crc16=header_crc16
+fld_id=id
 fld_inline_limit=inline_limit
+fld_key_script=key_script
 fld_last_updated_on=last_updated_on
 fld_length=length
 fld_maximum_length=maximum_length
+fld_maximum_value=maximum_value
 fld_message=message
 fld_minimum_length=minimum_length
-fld_maximum_value=maximum_value
 fld_minimum_value=minimum_value
 fld_model=model
 fld_name=name

@@ -61,6 +61,7 @@ bool is_valid_type(prinbee::dbtype_t type)
     switch(type)
     {
     case prinbee::dbtype_t::DBTYPE_UNKNOWN:
+    case prinbee::dbtype_t::FILE_TYPE_CONTEXT:
     case prinbee::dbtype_t::FILE_TYPE_TABLE:
     case prinbee::dbtype_t::FILE_TYPE_INDEX:
     case prinbee::dbtype_t::FILE_TYPE_BLOOM_FILTER:

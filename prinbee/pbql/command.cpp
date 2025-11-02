@@ -121,7 +121,7 @@ void command::set_bool(param_t param, bool value)
         throw type_mismatch(
               "parameter "
             + std::to_string(static_cast<int>(param))
-            + " already different as a different type; expected an bool.");
+            + " already defined as a different type; expected a Boolean.");
     }
 
     f_bool_params[param] = value;
@@ -149,7 +149,7 @@ void command::set_int64(param_t param, std::int64_t value)
         throw type_mismatch(
               "parameter "
             + std::to_string(static_cast<int>(param))
-            + " already different as a different type; expected an int64.");
+            + " already defined as a different type; expected an int64.");
     }
 
     f_int64_params[param] = value;
@@ -177,7 +177,7 @@ void command::set_int512(param_t param, int512_t value)
         throw type_mismatch(
               "parameter "
             + std::to_string(static_cast<int>(param))
-            + " already different as a different type; expected an int512.");
+            + " already defined as a different type; expected an int512.");
     }
 
     f_int512_params[param] = value;
@@ -205,7 +205,7 @@ void command::set_string(param_t param, std::string value)
         throw type_mismatch(
               "parameter "
             + std::to_string(static_cast<int>(param))
-            + " already different as a different type; expected a string.");
+            + " already defined as a different type; expected a string.");
     }
 
     f_string_params[param] = value;

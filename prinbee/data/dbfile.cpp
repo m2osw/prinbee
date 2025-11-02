@@ -499,6 +499,9 @@ char const * to_name(dbtype_t type)
     case dbtype_t::DBTYPE_UNKNOWN:
         return "Unknown";
 
+    case dbtype_t::FILE_TYPE_CONTEXT:
+        return "Prinbee Context (CTXT)";
+
     case dbtype_t::FILE_TYPE_TABLE:
         return "Prinbee Table (PTBL)";
 

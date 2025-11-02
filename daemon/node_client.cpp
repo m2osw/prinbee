@@ -75,13 +75,19 @@ void node_client::add_callbacks()
 {
     add_message_callback(
           prinbee::g_message_error
-        , std::bind(&prinbeed::msg_err, f_prinbeed, shared_from_this(), std::placeholders::_1));
+        , std::bind(&prinbeed::msg_error, f_prinbeed, shared_from_this(), std::placeholders::_1));
     add_message_callback(
           prinbee::g_message_ping
         , std::bind(&prinbeed::msg_ping, f_prinbeed, shared_from_this(), std::placeholders::_1));
     add_message_callback(
           prinbee::g_message_pong
         , std::bind(&prinbeed::msg_pong, f_prinbeed, shared_from_this(), std::placeholders::_1));
+    add_message_callback(
+          prinbee::g_message_register
+        , std::bind(&prinbeed::msg_register, f_prinbeed, shared_from_this(), std::placeholders::_1));
+    add_message_callback(
+          prinbee::g_message_create_context
+        , std::bind(&prinbeed::msg_process_workload, f_prinbeed, shared_from_this(), std::placeholders::_1));
 }
 
 

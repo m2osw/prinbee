@@ -50,12 +50,14 @@ enum class dbtype_t : std::uint32_t
 {
     DBTYPE_UNKNOWN                  = DBTYPE_NAME("????"),
 
-    FILE_TYPE_TABLE                 = DBTYPE_NAME("PTBL"),      // Prinbee Table
+    FILE_TYPE_COMPLEX_TYPE          = DBTYPE_NAME("CXTP"),      // User Defined Types (in "<prinbee-path>/contexts/<context-name>/complex-types.pb")
+    FILE_TYPE_CONTEXT               = DBTYPE_NAME("CTXT"),      // Context (in "<prinbee-path>/contexts/<context-name>/context.pb")
+    FILE_TYPE_SCHEMA                = DBTYPE_NAME("SCHM"),      // Table Schema (in "<prinbee-path>/contexts/<context-name>/<table-name>/table-<version>.pb")
+
+    FILE_TYPE_TABLE                 = DBTYPE_NAME("PTBL"),      // Table Data (in "<prinbee-path>/contexts/<context-name>/<table-name>/TBD.pb")
     FILE_TYPE_PRIMARY_INDEX         = DBTYPE_NAME("PIDX"),      // Primary Index (a.k.a. OID Index)
     FILE_TYPE_INDEX                 = DBTYPE_NAME("INDX"),      // User Defined Index (key -> OID)
     FILE_TYPE_BLOOM_FILTER          = DBTYPE_NAME("BLMF"),      // Bloom Filter
-    FILE_TYPE_SCHEMA                = DBTYPE_NAME("SCHM"),      // Table Schema
-    FILE_TYPE_COMPLEX_TYPE          = DBTYPE_NAME("CXTP"),      // User Defined Types
 
     BLOCK_TYPE_BLOB                 = DBTYPE_NAME("BLOB"),
     BLOCK_TYPE_DATA                 = DBTYPE_NAME("DATA"),
@@ -80,6 +82,9 @@ constexpr char const * to_string(dbtype_t type)
     {
     case dbtype_t::DBTYPE_UNKNOWN:
         return "????";
+
+    case dbtype_t::FILE_TYPE_CONTEXT:
+        return "CTXT";
 
     case dbtype_t::FILE_TYPE_TABLE:
         return "PTBL";

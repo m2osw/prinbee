@@ -22,6 +22,12 @@
 #include    <eventdispatcher/connection.h>
 
 
+// versiontheca
+//
+#include    <versiontheca/versiontheca.h>
+#include    <versiontheca/decimal.h>
+
+
 // C++
 //
 #include    <map>
@@ -61,13 +67,20 @@ public:
     std::string const &         get_name() const;
     void                        set_connection(ed::connection::pointer_t connection);
     ed::connection::pointer_t   get_connection() const;
+    void                        set_protocol(versiontheca::versiontheca::pointer_t protocol);
+    versiontheca::versiontheca::pointer_t
+                                get_protocol() const;
 
 private:
     //prinbeed *                  f_prinbeed = nullptr;
     std::string                 f_name = std::string();
     ed::connection::pointer_t   f_connection = ed::connection::pointer_t();
+    versiontheca::versiontheca::pointer_t
+                                f_protocol = versiontheca::versiontheca::pointer_t();
 };
 
+
+connection_reference::pointer_t get_find_reference_connection(ed::connection::pointer_t connection);
 
 
 } // namespace prinbee_daemon

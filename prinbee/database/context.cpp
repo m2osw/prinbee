@@ -22,7 +22,20 @@
  *
  * A context is a collection of tables. The implementation reads all
  * the table schemata so the system is ready to accept commands to
- * read and write data to and from any of the tables.
+ * read and write data to and from any of the tables. For this reason
+ * we make use of a single file (SCHM) for all the schemata. There is
+ * also one other file with complex types (CXTP) also called user
+ * defined types.
+ *
+ * The schemata file also includes some information about the context.
+ * This includes when the context was created and, if it happens, when
+ * it was dropped. This is important because a node that is down at the
+ * time a DROP happens would not know that the context was deleted and
+ * as a result it would attempt to replicate it on all the other nodes.
+ *
+ * When you connect to a prinbee server, you pretty much automatically
+ * get a copy of those two files so it is possible to check the validity
+ * of the data locally before attempting to send it to the server.
  *
  * By default, it is expected that you only run with one single context
  * per node. Having more than one context on a single node may cause
@@ -38,13 +51,17 @@
  * \note
  * A context is pretty shallow. It manages a set of tables and that's
  * about it. Details on how the data is replicated, compressed,
- * compacted, filtered, indexed, etc. is found in a table.
+ * compacted, filtered, indexed, etc. is found in a table. However, the
+ * context is the object that keeps a copy of the table schemata including
+ * their replication information, indexes, etc.
  */
 
 
 // self
 //
 #include    "prinbee/database/context.h"
+
+#include    "prinbee/names.h"
 
 
 // snaplogger
@@ -88,8 +105,65 @@ namespace detail
 
 
 
-constexpr char const * const    g_contexts_subpath = "contexts";
+constexpr char const * const    g_tables_subpath = "tables";
 constexpr char const * const    g_complex_types_filename = "complex-types.pb";
+//constexpr char const * const    g_schemata_filename = "schemata.pb";
+
+
+// context file definition
+struct_description_t g_context_file_description[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_magic)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_CONTEXT))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_structure_version)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(1, 0)
+    ),
+    // this file description structure is viewed as being part of the schema;
+    // this version starts at 1 and goes up, it is used to make sure that two
+    // ALTER CONTEXT from two different clients cannot update the context
+    // from version N to version N+1; one has to wait for the other to be
+    // done then it can apply the change with version N+2
+    //
+    prinbee::define_description(
+          prinbee::FieldName(g_name_prinbee_fld_schema_version)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32) // schema_version_t (data/schema.h)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_name_prinbee_fld_name)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_name_prinbee_fld_description)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P32STRING)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_name_prinbee_fld_created_on)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_NSTIME)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_name_prinbee_fld_last_updated_on)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_NSTIME)
+    ),
+    // the following is an identifier representing this very context;
+    // to make that number unique across our entire cluster, we use time_t
+    // and use the following sequence:
+    //
+    //     LOCK all_clusters
+    //     SLEEP 1 second (this ensures that each context has a unique ID!)
+    //     ID = (UINT32)NOW
+    //     ...
+    //
+    prinbee::define_description(
+          prinbee::FieldName(g_name_prinbee_fld_id)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT64)
+    ),
+    end_descriptions()
+};
 
 
 class context_impl
@@ -103,7 +177,9 @@ public:
     void                                initialize();
     void                                load_file(std::string const & filename, bool required);
     void                                from_binary(virtual_buffer::pointer_t b);
+    void                                load_context(virtual_buffer::pointer_t b);
 
+    std::string                         get_name() const;
     table::pointer_t                    get_table(std::string const & name) const;
     table::map_t const &                list_tables() const;
     std::string const &                 get_path() const;
@@ -117,7 +193,14 @@ private:
     void                                find_loop(std::string const & name, schema_complex_type::pointer_t type, std::size_t depth);
 
     context *                           f_context = nullptr;
-    context_setup                       f_setup = context_setup();
+
+    context_setup                       f_setup = context_setup(); // this includes the f_name of the context
+    schema_version_t                    f_schema_version = 0;
+    std::string                         f_description = std::string();
+    snapdev::timespec_ex                f_created_on = snapdev::timespec_ex();
+    snapdev::timespec_ex                f_last_updated_on = snapdev::timespec_ex();
+    std::uint32_t                       f_id = 0;
+
     std::string                         f_context_path = std::string();
     std::string                         f_tables_path = std::string();
     int                                 f_lock = -1;        // TODO: lock the context so only one prinbee daemon can run against it
@@ -145,29 +228,35 @@ std::string const & context_impl::get_context_path()
     {
         // build the path the first time we get called
         //
-        f_context_path = get_prinbee_path();
-        f_context_path = snapdev::pathinfo::canonicalize(f_context_path, get_contexts_subpath());
-        f_context_path = snapdev::pathinfo::canonicalize(f_context_path, f_setup.get_name());
+        f_context_path = snapdev::pathinfo::canonicalize(get_contexts_root_path(), f_setup.get_name());
     }
 
     return f_context_path;
 }
 
 
+/** \brief Initialize a context from its file on disk.
+ *
+ * This function is used by the prinbee daemon which handles the data on
+ * disk.
+ *
+ * For all others, you are expected to use the from binary function
+ * with the data you receive through a binary message.
+ */
 void context_impl::initialize()
 {
     SNAP_LOG_CONFIGURATION
-        << "Initialize context \""
+        << "initialize context \""
         << f_setup.get_name()
         << "\" from disk."
         << SNAP_LOG_SEND;
 
     // the full path to the data is built from three different paths
-    // and sub-paths so we have a function to do that work.
+    // and sub-paths so call get_context_path().
     //
-    f_tables_path = snapdev::pathinfo::canonicalize(get_context_path(), "tables");
+    f_tables_path = snapdev::pathinfo::canonicalize(get_context_path(), g_tables_subpath);
 
-    // make sure the sub-folders exist
+    // make sure the folders exist
     //
     if(snapdev::mkdir_p(f_tables_path
             , false
@@ -187,6 +276,16 @@ void context_impl::initialize()
     //
     load_file(snapdev::pathinfo::canonicalize(get_context_path(), g_complex_types_filename), false);
 
+    // in order to easily share a context between computers (which we do)
+    // we just keep it all in one file
+    //
+    // WRONG: actually we have a separate schema per version for each table;
+    //        we only share the newest version with clients; and use the older
+    //        versions to convert data internally
+    //
+    //load_file(snapdev::pathinfo::canonicalize(get_context_path(), g_schemata_filename), false);
+
+#if 1
     //basic_xml::node::deque_t table_extensions;
 
     //size_t const max(f_opts->size("table_schema_path"));
@@ -375,6 +474,7 @@ void context_impl::initialize()
 //            t.second->get_schema();
 //        }
     }
+#endif
 
     SNAP_LOG_INFORMATION
         << "Context \""
@@ -404,14 +504,21 @@ void context_impl::from_binary(virtual_buffer::pointer_t b)
         verify_complex_types();
         break;
 
-    case dbtype_t::FILE_TYPE_SCHEMA:
-        {
-            schema_table::pointer_t schema(std::make_shared<schema_table>());
-            schema->set_complex_types(f_schema_complex_types);
-            schema->from_binary(b);
-            f_schema_tables_by_name_and_version[schema->get_name()] = schema;
-        }
+    case dbtype_t::FILE_TYPE_CONTEXT:
+        load_context(b);
         break;
+
+    //case dbtype_t::FILE_TYPE_SCHEMA:
+    //    {
+    //        // I think this is invalid; we receive a TBL message of some sort
+    //        // instead of a CTXT for a schema...
+    //        //
+    //        schema_table::pointer_t schema(std::make_shared<schema_table>());
+    //        schema->set_complex_types(f_schema_complex_types);
+    //        schema->from_binary(b);
+    //        f_schema_tables_by_name_and_version[schema->get_name()] = schema;
+    //    }
+    //    break;
 
     default:
         throw invalid_type(
@@ -425,8 +532,42 @@ void context_impl::from_binary(virtual_buffer::pointer_t b)
     //FILE_TYPE_PRIMARY_INDEX         = DBTYPE_NAME("PIDX"),      // Primary Index (a.k.a. OID Index)
     //FILE_TYPE_INDEX                 = DBTYPE_NAME("INDX"),      // User Defined Index (key -> OID)
     //FILE_TYPE_BLOOM_FILTER          = DBTYPE_NAME("BLMF"),      // Bloom Filter
-    //FILE_TYPE_SCHEMA                = DBTYPE_NAME("SCHM"),      // Table Schema
-    //FILE_TYPE_COMPLEX_TYPE          = DBTYPE_NAME("CXTP"),      // User Defined Types
+    //FILE_TYPE_SCHEMA                = DBTYPE_NAME("SCHM"),      // Table Schema [DONE]
+    //FILE_TYPE_COMPLEX_TYPE          = DBTYPE_NAME("CXTP"),      // User Defined Types [DONE]
+}
+
+
+void context_impl::load_context(virtual_buffer::pointer_t b)
+{
+    structure::pointer_t s(std::make_shared<prinbee::structure>(g_context_file_description));
+    s->set_virtual_buffer(b, 0);
+
+    // we already have the name in the f_setup, so just verify
+    // (TODO: if not the same, maybe we should have a process to auto-fix it?)
+    //
+    std::string const name(s->get_string(g_name_prinbee_fld_name));
+    if(name != f_setup.get_name())
+    {
+        // this is considered an error, but how are we going to fix it unless
+        // we can read the whole file?
+        //
+        SNAP_LOG_ERROR
+                << "the name of the context \""
+                << f_setup.get_name()
+                << "\" does not match the name found in the file \""
+                << name
+                << "\"."
+                << SNAP_LOG_SEND;
+    }
+
+    // this version is just a 32 unsigned integer
+    //
+    f_schema_version = s->get_uinteger(g_name_prinbee_fld_schema_version);
+
+    f_description = s->get_string(g_name_prinbee_fld_description);
+    f_created_on = s->get_nstime(g_name_prinbee_fld_created_on);
+    f_last_updated_on = s->get_nstime(g_name_prinbee_fld_last_updated_on);
+    f_id = s->get_uinteger(g_name_prinbee_fld_id); // 64 bits
 }
 
 
@@ -488,6 +629,12 @@ void context_impl::find_loop(std::string const & name, schema_complex_type::poin
         }
         find_loop(name, it->second, depth + 1);
     }
+}
+
+
+std::string context_impl::get_name() const
+{
+    return f_setup.get_name();
 }
 
 
@@ -558,10 +705,7 @@ std::string const & context_impl::get_path() const
 
 
 
-char const * get_contexts_subpath()
-{
-    return detail::g_contexts_subpath;
-}
+
 
 
 
@@ -596,7 +740,7 @@ void context_setup::set_name(std::string const & name)
     || name.back() == '/')
     {
         throw invalid_parameter(
-              "a context name cannot start with '/', \""
+              "a context name cannot start with or end '/', \""
             + name
             + "\" is not valid.");
     }
@@ -617,7 +761,7 @@ void context_setup::set_name(std::string const & name)
     // considered to be a valid name
     //
     // as a side effect, this means we make sure that there is no "." and
-    // ".." segments since periods are not allowed in out names
+    // ".." segments since periods are not allowed in our names
     //
     for(auto const & s : segments)
     {
@@ -782,6 +926,12 @@ void context::load_file(std::string const & filename, bool required)
 void context::from_binary(virtual_buffer::pointer_t b)
 {
     f_impl->from_binary(b);
+}
+
+
+std::string context::get_name() const
+{
+    return f_impl->get_name();
 }
 
 

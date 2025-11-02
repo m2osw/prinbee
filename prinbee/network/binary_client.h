@@ -79,7 +79,7 @@ public:
 
     // new callback
     //
-    virtual void                process_message(binary_message & msg);
+    virtual void                process_message(binary_message::pointer_t msg); // passed by pointer so we can save it in our fifo between pool workers
     virtual void                process_connected();
     virtual void                process_disconnected();
 

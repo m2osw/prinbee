@@ -69,6 +69,7 @@ DECLARE_EXCEPTION(prinbee_exception, invalid_parameter);
 DECLARE_EXCEPTION(prinbee_exception, invalid_size);
 DECLARE_EXCEPTION(prinbee_exception, invalid_token);
 DECLARE_EXCEPTION(prinbee_exception, invalid_type);
+DECLARE_EXCEPTION(prinbee_exception, invalid_user);
 //DECLARE_EXCEPTION(prinbee_exception, invalid_xml);
 DECLARE_EXCEPTION(prinbee_exception, io_error);
 DECLARE_EXCEPTION(prinbee_exception, missing_parameter);

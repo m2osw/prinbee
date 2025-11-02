@@ -19,8 +19,15 @@
 
 // prinbee
 //
+#include    <prinbee/data/schema.h>
+#include    <prinbee/data/structure.h>
 #include    <prinbee/exception.h>
 #include    <prinbee/network/crc16.h>
+
+
+// advgetopt
+//
+#include    <advgetopt/utils.h>
 
 
 // snapdev
@@ -47,6 +54,8 @@ constexpr std::size_t const     PRINBEE_NETWORK_PAGE_SIZE = 4096;
 
 typedef std::uint8_t            message_version_t;
 typedef std::uint32_t           message_name_t;
+typedef std::uint32_t           context_id_t;
+typedef std::uint32_t           data_version_t;         // used to make sure schema alterations are sequential
 
 
 constexpr message_version_t     g_binary_message_version = 1;
@@ -115,11 +124,25 @@ constexpr message_name_t create_message_name(char const * const name)
 
 
 constexpr message_name_t        g_message_unknown = 0;
-constexpr message_name_t        g_message_error = create_message_name("ERR");
-constexpr message_name_t        g_message_ping = create_message_name("PING");
-constexpr message_name_t        g_message_pong = create_message_name("PONG");
-constexpr message_name_t        g_message_register = create_message_name("REG");
-constexpr message_name_t        g_message_registered = create_message_name("REGD");
+
+constexpr message_name_t        g_message_acknowledge       = create_message_name("ACK");
+constexpr message_name_t        g_message_error             = create_message_name("ERR");
+constexpr message_name_t        g_message_get_complex_types = create_message_name("GCTP");
+constexpr message_name_t        g_message_get_context       = create_message_name("GCTX");
+constexpr message_name_t        g_message_get_index         = create_message_name("GIDX");
+constexpr message_name_t        g_message_get_table         = create_message_name("GTBL");
+constexpr message_name_t        g_message_list_contexts     = create_message_name("LCTX");
+constexpr message_name_t        g_message_list_indexes      = create_message_name("LIDX");
+constexpr message_name_t        g_message_list_tables       = create_message_name("LTBL");
+constexpr message_name_t        g_message_ping              = create_message_name("PING");
+constexpr message_name_t        g_message_pong              = create_message_name("PONG");
+constexpr message_name_t        g_message_register          = create_message_name("REG");
+constexpr message_name_t        g_message_registered        = create_message_name("REGD");
+constexpr message_name_t        g_message_success           = create_message_name("SCCS");
+constexpr message_name_t        g_message_set_complex_types = create_message_name("SCTP");
+constexpr message_name_t        g_message_set_context       = create_message_name("SCTX");
+constexpr message_name_t        g_message_set_index         = create_message_name("SIDX");
+constexpr message_name_t        g_message_set_table         = create_message_name("STBL");
 
 
 std::string message_name_to_string(message_name_t name);
@@ -127,6 +150,34 @@ std::string message_name_to_string(message_name_t name);
 
 // all the binary connections understand the PING and PONG messages;
 // when sending a PING, it is expected we receive a PONG as the reply
+
+
+enum class err_code_t : std::uint32_t
+{
+    ERR_CODE_NONE = 0,
+    ERR_CODE_PROTOCOL_UNSUPPORTED,
+    ERR_CODE_TIME_DIFFERENCE_TOO_LARGE,
+};
+
+
+/** \brief The data sent along an ERROR message.
+ *
+ * Whenever a message is sent, we want a reply. If the destination cannot
+ * properly reply, it will instead send an error message.
+ *
+ * The error message includes a code and a human message.
+ *
+ * \note
+ * The errors are passed using a bsr buffer, that way it is forward and
+ * backward compatible over time. We may add more fields with time and
+ * still safely be able to receive and send these messages to older
+ * versions of the library.
+ */
+struct msg_error_t
+{
+    err_code_t              f_code = err_code_t::ERR_CODE_NONE;
+    std::string             f_message = std::string();
+};
 
 
 /** \brief The data sent along the REGISTER message.
@@ -146,13 +197,88 @@ std::string message_name_to_string(message_name_t name);
  *       data as expected (i.e. the bsr serializer uses names for fields
  *       which is forward and backward compatible).
  */
-struct register_t
+struct msg_register_t
 {
     std::string             f_name = std::string();
     std::string             f_protocol_version = std::string();
     timespec                f_now = snapdev::now();
 };
 
+
+/** \brief Structure used to send and receive a LCTX command.
+ *
+ * At the moment, there is nothing to send. The reply is a list of
+ * context names separated by commas.
+ */
+struct msg_list_context_t
+{
+    advgetopt::string_list_t    f_list = advgetopt::string_list_t();
+};
+
+
+/** \brief Structure used to send and receive a context definition.
+ *
+ * This structure is used to communicate the equivalent of commands:
+ *
+ * \li CREATE CONTEXT
+ * \li ALTER CONTEXT
+ * \li DROP CONTEXT
+ *
+ * The binary version is handled within the binary_message implementation.
+ * It uses a STRUCTURE to send/receive the data through the binary
+ * connection.
+ *
+ * The IF NOT EXISTS of the CREATE CONTEXT is just in pbql; in that case,
+ * the pbql implementation first does a GCTX and if it returns a context,
+ * just do not do the SCTX. If not specified and the context exists, then
+ * the CLI generates an error. In that case, an ALTER CONTEXT is required.
+ *
+ * When connecting to a context, you first need to send a GCTX to get the
+ * context identifier. You later reuse that identifier to apply most of
+ * the other functions (get/set tables, indexes, rows, etc.)
+ */
+struct msg_context_t
+{
+    std::string             f_context_name = std::string();             // name of the context
+    std::string             f_description = std::string();              // description of this context
+    schema_version_t        f_schema_version = 0;                       // do not set on a GCTX, increase by 1 on a SCTX
+    context_id_t            f_context_id = 0;                           // set when creating a context; unique among all contexts within a cluster
+    snapdev::timespec_ex    f_created_on = snapdev::timespec_ex();      // set when creating a context
+    snapdev::timespec_ex    f_last_updated_on = snapdev::timespec_ex(); // set when updating a context (ALTER CONTEXT ... -> SCTX)
+};
+
+
+struct msg_complex_types_t
+{
+    context_id_t    f_context_id = 0;               // the context ID
+    buffer_t        f_complex_types = buffer_t();   // the complex types (used defined records)
+};
+
+
+struct msg_table_t
+{
+    context_id_t    f_context_id = 0;               // the context ID
+    buffer_t        f_schemata = buffer_t();        // the table schemata
+};
+
+
+//enum class msg_message_t : std::uint32_t
+//{
+//    MSG_CREATE_CONTEXT              = DBTYPE_NAME("CTXT"),
+//};
+//
+//
+//constexpr char const * to_string(msg_message_t name)
+//{
+//    switch(name)
+//    {
+//    case msg_message_t::MSG_CREATE_CONTEXT:
+//        return "CTXT";
+//
+//    }
+//
+//    return "";
+//}
 
 
 class binary_message
@@ -162,7 +288,7 @@ public:
 
     // for our cheap dispatcher like code
     //
-    typedef std::function<bool(binary_message & msg)>       callback_t;
+    typedef std::function<bool(pointer_t msg)>              callback_t;
     typedef snapdev::callback_manager<callback_t>           callback_manager_t;
     typedef std::map<message_name_t, callback_manager_t>    callback_map_t;
 
@@ -189,8 +315,14 @@ public:
                                 get_data() const;
     void const *                get_either_pointer(std::size_t & size) const;
 
+    void                        create_error_message(err_code_t code, std::string const & error_message);
+    bool                        deserialize_error_message(msg_error_t & err);
     void                        create_register_message(std::string const & name, std::string const & protocol_version);
-    bool                        deserialize_register_message(register_t & pp);
+    bool                        deserialize_register_message(msg_register_t & r);
+    void                        create_list_context_message(advgetopt::string_list_t const & list);
+    bool                        deserialize_list_context_message(msg_list_context_t & context_list);
+    void                        create_context_message(msg_context_t const & context);
+    bool                        deserialize_context_message(msg_context_t & context);
 
 private:
     struct header_t

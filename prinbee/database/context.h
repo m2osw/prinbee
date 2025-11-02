@@ -30,12 +30,6 @@
 // self
 //
 #include    "prinbee/database/table.h"
-#include    "prinbee/utils.h"
-
-
-// advgetopt
-//
-#include    <advgetopt/advgetopt.h>
 
 
 
@@ -54,6 +48,7 @@ constexpr std::size_t const                 MAX_CONTEXT_NAME_SEGMENTS = 3;
 constexpr std::size_t const                 MAX_CONTEXT_NAME_SEGMENT_LENGTH = 100;
 
 char const *                                get_contexts_subpath();
+std::string                                 get_contexts_root_path();
 
 
 class context_setup
@@ -88,10 +83,12 @@ public:
 
     static pointer_t                        create_context(context_setup const & setup);
 
-    void                                    initialize();
     void                                    load_file(std::string const & filename, bool required);
     void                                    from_binary(virtual_buffer::pointer_t b);
 
+    void                                    initialize();
+
+    std::string                             get_name() const;
     table::pointer_t                        get_table(std::string const & name) const;
     table::map_t const &                    list_tables() const;
     std::string const &                     get_path() const;

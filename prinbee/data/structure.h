@@ -787,7 +787,7 @@ constexpr struct_description_t define_description(ARGS ...args)
     //
     if(s.f_min_version > s.f_max_version)
     {
-        throw invalid_parameter("this structure field must have a minimum version which is smaller or equal to the maximum version.");
+        throw invalid_parameter("this structure field must have a minimum version which is smaller or equal to its maximum version.");
     }
 
     return s;

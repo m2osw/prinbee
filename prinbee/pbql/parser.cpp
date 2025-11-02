@@ -689,7 +689,7 @@ void parser::parse_create_context()
                 , optional_found
                 , token_t::TOKEN_IDENTIFIER);
     }
-    command->set_bool(param_t::PARAM_IF_EXISTS, !if_not_exists); // i.e. if IF_EXISTS is false, then IF NOT EXISTS was defined
+    command->set_bool(param_t::PARAM_IF_EXISTS, !if_not_exists); // i.e. set IF_EXISTS to false when IF NOT EXISTS is defined
 
     std::string const context_name(n->get_string_lower());
     if(!validate_name(context_name.c_str()))
@@ -863,7 +863,7 @@ void parser::parse_create_context()
                         msg << n->get_location().get_location()
                             << "expected a string for <description> in CREATE CONTEXT ... WITH ( COMMENT <description> ) got a "
                             << to_string(n->get_token())
-                            << ".";
+                            << " instead.";
                         throw invalid_token(msg.str());
                     }
                     description = n->get_string();

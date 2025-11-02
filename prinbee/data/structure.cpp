@@ -18,10 +18,10 @@
 
 
 /** \file
- * \brief Database file implementation.
+ * \brief Dynamic structure support.
  *
- * Each table uses one or more files. Each file is handled by a dbfile
- * object and a corresponding set of blocks.
+ * The binary data in the database files and transmitted between clients
+ * and servers is managed through these dynamically declared structures.
  */
 
 // self

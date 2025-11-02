@@ -42,6 +42,7 @@ find_package(SnapCMakeModules         REQUIRED)
 find_package(SnapDev                  REQUIRED)
 find_package(SnapLogger               REQUIRED)
 find_package(VerifyMessageDefinitions REQUIRED)
+find_package(Versiontheca             REQUIRED)
 
 SnapGetVersion(PRINBEE ${CMAKE_CURRENT_SOURCE_DIR})
 

@@ -19,12 +19,21 @@
 
 // self
 //
-#include    "prinbeed.h"
+//#include    "messenger.h"
+//#include    "interrupt.h"
+//#include    "connection_reference.h"
 
 
 // prinbee
 //
-#include    <prinbee/network/binary_client.h>
+//#include    <prinbee/names.h>
+//#include    <prinbee/network/binary_server.h>
+#include    <prinbee/database/context.h>
+
+
+// eventdispatcher
+//
+//#include    <eventdispatcher/message.h>
 
 
 
@@ -33,30 +42,7 @@ namespace prinbee_daemon
 
 
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Weffc++"
-class node_client
-    : public prinbee::binary_client
-{
-public:
-    typedef std::shared_ptr<node_client> pointer_t;
-
-                                node_client(prinbeed * p, addr::addr const & a);
-                                node_client(node_client const & rhs) = delete;
-    virtual                     ~node_client() override;
-
-    node_client &               operator = (node_client const & rhs) = delete;
-
-    void                        add_callbacks();
-
-    // ed::connection implementation
-    //
-    virtual void                process_signal() override;
-
-private:
-    prinbeed *                  f_prinbeed = nullptr;
-};
-#pragma GCC diagnostic pop
+prinbee::context::pointer_t     get_context(std::string const & name);
 
 
 

@@ -90,6 +90,8 @@ public:
     binary_client_impl &        operator = (binary_client_impl const &) = delete;
 
     void                        send_message(binary_message & msg);
+    binary_message::pointer_t   get_binary_message();
+    void                        reset_binary_message();
 
     // ed::tcp_client_connection implementation
     //
@@ -115,7 +117,7 @@ private:
     read_state_t                f_read_state = read_state_t::READ_STATE_HEADER;
     std::vector<char>           f_data = std::vector<char>();
     std::size_t                 f_data_size = 0;
-    binary_message              f_binary_message = binary_message();
+    binary_message::pointer_t   f_binary_message = binary_message::pointer_t();
 
     std::vector<char>           f_output = std::vector<char>();
     std::size_t                 f_position = 0;
@@ -159,6 +161,22 @@ void binary_client_impl::send_message(binary_message & msg)
             write(data.data(), data.size());
         }
     }
+}
+
+
+binary_message::pointer_t binary_client_impl::get_binary_message()
+{
+    if(f_binary_message == nullptr)
+    {
+        f_binary_message = std::make_shared<binary_message>();
+    }
+    return f_binary_message;
+}
+
+
+void binary_client_impl::reset_binary_message()
+{
+    f_binary_message.reset();
 }
 
 
@@ -258,12 +276,12 @@ void binary_client_impl::process_read()
                 r = read(&f_data[0], 1);
                 if(r > 0)
                 {
-                    f_binary_message.add_message_header_byte(f_data[0]);
+                    get_binary_message()->add_message_header_byte(f_data[0]);
                 }
                 break;
 
             case read_state_t::READ_STATE_DATA:
-                r = read(&f_data[f_data_size], f_binary_message.get_data_size() - f_data_size);
+                r = read(&f_data[f_data_size], get_binary_message()->get_data_size() - f_data_size);
                 if(r > 0)
                 {
                     f_data_size += r;
@@ -283,7 +301,7 @@ void binary_client_impl::process_read()
                     }
                     // the whole header was received
                     //
-                    f_binary_message.set_message_header_data(f_data.data(), binary_message::get_message_header_size());
+                    get_binary_message()->set_message_header_data(f_data.data(), binary_message::get_message_header_size());
                     [[fallthrough]];
                 case read_state_t::READ_STATE_HEADER_ADJUST:
 #ifdef _DEBUG
@@ -292,17 +310,18 @@ void binary_client_impl::process_read()
                         throw invalid_size("the binary message header size is larger than the exact header size?!");
                     }
 #endif
-                    if(f_binary_message.is_message_header_valid())
+                    if(get_binary_message()->is_message_header_valid())
                     {
                         f_data_size = 0;
 
-                        if(f_binary_message.get_data_size() == 0)
+                        if(get_binary_message()->get_data_size() == 0)
                         {
                             // there is no data attached to that message,
                             // we can directly process it
                             //
-                            f_binary_message.set_data_by_pointer(nullptr, 0);
-                            f_parent->process_message(f_binary_message);
+                            get_binary_message()->set_data_by_pointer(nullptr, 0);
+                            f_parent->process_message(get_binary_message());
+                            reset_binary_message();
                             ++count_messages;
 
                             // the state could be READ_STATE_HEADER_ADJUST
@@ -314,7 +333,7 @@ void binary_client_impl::process_read()
                         {
                             // make sure the buffer is large enough
                             //
-                            std::size_t const min_size((f_binary_message.get_data_size() + PRINBEE_NETWORK_PAGE_SIZE - 1ULL) & -PRINBEE_NETWORK_PAGE_SIZE);
+                            std::size_t const min_size((get_binary_message()->get_data_size() + PRINBEE_NETWORK_PAGE_SIZE - 1ULL) & -PRINBEE_NETWORK_PAGE_SIZE);
                             if(f_data.size() < min_size)
                             {
                                 // we do not need to do a realloc() which is
@@ -336,18 +355,19 @@ void binary_client_impl::process_read()
                     break;
 
                 case read_state_t::READ_STATE_DATA:
-                    if(f_data_size >= f_binary_message.get_data_size())
+                    if(f_data_size >= get_binary_message()->get_data_size())
                     {
 #ifdef _DEBUG
-                        if(f_data_size > f_binary_message.get_data_size())
+                        if(f_data_size > get_binary_message()->get_data_size())
                         {
                             throw invalid_size("the binary message data size is larger than the exact data size?!");
                         }
 #endif
                         // we got the data now we can process the message
                         //
-                        f_binary_message.set_data_by_pointer(f_data.data(), f_data_size);
-                        f_parent->process_message(f_binary_message);
+                        get_binary_message()->set_data_by_pointer(f_data.data(), f_data_size);
+                        f_parent->process_message(get_binary_message());
+                        reset_binary_message();
                         ++count_messages;
 
                         f_read_state = read_state_t::READ_STATE_HEADER;
@@ -664,9 +684,9 @@ void binary_client::process_disconnected()
  * \param[in,out] msg  The binary message including the name and a pointer
  * to the data if any was attached to that message.
  */
-void binary_client::process_message(binary_message & msg)
+void binary_client::process_message(binary_message::pointer_t msg)
 {
-    message_name_t const name(msg.get_name());
+    message_name_t const name(msg->get_name());
     auto it(f_callback_map.find(name));
     if(it == f_callback_map.end())
     {
@@ -679,10 +699,9 @@ void binary_client::process_message(binary_message & msg)
         }
     }
 
-    // we need to wrap the reference for the call
-    //
-    snapdev::NOT_USED(it->second.call(std::ref(msg)));
+    snapdev::NOT_USED(it->second.call(msg));
 }
+
 
 
 } // namespace prinbee

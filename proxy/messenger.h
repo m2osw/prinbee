@@ -64,5 +64,5 @@ private:
 
 
 
-} // namespace prinbee_deamon
+} // namespace prinbee_daemon
 // vim: ts=4 sw=4 et

@@ -26,13 +26,16 @@ add_executable(${PROJECT_NAME}
     main.cpp
 
     connection_reference.cpp
+    context_manager.cpp
     direct_listener.cpp
     interrupt.cpp
     messenger.cpp
     node_client.cpp
     node_listener.cpp
+    prinbee_worker.cpp
     prinbeed.cpp
     proxy_listener.cpp
+    worker_pool.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -46,6 +49,7 @@ target_include_directories(${PROJECT_NAME}
         ${LIBADDR_INCLUDE_DIRS}
         ${LIBEXCEPT_INCLUDE_DIRS}
         ${SNAPLOGGER_INCLUDE_DIRS}
+        ${VERSIONTHECA_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -55,6 +59,7 @@ target_link_libraries(${PROJECT_NAME}
     ${CPPPROCESS_LIBRARIES}
     ${EVENTDISPATCHER_LIBRARIES}
     ${FLUIDSETTINGS_LIBRARIES}
+    ${VERSIONTHECA_LIBRARIES}
 )
 
 install(

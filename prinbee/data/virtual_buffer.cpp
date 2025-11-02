@@ -85,6 +85,8 @@ virtual_buffer::virtual_buffer(block::pointer_t b, std::uint64_t offset, std::ui
 }
 
 
+// WARNING: this function reads the entire file in memory
+//
 void virtual_buffer::load_file(std::string const & filename, bool required)
 {
     if(f_modified

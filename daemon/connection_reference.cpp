@@ -49,6 +49,9 @@ namespace prinbee_daemon
 
 
 
+
+
+
 connection_reference::connection_reference()
 {
 }
@@ -80,6 +83,18 @@ void connection_reference::set_connection(ed::connection::pointer_t connection)
 ed::connection::pointer_t connection_reference::get_connection() const
 {
     return f_connection;
+}
+
+
+void connection_reference::set_protocol(versiontheca::versiontheca::pointer_t protocol)
+{
+    f_protocol = protocol;
+}
+
+
+versiontheca::versiontheca::pointer_t connection_reference::get_protocol() const
+{
+    return f_protocol;
 }
 
 

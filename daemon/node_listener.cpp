@@ -79,19 +79,21 @@ void node_listener::process_new_connection(prinbee::binary_server_client::pointe
     //
     binary_server::process_new_connection(client);
 
-    //client->add_message_callback(
-    //      prinbee::g_message_err
-    //    , std::bind(&prinbeed::msg_err, f_prinbeed, client, std::placeholders::_1));
-    //client->add_message_callback(
-    //      prinbee::g_message_ping
-    //    , std::bind(&prinbeed::msg_ping, f_prinbeed, client, std::placeholders::_1));
-    //client->add_message_callback(
-    //      prinbee::g_message_pong
-    //    , std::bind(&prinbeed::msg_pong, f_prinbeed, client, std::placeholders::_1));
-
+    client->add_message_callback(
+          prinbee::g_message_error
+        , std::bind(&prinbeed::msg_error, f_prinbeed, client, std::placeholders::_1));
+    client->add_message_callback(
+          prinbee::g_message_ping
+        , std::bind(&prinbeed::msg_ping, f_prinbeed, client, std::placeholders::_1));
+    client->add_message_callback(
+          prinbee::g_message_pong
+        , std::bind(&prinbeed::msg_pong, f_prinbeed, client, std::placeholders::_1));
     client->add_message_callback(
           prinbee::g_message_register
         , std::bind(&prinbeed::msg_register, f_prinbeed, client, std::placeholders::_1));
+    client->add_message_callback(
+          prinbee::g_message_create_context
+        , std::bind(&prinbeed::msg_create_context, f_prinbeed, client, std::placeholders::_1));
 }
 
 

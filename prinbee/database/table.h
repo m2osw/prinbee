@@ -117,7 +117,7 @@ private:
 
     void                                        read_rows(cursor::pointer_t cursor);
 
-    std::shared_ptr<detail::table_impl>         f_impl;
+    std::shared_ptr<detail::table_impl>         f_impl = std::shared_ptr<detail::table_impl>();
 };
 
 

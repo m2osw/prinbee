@@ -19,12 +19,12 @@
 
 // self
 //
-#include    "prinbeed.h"
+#include    "prinbee_worker.h"
 
 
-// prinbee
+// cppthread
 //
-#include    <prinbee/network/binary_client.h>
+#include    <cppthread/pool.h>
 
 
 
@@ -33,30 +33,28 @@ namespace prinbee_daemon
 
 
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Weffc++"
-class node_client
-    : public prinbee::binary_client
+class prinbeed;
+
+
+class worker_pool
+    : public cppthread::pool<prinbee_worker, prinbeed *>
 {
 public:
-    typedef std::shared_ptr<node_client> pointer_t;
+    typedef std::shared_ptr<worker_pool>     pointer_t;
 
-                                node_client(prinbeed * p, addr::addr const & a);
-                                node_client(node_client const & rhs) = delete;
-    virtual                     ~node_client() override;
+                                worker_pool(prinbeed * c, int worker_count);
+                                worker_pool(worker_pool const &) = delete;
+    //virtual                     ~worker_pool() override;
 
-    node_client &               operator = (node_client const & rhs) = delete;
+    worker_pool &               operator = (worker_pool const &) = delete;
 
-    void                        add_callbacks();
-
-    // ed::connection implementation
-    //
-    virtual void                process_signal() override;
+    //virtual bool                do_work() override;
 
 private:
+    void                        msg_set_context(prinbee::binary_message::pointer_t msg);
+
     prinbeed *                  f_prinbeed = nullptr;
 };
-#pragma GCC diagnostic pop
 
 
 
