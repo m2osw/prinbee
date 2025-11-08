@@ -91,9 +91,12 @@ void node_listener::process_new_connection(prinbee::binary_server_client::pointe
     client->add_message_callback(
           prinbee::g_message_register
         , std::bind(&prinbeed::msg_register, f_prinbeed, client, std::placeholders::_1));
+
+    // messages to send to workers are all sent to the same function
+    //
     client->add_message_callback(
-          prinbee::g_message_create_context
-        , std::bind(&prinbeed::msg_create_context, f_prinbeed, client, std::placeholders::_1));
+          prinbee::g_message_unknown
+        , std::bind(&prinbeed::msg_process_workload, f_prinbeed, client, std::placeholders::_1));
 }
 
 

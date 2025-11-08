@@ -17,7 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-// self
+// prinbee
 //
 #include    <prinbee/network/binary_message.h>
 
@@ -45,6 +45,8 @@ struct payload_t
 {
     ed::connection::pointer_t               f_peer = ed::connection::pointer_t();
     prinbee::binary_message::pointer_t      f_message = prinbee::binary_message::pointer_t();
+
+    void send_message(prinbee::binary_message::pointer_t msg);
 };
 
 

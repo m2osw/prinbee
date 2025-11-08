@@ -442,20 +442,20 @@ void binary_server_client::process_hup()
 }
 
 
-void binary_server_client::send_message(binary_message & msg)
+void binary_server_client::send_message(binary_message::pointer_t msg)
 {
-    write(msg.get_header(), binary_message::get_message_header_size());
-    if(msg.has_data())
+    write(msg->get_header(), binary_message::get_message_header_size());
+    if(msg->has_data())
     {
-        if(msg.has_pointer())
+        if(msg->has_pointer())
         {
             std::size_t size(0);
-            void const * data(msg.get_data_pointer(size));
+            void const * data(msg->get_data_pointer(size));
             write(data, size);
         }
         else
         {
-            std::vector<std::uint8_t> const & data(msg.get_data());
+            std::vector<std::uint8_t> const & data(msg->get_data());
             write(data.data(), data.size());
         }
     }

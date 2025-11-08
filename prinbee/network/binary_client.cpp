@@ -89,7 +89,7 @@ public:
 
     binary_client_impl &        operator = (binary_client_impl const &) = delete;
 
-    void                        send_message(binary_message & msg);
+    void                        send_message(binary_message::pointer_t msg);
     binary_message::pointer_t   get_binary_message();
     void                        reset_binary_message();
 
@@ -144,20 +144,20 @@ binary_client_impl::~binary_client_impl()
 }
 
 
-void binary_client_impl::send_message(binary_message & msg)
+void binary_client_impl::send_message(binary_message::pointer_t msg)
 {
-    write(msg.get_header(), binary_message::get_message_header_size());
-    if(msg.has_data())
+    write(msg->get_header(), binary_message::get_message_header_size());
+    if(msg->has_data())
     {
-        if(msg.has_pointer())
+        if(msg->has_pointer())
         {
             std::size_t size(0);
-            void const * data(msg.get_data_pointer(size));
+            void const * data(msg->get_data_pointer(size));
             write(data, size);
         }
         else
         {
-            std::vector<std::uint8_t> const & data(msg.get_data());
+            std::vector<std::uint8_t> const & data(msg->get_data());
             write(data.data(), data.size());
         }
     }
@@ -566,7 +566,7 @@ binary_client::~binary_client()
 }
 
 
-void binary_client::send_message(binary_message & msg)
+void binary_client::send_message(binary_message::pointer_t msg)
 {
     if(!is_done() && f_impl != nullptr)
     {

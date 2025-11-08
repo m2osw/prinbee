@@ -52,7 +52,7 @@ public:
 
     binary_server_client &      operator = (binary_server_client const &) = delete;
 
-    void                        send_message(binary_message & msg);
+    void                        send_message(binary_message::pointer_t msg);
     binary_message::callback_manager_t::callback_id_t
                                 add_message_callback(
                                       message_name_t name

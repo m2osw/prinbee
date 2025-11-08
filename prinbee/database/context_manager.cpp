@@ -192,7 +192,7 @@ void context_manager::load_contexts()
             }
             context::pointer_t c(context::create_context(setup));
             c->initialize();
-            f_context[c->get_name()] = c;
+            f_contexts[c->get_name()] = c;
         }
     }
 }
@@ -204,9 +204,21 @@ void context_manager::set_user(std::string const & user)
 }
 
 
+std::string const & context_manager::get_user()
+{
+    return g_context_user;
+}
+
+
 void context_manager::set_group(std::string const & group)
 {
     g_context_group = group;
+}
+
+
+std::string const & context_manager::get_group()
+{
+    return g_context_group;
 }
 
 
@@ -214,7 +226,7 @@ advgetopt::string_list_t context_manager::get_context_list() const
 {
     advgetopt::string_list_t result;
 
-    for(auto c : f_context)
+    for(auto c : f_contexts)
     {
         result.push_back(c.first);
     }
@@ -225,8 +237,8 @@ advgetopt::string_list_t context_manager::get_context_list() const
 
 prinbee::context::pointer_t context_manager::get_context(std::string const & name) const
 {
-    auto it(f_context.find(name));
-    if(it == f_context.end())
+    auto it(f_contexts.find(name));
+    if(it == f_contexts.end())
     {
         return prinbee::context::pointer_t();
     }

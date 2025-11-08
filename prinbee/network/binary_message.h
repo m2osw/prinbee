@@ -210,7 +210,7 @@ struct msg_register_t
  * At the moment, there is nothing to send. The reply is a list of
  * context names separated by commas.
  */
-struct msg_list_context_t
+struct msg_list_contexts_t
 {
     advgetopt::string_list_t    f_list = advgetopt::string_list_t();
 };
@@ -319,8 +319,8 @@ public:
     bool                        deserialize_error_message(msg_error_t & err);
     void                        create_register_message(std::string const & name, std::string const & protocol_version);
     bool                        deserialize_register_message(msg_register_t & r);
-    void                        create_list_context_message(advgetopt::string_list_t const & list);
-    bool                        deserialize_list_context_message(msg_list_context_t & context_list);
+    void                        create_list_contexts_message(advgetopt::string_list_t const & list);
+    bool                        deserialize_list_contexts_message(msg_list_contexts_t & context_list);
     void                        create_context_message(msg_context_t const & context);
     bool                        deserialize_context_message(msg_context_t & context);
 

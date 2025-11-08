@@ -576,7 +576,7 @@ bool binary_message::deserialize_register_message(msg_register_t & r)
 }
 
 
-void binary_message::create_list_context_message(advgetopt::string_list_t const & list)
+void binary_message::create_list_contexts_message(advgetopt::string_list_t const & list)
 {
     set_name(g_message_list_contexts);
 
@@ -598,7 +598,7 @@ void binary_message::create_list_context_message(advgetopt::string_list_t const 
 }
 
 
-bool binary_message::deserialize_list_context_message(msg_list_context_t & context_list)
+bool binary_message::deserialize_list_contexts_message(msg_list_contexts_t & context_list)
 {
     std::size_t size(0L);
     void const * data(get_either_pointer(size));

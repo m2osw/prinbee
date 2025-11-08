@@ -95,16 +95,16 @@ public:
     {
     }
 
-    virtual void process_message(prinbee::binary_message & msg) override
+    virtual void process_message(prinbee::binary_message::pointer_t msg) override
     {
-        throw std::runtime_error("boom -- " + std::to_string(msg.get_data_size()));
+        throw std::runtime_error("boom -- " + std::to_string(msg->get_data_size()));
     }
 
     virtual void process_connected() override
     {
 SNAP_LOG_ERROR << "--------- process connected!" << SNAP_LOG_SEND;
-        prinbee::binary_message msg;
-        msg.set_name(prinbee::g_message_ping);
+        prinbee::binary_message::pointer_t msg(std::make_shared<prinbee::binary_message>());
+        msg->set_name(prinbee::g_message_ping);
         send_message(msg);
 
         // important, we need to call this one to disable the timer otherwise

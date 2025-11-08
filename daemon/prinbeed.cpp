@@ -236,7 +236,7 @@
 
 // snapdev
 //
-//#include    <snapdev/gethostname.h>
+#include    <snapdev/gethostname.h>
 //#include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/stringize.h>
 //#include    <snapdev/tokenize_string.h>
@@ -462,8 +462,8 @@ prinbeed::prinbeed(int argc, char * argv[])
         prinbee::set_prinbee_path(f_opts.get_string("prinbee-path"));
     }
 
-    f_cluster_name = snapdev::to_lower(f_opts.is_defined("cluster_name"));
-    if(!validate_name(f_cluster_name, 100))
+    f_cluster_name = snapdev::to_lower(f_opts.get_string("cluster_name"));
+    if(!prinbee::validate_name(f_cluster_name.c_str(), 100))
     {
         throw advgetopt::getopt_exit("the cluster name is not considered a valid name.", 1);
     }
@@ -475,7 +475,7 @@ prinbeed::prinbeed(int argc, char * argv[])
     {
         f_node_name = snapdev::gethostname();
     }
-    if(!validate_name(f_node_name, 100))
+    if(!prinbee::validate_name(f_node_name.c_str(), 100))
     {
         throw advgetopt::getopt_exit("the node name is not considered a valid name.", 1);
     }
@@ -485,7 +485,7 @@ prinbeed::prinbeed(int argc, char * argv[])
     || getgid() == 0
     || getegid() == 0)
     {
-        throw invalid_user("the prinbee daemon (prinbeed) cannot run as root. Try using the \"prinbee\" user and group."); // LCOV_EXCL_LINE
+        throw prinbee::invalid_user("the prinbee daemon (prinbeed) cannot run as root. Try using the \"prinbee\" user and group."); // LCOV_EXCL_LINE
     }
 }
 
@@ -540,10 +540,11 @@ void prinbeed::finish_initialization()
         std::string const count(f_opts.get_string("number_of_workers"));
         if(count != "default")
         {
-            workers_count = std::clamp(f_opts.get_long("number_of_workers"), 2, cpu_count * 2);
+            workers_count = std::clamp(f_opts.get_long("number_of_workers"), 2L, cpu_count * 2L);
         }
     }
-    f_worker_pool = std::make_shared<worker_pool>(this, workers_count);
+    cppthread::fifo<payload_t>::pointer_t fifo(std::make_shared<cppthread::fifo<payload_t>>());
+    f_worker_pool = std::make_shared<worker_pool>(this, workers_count, fifo);
 
     if(f_opts.is_defined("owner"))
     {
@@ -701,7 +702,7 @@ void prinbeed::register_prinbee_daemon(ed::message & msg)
     addr::addr const my_address(f_messenger->get_my_address());
     if(a < my_address)
     {
-        std::string const name(msg.get_parameter(prinbee::g_name_prinbee_param_name));
+        std::string const name(msg.get_parameter(prinbee::g_name_prinbee_param_node_name));
         connect_to_node(a, name);
     }
 }
@@ -1063,9 +1064,9 @@ void prinbeed::connect_to_node(addr::addr const & a, std::string const & name)
 
     // send a REG, we expect a REGD or ERR as a reply
     //
-    prinbee::binary_message register_msg;
-    register_msg.create_register_message(
-          f_opts.get_string("node_name")
+    prinbee::binary_message::pointer_t register_msg(std::make_shared<prinbee::binary_message>());
+    register_msg->create_register_message(
+          f_opts.get_string(prinbee::g_name_prinbee_param_node_name)
         , prinbee::g_name_prinbee_protocol_version_node);
     n->send_message(register_msg);
 }
@@ -1099,7 +1100,7 @@ connection_reference::pointer_t prinbeed::find_connection(std::string const & na
 
 bool prinbeed::msg_error(
       ed::connection::pointer_t peer
-    , prinbee::binary_message & msg)
+    , prinbee::binary_message::pointer_t msg)
 {
     std::string name;
     ed::connection::pointer_t client(std::dynamic_pointer_cast<ed::connection>(peer));
@@ -1109,8 +1110,8 @@ bool prinbeed::msg_error(
     }
     name = client->get_name();
 
-    prinbee::error_t err;
-    msg.deserialize_error_message(err);
+    prinbee::msg_error_t err;
+    msg->deserialize_error_message(err);
 
     SNAP_LOG_ERROR
         << name
@@ -1127,7 +1128,7 @@ bool prinbeed::msg_error(
 
 void prinbeed::send_message(
       ed::connection::pointer_t peer
-    , prinbee::binary_message & msg)
+    , prinbee::binary_message::pointer_t msg)
 {
     prinbee::binary_client::pointer_t client(std::dynamic_pointer_cast<prinbee::binary_client>(peer));
     if(client != nullptr)
@@ -1149,12 +1150,12 @@ void prinbeed::send_message(
 
 bool prinbeed::msg_ping(
       ed::connection::pointer_t peer
-    , prinbee::binary_message & msg)
+    , prinbee::binary_message::pointer_t msg)
 {
     snapdev::NOT_USED(msg);
 
-    prinbee::binary_message pong;
-    pong.set_name(prinbee::g_message_pong);
+    prinbee::binary_message::pointer_t pong(std::make_shared<prinbee::binary_message>());
+    pong->set_name(prinbee::g_message_pong);
     send_message(peer, pong);
 
     return true;
@@ -1163,7 +1164,7 @@ bool prinbeed::msg_ping(
 
 bool prinbeed::msg_pong(
       ed::connection::pointer_t //peer
-    , prinbee::binary_message & )//msg)
+    , prinbee::binary_message::pointer_t )//msg)
 {
     return true;
 }
@@ -1171,10 +1172,10 @@ bool prinbeed::msg_pong(
 
 bool prinbeed::msg_register(
       ed::connection::pointer_t peer
-    , prinbee::binary_message & msg)
+    , prinbee::binary_message::pointer_t msg)
 {
-    prinbee::register_t r;
-    if(!msg.deserialize_register_message(r))
+    prinbee::msg_register_t r;
+    if(!msg->deserialize_register_message(r))
     {
         return true;
     }
@@ -1193,8 +1194,8 @@ bool prinbeed::msg_register(
         // the major version must be exactly equal or we cannot deal with
         // that protocol (it would be too much work to be backward compatible)
         //
-        prinbee::binary_message error_msg;
-        error_msg.create_error_message(
+        prinbee::binary_message::pointer_t error_msg(std::make_shared<prinbee::binary_message>());
+        error_msg->create_error_message(
               prinbee::err_code_t::ERR_CODE_PROTOCOL_UNSUPPORTED
             , "protocol \""
             + r.f_protocol_version
@@ -1211,8 +1212,8 @@ bool prinbeed::msg_register(
     }
     if(diff >= 0.01) // 10ms or more is bad for the database
     {
-        prinbee::binary_message error_msg;
-        error_msg.create_error_message(
+        prinbee::binary_message::pointer_t error_msg(std::make_shared<prinbee::binary_message>());
+        error_msg->create_error_message(
               prinbee::err_code_t::ERR_CODE_TIME_DIFFERENCE_TOO_LARGE
             , "time difference too large: "
             + diff.to_string("%s.%N")
@@ -1236,52 +1237,54 @@ bool prinbeed::msg_process_workload(
 {
     payload_t payload =
     {
-        f_peer = peer,
-        f_message = msg,
+        .f_peer = peer,
+        .f_message = msg,
     };
 
     f_worker_pool->push_back(payload);
+
+    return true;
 }
 
 
-void prinbeed::list_contexts(payload_t & payload)
+bool prinbeed::list_contexts(payload_t & payload)
 {
     // there is nothing for us to deserialize
     //prinbee::msg_list_context_t l;
     //if(!payload.f_message->deserialize_list_context_message(l))
     //{
-    //    return true; // LCOV_EXCL_LINE
+    //    return false; // LCOV_EXCL_LINE
     //}
 
     advgetopt::string_list_t const list(f_context_manager->get_context_list());
-    payload.f_message->serialize_list_context_message(list);
-    payload.f_peer->send_message(payload.f_message);
+    payload.f_message->create_list_contexts_message(list);
+    payload.send_message(payload.f_message);
 
-    return true;
+    return false;
 }
 
 
-void prinbeed::get_context(payload_t & payload)
+bool prinbeed::get_context(payload_t & payload)
 {
     prinbee::msg_context_t c;
     if(!payload.f_message->deserialize_context_message(c))
     {
-        return true; // LCOV_EXCL_LINE
+        return false; // LCOV_EXCL_LINE
     }
 
-    return true;
+    return false;
 }
 
 
-void prinbeed::set_context(payload_t & payload)
+bool prinbeed::set_context(payload_t & payload)
 {
     prinbee::msg_context_t c;
     if(!payload.f_message->deserialize_context_message(c))
     {
-        return true; // LCOV_EXCL_LINE
+        return false; // LCOV_EXCL_LINE
     }
 
-    return true;
+    return false;
 }
 
 

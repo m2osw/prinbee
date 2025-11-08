@@ -53,7 +53,9 @@ public:
 
     static pointer_t            get_instance();
     static void                 set_user(std::string const & user);
+    static std::string const &  get_user();
     static void                 set_group(std::string const & group);
+    static std::string const &  get_group();
 
     advgetopt::string_list_t    get_context_list() const;
     context::pointer_t          get_context(std::string const & name) const;
@@ -63,7 +65,7 @@ private:
 
     void                        load_contexts();
 
-    prinbee::context::map_t     f_context = prinbee::context::map_t();
+    prinbee::context::map_t     f_contexts = prinbee::context::map_t();
 };
 
 

@@ -26,7 +26,6 @@ add_executable(${PROJECT_NAME}
     main.cpp
 
     connection_reference.cpp
-    context_manager.cpp
     direct_listener.cpp
     interrupt.cpp
     messenger.cpp

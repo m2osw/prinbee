@@ -77,17 +77,25 @@ namespace prinbee_daemon
  *
  * This function initializes the worker pool.
  *
+ * \note
+ * The FIFO (\p fifo) is used to send payloads from one worker to the next.
+ * If a function returns true, it means it updated the payload which is then
+ * sent to the next available worker, So in most cases, our worker functions
+ * return false since they process the message at once.
+ *
  * \param[in] p  The prinbee object we are listening for (i.e. "daemon").
  * \param[in] worker_count  The number of threads to create.
+ * \param[in] fifo  The input/output FIFO used to send work loads to the workers.
  */
 worker_pool::worker_pool(
           prinbeed * p
-        , int worker_count)
+        , int worker_count
+        , cppthread::fifo<payload_t>::pointer_t fifo)
     : pool(
           "prinbee_pool"
         , worker_count
-        , std::make_shared<cppthread::fifo<payload_t>>()
-        , nullptr           // no out fifo--we place workloads in the pool and once done, it's just done
+        , fifo
+        , fifo // forward to the same worker pool!
         , p)
 {
 }

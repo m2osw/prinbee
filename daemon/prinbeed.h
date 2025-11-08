@@ -27,6 +27,7 @@
 
 // prinbee
 //
+#include    <prinbee/database/context_manager.h>
 #include    <prinbee/names.h>
 #include    <prinbee/network/binary_server.h>
 
@@ -93,9 +94,9 @@ public:
                                       ed::connection::pointer_t peer
                                     , prinbee::binary_message::pointer_t msg);
 
-    void                        list_context(payload_t & payload);
-    void                        get_context(payload_t & payload);
-    void                        set_context(payload_t & payload);
+    bool                        list_contexts(payload_t & payload);
+    bool                        get_context(payload_t & payload);
+    bool                        set_context(payload_t & payload);
 
 private:
     void                        check_ipwall_status();
@@ -107,6 +108,8 @@ private:
 
     ed::communicator::pointer_t             f_communicator = ed::communicator::pointer_t();
     messenger::pointer_t                    f_messenger = messenger::pointer_t();
+    std::string                             f_cluster_name = std::string();
+    std::string                             f_node_name = std::string();
     interrupt::pointer_t                    f_interrupt = interrupt::pointer_t();
     prinbee::binary_server::pointer_t       f_node_listener = prinbee::binary_server::pointer_t();
     prinbee::binary_server::pointer_t       f_proxy_listener = prinbee::binary_server::pointer_t();
@@ -118,6 +121,7 @@ private:
     versiontheca::decimal::pointer_t        f_protocol_trait = std::make_shared<versiontheca::decimal>();
     versiontheca::versiontheca::pointer_t   f_protocol_version = std::make_shared<versiontheca::versiontheca>(f_protocol_trait, prinbee::g_name_prinbee_protocol_version_node);
     worker_pool::pointer_t                  f_worker_pool = worker_pool::pointer_t();
+    prinbee::context_manager::pointer_t     f_context_manager = prinbee::context_manager::pointer_t();
 
     bool                                    f_fluid_settings_ready = false;
     bool                                    f_ipwall_is_installed = false;

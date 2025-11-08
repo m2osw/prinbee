@@ -65,7 +65,7 @@ public:
 
     //bool                        has_input() const;
     //bool                        has_output() const;
-    void                        send_message(binary_message & msg);
+    void                        send_message(binary_message::pointer_t msg);
     binary_message::callback_manager_t::callback_id_t
                                 add_message_callback(
                                       message_name_t name

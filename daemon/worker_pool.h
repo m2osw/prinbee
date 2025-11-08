@@ -42,13 +42,14 @@ class worker_pool
 public:
     typedef std::shared_ptr<worker_pool>     pointer_t;
 
-                                worker_pool(prinbeed * c, int worker_count);
+                                worker_pool(
+                                      prinbeed * c
+                                    , int worker_count
+                                    , cppthread::fifo<payload_t>::pointer_t fifo);
                                 worker_pool(worker_pool const &) = delete;
-    //virtual                     ~worker_pool() override;
 
     worker_pool &               operator = (worker_pool const &) = delete;
 
-    //virtual bool                do_work() override;
 
 private:
     void                        msg_set_context(prinbee::binary_message::pointer_t msg);

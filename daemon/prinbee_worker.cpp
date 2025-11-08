@@ -36,6 +36,7 @@
 // prinbee
 //
 //#include    <prinbee/names.h>
+#include    <prinbee/network/binary_client.h>
 
 
 // cluck
@@ -61,6 +62,35 @@
 
 namespace prinbee_daemon
 {
+
+
+
+void payload_t::send_message(prinbee::binary_message::pointer_t msg)
+{
+    {
+        prinbee::binary_server_client::pointer_t c(std::dynamic_pointer_cast<prinbee::binary_server_client>(f_peer));
+        if(c != nullptr)
+        {
+            c->send_message(msg);
+            return;
+        }
+    }
+
+    {
+        prinbee::binary_client::pointer_t c(std::dynamic_pointer_cast<prinbee::binary_client>(f_peer));
+        if(c != nullptr)
+        {
+            c->send_message(msg);
+            return;
+        }
+    }
+
+    // the following should never happen since we know of all the possible
+    // types of clients
+    //
+    throw prinbee::logic_error("could not determine peer to send a message to."); // LCOV_EXCL_LINE
+}
+
 
 
 /** \class prinbee_worker
@@ -114,27 +144,35 @@ prinbee_worker::~prinbee_worker()
 /** \brief Process one message (or at least part of it).
  *
  * This function receives all the messages added to the FIFO by one of the
- * binary message handlers.
+ * binary message handlers. A worker thread will pick up the work once
+ * available.
  *
  * The function does a \em switch based on the message type.
+ *
+ * All the functions must return true or false. In most cases, they are likely
+ * to return false. If a function needs further work to be done, then it can
+ * return true after changing the f_payload protected member variable.
+ * Note that it is also possible to create a new payload and call
+ * prinbeed::msg_process_workload() with the peer and message.
+ *
+ * \return true if the payload has to be forwarded to a worker.
  */
 bool prinbee_worker::do_work()
 {
     switch(f_payload.f_message->get_name())
     {
     case prinbee::g_message_list_contexts:
-        f_prinbeed->list_contexts();
-        break;
+        return f_prinbeed->list_contexts(f_payload);
 
     case prinbee::g_message_get_context:
-        f_prinbeed->get_context();
-        break;
+        return f_prinbeed->get_context(f_payload);
 
     case prinbee::g_message_set_context:
-        f_prinbeed->set_context();
-        break;
+        return f_prinbeed->set_context(f_payload);
 
     }
+
+    return false;
 }
 
 
