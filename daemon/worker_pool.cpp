@@ -90,7 +90,7 @@ namespace prinbee_daemon
 worker_pool::worker_pool(
           prinbeed * p
         , int worker_count
-        , cppthread::fifo<payload_t>::pointer_t fifo)
+        , cppthread::fifo<payload_t::pointer_t>::pointer_t fifo)
     : pool(
           "prinbee_pool"
         , worker_count

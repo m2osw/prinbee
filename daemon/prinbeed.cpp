@@ -543,7 +543,7 @@ void prinbeed::finish_initialization()
             workers_count = std::clamp(f_opts.get_long("number_of_workers"), 2L, cpu_count * 2L);
         }
     }
-    cppthread::fifo<payload_t>::pointer_t fifo(std::make_shared<cppthread::fifo<payload_t>>());
+    cppthread::fifo<payload_t::pointer_t>::pointer_t fifo(std::make_shared<cppthread::fifo<payload_t::pointer_t>>());
     f_worker_pool = std::make_shared<worker_pool>(this, workers_count, fifo);
 
     if(f_opts.is_defined("owner"))
@@ -1056,19 +1056,21 @@ void prinbeed::connect_to_node(addr::addr const & a, std::string const & name)
     n->set_name(name);
     n->add_callbacks();
 
-    // this call just register the connection in a table in prinbeed
-    // it does not send the REG message to the other side which we do
+    // this call just registers the connection in a table in prinbeed,
+    // it does not send the REG message to the other side, which we do
     // just after
     //
     register_connection(n);
 
-    // send a REG, we expect a REGD or ERR as a reply
+    // send a REG, we expect an ACK or ERR as a reply
     //
     prinbee::binary_message::pointer_t register_msg(std::make_shared<prinbee::binary_message>());
     register_msg->create_register_message(
           f_opts.get_string(prinbee::g_name_prinbee_param_node_name)
         , prinbee::g_name_prinbee_protocol_version_node);
     n->send_message(register_msg);
+
+    expect_acknowledgment(register_msg);
 }
 
 
@@ -1081,6 +1083,36 @@ connection_reference::pointer_t prinbeed::register_connection(ed::connection::po
     f_connection_reference[name] = ref;
     return ref;
 }
+
+
+/** \brief Record the fact that a message is expecting an acknowledgment.
+ *
+ * After sending certain messages, the server expects an acknowledgment.
+ * For example, when we send the REG (register) message, we expect the ACK
+ * (acknowledgment) reply to clearly say that the message was positively
+ * received.
+ *
+ * If an error occurs, the reply will be an ERR (error) instead.
+ *
+ * \param[in] msg  The message expecting a reply.
+ */
+void prinbeed::expect_acknowledgment(prinbee::binary_message::pointer_t msg)
+{
+    f_expected_acknowledgment[msg->get_serial_number()] = msg;
+}
+
+
+// if we need it I'll add it, right now it doesn't get called
+//connection_reference::pointer_t prinbeed::find_reference_connection(ed::connection::pointer_t connection)
+//{
+//    auto it(f_connection_reference.find(c->get_name()));
+//    if(it == f_connection_reference.end())
+//    {
+//        return connection_reference::pointer_t();
+//    }
+//
+//    return it->second;
+//}
 
 
 connection_reference::pointer_t prinbeed::find_connection(std::string const & name)
@@ -1104,7 +1136,7 @@ bool prinbeed::msg_error(
 {
     std::string name;
     ed::connection::pointer_t client(std::dynamic_pointer_cast<ed::connection>(peer));
-    if(client != nullptr)
+    if(client == nullptr)
     {
         throw prinbee::logic_error("peer is not an eventdispatcher connection, cannot retrieve its name.");
     }
@@ -1116,7 +1148,7 @@ bool prinbeed::msg_error(
     SNAP_LOG_ERROR
         << name
         << ": "
-        << err.f_message
+        << err.f_message_name
         << " ("
         << static_cast<int>(err.f_code)
         << ")"
@@ -1163,19 +1195,32 @@ bool prinbeed::msg_ping(
 
 
 bool prinbeed::msg_pong(
-      ed::connection::pointer_t //peer
-    , prinbee::binary_message::pointer_t )//msg)
+      ed::connection::pointer_t peer
+    , prinbee::binary_message::pointer_t msg)
 {
+    snapdev::NOT_USED(peer, msg);
     return true;
 }
 
 
-bool prinbeed::msg_register(
+bool prinbeed::msg_process_workload(
       ed::connection::pointer_t peer
     , prinbee::binary_message::pointer_t msg)
 {
+    payload_t::pointer_t payload = std::make_shared<payload_t>();
+    payload->f_peer = peer;
+    payload->f_message = msg;
+
+    f_worker_pool->push_back(payload);
+
+    return true;
+}
+
+
+bool prinbeed::register_client(payload_t::pointer_t payload)
+{
     prinbee::msg_register_t r;
-    if(!msg->deserialize_register_message(r))
+    if(!payload->f_message->deserialize_register_message(r))
     {
         return true;
     }
@@ -1196,11 +1241,12 @@ bool prinbeed::msg_register(
         //
         prinbee::binary_message::pointer_t error_msg(std::make_shared<prinbee::binary_message>());
         error_msg->create_error_message(
-              prinbee::err_code_t::ERR_CODE_PROTOCOL_UNSUPPORTED
+              payload->f_message
+            , prinbee::err_code_t::ERR_CODE_PROTOCOL_UNSUPPORTED
             , "protocol \""
             + r.f_protocol_version
             + "\" not supported.");
-        send_message(peer, error_msg);
+        payload->send_message(error_msg);
         return true;
     }
 
@@ -1214,40 +1260,35 @@ bool prinbeed::msg_register(
     {
         prinbee::binary_message::pointer_t error_msg(std::make_shared<prinbee::binary_message>());
         error_msg->create_error_message(
-              prinbee::err_code_t::ERR_CODE_TIME_DIFFERENCE_TOO_LARGE
+              payload->f_message
+            , prinbee::err_code_t::ERR_CODE_TIME_DIFFERENCE_TOO_LARGE
             , "time difference too large: "
             + diff.to_string("%s.%N")
             + " seconds.");
-        send_message(peer, error_msg);
+        payload->send_message(error_msg);
         return true;
     }
 
-    peer->set_name(r.f_name);
+    payload->f_peer->set_name(r.f_name);
 
-    connection_reference::pointer_t ref(register_connection(peer));
+    connection_reference::pointer_t ref(register_connection(payload->f_peer));
     ref->set_protocol(their_protocol);
 
+    send_acknowledgment(payload);
+
     return true;
 }
 
 
-bool prinbeed::msg_process_workload(
-      ed::connection::pointer_t peer
-    , prinbee::binary_message::pointer_t msg)
+void prinbeed::send_acknowledgment(payload_t::pointer_t payload)
 {
-    payload_t payload =
-    {
-        .f_peer = peer,
-        .f_message = msg,
-    };
-
-    f_worker_pool->push_back(payload);
-
-    return true;
+    prinbee::binary_message::pointer_t acknowledge_msg(std::make_shared<prinbee::binary_message>());
+    acknowledge_msg->create_acknowledge_message(payload->f_message);
+    payload->send_message(acknowledge_msg);
 }
 
 
-bool prinbeed::list_contexts(payload_t & payload)
+bool prinbeed::list_contexts(payload_t::pointer_t payload)
 {
     // there is nothing for us to deserialize
     //prinbee::msg_list_context_t l;
@@ -1257,17 +1298,17 @@ bool prinbeed::list_contexts(payload_t & payload)
     //}
 
     advgetopt::string_list_t const list(f_context_manager->get_context_list());
-    payload.f_message->create_list_contexts_message(list);
-    payload.send_message(payload.f_message);
+    payload->f_message->create_list_contexts_message(list);
+    payload->send_message(payload->f_message);
 
     return false;
 }
 
 
-bool prinbeed::get_context(payload_t & payload)
+bool prinbeed::get_context(payload_t::pointer_t payload)
 {
     prinbee::msg_context_t c;
-    if(!payload.f_message->deserialize_context_message(c))
+    if(!payload->f_message->deserialize_context_message(c))
     {
         return false; // LCOV_EXCL_LINE
     }
@@ -1276,12 +1317,89 @@ bool prinbeed::get_context(payload_t & payload)
 }
 
 
-bool prinbeed::set_context(payload_t & payload)
+bool prinbeed::set_context(payload_t::pointer_t payload)
 {
     prinbee::msg_context_t c;
-    if(!payload.f_message->deserialize_context_message(c))
+    if(!payload->f_message->deserialize_context_message(c))
     {
         return false; // LCOV_EXCL_LINE
+    }
+
+    // the context name may have up to 3 pre-segments; we need to
+    // extract the name itself
+    //
+    prinbee::context_setup cs;
+    try
+    {
+        cs.set_name(c.f_context_name);
+    }
+    catch(prinbee::invalid_parameter const & e)
+    {
+        prinbee::binary_message::pointer_t error_msg(std::make_shared<prinbee::binary_message>());
+        error_msg->create_error_message(
+              payload->f_message
+            , prinbee::err_code_t::ERR_CODE_INVALID_PARAMETERS
+            , std::string("invalid context name: ")
+            + e.what());
+        payload->send_message(error_msg);
+        return true;
+    }
+
+    // get the canonicalized name
+    //
+    c.f_context_name = cs.get_name();
+
+    switch(payload->f_stage)
+    {
+    case 0:
+        // we need to obtain a lock first
+        {
+            payload->f_stage = 1;
+            std::string lock_name("context::");
+            lock_name += c.f_context_name;
+            obtain_cluster_lock(payload, lock_name);
+        }
+        break;
+
+    case 1:
+        {
+            // we obtained the "context::<name>" lock, go ahead and handle the changes
+            //
+            prinbee::context::pointer_t context(f_context_manager->get_context(c.f_context_name));
+            if(context != nullptr)
+            {
+                // context exists, do an update if the serial number is correct
+                // (i.e. changes are accepted only if the existing context
+                // version + 1 is equal to the version in 'c'; if not, then
+                // two set_context() happened "simultaneously" and we ignore
+                // the second one with an error or the version is 1 meaning that
+                // the IF NOT EXISTS was used.)
+                //
+                
+            }
+            else
+            {
+                // the context does not exist, create it now
+                //
+            }
+
+            // next make sure that all the other nodes are also updated
+            // with the same changes
+            //
+            payload->f_stage = 2;
+        }
+        break;
+
+    case 2:
+        payload->f_stage = 3;
+        break;
+
+    case 3:
+        // done with the lock now
+        //
+        release_cluster_lock(payload);
+        break;
+
     }
 
     return false;
@@ -1334,6 +1452,111 @@ void prinbeed::stop(bool quitting)
     }
 
 // TODO: also close all the node_client connections
+}
+
+
+/** \brief Start a cluster wide lock.
+ *
+ * This function sends a LOCK message to the local cluck daemon and sets up
+ * callbacks to know once the lock is available.
+ *
+ * Since this does use a standard messenger message, it cannot be linked to
+ * a worker. Instead, we save the payload in a map and forward it to the
+ * next function once the lock was obtained.
+ *
+ * \note
+ * To make sure that the name is unique within the whole cluster, all the
+ * lock names are prepended with "prinbee::".
+ *
+ * \param[in] payload  The payload that requires this lock.
+ * \param[in] lock_name  The name of the lock to obtain.
+ * \param[in] timeout  The amount of time to keep the lock.
+ */
+void prinbeed::obtain_cluster_lock(
+      payload_t::pointer_t payload
+    , std::string const & lock_name
+    , cluck::timeout_t timeout)
+{
+    if(payload->f_lock != nullptr)
+    {
+        throw prinbee::logic_error(
+              "payload already has a lock ("
+            + payload->f_lock->get_object_name()
+            + "); cannot also lock \""
+            + lock_name
+            + "\".");
+    }
+
+    payload->f_lock = std::make_shared<cluck::cluck>(
+              "prinbee::" + lock_name
+            , f_messenger
+            , f_messenger->get_dispatcher()
+            , cluck::mode_t::CLUCK_MODE_EXTENDED);
+    f_communicator->add_connection(payload->f_lock);
+    payload->f_lock->add_lock_obtained_callback(std::bind(&prinbeed::process_obtained_lock, this, std::placeholders::_1, payload));
+    payload->f_lock->add_lock_failed_callback(std::bind(&prinbeed::process_failed_lock, this, std::placeholders::_1, payload));
+    payload->f_lock->set_lock_duration_timeout(timeout);
+    payload->f_lock->lock();
+}
+
+
+/** \brief Process once lock was obtained.
+ *
+ * We obtained a lock, move forward with the following processing step
+ * by sending the payload to the workers.
+ *
+ * \param[in] c  The cluck class handling the cluck messages.
+ * \param[in] payload  The concerned payload.
+ *
+ * \return Always true.
+ */
+bool prinbeed::process_obtained_lock(cluck::cluck * c, payload_t::pointer_t payload)
+{
+    snapdev::NOT_USED(c);
+
+    f_worker_pool->push_back(payload);
+
+    return true;
+}
+
+
+/** \brief Process in case the lock could not be obtained.
+ *
+ * In many cases, a lock attempt will fail with a timeout. This is when this
+ * function gets called. Other cases include invalid parameters, cluck daemon
+ * not available, and more.
+ *
+ * \param[in] c  The cluck class handling the cluck messages.
+ * \param[in] payload  The concerned payload.
+ *
+ * \return Always true.
+ */
+bool prinbeed::process_failed_lock(cluck::cluck * c , payload_t::pointer_t payload)
+{
+    snapdev::NOT_USED(c);
+
+    prinbee::binary_message::pointer_t error_msg(std::make_shared<prinbee::binary_message>());
+    error_msg->create_error_message(
+          payload->f_message
+        , prinbee::err_code_t::ERR_CODE_LOCK
+        , "failed trying to lock \""
+        + c->get_object_name()
+        + "\".");
+    payload->send_message(error_msg);
+
+    f_communicator->remove_connection(payload->f_lock);
+
+    return true;
+}
+
+
+void prinbeed::release_cluster_lock(payload_t::pointer_t payload)
+{
+    payload->f_lock->unlock();
+
+    // we must make sure that the UNLOCK message was sent so we cannot
+    // remove the connection from the communicator just yet
+    //f_communicator->remove_connection(payload->f_lock);
 }
 
 

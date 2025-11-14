@@ -27,6 +27,11 @@
 #include    <eventdispatcher/connection.h>
 
 
+// cluck
+//
+#include    <cluck/cluck.h>
+
+
 // cppthread
 //
 #include    <cppthread/worker.h>
@@ -43,15 +48,19 @@ class prinbeed;
 
 struct payload_t
 {
+    typedef std::shared_ptr<payload_t>      pointer_t;
+
     ed::connection::pointer_t               f_peer = ed::connection::pointer_t();
     prinbee::binary_message::pointer_t      f_message = prinbee::binary_message::pointer_t();
+    int                                     f_stage = 0;
+    cluck::cluck::pointer_t                 f_lock = cluck::cluck::pointer_t();
 
-    void send_message(prinbee::binary_message::pointer_t msg);
+    void                                    send_message(prinbee::binary_message::pointer_t msg);
 };
 
 
 class prinbee_worker
-    : public cppthread::worker<payload_t>
+    : public cppthread::worker<payload_t::pointer_t>
 {
 public:
     typedef std::shared_ptr<prinbee_worker>     pointer_t;
@@ -59,8 +68,8 @@ public:
                                 prinbee_worker(
                                       std::string const & name
                                     , std::size_t position
-                                    , typename cppthread::fifo<payload_t>::pointer_t in
-                                    , typename cppthread::fifo<payload_t>::pointer_t out
+                                    , typename cppthread::fifo<payload_t::pointer_t>::pointer_t in
+                                    , typename cppthread::fifo<payload_t::pointer_t>::pointer_t out
                                     , prinbeed * p);
                                 prinbee_worker(prinbee_worker const &) = delete;
     virtual                     ~prinbee_worker() override;

@@ -28,6 +28,7 @@
 //
 #include    "prinbee/pbql/parser.h"
 
+#include    "prinbee/database/context.h"
 #include    "prinbee/data/schema.h"
 #include    "prinbee/exception.h"
 
@@ -48,6 +49,7 @@
 //#include    <snapdev/not_reached.h>
 //#include    <snapdev/pathinfo.h>
 //#include    <snapdev/stream_fd.h>
+#include    <snapdev/tokenize_string.h>
 //#include    <snapdev/unique_number.h>
 
 
@@ -743,6 +745,17 @@ void parser::parse_create_context()
                     << "expected a non-empty path after the USING keyword of CREATE CONTEXT.";
                 throw invalid_token(msg.str());
             }
+            std::vector<std::string> segments;
+            snapdev::tokenize_string(segments, context_path, "/", true);
+            if(segments.size() >= MAX_CONTEXT_NAME_SEGMENTS) // here we use >= because the USING path does not include the context name
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                msg << n->get_location().get_location()
+                    << "expected a maximum number of "
+                    << MAX_CONTEXT_NAME_SEGMENTS - 1
+                    << " segments in the context path defined by the USING keyword of CREATE CONTEXT.";
+                throw invalid_token(msg.str());
+            }
         }
         else if(keyword == "WITH")
         {
@@ -889,10 +902,12 @@ void parser::parse_create_context()
 
     expect_semi_colon("CREATE CONTEXT", n);
 
-    if(context_path.empty())
-    {
-        context_path = context_name;    // path defaults to name if not defined by user
-    }
+    // name is the last segment, so we have up to 3 names in the path plus
+    // the name of the context and that's where the files get saved
+    //if(context_path.empty())
+    //{
+    //    context_path = context_name;    // path defaults to name if not defined by user
+    //}
 
     command->set_string(param_t::PARAM_PATH, context_path);
     command->set_string(param_t::PARAM_USER, owner);

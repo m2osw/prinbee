@@ -100,13 +100,15 @@ namespace prinbee
 
 
 
-namespace detail
+namespace
 {
 
 
 
-constexpr char const * const    g_tables_subpath = "tables";
+constexpr char const * const    g_contexts_subpath = "contexts";
+constexpr char const * const    g_context_filename = "context.pb";
 constexpr char const * const    g_complex_types_filename = "complex-types.pb";
+constexpr char const * const    g_tables_subpath = "tables";
 //constexpr char const * const    g_schemata_filename = "schemata.pb";
 
 
@@ -164,6 +166,16 @@ struct_description_t g_context_file_description[] =
     ),
     end_descriptions()
 };
+
+
+
+} // no name namespace
+
+
+
+namespace detail
+{
+
 
 
 class context_impl
@@ -248,7 +260,7 @@ void context_impl::initialize()
     SNAP_LOG_CONFIGURATION
         << "initialize context \""
         << f_setup.get_name()
-        << "\" from disk."
+        << "\"."
         << SNAP_LOG_SEND;
 
     // the full path to the data is built from three different paths
@@ -269,6 +281,11 @@ void context_impl::initialize()
             + f_tables_path
             + "\".");
     }
+
+    // load the context file itself; this includes info like when the
+    // context was created and its current version
+    //
+    load_file(snapdev::pathinfo::canonicalize(get_context_path(), g_context_filename), false);
 
     // complex types are common to all tables (so they can appear in any
     // one of them) so these are saved in a file at the top; it also gets
@@ -495,7 +512,17 @@ void context_impl::load_file(std::string const & filename, bool required)
 void context_impl::from_binary(virtual_buffer::pointer_t b)
 {
     dbtype_t type(dbtype_t::DBTYPE_UNKNOWN);
-    b->pread(&type, sizeof(type), 0);
+    int const r(b->pread(&type, sizeof(type), 0, false));
+    if(r == 0)
+    {
+        // file is empty (?!?) or non-existent (which happens on a create)
+        //
+        return;
+    }
+    if(r != sizeof(type))
+    {
+        throw invalid_size("could not read file type; expected a context or a complex type file.");
+    }
 
     switch(type)
     {
@@ -508,7 +535,7 @@ void context_impl::from_binary(virtual_buffer::pointer_t b)
         load_context(b);
         break;
 
-    //case dbtype_t::FILE_TYPE_SCHEMA:
+    //case dbtype_t::FILE_TYPE_SCHEMA: -- incorrect; this is per table version instead
     //    {
     //        // I think this is invalid; we receive a TBL message of some sort
     //        // instead of a CTXT for a schema...
@@ -740,7 +767,7 @@ void context_setup::set_name(std::string const & name)
     || name.back() == '/')
     {
         throw invalid_parameter(
-              "a context name cannot start with or end '/', \""
+              "a context name cannot start or end with '/', \""
             + name
             + "\" is not valid.");
     }
@@ -986,6 +1013,51 @@ void context::limit_allocated_memory()
 //{
 //    return f_impl->get_config_long(name, idx);
 //}
+
+
+/** \brief The sub-path added to the root path to access contexts.
+ *
+ * The sub-path is used to save the set of contexts within a sub-folder so
+ * we can better organized the data.
+ *
+ * \note
+ * This parameter cannot be changed using a setting. It is on purpose hard
+ * coded in this file.
+ *
+ * \return The sub-path to the contexts.
+ */
+char const * get_contexts_subpath()
+{
+    return g_contexts_subpath;
+}
+
+
+/** \brief Get the path to the root of the contexts.
+ *
+ * This function returns the path to the root path.
+ *
+ * It is possible to change this folder using the `prinbee_path` option
+ * of the prinbee daemon. This is particularly useful to run unit and
+ * integration tests.
+ *
+ * \return The root path to the set of contexts.
+ */
+std::string get_contexts_root_path()
+{
+    return snapdev::pathinfo::canonicalize(get_prinbee_path(), get_contexts_subpath());
+}
+
+
+/** \brief Get the filename used for a context file.
+ *
+ * This function returns the filename of a context file.
+ *
+ * \return The filename of a context file.
+ */
+char const * get_context_filename()
+{
+    return g_context_filename;
+}
 
 
 

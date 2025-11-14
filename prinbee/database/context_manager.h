@@ -31,9 +31,9 @@
 #include    <prinbee/database/context.h>
 
 
-// eventdispatcher
+// cppthread
 //
-//#include    <eventdispatcher/message.h>
+#include    <cppthread/mutex.h>
 
 
 
@@ -53,11 +53,12 @@ public:
 
     static pointer_t            get_instance();
     static void                 set_user(std::string const & user);
-    static std::string const &  get_user();
+    static std::string          get_user();
     static void                 set_group(std::string const & group);
-    static std::string const &  get_group();
+    static std::string          get_group();
 
     advgetopt::string_list_t    get_context_list() const;
+    context::pointer_t          create_context(std::string const & name);
     context::pointer_t          get_context(std::string const & name) const;
 
 private:

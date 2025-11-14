@@ -39,6 +39,12 @@
 #include    <snaplogger/message.h>
 
 
+// cppthread
+//
+#include    <cppthread/guard.h>
+#include    <cppthread/mutex.h>
+
+
 // snapdev
 //
 #include    <snapdev/brs.h>
@@ -61,8 +67,36 @@ namespace
 
 
 
+cppthread::mutex    g_message_mutex = cppthread::mutex();
+std::uint32_t       g_serial_number = 0;
+
+
+constexpr prinbee::struct_description_t g_acknowledge_description[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_magic)
+        , prinbee::FieldType(struct_type_t::STRUCT_TYPE_MAGIC)
+        //, prinbee::FieldDefaultValue(prinbee::to_string(msg_message_t::MSG_ACKNOWLEDGE))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_structure_version)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(1, 0)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("message_name") // name of original message
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("serial")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::end_descriptions()
+};
+
+
 // sub-structure used to define an array of names (i.e. list of contexts)
-constexpr prinbee::struct_description_t g_name[] =
+constexpr prinbee::struct_description_t g_name_description[] =
 {
     prinbee::define_description(
           prinbee::FieldName("name")
@@ -72,7 +106,7 @@ constexpr prinbee::struct_description_t g_name[] =
 };
 
 
-constexpr prinbee::struct_description_t g_list_contexts[] =
+constexpr prinbee::struct_description_t g_list_contexts_description[] =
 {
     prinbee::define_description(
           prinbee::FieldName(g_system_field_name_magic)
@@ -87,13 +121,13 @@ constexpr prinbee::struct_description_t g_list_contexts[] =
     prinbee::define_description(
           prinbee::FieldName("names")
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY16) // limit to 64K contexts in one cluster
-        , prinbee::FieldSubDescription(g_name)
+        , prinbee::FieldSubDescription(g_name_description)
     ),
     prinbee::end_descriptions()
 };
 
 
-constexpr prinbee::struct_description_t g_set_context[] =
+constexpr prinbee::struct_description_t g_set_context_description[] =
 {
     prinbee::define_description(
           prinbee::FieldName(g_system_field_name_magic)
@@ -150,6 +184,27 @@ constexpr prinbee::struct_description_t g_set_context[] =
  */
 binary_message::binary_message()
 {
+    f_header.f_serial_number = get_next_serial_number();
+    f_header.f_created_on = snapdev::now().to_nsec();
+}
+
+
+/** \brief Generate the next message serial number.
+ *
+ * This function generates the next serial number for this message. It is
+ * automatically assigned whenever a new binary_message is created.
+ *
+ * \return The next message serial number.
+ */
+std::uint32_t binary_message::get_next_serial_number()
+{
+    cppthread::guard lock(g_message_mutex);
+    ++g_serial_number;
+    if(g_serial_number == 0)
+    {
+        g_serial_number = 1;
+    }
+    return g_serial_number;
 }
 
 
@@ -220,8 +275,8 @@ void binary_message::set_message_header_data(void const * data, std::size_t size
 
 void binary_message::add_message_header_byte(std::uint8_t data)
 {
-    memmove(reinterpret_cast<char *>(&f_header), reinterpret_cast<char *>(&f_header) + 1, sizeof(f_header) - 1);
-    reinterpret_cast<char *>(&f_header)[sizeof(f_header) - 1] = data;
+    memmove(reinterpret_cast<std::uint8_t *>(&f_header), reinterpret_cast<std::uint8_t *>(&f_header) + 1, sizeof(f_header) - 1);
+    reinterpret_cast<std::uint8_t *>(&f_header)[sizeof(f_header) - 1] = data;
 }
 
 
@@ -334,6 +389,32 @@ void const * binary_message::get_header()
     }
 
     return &f_header;
+}
+
+
+/** \brief Get the message serial number.
+ *
+ * Each message is given a unique serial number. This function returns that
+ * number.
+ *
+ * \return The message serial number.
+ */
+std::uint32_t binary_message::get_serial_number() const
+{
+    return f_header.f_serial_number;
+}
+
+
+/** \brief Get the time and date when this message was created.
+ *
+ * For many messages, the creation time is important since it determines
+ * whether one has to be interpreted before the other.
+ *
+ * \return The date and time when the message was created.
+ */
+snapdev::timespec_ex binary_message::get_creation_date() const
+{
+    return f_header.f_created_on;
 }
 
 
@@ -474,12 +555,53 @@ void const * binary_message::get_either_pointer(std::size_t & size) const
 }
 
 
-void binary_message::create_error_message(err_code_t code, std::string const & error_message)
+void binary_message::create_acknowledge_message(pointer_t original_message, std::uint32_t phase)
+{
+    set_name(g_message_acknowledge);
+
+    structure::pointer_t description(std::make_shared<structure>(g_acknowledge_description));
+
+    description->set_integer("message_name", original_message->f_header.f_name);
+    description->set_integer("serial_number", original_message->f_header.f_serial_number);
+    description->set_integer("phase", phase);
+
+    reference_t start_offset(0);
+    virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+    f_buffer.resize(buffer->size());
+    buffer->pread(
+          f_buffer.data()
+        , f_buffer.size()
+        , 0);
+}
+
+
+bool binary_message::deserialize_acknowledge_message(msg_acknowledge_t & acknowledge)
+{
+    std::size_t size(0L);
+    void const * data(get_either_pointer(size));
+
+    virtual_buffer::pointer_t buffer(std::make_shared<virtual_buffer>());
+    buffer->pwrite(data, size, 0, true);
+
+    structure::pointer_t description(std::make_shared<structure>(g_acknowledge_description));
+    description->set_virtual_buffer(buffer, 0);
+
+    acknowledge.f_message_name = description->get_integer("message_name");
+    acknowledge.f_serial_number = description->get_integer("serial_number");
+    acknowledge.f_phase = description->get_integer("phase");
+
+    return true;
+}
+
+
+void binary_message::create_error_message(pointer_t original_message, err_code_t code, std::string const & error_message)
 {
     set_name(g_message_error);
 
     std::stringstream buffer;
     snapdev::serializer out(buffer);
+    out.add_value("name", original_message->f_header.f_name);
+    out.add_value("sn", original_message->f_header.f_serial_number);
     out.add_value("code", code);
     out.add_value("msg", error_message);
     std::string const data(buffer.str());
@@ -491,7 +613,21 @@ bool binary_message::deserialize_error_message(msg_error_t & err)
 {
     auto callback([&err](snapdev::deserializer<std::iostream> & s, snapdev::field_t const & f)
     {
-        if(f.f_name == "code")
+        if(f.f_name == "name")
+        {
+            if(!s.read_data(err.f_message_name))
+            {
+                err.f_message_name = g_message_unknown;
+            }
+        }
+        else if(f.f_name == "sn")
+        {
+            if(!s.read_data(err.f_serial_number))
+            {
+                err.f_serial_number = 0;
+            }
+        }
+        else if(f.f_name == "code")
         {
             if(!s.read_data(err.f_code))
             {
@@ -500,9 +636,9 @@ bool binary_message::deserialize_error_message(msg_error_t & err)
         }
         else if(f.f_name == "msg")
         {
-            if(!s.read_data(err.f_message))
+            if(!s.read_data(err.f_error_message))
             {
-                err.f_message.clear();
+                err.f_error_message.clear();
             }
         }
 
@@ -580,7 +716,7 @@ void binary_message::create_list_contexts_message(advgetopt::string_list_t const
 {
     set_name(g_message_list_contexts);
 
-    structure::pointer_t description(std::make_shared<structure>(g_list_contexts));
+    structure::pointer_t description(std::make_shared<structure>(g_list_contexts_description));
 
     for(auto const & n : list)
     {
@@ -606,7 +742,7 @@ bool binary_message::deserialize_list_contexts_message(msg_list_contexts_t & con
     virtual_buffer::pointer_t buffer(std::make_shared<virtual_buffer>());
     buffer->pwrite(data, size, 0, true);
 
-    structure::pointer_t description(std::make_shared<structure>(g_list_contexts));
+    structure::pointer_t description(std::make_shared<structure>(g_list_contexts_description));
     description->set_virtual_buffer(buffer, 0);
 
     structure::vector_t list(description->get_array("names"));
@@ -624,7 +760,7 @@ void binary_message::create_context_message(msg_context_t const & context)
 {
     set_name(g_message_set_context);
 
-    structure::pointer_t description(std::make_shared<structure>(g_set_context));
+    structure::pointer_t description(std::make_shared<structure>(g_set_context_description));
 
     description->set_string("context_name", context.f_context_name);
     description->set_string("description", context.f_description);
@@ -648,7 +784,7 @@ bool binary_message::deserialize_context_message(msg_context_t & context)
     virtual_buffer::pointer_t buffer(std::make_shared<virtual_buffer>());
     buffer->pwrite(data, size, 0, true);
 
-    structure::pointer_t description(std::make_shared<structure>(g_set_context));
+    structure::pointer_t description(std::make_shared<structure>(g_set_context_description));
     description->set_virtual_buffer(buffer, 0);
 
     context.f_context_name = description->get_string("context_name");

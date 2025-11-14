@@ -39,14 +39,19 @@ namespace prinbee_daemon
  * \brief Handle direct connections with clients.
  *
  * The prinbee environment lets clients connect directly as well. This
- * is mainly used by admins and debugging to avoid using a proxy.
+ * is mainly used by admins and debugging avoiding potential issues in
+ * the proxy implementation.
  */
 
 
 
 /** \brief The direct client listener initialization.
  *
- * This function initializes the direct client listener.
+ * This function initializes the direct client listener. It allows for
+ * clients such as pbql to directly connect to the daemon.
+ *
+ * The proxy and daemon node connection end points should not be used by
+ * a client to avoid issues.
  *
  * \param[in] p  The prinbee server we are listening for.
  * \param[in] a  The address to listen on.
@@ -63,10 +68,11 @@ direct_listener::~direct_listener()
 }
 
 
-/** \brief Call the stop function of the prinbeed object.
+/** \brief Process a new direct connection.
  *
- * When this function is called, the signal was received and thus we are
- * asked to quit as soon as possible.
+ * When a client directly connects to a prinbee daemon, this callback gets
+ * called. It registers the client and sets up callback functions that handle
+ * messages received by the daemon.
  *
  * \param[in] client  The binary server client object that just connected
  * to us.
@@ -83,9 +89,6 @@ void direct_listener::process_new_connection(prinbee::binary_server_client::poin
     client->add_message_callback(
           prinbee::g_message_ping
         , std::bind(&prinbeed::msg_ping, f_prinbeed, client, std::placeholders::_1));
-    client->add_message_callback(
-          prinbee::g_message_register
-        , std::bind(&prinbeed::msg_register, f_prinbeed, client, std::placeholders::_1));
 
     // messages to send to workers are all sent to the same function
     //

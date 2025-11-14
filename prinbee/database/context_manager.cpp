@@ -43,6 +43,11 @@
 //#include    <prinbee/version.h>
 
 
+// cppthread
+//
+#include    <cppthread/guard.h>
+
+
 // communicatord
 //
 //#include    <communicatord/flags.h>
@@ -116,24 +121,20 @@
 
 namespace prinbee
 {
-
-
 namespace
 {
 
 
 
-constexpr char const * const    g_contexts_subpath = "contexts";
+cppthread::mutex                g_mutex = cppthread::mutex();
 std::string                     g_context_user = std::string();
 std::string                     g_context_group = std::string();
+context_manager::pointer_t      g_context_manager = context_manager::pointer_t();
 
 
 
 } // no name namespace
 
-
-
-context_manager::pointer_t      g_context_manager = context_manager::pointer_t();
 
 
 context_manager::context_manager()
@@ -143,6 +144,8 @@ context_manager::context_manager()
 
 context_manager::pointer_t context_manager::get_instance()
 {
+    cppthread::guard lock(*cppthread::g_system_mutex);
+
     if(g_context_manager == nullptr)
     {
         g_context_manager.reset(new context_manager);
@@ -153,14 +156,25 @@ context_manager::pointer_t context_manager::get_instance()
 }
 
 
+/** \brief Go through the directories to find context.pb files.
+ *
+ * This function searches for all the contexts defined on this computer.
+ * It uses the context root path and searches for files named "context.pb".
+ *
+ * \note
+ * There is no need to have a guard in this function since it is already
+ * guarded in get_instance().
+ *
+ * \sa get_instance()
+ */
 void context_manager::load_contexts()
 {
     std::string const root_path(get_contexts_root_path());
 
     snapdev::glob_to_list<std::list<std::string>> list;
     if(!list.read_path<
-              snapdev::glob_to_list_flag_t::GLOB_FLAG_ONLY_DIRECTORIES
-            , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(snapdev::pathinfo::canonicalize(root_path, "*")))
+              snapdev::glob_to_list_flag_t::GLOB_FLAG_RECURSIVE
+            , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(snapdev::pathinfo::canonicalize(root_path, get_context_filename())))
     {
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
         msg << "could not read directory \""
@@ -179,20 +193,9 @@ void context_manager::load_contexts()
     }
     else
     {
-        for(auto const & context_dir : list)
+        for(auto const & name : list)
         {
-            context_setup setup(context_dir);
-            if(!g_context_user.empty())
-            {
-                setup.set_user(g_context_user);
-            }
-            if(!g_context_group.empty())
-            {
-                setup.set_group(g_context_group);
-            }
-            context::pointer_t c(context::create_context(setup));
-            c->initialize();
-            f_contexts[c->get_name()] = c;
+            create_context(name);
         }
     }
 }
@@ -200,24 +203,28 @@ void context_manager::load_contexts()
 
 void context_manager::set_user(std::string const & user)
 {
+    cppthread::guard lock(g_mutex);
     g_context_user = user;
 }
 
 
-std::string const & context_manager::get_user()
+std::string context_manager::get_user()
 {
+    cppthread::guard lock(g_mutex);
     return g_context_user;
 }
 
 
 void context_manager::set_group(std::string const & group)
 {
+    cppthread::guard lock(g_mutex);
     g_context_group = group;
 }
 
 
-std::string const & context_manager::get_group()
+std::string context_manager::get_group()
 {
+    cppthread::guard lock(g_mutex);
     return g_context_group;
 }
 
@@ -232,6 +239,41 @@ advgetopt::string_list_t context_manager::get_context_list() const
     }
 
     return result;
+}
+
+
+prinbee::context::pointer_t context_manager::create_context(std::string const & name)
+{
+    context_setup setup(name);
+    std::string ownership(get_user());
+    if(!ownership.empty())
+    {
+        setup.set_user(ownership);
+    }
+    ownership = get_group();
+    if(!ownership.empty())
+    {
+        setup.set_group(ownership);
+    }
+    context::pointer_t c(context::create_context(setup));
+
+    // now add it to the list making sure it is unique first
+    //
+    cppthread::guard lock(g_mutex);
+
+    auto it(f_contexts.find(c->get_name()));
+    if(it != f_contexts.end())
+    {
+        return it->second;
+    }
+
+    // load/create
+    //
+    c->initialize();
+
+    f_contexts[c->get_name()] = c;
+
+    return c;
 }
 
 
@@ -260,39 +302,6 @@ prinbee::context::pointer_t context_manager::get_context(std::string const & nam
 //    return mgr->get_context(name);
 //}
 
-
-
-/** \brief The sub-path added to the root path to access contexts.
- *
- * The sub-path is used to save the set of contexts within a sub-folder so
- * we can better organized the data.
- *
- * \note
- * This parameter cannot be changed using a setting. It is on purpose hard
- * coded in this file.
- *
- * \return The sub-path to the contexts.
- */
-char const * get_contexts_subpath()
-{
-    return g_contexts_subpath;
-}
-
-
-/** \brief Get the path to the root of the contexts.
- *
- * This function returns the path to the root path.
- *
- * It is possible to change this folder using the `prinbee_path` option
- * of the prinbee daemon. This is particularly useful to run unit and
- * integration tests.
- *
- * \return The root path to the set of contexts.
- */
-std::string get_contexts_root_path()
-{
-    return snapdev::pathinfo::canonicalize(get_prinbee_path(), get_contexts_subpath());
-}
 
 
 

@@ -45,7 +45,7 @@ public:
                                 worker_pool(
                                       prinbeed * c
                                     , int worker_count
-                                    , cppthread::fifo<payload_t>::pointer_t fifo);
+                                    , cppthread::fifo<payload_t::pointer_t>::pointer_t fifo);
                                 worker_pool(worker_pool const &) = delete;
 
     worker_pool &               operator = (worker_pool const &) = delete;

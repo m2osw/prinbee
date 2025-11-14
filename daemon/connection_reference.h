@@ -80,8 +80,6 @@ private:
 };
 
 
-connection_reference::pointer_t get_find_reference_connection(ed::connection::pointer_t connection);
-
 
 } // namespace prinbee_daemon
 // vim: ts=4 sw=4 et

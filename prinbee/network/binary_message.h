@@ -137,7 +137,6 @@ constexpr message_name_t        g_message_list_tables       = create_message_nam
 constexpr message_name_t        g_message_ping              = create_message_name("PING");
 constexpr message_name_t        g_message_pong              = create_message_name("PONG");
 constexpr message_name_t        g_message_register          = create_message_name("REG");
-constexpr message_name_t        g_message_registered        = create_message_name("REGD");
 constexpr message_name_t        g_message_success           = create_message_name("SCCS");
 constexpr message_name_t        g_message_set_complex_types = create_message_name("SCTP");
 constexpr message_name_t        g_message_set_context       = create_message_name("SCTX");
@@ -155,6 +154,8 @@ std::string message_name_to_string(message_name_t name);
 enum class err_code_t : std::uint32_t
 {
     ERR_CODE_NONE = 0,
+    ERR_CODE_INVALID_PARAMETERS,
+    ERR_CODE_LOCK,
     ERR_CODE_PROTOCOL_UNSUPPORTED,
     ERR_CODE_TIME_DIFFERENCE_TOO_LARGE,
 };
@@ -162,27 +163,61 @@ enum class err_code_t : std::uint32_t
 
 /** \brief The data sent along an ERROR message.
  *
- * Whenever a message is sent, we want a reply. If the destination cannot
- * properly reply, it will instead send an error message.
+ * Most messages expect a reply. If the destination cannot properly
+ * handle the message, it instead sends an error message.
  *
- * The error message includes a code and a human message.
+ * The error message includes:
+ *
+ * \li the name of the message that generated the error;
+ * \li the serial number of that message;
+ * \li a machine error code; and
+ * \li a human message.
  *
  * \note
  * The errors are passed using a bsr buffer, that way it is forward and
  * backward compatible over time. We may add more fields with time and
- * still safely be able to receive and send these messages to older
+ * still safely be able to receive and send error messages to older
  * versions of the library.
  */
 struct msg_error_t
 {
+    message_name_t          f_message_name = g_message_unknown;
+    std::uint32_t           f_serial_number = 0;
     err_code_t              f_code = err_code_t::ERR_CODE_NONE;
-    std::string             f_message = std::string();
+    std::string             f_error_message = std::string();
+};
+
+
+/** \brief The data sent along an ACK message.
+ *
+ * Most messages expect a reply. If the destination was able to handle
+ * the message properly, it replies with an acknowledgment. Note that an
+ * acknowledgment does not mean everything worked if the message does
+ * work asynchronously after sending the acknowledgment (especially
+ * INSERT or UPDATE commands, which are acknowledge quickly but may take
+ * a long time as the backend needs to then update indexes that are affected
+ * by the commands).
+ *
+ * The message includes the name of the message being acknowledged and
+ * the original message serial number so the other side can match the
+ * acknowledgment with the original message.
+ *
+ * Some messages also make use of the phase parameter defining which
+ * phase is being acknowledged. For example, the INSERT, SET, and UPDATE
+ * commands have many phases to acknowledge the data being journaled
+ * locally, by the local proxy, and the prinbee daemon.
+ */
+struct msg_acknowledge_t
+{
+    message_name_t          f_message_name = g_message_unknown;
+    std::uint32_t           f_serial_number = 0;
+    std::uint32_t           f_phase = 0;
 };
 
 
 /** \brief The data sent along the REGISTER message.
  *
- * Each binary connection understands the REGISTER message; the receiver
+ * All the binary connections understand the REGISTER message; the receiver
  * has to verify the protocol version and the time has to be close (because
  * the date of all the involved computers are used everywhere and they must
  * "match").
@@ -242,7 +277,7 @@ struct msg_context_t
     std::string             f_context_name = std::string();             // name of the context
     std::string             f_description = std::string();              // description of this context
     schema_version_t        f_schema_version = 0;                       // do not set on a GCTX, increase by 1 on a SCTX
-    context_id_t            f_context_id = 0;                           // set when creating a context; unique among all contexts within a cluster
+    context_id_t            f_context_id = 0;                           // defined by server when creating a context; unique among all contexts within a cluster
     snapdev::timespec_ex    f_created_on = snapdev::timespec_ex();      // set when creating a context
     snapdev::timespec_ex    f_last_updated_on = snapdev::timespec_ex(); // set when updating a context (ALTER CONTEXT ... -> SCTX)
 };
@@ -296,6 +331,8 @@ public:
                                 binary_message(binary_message const &) = delete;
     binary_message &            operator = (binary_message const &) = delete;
 
+    std::uint32_t               get_next_serial_number();
+
     void                        set_name(message_name_t name);
     message_name_t              get_name() const;
 
@@ -305,6 +342,8 @@ public:
     bool                        is_message_header_valid() const;
     std::size_t                 get_data_size() const;
     void const *                get_header();
+    std::uint32_t               get_serial_number() const;
+    snapdev::timespec_ex        get_creation_date() const;
 
     bool                        has_data() const;
     bool                        has_pointer() const;
@@ -315,7 +354,9 @@ public:
                                 get_data() const;
     void const *                get_either_pointer(std::size_t & size) const;
 
-    void                        create_error_message(err_code_t code, std::string const & error_message);
+    void                        create_acknowledge_message(pointer_t original_message, std::uint32_t phase = 0);
+    bool                        deserialize_acknowledge_message(msg_acknowledge_t & ack);
+    void                        create_error_message(pointer_t original_message, err_code_t code, std::string const & error_message);
     bool                        deserialize_error_message(msg_error_t & err);
     void                        create_register_message(std::string const & name, std::string const & protocol_version);
     bool                        deserialize_register_message(msg_register_t & r);
@@ -327,13 +368,15 @@ public:
 private:
     struct header_t
     {
-        char                f_magic[2] = { 'b', 'm' };
-        message_version_t   f_version = g_binary_message_version;   // 1 to 255
-        std::uint8_t        f_flags = 0;
-        message_name_t      f_name = g_message_unknown;
-        std::uint32_t       f_size = 0;                             // size of following data
-        crc16_t             f_data_crc16 = 0;                       // following data CRC16
-        crc16_t             f_header_crc16 = 0;                     // CRC16 of this header
+        char                    f_magic[2] = { 'b', 'm' };
+        message_version_t       f_version = g_binary_message_version;   // 1 to 255
+        std::uint8_t            f_flags = 0;
+        message_name_t          f_name = g_message_unknown;
+        std::int64_t            f_created_on = 0;
+        std::uint32_t           f_serial_number = 0;                    // to match a reply to the original message (i.e. ACK and ERR especially)
+        std::uint32_t           f_size = 0;                             // size of following data
+        crc16_t                 f_data_crc16 = 0;                       // following data CRC16
+        crc16_t                 f_header_crc16 = 0;                     // CRC16 of this header
     };
 
     header_t                    f_header = header_t();

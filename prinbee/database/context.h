@@ -44,11 +44,13 @@ class context_impl;
 }
 
 
-constexpr std::size_t const                 MAX_CONTEXT_NAME_SEGMENTS = 3;
+constexpr std::size_t const                 MAX_CONTEXT_NAME_SEGMENTS = 4;
 constexpr std::size_t const                 MAX_CONTEXT_NAME_SEGMENT_LENGTH = 100;
 
+char const *                                get_context_filename();
 char const *                                get_contexts_subpath();
 std::string                                 get_contexts_root_path();
+
 
 
 class context_setup

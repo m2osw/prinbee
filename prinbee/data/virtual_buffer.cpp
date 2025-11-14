@@ -143,7 +143,7 @@ void virtual_buffer::load_file(std::string const & filename, bool required)
 
     f_buffers.push_back(file_data);
 
-    f_total_size += size;
+    f_total_size = size;
 }
 
 

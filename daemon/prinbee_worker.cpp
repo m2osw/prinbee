@@ -123,8 +123,8 @@ void payload_t::send_message(prinbee::binary_message::pointer_t msg)
 prinbee_worker::prinbee_worker(
           std::string const & name
         , std::size_t position
-        , typename cppthread::fifo<payload_t>::pointer_t in
-        , typename cppthread::fifo<payload_t>::pointer_t out
+        , typename cppthread::fifo<payload_t::pointer_t>::pointer_t in
+        , typename cppthread::fifo<payload_t::pointer_t>::pointer_t out
         , prinbeed * p)
     : worker(
           name
@@ -159,8 +159,11 @@ prinbee_worker::~prinbee_worker()
  */
 bool prinbee_worker::do_work()
 {
-    switch(f_payload.f_message->get_name())
+    switch(f_payload->f_message->get_name())
     {
+    case prinbee::g_message_register:
+        return f_prinbeed->register_client(f_payload);
+
     case prinbee::g_message_list_contexts:
         return f_prinbeed->list_contexts(f_payload);
 

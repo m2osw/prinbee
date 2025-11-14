@@ -87,9 +87,6 @@ void proxy_listener::process_new_connection(prinbee::binary_server_client::point
     client->add_message_callback(
           prinbee::g_message_ping
         , std::bind(&prinbeed::msg_ping, f_prinbeed, client, std::placeholders::_1));
-    client->add_message_callback(
-          prinbee::g_message_register
-        , std::bind(&prinbeed::msg_register, f_prinbeed, client, std::placeholders::_1));
 
     // messages to send to workers are all sent to the same function
     //

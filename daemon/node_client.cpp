@@ -82,9 +82,6 @@ void node_client::add_callbacks()
     add_message_callback(
           prinbee::g_message_pong
         , std::bind(&prinbeed::msg_pong, f_prinbeed, shared_from_this(), std::placeholders::_1));
-    add_message_callback(
-          prinbee::g_message_register
-        , std::bind(&prinbeed::msg_register, f_prinbeed, shared_from_this(), std::placeholders::_1));
 
     // messages to send to workers are all sent to the same function
     //

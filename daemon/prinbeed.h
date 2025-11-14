@@ -87,22 +87,29 @@ public:
     bool                        msg_pong(
                                       ed::connection::pointer_t peer
                                     , prinbee::binary_message::pointer_t msg);
-    bool                        msg_register(
-                                      ed::connection::pointer_t peer
-                                    , prinbee::binary_message::pointer_t msg);
     bool                        msg_process_workload(
                                       ed::connection::pointer_t peer
                                     , prinbee::binary_message::pointer_t msg);
 
-    bool                        list_contexts(payload_t & payload);
-    bool                        get_context(payload_t & payload);
-    bool                        set_context(payload_t & payload);
+    bool                        register_client(payload_t::pointer_t payload);
+    bool                        list_contexts(payload_t::pointer_t payload);
+    bool                        get_context(payload_t::pointer_t payload);
+    bool                        set_context(payload_t::pointer_t payload);
 
 private:
     void                        check_ipwall_status();
     void                        connect_to_node(
                                       addr::addr const & a
                                     , std::string const & name);
+    void                        obtain_cluster_lock(
+                                      payload_t::pointer_t payload
+                                    , std::string const & lock_name
+                                    , cluck::timeout_t timeout = cluck::timeout_t{ 60, 0 }); // 1 min. by default
+    void                        release_cluster_lock(payload_t::pointer_t payload);
+    bool                        process_obtained_lock(cluck::cluck * c, payload_t::pointer_t payload);
+    bool                        process_failed_lock(cluck::cluck * c , payload_t::pointer_t payload);
+    void                        expect_acknowledgment(prinbee::binary_message::pointer_t msg);
+    void                        send_acknowledgment(payload_t::pointer_t payload);
 
     advgetopt::getopt                       f_opts;
 
@@ -122,6 +129,8 @@ private:
     versiontheca::versiontheca::pointer_t   f_protocol_version = std::make_shared<versiontheca::versiontheca>(f_protocol_trait, prinbee::g_name_prinbee_protocol_version_node);
     worker_pool::pointer_t                  f_worker_pool = worker_pool::pointer_t();
     prinbee::context_manager::pointer_t     f_context_manager = prinbee::context_manager::pointer_t();
+    std::map<std::uint32_t, prinbee::binary_message::pointer_t>
+                                            f_expected_acknowledgment = std::map<std::uint32_t, prinbee::binary_message::pointer_t>();
 
     bool                                    f_fluid_settings_ready = false;
     bool                                    f_ipwall_is_installed = false;
