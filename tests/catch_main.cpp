@@ -26,6 +26,7 @@
 
 // prinbee
 //
+#include    <prinbee/utils.h>
 #include    <prinbee/version.h>
 
 
@@ -41,7 +42,10 @@
 
 // snapdev
 //
+#include    <snapdev/mkdir_p.h>
 #include    <snapdev/not_used.h>
+#include    <snapdev/pathinfo.h>
+#include    <snapdev/rm_r.h>
 
 
 // C++
@@ -68,75 +72,75 @@ namespace SNAP_CATCH2_NAMESPACE
 
 
 
-std::string setup_context(std::string const & sub_path, std::vector<std::string> const & xmls)
-{
-    std::string path(g_tmp_dir() + "/" + sub_path);
-
-    if(mkdir(path.c_str(), 0700) != 0)
-    {
-        if(errno != EEXIST)
-        {
-            CATCH_REQUIRE(!"could not create context path");
-            return std::string();
-        }
-    }
-
-    if(mkdir((path + "/tables").c_str(), 0700) != 0)
-    {
-        if(errno != EEXIST)
-        {
-            CATCH_REQUIRE(!"could not create table path");
-            return std::string();
-        }
-    }
-
-    if(mkdir((path + "/database").c_str(), 0700) != 0)
-    {
-        if(errno != EEXIST)
-        {
-            CATCH_REQUIRE(!"could not create database path");
-            return std::string();
-        }
-    }
-
-    for(auto const & x : xmls)
-    {
-        char const * s(x.c_str());
-        CATCH_REQUIRE((s[0] == '<'
-                    && s[1] == '!'
-                    && s[2] == '-'
-                    && s[3] == '-'
-                    && s[4] == ' '
-                    && s[5] == 'n'
-                    && s[6] == 'a'
-                    && s[7] == 'm'
-                    && s[8] == 'e'
-                    && s[9] == '='));
-        s += 10;
-        char const * e(s);
-        while(*e != ' ')
-        {
-            ++e;
-        }
-        std::string const name(s, e - s);
-
-        std::string const filename(path + "/tables/" + name + ".xml");
-        {
-            std::ofstream o(filename);
-            o << x;
-        }
-
-        // the table.xsd must pass so we can make sure that our tests make
-        // use of up to date XML code and that table.xsd is also up to date
-        //
-        std::string const verify_table("xmllint --noout --nonet --schema prinbee/data/tables.xsd " + filename);
-        std::cout << "running: " << verify_table << std::endl;
-        int const r(system(verify_table.c_str()));
-        CATCH_REQUIRE(r == 0);
-    }
-
-    return path;
-}
+//std::string setup_context(std::string const & sub_path, std::vector<std::string> const & xmls)
+//{
+//    std::string path(g_tmp_dir() + "/" + sub_path);
+//
+//    if(mkdir(path.c_str(), 0700) != 0)
+//    {
+//        if(errno != EEXIST)
+//        {
+//            CATCH_REQUIRE(!"could not create context path");
+//            return std::string();
+//        }
+//    }
+//
+//    if(mkdir((path + "/tables").c_str(), 0700) != 0)
+//    {
+//        if(errno != EEXIST)
+//        {
+//            CATCH_REQUIRE(!"could not create table path");
+//            return std::string();
+//        }
+//    }
+//
+//    if(mkdir((path + "/database").c_str(), 0700) != 0)
+//    {
+//        if(errno != EEXIST)
+//        {
+//            CATCH_REQUIRE(!"could not create database path");
+//            return std::string();
+//        }
+//    }
+//
+//    for(auto const & x : xmls)
+//    {
+//        char const * s(x.c_str());
+//        CATCH_REQUIRE((s[0] == '<'
+//                    && s[1] == '!'
+//                    && s[2] == '-'
+//                    && s[3] == '-'
+//                    && s[4] == ' '
+//                    && s[5] == 'n'
+//                    && s[6] == 'a'
+//                    && s[7] == 'm'
+//                    && s[8] == 'e'
+//                    && s[9] == '='));
+//        s += 10;
+//        char const * e(s);
+//        while(*e != ' ')
+//        {
+//            ++e;
+//        }
+//        std::string const name(s, e - s);
+//
+//        std::string const filename(path + "/tables/" + name + ".xml");
+//        {
+//            std::ofstream o(filename);
+//            o << x;
+//        }
+//
+//        // the table.xsd must pass so we can make sure that our tests make
+//        // use of up to date XML code and that table.xsd is also up to date
+//        //
+//        std::string const verify_table("xmllint --noout --nonet --schema prinbee/data/tables.xsd " + filename);
+//        std::cout << "running: " << verify_table << std::endl;
+//        int const r(system(verify_table.c_str()));
+//        CATCH_REQUIRE(r == 0);
+//    }
+//
+//    return path;
+//}
 
 
 void init_callback()
@@ -150,6 +154,17 @@ int init_tests(Catch::Session & session)
     snapdev::NOT_USED(session);
 
     snaplogger::setup_catch2_nested_diagnostics();
+
+    // simulate a /var/lib/prinbee/... under our test temporary directory
+    //
+    // note: snapcatch2 deletes that temporary folder and
+    //       everything under it on startup
+    //
+    std::string path(g_tmp_dir() + "/var/lib/prinbee");
+    snapdev::mkdir_p(path);
+    std::string errmsg;
+    path = snapdev::pathinfo::realpath(path, errmsg); // make it an absolute path
+    prinbee::set_prinbee_path(path);
 
     //snaplogger::logger::pointer_t l(snaplogger::logger::get_instance());
     //l->add_console_appender();

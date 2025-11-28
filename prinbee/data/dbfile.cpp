@@ -505,6 +505,9 @@ char const * to_name(dbtype_t type)
     case dbtype_t::FILE_TYPE_TABLE:
         return "Prinbee Table (PTBL)";
 
+    case dbtype_t::FILE_TYPE_INDEX_DESCRIPTION:
+        return "Index Definition (IDXD)";
+
     case dbtype_t::FILE_TYPE_INDEX:
         return "Index (INDX)";
 

@@ -94,7 +94,9 @@ void direct_listener::process_new_connection(prinbee::binary_server_client::poin
     //
     client->add_message_callback(
           prinbee::g_message_unknown
-        , std::bind(&prinbeed::msg_process_workload, f_prinbeed, client, std::placeholders::_1));
+        , std::bind(&prinbeed::msg_process_payload, f_prinbeed, client, std::placeholders::_1));
+
+    f_prinbeed->register_connection(client, connection_type_t::CONNECTION_TYPE_NODE);
 }
 
 

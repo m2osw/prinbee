@@ -74,6 +74,25 @@ private:
 };
 
 
+class context_update
+{
+public:
+    void                                    set_schema_version(schema_version_t version);
+    schema_version_t                        get_schema_version() const;
+
+    void                                    set_name(std::string const & name);
+    std::string const &                     get_name() const;
+    void                                    set_description(std::string const & description);
+    std::string const &                     get_description() const;
+
+private:
+    schema_version_t                        f_schema_version = 0;
+
+    std::string                             f_name = std::string();
+    std::string                             f_description = std::string();
+};
+
+
 class context
 {
 public:
@@ -94,6 +113,12 @@ public:
     table::pointer_t                        get_table(std::string const & name) const;
     table::map_t const &                    list_tables() const;
     std::string const &                     get_path() const;
+    schema_version_t                        get_schema_version() const;
+    std::string const &                     get_description() const;
+    snapdev::timespec_ex const &            get_created_on() const;
+    snapdev::timespec_ex const &            get_last_updated_on() const;
+    std::uint32_t                           get_id() const;
+    void                                    update(context_update const & new_info);
     void                                    limit_allocated_memory();
     //std::size_t                             get_config_size(std::string const & name) const;
     //std::string                             get_config_string(std::string const & name, int idx) const;

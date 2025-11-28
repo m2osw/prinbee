@@ -109,6 +109,7 @@ constexpr char const * const    g_contexts_subpath = "contexts";
 constexpr char const * const    g_context_filename = "context.pb";
 constexpr char const * const    g_complex_types_filename = "complex-types.pb";
 constexpr char const * const    g_tables_subpath = "tables";
+constexpr char const * const    g_indexes_subpath = "indexes";
 //constexpr char const * const    g_schemata_filename = "schemata.pb";
 
 
@@ -137,7 +138,7 @@ struct_description_t g_context_file_description[] =
     ),
     prinbee::define_description(
           prinbee::FieldName(g_name_prinbee_fld_name)
-        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P16STRING) // size is 100 x segment length and we can have 3 path segments + context name
     ),
     prinbee::define_description(
           prinbee::FieldName(g_name_prinbee_fld_description)
@@ -157,8 +158,7 @@ struct_description_t g_context_file_description[] =
     //
     //     LOCK all_clusters
     //     SLEEP 1 second (this ensures that each context has a unique ID!)
-    //     ID = (UINT32)NOW
-    //     ...
+    //     ID = (UINT64)NOW
     //
     prinbee::define_description(
           prinbee::FieldName(g_name_prinbee_fld_id)
@@ -190,11 +190,18 @@ public:
     void                                load_file(std::string const & filename, bool required);
     void                                from_binary(virtual_buffer::pointer_t b);
     void                                load_context(virtual_buffer::pointer_t b);
+    void                                update(context_update const & new_info);
+    void                                save_context();
 
     std::string                         get_name() const;
     table::pointer_t                    get_table(std::string const & name) const;
     table::map_t const &                list_tables() const;
     std::string const &                 get_path() const;
+    schema_version_t                    get_schema_version() const;
+    std::string const &                 get_description() const;
+    snapdev::timespec_ex const &        get_created_on() const;
+    snapdev::timespec_ex const &        get_last_updated_on() const;
+    std::uint32_t                       get_id() const;
     //std::size_t                         get_config_size(std::string const & name) const;
     //std::string                         get_config_string(std::string const & name, int idx) const;
     //long                                get_config_long(std::string const & name, int idx) const;
@@ -211,12 +218,14 @@ private:
     std::string                         f_description = std::string();
     snapdev::timespec_ex                f_created_on = snapdev::timespec_ex();
     snapdev::timespec_ex                f_last_updated_on = snapdev::timespec_ex();
-    std::uint32_t                       f_id = 0;
+    std::uint64_t                       f_id = 0;
 
     std::string                         f_context_path = std::string();
     std::string                         f_tables_path = std::string();
+    //std::string                         f_indexes_path = std::string();
     int                                 f_lock = -1;        // TODO: lock the context so only one prinbee daemon can run against it
     table::map_t                        f_tables = table::map_t();
+    //index::map_t                        f_indexes = index::map_t();
     schema_complex_type::map_pointer_t  f_schema_complex_types = schema_complex_type::map_pointer_t();
     schema_table::map_by_name_t         f_schema_tables_by_name_and_version = schema_table::map_by_name_t();
 };
@@ -263,8 +272,8 @@ void context_impl::initialize()
         << "\"."
         << SNAP_LOG_SEND;
 
-    // the full path to the data is built from three different paths
-    // and sub-paths so call get_context_path().
+    // the full path to the data (a.k.a. tables) is built from three
+    // different paths and sub-paths so call get_context_path().
     //
     f_tables_path = snapdev::pathinfo::canonicalize(get_context_path(), g_tables_subpath);
 
@@ -277,10 +286,29 @@ void context_impl::initialize()
             , f_setup.get_group()) != 0)
     {
         throw io_error(
-              "could not create or access the context table directory \""
+              "could not create or access the directory of the tables at \""
             + f_tables_path
             + "\".");
     }
+
+//    // the full path to the secondary indexes is similar to the tables path
+//    // just using .../indexes/ instead of .../tables/
+//    //
+//    f_indexes_path = snapdev::pathinfo::canonicalize(get_context_path(), g_indexes_subpath);
+//
+//    // make sure the folders exist
+//    //
+//    if(snapdev::mkdir_p(f_indexes_path
+//            , false
+//            , 0700
+//            , f_setup.get_user()
+//            , f_setup.get_group()) != 0)
+//    {
+//        throw io_error(
+//              "could not create or access the directory of the secondary indexes at \""
+//            + f_indexes_path
+//            + "\".");
+//    }
 
     // load the context file itself; this includes info like when the
     // context was created and its current version
@@ -325,8 +353,8 @@ void context_impl::initialize()
     //{
         //std::string const path(f_opts->get_string("table_schema_path", idx));
 
-    snapdev::glob_to_list<std::list<std::string>> list;
-    if(!list.read_path<
+    snapdev::glob_to_list<std::list<std::string>> order_list;
+    if(!order_list.read_path<
               snapdev::glob_to_list_flag_t::GLOB_FLAG_ONLY_DIRECTORIES
             , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(snapdev::pathinfo::canonicalize(f_tables_path, "*")))
     {
@@ -337,7 +365,7 @@ void context_impl::initialize()
         throw io_error(msg.str());
     }
 
-    if(list.empty())
+    if(order_list.empty())
     {
         SNAP_LOG_DEBUG
             << "no tables found in context \""
@@ -349,7 +377,7 @@ void context_impl::initialize()
     }
     else
     {
-        for(auto const & table_dir : list)
+        for(auto const & table_dir : order_list)
         {
             table::pointer_t t(std::make_shared<table>(f_context, table_dir, f_schema_complex_types));
             f_tables[t->get_name()] = t;
@@ -493,6 +521,43 @@ void context_impl::initialize()
     }
 #endif
 
+// at some point I was thinking that indxes could be separate from tables,
+// but the OID they reference is from a specific table so we might as well
+// keep them there; this also simplifies the DROP TABLE which ends up having
+// to delete all the indexes defined against that table
+//
+//    snapdev::glob_to_list<std::list<std::string>> index_list;
+//    if(!index_list.read_path<
+//              snapdev::glob_to_list_flag_t::GLOB_FLAG_ONLY_DIRECTORIES
+//            , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(snapdev::pathinfo::canonicalize(f_indexes_path, "*")))
+//    {
+//        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+//        msg << "could not read directory \""
+//            << f_indexes_path
+//            << "\" for secondary indexes.";
+//        throw io_error(msg.str());
+//    }
+//
+//    if(index_list.empty())
+//    {
+//        SNAP_LOG_DEBUG
+//            << "no secondary indexes found in context \""
+//            << f_setup.get_name()
+//            << "\" (full indexes path: \""
+//            << f_indexes_path
+//            << "\")."
+//            << SNAP_LOG_SEND;
+//    }
+//    else
+//    {
+//        for(auto const & index_dir : index_list)
+//        {
+//            index::pointer_t idx(std::make_shared<index>(f_context, index_dir));
+//            f_indexes[idx->get_name()] = idx;
+//        }
+//    }
+
+
     SNAP_LOG_INFORMATION
         << "Context \""
         << f_setup.get_name()
@@ -598,6 +663,96 @@ void context_impl::load_context(virtual_buffer::pointer_t b)
 }
 
 
+void context_impl::update(context_update const & new_info)
+{
+    bool updated(f_created_on == snapdev::timespec_ex());
+
+    if(f_id == 0)
+    {
+        updated = true;
+
+        // make sure that each identifier is distinct by sleeping one second
+        //
+        // Note: it works because we have a cluster wide lock
+        //
+        sleep(1);
+        f_id = time(nullptr);
+    }
+
+    schema_version_t const schema_version(new_info.get_schema_version());
+    if(schema_version != 0
+    && schema_version != f_schema_version)
+    {
+        if(schema_version < f_schema_version)
+        {
+            SNAP_LOG_MINOR
+                << "attempted to save context with a smaller version aborted ("
+                << schema_version
+                << " < "
+                << f_schema_version
+                << ")."
+                << SNAP_LOG_SEND;
+            return;
+        }
+
+        updated = true;
+        f_schema_version = schema_version;
+    }
+
+    std::string const & name(new_info.get_name());
+    if(!name.empty()
+    && name != f_setup.get_name())
+    {
+        updated = true;
+
+        // a rename is complicated since we need to change the name of
+        // each folder in the path -- the first time, though, we can
+        // just save and really we do not want to throw...
+        //
+        //throw not_yet_implemented("context renaming is not yet implemented.");
+
+        f_setup.set_name(name);
+    }
+
+    std::string const & description(new_info.get_description());
+    if(!description.empty()
+    && description != f_description)
+    {
+        updated = true;
+        f_description = description;
+    }
+
+    if(updated)
+    {
+        f_last_updated_on = snapdev::now();
+        if(f_created_on == snapdev::timespec_ex())
+        {
+            f_created_on = f_last_updated_on;
+        }
+
+        save_context();
+    }
+}
+
+
+void context_impl::save_context()
+{
+    structure::pointer_t s(std::make_shared<prinbee::structure>(g_context_file_description));
+    s->init_buffer();
+
+    s->set_string(g_name_prinbee_fld_name, f_setup.get_name());
+    s->set_uinteger(g_name_prinbee_fld_schema_version, f_schema_version);
+    s->set_string(g_name_prinbee_fld_description, f_description);
+    s->set_nstime(g_name_prinbee_fld_created_on, f_created_on);
+    s->set_nstime(g_name_prinbee_fld_last_updated_on, f_last_updated_on);
+    s->set_uinteger(g_name_prinbee_fld_id, f_id);
+
+    reference_t offset(0);
+    virtual_buffer::pointer_t b(s->get_virtual_buffer(offset));
+    b->save_file(snapdev::pathinfo::canonicalize(get_context_path(), g_context_filename));
+}
+
+
 void context_impl::verify_complex_types()
 {
     // in case the user made updates directly in our .ini, we could
@@ -686,6 +841,36 @@ table::map_t const & context_impl::list_tables() const
 std::string const & context_impl::get_path() const
 {
     return f_setup.get_name();
+}
+
+
+schema_version_t context_impl::get_schema_version() const
+{
+    return f_schema_version;
+}
+
+
+std::string const & context_impl::get_description() const
+{
+    return f_description;
+}
+
+
+snapdev::timespec_ex const & context_impl::get_created_on() const
+{
+    return f_created_on;
+}
+
+
+snapdev::timespec_ex const & context_impl::get_last_updated_on() const
+{
+    return f_last_updated_on;
+}
+
+
+std::uint32_t context_impl::get_id() const
+{
+    return f_id;
 }
 
 
@@ -855,6 +1040,47 @@ std::string const & context_setup::get_group() const
 
 
 
+void context_update::set_schema_version(schema_version_t version)
+{
+    f_schema_version = version;
+}
+
+
+schema_version_t context_update::get_schema_version() const
+{
+    return f_schema_version;
+}
+
+
+void context_update::set_name(std::string const & name)
+{
+    f_name = name;
+}
+
+
+std::string const & context_update::get_name() const
+{
+    return f_name;
+}
+
+
+void context_update::set_description(std::string const & description)
+{
+    f_description = description;
+}
+
+
+std::string const & context_update::get_description() const
+{
+    return f_description;
+}
+
+
+
+
+
+
+
 
 
 
@@ -977,6 +1203,42 @@ table::map_t const & context::list_tables() const
 std::string const & context::get_path() const
 {
     return f_impl->get_path();
+}
+
+
+schema_version_t context::get_schema_version() const
+{
+    return f_impl->get_schema_version();
+}
+
+
+std::string const & context::get_description() const
+{
+    return f_impl->get_description();
+}
+
+
+snapdev::timespec_ex const & context::get_created_on() const
+{
+    return f_impl->get_created_on();
+}
+
+
+snapdev::timespec_ex const & context::get_last_updated_on() const
+{
+    return f_impl->get_last_updated_on();
+}
+
+
+std::uint32_t context::get_id() const
+{
+    return f_impl->get_id();
+}
+
+
+void context::update(context_update const & new_info)
+{
+    f_impl->update(new_info);
 }
 
 

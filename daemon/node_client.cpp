@@ -87,7 +87,7 @@ void node_client::add_callbacks()
     //
     add_message_callback(
           prinbee::g_message_unknown
-        , std::bind(&prinbeed::msg_process_workload, f_prinbeed, shared_from_this(), std::placeholders::_1));
+        , std::bind(&prinbeed::msg_process_payload, f_prinbeed, shared_from_this(), std::placeholders::_1));
 }
 
 

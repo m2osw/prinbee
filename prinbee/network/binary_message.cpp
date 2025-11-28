@@ -49,6 +49,7 @@
 //
 #include    <snapdev/brs.h>
 #include    <snapdev/memory_streambuf.h>
+#include    <snapdev/safe_assert.h>
 #include    <snapdev/to_string_literal.h>
 
 
@@ -122,6 +123,30 @@ constexpr prinbee::struct_description_t g_list_contexts_description[] =
           prinbee::FieldName("names")
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY16) // limit to 64K contexts in one cluster
         , prinbee::FieldSubDescription(g_name_description)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+constexpr prinbee::struct_description_t g_pong_description[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_magic)
+        , prinbee::FieldType(struct_type_t::STRUCT_TYPE_MAGIC)
+        //, prinbee::FieldDefaultValue(prinbee::to_string(msg_message_t::MSG_PONG))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_structure_version)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(1, 0)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("ping_serial_number")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("loadavg_1min")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_FLOAT64)
     ),
     prinbee::end_descriptions()
 };
@@ -240,6 +265,18 @@ void binary_message::set_name(message_name_t name)
 message_name_t binary_message::get_name() const
 {
     return f_header.f_name;
+}
+
+
+void binary_message::set_acknowledged_by(ed::connection::pointer_t peer)
+{
+    f_acknowledged_by = peer;
+}
+
+
+ed::connection::pointer_t binary_message::get_acknowledged_by() const
+{
+    return f_acknowledged_by;
 }
 
 
@@ -712,6 +749,58 @@ bool binary_message::deserialize_register_message(msg_register_t & r)
 }
 
 
+void binary_message::create_ping_message()
+{
+    set_name(g_message_ping);
+}
+
+
+void binary_message::create_pong_message(binary_message::pointer_t ping_message)
+{
+    snapdev::SAFE_ASSERT(ping_message->get_name() == g_message_ping);
+
+    set_name(g_message_pong);
+
+    structure::pointer_t description(std::make_shared<structure>(g_pong_description));
+
+    // 'this' message is expected to be the PING message so we use its serial number
+    //
+    description->set_integer("ping_serial_number", ping_message->f_header.f_serial_number);
+    double loadavg(-1.0);
+    if(getloadavg(&loadavg, 1) != 1)
+    {
+        loadavg = -1.0;
+    }
+    description->set_float64("loadavg_1min", loadavg);
+
+    reference_t start_offset(0);
+    virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+    f_buffer.resize(buffer->size());
+    buffer->pread(
+          f_buffer.data()
+        , f_buffer.size()
+        , 0);
+}
+
+
+bool binary_message::deserialize_pong_message(msg_pong_t & pong)
+{
+    std::size_t size(0L);
+    void const * data(get_either_pointer(size));
+
+    virtual_buffer::pointer_t buffer(std::make_shared<virtual_buffer>());
+    buffer->pwrite(data, size, 0, true);
+
+    structure::pointer_t description(std::make_shared<structure>(g_pong_description));
+    description->set_virtual_buffer(buffer, 0);
+
+    pong.f_ping_serial_number = description->get_integer("ping_serial_number");
+    pong.f_loadavg_1min = description->get_float64("loadavg_1min");
+
+    return true;
+}
+
+
 void binary_message::create_list_contexts_message(advgetopt::string_list_t const & list)
 {
     set_name(g_message_list_contexts);
@@ -764,7 +853,11 @@ void binary_message::create_context_message(msg_context_t const & context)
 
     description->set_string("context_name", context.f_context_name);
     description->set_string("description", context.f_description);
+    description->set_integer("schema_version", context.f_schema_version);
     description->set_integer("context_id", context.f_context_id);
+    description->set_integer("created_on", context.f_created_on);
+    description->set_integer("last_updated_on", context.f_last_updated_on);
+    description->set_integer("table_count", context.f_table_count);
 
     reference_t start_offset(0);
     virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));

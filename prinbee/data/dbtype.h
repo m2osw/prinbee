@@ -53,11 +53,12 @@ enum class dbtype_t : std::uint32_t
     FILE_TYPE_COMPLEX_TYPE          = DBTYPE_NAME("CXTP"),      // User Defined Types (in "<prinbee-path>/contexts/<context-name>/complex-types.pb")
     FILE_TYPE_CONTEXT               = DBTYPE_NAME("CTXT"),      // Context (in "<prinbee-path>/contexts/<context-name>/context.pb")
     FILE_TYPE_SCHEMA                = DBTYPE_NAME("SCHM"),      // Table Schema (in "<prinbee-path>/contexts/<context-name>/<table-name>/table-<version>.pb")
+    FILE_TYPE_INDEX_DESCRIPTION     = DBTYPE_NAME("IDXD"),      // Secondary Index Description (in "<prinbee-path>/contexts/<context-name>/<index-name>/index-<version>.pb")
 
-    FILE_TYPE_TABLE                 = DBTYPE_NAME("PTBL"),      // Table Data (in "<prinbee-path>/contexts/<context-name>/<table-name>/TBD.pb")
-    FILE_TYPE_PRIMARY_INDEX         = DBTYPE_NAME("PIDX"),      // Primary Index (a.k.a. OID Index)
-    FILE_TYPE_INDEX                 = DBTYPE_NAME("INDX"),      // User Defined Index (key -> OID)
-    FILE_TYPE_BLOOM_FILTER          = DBTYPE_NAME("BLMF"),      // Bloom Filter
+    FILE_TYPE_TABLE                 = DBTYPE_NAME("PTBL"),      // Table Data (in "<prinbee-path>/contexts/<context-name>/<table-name>/data.pb")
+    FILE_TYPE_PRIMARY_INDEX         = DBTYPE_NAME("PIDX"),      // Primary Index (a.k.a. OID Index; "<prinbee-path>/contexts/<context-name>/<table-name>/oid.pb")
+    FILE_TYPE_INDEX                 = DBTYPE_NAME("INDX"),      // User Defined Index, also called secondary indexes (key -> OID; in "<prinbee-path>/contexts/<context-name>/<index-name>/idx.pb)
+    FILE_TYPE_BLOOM_FILTER          = DBTYPE_NAME("BLMF"),      // Bloom Filter TBD
 
     BLOCK_TYPE_BLOB                 = DBTYPE_NAME("BLOB"),
     BLOCK_TYPE_DATA                 = DBTYPE_NAME("DATA"),
@@ -91,6 +92,9 @@ constexpr char const * to_string(dbtype_t type)
 
     case dbtype_t::FILE_TYPE_INDEX:
         return "INDX";
+
+    case dbtype_t::FILE_TYPE_INDEX_DESCRIPTION:
+        return "IDXD";
 
     case dbtype_t::FILE_TYPE_BLOOM_FILTER:
         return "BLMF";

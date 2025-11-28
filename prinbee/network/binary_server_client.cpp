@@ -415,9 +415,7 @@ void binary_server_client::process_message(binary_message::pointer_t msg)
         }
     }
 
-    // we need to wrap the reference for the call
-    //
-    snapdev::NOT_USED(it->second.call(std::ref(msg)));
+    snapdev::NOT_USED(it->second.call(msg));
 }
 
 

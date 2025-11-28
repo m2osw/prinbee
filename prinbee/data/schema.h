@@ -344,15 +344,14 @@ private:
 class schema_secondary_index
 {
 public:
-    typedef std::shared_ptr<schema_secondary_index>
-                                            pointer_t;
-    typedef std::map<std::string, pointer_t>
-                                            map_by_name_t;
-    typedef std::map<index_id_t, pointer_t> map_by_id_t;
+    typedef std::shared_ptr<schema_secondary_index> pointer_t;
+    typedef std::map<std::string, pointer_t>        map_by_name_t;
+    typedef std::map<index_id_t, pointer_t>         map_by_id_t;
+    typedef std::map<schema_version_t, pointer_t>   map_by_version_t;
 
                                             schema_secondary_index(schema_table_pointer_t t);
 
-    void                                    from_binary(structure::pointer_t s);
+    void                                    from_binary(virtual_buffer::pointer_t b);
     //void                                    from_config(
     //                                              advgetopt::conf_file::pointer_t config
     //                                            , std::string const & index_id);
@@ -360,9 +359,13 @@ public:
     schema_table_pointer_t                  get_schema_table() const;
     //compare_t                               compare(schema_secondary_index const & rhs) const;
 
+    schema_version_t                        get_index_definition_version() const;
+    void                                    set_index_definition_version(schema_version_t version);
+    snapdev::timespec_ex                    get_created_on() const; // no set, it gets set on creation of a schema_table object
+    snapdev::timespec_ex                    get_last_updated_on() const;
+    void                                    modified();
     std::string const &                     get_name() const;
     void                                    set_name(std::string const & name);
-
     //flag32_t                                get_flags() const;
     //void                                    set_flags(flag32_t flags);
     bool                                    get_distributed_index() const;
@@ -393,6 +396,9 @@ private:
     //
     std::string                             f_name = std::string();
     std::string                             f_description = std::string();
+    snapdev::timespec_ex                    f_created_on = snapdev::timespec_ex();
+    snapdev::timespec_ex                    f_last_updated_on = snapdev::timespec_ex();
+    schema_version_t                        f_index_definition_version = schema_version_t();
     schema_sort_column::vector_t            f_sort_columns = schema_sort_column::vector_t();
     std::string                             f_filter_script = std::string(); // WHERE <expression>
     //flag32_t                                f_flags = flag32_t();
@@ -445,6 +451,8 @@ public:
     schema_column::map_by_id_t              get_columns_by_id() const;
     schema_column::map_by_name_t            get_columns_by_name() const;
     schema_secondary_index::pointer_t       get_secondary_index(std::string const & name) const;
+    schema_secondary_index::map_by_name_t const &
+                                            get_secondary_indexes() const;
     schema_complex_type::pointer_t          get_complex_type(std::string const & name) const;
 
     std::string const &                     get_description() const;

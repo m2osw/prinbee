@@ -48,14 +48,24 @@ class prinbeed;
 
 struct payload_t
 {
-    typedef std::shared_ptr<payload_t>      pointer_t;
+    typedef std::shared_ptr<payload_t>                      pointer_t;
+    typedef std::map<std::uint32_t, payload_t::pointer_t>   map_t; // map by message serial number
 
     ed::connection::pointer_t               f_peer = ed::connection::pointer_t();
     prinbee::binary_message::pointer_t      f_message = prinbee::binary_message::pointer_t();
     int                                     f_stage = 0;
     cluck::cluck::pointer_t                 f_lock = cluck::cluck::pointer_t();
+    prinbee::binary_message::map_t          f_acknowledgment_messages = prinbee::binary_message::map_t();
+    cppthread::mutex                        f_mutex = cppthread::mutex();
 
     void                                    send_message(prinbee::binary_message::pointer_t msg);
+    void                                    add_message_to_acknowledge(
+                                                  std::uint32_t serial_number
+                                                , prinbee::binary_message::pointer_t msg);
+    void                                    set_acknowledged_by(
+                                                  std::uint32_t serial_number
+                                                , ed::connection::pointer_t peer);
+    prinbee::binary_message::pointer_t      get_acknowledged_message();
 };
 
 

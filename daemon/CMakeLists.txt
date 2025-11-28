@@ -31,8 +31,11 @@ add_executable(${PROJECT_NAME}
     messenger.cpp
     node_client.cpp
     node_listener.cpp
+    ping_pong_timer.cpp
     prinbee_worker.cpp
     prinbeed.cpp
+    prinbeed_context.cpp
+    prinbeed_ping_pong.cpp
     proxy_listener.cpp
     worker_pool.cpp
 )

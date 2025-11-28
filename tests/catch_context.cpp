@@ -27,9 +27,9 @@
 #include    <prinbee/database/row.h>
 
 
-// advgetopt
+// snapdev
 //
-#include    <advgetopt/options.h>
+#include    <snapdev/chownnm.h>
 
 
 // C
@@ -44,14 +44,77 @@
 
 
 
-CATCH_TEST_CASE("Context", "[centext]")
+CATCH_TEST_CASE("context", "[context]")
 {
-// TODO: fix this test at some point
+    CATCH_START_SECTION("context: create a context")
+    {
+        // create a new context in memory
+        //
+        prinbee::context_setup setup("test_context");
+        setup.set_user(snapdev::get_user_name());
+        setup.set_group(snapdev::get_group_name());
+        prinbee::context::pointer_t c(prinbee::context::create_context(setup));
+        c->initialize();
 
-std::cerr << "error: ... test not working at the moment ...\n";
+        // to save the context, do an update
+        //
+        prinbee::context_update update;
+        update.set_schema_version(5);
+        //update.set_name("test_context");
+        update.set_description("This is my test context.");
+        c->update(update);
 
-    CATCH_REQUIRE(true);
+        // now verify that we can load that context
+        //
+        prinbee::context::pointer_t l(prinbee::context::create_context(setup));
+        l->initialize();
 
+        CATCH_REQUIRE(l->get_name() == "test_context");
+        CATCH_REQUIRE(l->get_schema_version() == 5);
+        CATCH_REQUIRE(l->get_description() == "This is my test context.");
+        CATCH_REQUIRE(l->get_id() != 0);
+
+        // we cannot know the exact date, but it should be within 2 seconds
+        //
+        snapdev::timespec_ex const created_on(l->get_created_on());
+        snapdev::timespec_ex const now(snapdev::now());
+        snapdev::timespec_ex const diff(now - created_on);
+        CATCH_REQUIRE(diff >= 0.0);
+        CATCH_REQUIRE(diff <= 2.0);
+        CATCH_REQUIRE(created_on == l->get_last_updated_on()); // on creation both dates are the same
+
+        // to save the context, do an update
+        //
+        prinbee::context_update update2;
+        update2.set_schema_version(l->get_schema_version() + 1);
+        //update2.set_name("test_context"); -- this is not implemented yet
+        update2.set_description("Verify that we can update all of that and it works.");
+        c->update(update2);
+
+        // now verify that we can load that context
+        //
+        prinbee::context::pointer_t l2(prinbee::context::create_context(setup));
+        l2->initialize();
+
+        CATCH_REQUIRE(l2->get_name() == "test_context");
+        CATCH_REQUIRE(l2->get_schema_version() == 6);
+        CATCH_REQUIRE(l2->get_description() == "Verify that we can update all of that and it works.");
+        CATCH_REQUIRE(l2->get_id() == l->get_id()); // ID does not change
+
+        // we cannot know the exact date, but it should be within 2 seconds
+        //
+        snapdev::timespec_ex const created_on2(l2->get_created_on());
+        snapdev::timespec_ex const updated_on2(l2->get_last_updated_on());
+        snapdev::timespec_ex const now2(snapdev::now());
+        snapdev::timespec_ex const diff2(now2 - updated_on2);
+        CATCH_REQUIRE(diff2 >= 0.0);
+        CATCH_REQUIRE(diff2 <= 2.0);
+        CATCH_REQUIRE(created_on2 != updated_on2); // on update the dates different
+        CATCH_REQUIRE(created_on2 == created_on); // the creation date did not change
+    }
+    CATCH_END_SECTION()
+
+// TODO: complete the transformation of the test to verify everything
 //    CATCH_START_SECTION("context: create a context")
 //    {
 //        std::vector<std::string> const simple_context =

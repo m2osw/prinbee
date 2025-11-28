@@ -92,6 +92,51 @@ void payload_t::send_message(prinbee::binary_message::pointer_t msg)
 }
 
 
+void payload_t::add_message_to_acknowledge(
+      std::uint32_t serial_number
+    , prinbee::binary_message::pointer_t msg)
+{
+    cppthread::guard lock(f_mutex);
+    auto it(f_acknowledgment_messages.find(serial_number));
+    if(it != f_acknowledgment_messages.end())
+    {
+        // this cannot happen
+        //
+        throw prinbee::logic_error("pingbee_worker: add_message_to_acknowledge() called twice with the same serial number."); // LCOV_EXCL_LINE
+    }
+    f_acknowledgment_messages[serial_number] = msg;
+}
+
+
+void payload_t::set_acknowledged_by(
+      std::uint32_t serial_number
+    , ed::connection::pointer_t peer)
+{
+    cppthread::guard lock(f_mutex);
+    auto it(f_acknowledgment_messages.find(serial_number));
+    if(it == f_acknowledgment_messages.end())
+    {
+        return;
+    }
+    it->second->set_acknowledged_by(peer);
+}
+
+
+prinbee::binary_message::pointer_t payload_t::get_acknowledged_message()
+{
+    cppthread::guard lock(f_mutex);
+    for(auto it(f_acknowledgment_messages.begin()); it != f_acknowledgment_messages.end(); ++it)
+    {
+        if(it->second->get_acknowledged_by() != nullptr)
+        {
+            f_acknowledgment_messages.erase(it);
+            return it->second;
+        }
+    }
+
+    return prinbee::binary_message::pointer_t();
+}
+
 
 /** \class prinbee_worker
  * \brief Handle binary messages from the proxy, direct client, and other nodes.
@@ -163,6 +208,9 @@ bool prinbee_worker::do_work()
     {
     case prinbee::g_message_register:
         return f_prinbeed->register_client(f_payload);
+
+    case prinbee::g_message_acknowledge:
+        return f_prinbeed->acknowledge(f_payload);
 
     case prinbee::g_message_list_contexts:
         return f_prinbeed->list_contexts(f_payload);

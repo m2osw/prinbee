@@ -242,7 +242,10 @@ advgetopt::string_list_t context_manager::get_context_list() const
 }
 
 
-prinbee::context::pointer_t context_manager::create_context(std::string const & name)
+prinbee::context::pointer_t context_manager::create_context(
+      std::string const & name
+    , std::string const & description
+    , bool create)
 {
     context_setup setup(name);
     std::string ownership(get_user());
@@ -255,13 +258,12 @@ prinbee::context::pointer_t context_manager::create_context(std::string const & 
     {
         setup.set_group(ownership);
     }
-    context::pointer_t c(context::create_context(setup));
 
     // now add it to the list making sure it is unique first
     //
     cppthread::guard lock(g_mutex);
 
-    auto it(f_contexts.find(c->get_name()));
+    auto it(f_contexts.find(setup.get_name()));
     if(it != f_contexts.end())
     {
         return it->second;
@@ -269,7 +271,18 @@ prinbee::context::pointer_t context_manager::create_context(std::string const & 
 
     // load/create
     //
+    context::pointer_t c(context::create_context(setup));
     c->initialize();
+
+    // if "create" is true, also write the (new) context to disk
+    //
+    if(create)
+    {
+        context_update update;
+        update.set_schema_version(1);
+        update.set_description(description);
+        c->update(update);
+    }
 
     f_contexts[c->get_name()] = c;
 

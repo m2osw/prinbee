@@ -25,6 +25,11 @@
 #include    <prinbee/network/crc16.h>
 
 
+// eventdispatcher
+//
+#include    <eventdispatcher/connection.h>
+
+
 // advgetopt
 //
 #include    <advgetopt/utils.h>
@@ -129,19 +134,23 @@ constexpr message_name_t        g_message_acknowledge       = create_message_nam
 constexpr message_name_t        g_message_error             = create_message_name("ERR");
 constexpr message_name_t        g_message_get_complex_types = create_message_name("GCTP");
 constexpr message_name_t        g_message_get_context       = create_message_name("GCTX");
+constexpr message_name_t        g_message_get_data          = create_message_name("GET");
 constexpr message_name_t        g_message_get_index         = create_message_name("GIDX");
 constexpr message_name_t        g_message_get_table         = create_message_name("GTBL");
 constexpr message_name_t        g_message_list_contexts     = create_message_name("LCTX");
 constexpr message_name_t        g_message_list_indexes      = create_message_name("LIDX");
 constexpr message_name_t        g_message_list_tables       = create_message_name("LTBL");
+constexpr message_name_t        g_message_lock              = create_message_name("LOCK");
 constexpr message_name_t        g_message_ping              = create_message_name("PING");
 constexpr message_name_t        g_message_pong              = create_message_name("PONG");
 constexpr message_name_t        g_message_register          = create_message_name("REG");
-constexpr message_name_t        g_message_success           = create_message_name("SCCS");
 constexpr message_name_t        g_message_set_complex_types = create_message_name("SCTP");
 constexpr message_name_t        g_message_set_context       = create_message_name("SCTX");
+constexpr message_name_t        g_message_set_data          = create_message_name("SET");
 constexpr message_name_t        g_message_set_index         = create_message_name("SIDX");
 constexpr message_name_t        g_message_set_table         = create_message_name("STBL");
+constexpr message_name_t        g_message_synchronize       = create_message_name("SYNC");
+constexpr message_name_t        g_message_transaction       = create_message_name("TRAN");
 
 
 std::string message_name_to_string(message_name_t name);
@@ -158,6 +167,7 @@ enum class err_code_t : std::uint32_t
     ERR_CODE_LOCK,
     ERR_CODE_PROTOCOL_UNSUPPORTED,
     ERR_CODE_TIME_DIFFERENCE_TOO_LARGE,
+    ERR_CODE_UNEXPECTED_VERSION,
 };
 
 
@@ -212,6 +222,24 @@ struct msg_acknowledge_t
     message_name_t          f_message_name = g_message_unknown;
     std::uint32_t           f_serial_number = 0;
     std::uint32_t           f_phase = 0;
+};
+
+
+/** \brief The pong message data.
+ *
+ * When sending a PING message, we expect to receive a PONG back. The
+ * PONG includes the serial number of the PING. That way you can
+ * make sure that all the PONG messages you receive back match
+ * the PING messages you sent.
+ *
+ * The Proxy uses the PING / PONG messages to gather stats about the
+ * pinged computers. That gives the Proxy a chance to send messages to
+ * the least busy computer (when there is a choice of doing so).
+ */
+struct msg_pong_t
+{
+    std::uint32_t           f_ping_serial_number = 0;
+    double                  f_loadavg_1min = 0.0;
 };
 
 
@@ -280,6 +308,48 @@ struct msg_context_t
     context_id_t            f_context_id = 0;                           // defined by server when creating a context; unique among all contexts within a cluster
     snapdev::timespec_ex    f_created_on = snapdev::timespec_ex();      // set when creating a context
     snapdev::timespec_ex    f_last_updated_on = snapdev::timespec_ex(); // set when updating a context (ALTER CONTEXT ... -> SCTX)
+    std::uint32_t           f_table_count = 0;                          // the number of tables in this context
+};
+
+enum phase_context_t : std::uint32_t
+{
+    //PHASE_CONTEXT_JOURNALED,        // local user journaled -- do we want such?! I think for schema related commands, it either works or doesn't
+    //PHASE_CONTEXT_PROXY,            // proxy journaled
+    PHASE_CONTEXT_RECEIVED,         // daemon received
+    PHASE_CONTEXT_SAVED,            // daemon saved the data successfully
+    PHASE_CONTEXT_SYNCING,          // daemon synchronized one or more other nodes
+    PHASE_CONTEXT_INCOMPLETE,       // all live daemons are synchronized
+    PHASE_CONTEXT_COMPLETE,         // 100% of the daemons are synchronized
+};
+
+
+struct msg_synchronization_table_t
+{
+    typedef std::list<msg_synchronization_table_t>      list_t;
+
+    std::string             f_table_name = std::string();
+    snapdev::timespec_ex    f_table_last_updated_on = snapdev::timespec_ex();
+};
+
+
+struct msg_synchronization_index_t
+{
+    typedef std::list<msg_synchronization_index_t>      list_t;
+
+    std::string             f_index_name = std::string();
+    snapdev::timespec_ex    f_index_last_updated_on = snapdev::timespec_ex();
+};
+
+
+struct msg_synchronization_t
+{
+    std::string             f_context_name = std::string();
+    snapdev::timespec_ex    f_context_last_updated_on = snapdev::timespec_ex();
+    snapdev::timespec_ex    f_complex_types_last_updated_on = snapdev::timespec_ex();
+    msg_synchronization_table_t::list_t
+                            f_tables = msg_synchronization_table_t::list_t();
+    msg_synchronization_index_t::list_t
+                            f_indexes = msg_synchronization_index_t::list_t();
 };
 
 
@@ -320,6 +390,7 @@ class binary_message
 {
 public:
     typedef std::shared_ptr<binary_message>                 pointer_t;
+    typedef std::map<std::uint32_t, pointer_t>              map_t;
 
     // for our cheap dispatcher like code
     //
@@ -335,6 +406,8 @@ public:
 
     void                        set_name(message_name_t name);
     message_name_t              get_name() const;
+    void                        set_acknowledged_by(ed::connection::pointer_t peer);
+    ed::connection::pointer_t   get_acknowledged_by() const;
 
     static std::size_t          get_message_header_size();
     void                        set_message_header_data(void const * data, std::size_t size);
@@ -354,10 +427,13 @@ public:
                                 get_data() const;
     void const *                get_either_pointer(std::size_t & size) const;
 
-    void                        create_acknowledge_message(pointer_t original_message, std::uint32_t phase = 0);
+    void                        create_acknowledge_message(pointer_t original_message, std::uint32_t phase);
     bool                        deserialize_acknowledge_message(msg_acknowledge_t & ack);
     void                        create_error_message(pointer_t original_message, err_code_t code, std::string const & error_message);
     bool                        deserialize_error_message(msg_error_t & err);
+    void                        create_ping_message();
+    void                        create_pong_message(binary_message::pointer_t ping_message);
+    bool                        deserialize_pong_message(msg_pong_t & pong);
     void                        create_register_message(std::string const & name, std::string const & protocol_version);
     bool                        deserialize_register_message(msg_register_t & r);
     void                        create_list_contexts_message(advgetopt::string_list_t const & list);
@@ -372,7 +448,7 @@ private:
         message_version_t       f_version = g_binary_message_version;   // 1 to 255
         std::uint8_t            f_flags = 0;
         message_name_t          f_name = g_message_unknown;
-        std::int64_t            f_created_on = 0;
+        std::int64_t            f_created_on = 0;                       // this is a timespec_ex converted to an int64_t (i.e. timespec_ex cannot be in a bare struct we can copy with memcpy)
         std::uint32_t           f_serial_number = 0;                    // to match a reply to the original message (i.e. ACK and ERR especially)
         std::uint32_t           f_size = 0;                             // size of following data
         crc16_t                 f_data_crc16 = 0;                       // following data CRC16
@@ -382,6 +458,7 @@ private:
     header_t                    f_header = header_t();
     void *                      f_data = nullptr;
     std::vector<std::uint8_t>   f_buffer = std::vector<std::uint8_t>();
+    ed::connection::pointer_t   f_acknowledged_by = ed::connection::pointer_t();
 };
 
 

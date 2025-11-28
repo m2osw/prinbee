@@ -70,6 +70,7 @@ public:
 
     void                                load_file(std::string const & filename, bool required);
     void                                add_buffer(block::pointer_t b, std::uint64_t offset, std::uint64_t size);
+    void                                save_file(std::string const & filename);
 
     bool                                modified() const;
     std::size_t                         count_buffers() const;

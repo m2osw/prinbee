@@ -46,7 +46,7 @@ namespace SNAP_CATCH2_NAMESPACE
 
 
 
-std::string setup_context(std::string const & path, std::vector<std::string> const & xmls);
+//std::string setup_context(std::string const & path, std::vector<std::string> const & xmls);
 
 
 

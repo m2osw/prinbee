@@ -1994,6 +1994,7 @@ uint512_t structure::get_large_uinteger(std::string const & field_name) const
     case struct_type_t::STRUCT_TYPE_BITS256:
     case struct_type_t::STRUCT_TYPE_BITS512:
     case struct_type_t::STRUCT_TYPE_MAGIC:
+    case struct_type_t::STRUCT_TYPE_NSTIME:
     case struct_type_t::STRUCT_TYPE_REFERENCE:
     case struct_type_t::STRUCT_TYPE_OID:
     case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
@@ -2060,22 +2061,23 @@ void structure::set_large_uinteger(std::string const & field_name, uint512_t con
 
     switch(f->type())
     {
-    case struct_type_t::STRUCT_TYPE_BITS8:
-    case struct_type_t::STRUCT_TYPE_BITS16:
-    case struct_type_t::STRUCT_TYPE_BITS32:
-    case struct_type_t::STRUCT_TYPE_BITS64:
     case struct_type_t::STRUCT_TYPE_BITS128:
+    case struct_type_t::STRUCT_TYPE_BITS16:
     case struct_type_t::STRUCT_TYPE_BITS256:
+    case struct_type_t::STRUCT_TYPE_BITS32:
     case struct_type_t::STRUCT_TYPE_BITS512:
+    case struct_type_t::STRUCT_TYPE_BITS64:
+    case struct_type_t::STRUCT_TYPE_BITS8:
+    case struct_type_t::STRUCT_TYPE_NSTIME:
     case struct_type_t::STRUCT_TYPE_OID:
     case struct_type_t::STRUCT_TYPE_REFERENCE:
-    case struct_type_t::STRUCT_TYPE_UINT8:
-    case struct_type_t::STRUCT_TYPE_UINT16:
-    case struct_type_t::STRUCT_TYPE_UINT32:
-    case struct_type_t::STRUCT_TYPE_UINT64:
     case struct_type_t::STRUCT_TYPE_UINT128:
+    case struct_type_t::STRUCT_TYPE_UINT16:
     case struct_type_t::STRUCT_TYPE_UINT256:
+    case struct_type_t::STRUCT_TYPE_UINT32:
     case struct_type_t::STRUCT_TYPE_UINT512:
+    case struct_type_t::STRUCT_TYPE_UINT64:
+    case struct_type_t::STRUCT_TYPE_UINT8:
     case struct_type_t::STRUCT_TYPE_VERSION:
         f_buffer->pwrite(value.f_value, f->size(), f->offset());
         break;

@@ -163,6 +163,42 @@ void virtual_buffer::add_buffer(block::pointer_t b, std::uint64_t offset, std::u
 }
 
 
+void virtual_buffer::save_file(std::string const & filename)
+{
+    // if the buffer was not modified, do not save again
+    //
+    if(!f_modified)
+    {
+        return;
+    }
+
+    std::ofstream out;
+    out.open(filename, std::ios::out | std::ios::binary);
+    if(!out.is_open())
+    {
+        throw io_error(
+                  "could not open file \""
+                + filename
+                + "\" for writing.");
+    }
+
+    for(auto data : f_buffers)
+    {
+        out.write(reinterpret_cast<char *>(data.f_data.data()), data.f_size);
+    }
+
+    if(out.bad())
+    {
+        throw io_error(
+                  "I/O error writing to file \""
+                + filename
+                + "\".");
+    }
+
+    f_modified = false;
+}
+
+
 bool virtual_buffer::modified() const
 {
     return f_modified;
@@ -616,7 +652,10 @@ SNAP_LOG_ERROR << "--- perase CASE 11 -- delete inside of block: offset=" << off
         it = next;
     }
 
-    f_modified = bytes_erased != 0;
+    if(!f_modified && bytes_erased != 0)
+    {
+        f_modified = true;
+    }
     return bytes_erased;
 }
 

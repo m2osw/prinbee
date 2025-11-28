@@ -566,6 +566,12 @@ binary_client::~binary_client()
 }
 
 
+addr::addr const & binary_client::get_remote_address() const
+{
+    return f_remote_address;
+}
+
+
 void binary_client::send_message(binary_message::pointer_t msg)
 {
     if(!is_done() && f_impl != nullptr)

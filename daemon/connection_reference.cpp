@@ -24,6 +24,12 @@
 #include    "prinbeed.h"
 
 
+// prinbee
+//
+#include    <prinbee/network/binary_client.h>
+#include    <prinbee/network/binary_server_client.h>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
@@ -52,7 +58,9 @@ namespace prinbee_daemon
 
 
 
-connection_reference::connection_reference()
+connection_reference::connection_reference(ed::connection::pointer_t c, connection_type_t t)
+    : f_connection_type(t)
+    , f_connection(c)
 {
 }
 
@@ -62,27 +70,58 @@ connection_reference::~connection_reference()
 }
 
 
-void connection_reference::set_name(std::string const & name)
+connection_type_t connection_reference::get_connection_type() const
 {
-    f_name = name;
+    return f_connection_type;
 }
 
 
-std::string const & connection_reference::get_name() const
-{
-    return f_name;
-}
+//void connection_reference::set_name(std::string const & name)
+//{
+//    f_name = name;
+//}
+//
+//
+//std::string const & connection_reference::get_name() const
+//{
+//    return f_name;
+//}
 
 
-void connection_reference::set_connection(ed::connection::pointer_t connection)
-{
-    f_connection = connection;
-}
+//void connection_reference::set_connection(ed::connection::pointer_t connection)
+//{
+//    f_connection = connection;
+//}
 
 
 ed::connection::pointer_t connection_reference::get_connection() const
 {
     return f_connection;
+}
+
+
+addr::addr connection_reference::get_remote_address() const
+{
+    {
+        prinbee::binary_server_client::pointer_t c(std::dynamic_pointer_cast<prinbee::binary_server_client>(f_connection));
+        if(c != nullptr)
+        {
+            return c->get_remote_address();
+        }
+    }
+
+    {
+        prinbee::binary_client::pointer_t c(std::dynamic_pointer_cast<prinbee::binary_client>(f_connection));
+        if(c != nullptr)
+        {
+            return c->get_remote_address();
+        }
+    }
+
+    // the following should never happen since we know of all the possible
+    // types of clients
+    //
+    throw prinbee::logic_error("could not determine peer to retrieve its IP address."); // LCOV_EXCL_LINE
 }
 
 
@@ -95,6 +134,40 @@ void connection_reference::set_protocol(versiontheca::versiontheca::pointer_t pr
 versiontheca::versiontheca::pointer_t connection_reference::get_protocol() const
 {
     return f_protocol;
+}
+
+
+void connection_reference::set_expected_ping(std::uint32_t serial_number)
+{
+    f_ping_serial_number = serial_number;
+}
+
+
+std::uint32_t connection_reference::get_expected_ping()
+{
+    return f_ping_serial_number;
+}
+
+
+bool connection_reference::has_expected_ping(std::uint32_t serial_number)
+{
+    if(f_ping_serial_number == serial_number)
+    {
+        // got a match, reset these numbers
+        //
+        f_ping_serial_number = 0;
+        f_no_pong_answer = 0;
+
+        return true;
+    }
+
+    return false;
+}
+
+
+std::uint32_t connection_reference::increment_no_pong_answer()
+{
+    return ++f_no_pong_answer;
 }
 
 

@@ -342,8 +342,30 @@ struct_description_t g_sort_column[] =
 };
 
 
-struct_description_t g_table_secondary_index[] =
+struct_description_t g_secondary_index_description[] =
 {
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_magic)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::FILE_TYPE_SCHEMA))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName(g_system_field_name_structure_version)
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(1, 0)
+    ),
+    define_description(
+          FieldName(g_name_prinbee_fld_schema_version)
+        , FieldType(struct_type_t::STRUCT_TYPE_UINT32) // just a number from 1 to ~4 billion
+    ),
+    define_description(
+          FieldName(g_name_prinbee_fld_created_on)
+        , FieldType(struct_type_t::STRUCT_TYPE_NSTIME)
+    ),
+    define_description(
+          FieldName(g_name_prinbee_fld_last_updated_on)
+        , FieldType(struct_type_t::STRUCT_TYPE_NSTIME)
+    ),
     define_description(
           FieldName(g_name_prinbee_fld_name)
         , FieldType(struct_type_t::STRUCT_TYPE_P8STRING)
@@ -462,11 +484,11 @@ struct_description_t g_table_description[] =
         , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
         , FieldSubDescription(g_column_reference)
     ),
-    define_description(
-          FieldName(g_name_prinbee_fld_secondary_indexes)
-        , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
-        , FieldSubDescription(g_table_secondary_index)
-    ),
+    //define_description(
+    //      FieldName(g_name_prinbee_fld_secondary_indexes)
+    //    , FieldType(struct_type_t::STRUCT_TYPE_ARRAY16)
+    //    , FieldSubDescription(g_table_secondary_index) -- renamed g_secondary_index_description
+    //),
     end_descriptions()
 };
 
@@ -1763,13 +1785,14 @@ void schema_sort_column::set_key_script(std::string const & script)
 
 schema_secondary_index::schema_secondary_index(schema_table::pointer_t t)
     : f_schema_table(t)
+    , f_structure(std::make_shared<structure>(g_secondary_index_description))
 {
 }
 
 
-void schema_secondary_index::from_binary(structure::pointer_t s)
+void schema_secondary_index::from_binary(virtual_buffer::pointer_t b)
 {
-    f_structure = s;
+    f_structure->set_virtual_buffer(b, 0);
 
     f_name = f_structure->get_string(g_name_prinbee_fld_name);
     //f_flags = f_structure->get_uinteger(g_name_prinbee_fld_flags);
@@ -1960,6 +1983,61 @@ schema_table::pointer_t schema_secondary_index::get_schema_table() const
 //}
 
 
+schema_version_t schema_secondary_index::get_index_definition_version() const
+{
+    return f_index_definition_version;
+}
+
+
+/** \brief Set the version of the index definition.
+ *
+ * This function is used only internally to set the version of the index
+ * definition.
+ *
+ * \todo
+ * THE BELOW PARAGRAPH IS INCORRECT; the ALTER INDEX ... command is
+ * actually expected to send the `version + 1` value so we can properly
+ * synchronize the versions when doing an update in the prinbee daemon.
+ *
+ * By default, index definitions are assigned version 1 on a read. However,
+ * it may later be determined that this is an updated version of the
+ * definition for a given index. In that case, the index knows what its
+ * current version is (i.e. the latest version of the index definitions in
+ * that index folder). Using that version + 1 is going to determine the new
+ * definition version for this index and that's what gets assigned here.
+ *
+ * \param[in] version  The new index definition version.
+ */
+void schema_secondary_index::set_index_definition_version(schema_version_t version)
+{
+    if(f_index_definition_version != version)
+    {
+        f_index_definition_version = version;
+        f_structure->set_uinteger(g_name_prinbee_fld_schema_version, f_index_definition_version);
+        //modified(); -- I think this is not necessary on this one
+    }
+}
+
+
+snapdev::timespec_ex schema_secondary_index::get_created_on() const
+{
+    return f_created_on;
+}
+
+
+snapdev::timespec_ex schema_secondary_index::get_last_updated_on() const
+{
+    return f_last_updated_on;
+}
+
+
+void schema_secondary_index::modified()
+{
+    f_last_updated_on = snapdev::now();
+    f_structure->set_nstime(g_name_prinbee_fld_last_updated_on, f_last_updated_on);
+}
+
+
 std::string const & schema_secondary_index::get_name() const
 {
     return f_name;
@@ -1972,7 +2050,7 @@ void schema_secondary_index::set_name(std::string const & name)
     {
         f_name = name;
         f_structure->set_string(g_name_prinbee_fld_name, name);
-        get_schema_table()->modified();
+        modified();
     }
 }
 
@@ -1988,7 +2066,7 @@ void schema_secondary_index::set_distributed_index(bool distributed)
     if(get_distributed_index() != distributed)
     {
         f_structure->set_bits("flags.distributed", distributed ? 1 : 0);
-        get_schema_table()->modified();
+        modified();
     }
 }
 
@@ -2004,7 +2082,7 @@ void schema_secondary_index::set_unique_index(bool unique)
     if(get_unique_index() != unique)
     {
         f_structure->set_bits("flags.unique", unique ? 1 : 0);
-        get_schema_table()->modified();
+        modified();
     }
 }
 
@@ -2020,7 +2098,7 @@ void schema_secondary_index::set_distinct_nulls(bool distinct_nulls)
     if(get_distinct_nulls() != distinct_nulls)
     {
         f_structure->set_bits("flags.nulls", distinct_nulls ? 0 : 1);
-        get_schema_table()->modified();
+        modified();
     }
 }
 
@@ -2037,7 +2115,7 @@ void schema_secondary_index::set_filter_script(std::string const & filter_script
     {
         f_filter_script = filter_script;
         f_structure->set_string(g_name_prinbee_fld_filter_script, filter_script);
-        get_schema_table()->modified();
+        modified();
     }
 }
 
@@ -2070,6 +2148,10 @@ void schema_secondary_index::add_sort_column(schema_sort_column::pointer_t)
 {
     throw not_yet_implemented("add_sort_column() -- need to implement that correctly...");
 }
+
+
+
+
 
 
 
@@ -2877,17 +2959,20 @@ void schema_table::from_binary(virtual_buffer::pointer_t b)
         }
     }
 
-    {
-        auto const field(f_structure->get_field(g_name_prinbee_fld_secondary_indexes));
-        auto const max(field->size());
-        for(std::remove_const<decltype(max)>::type idx(0); idx < max; ++idx)
-        {
-            schema_secondary_index::pointer_t secondary_index(std::make_shared<schema_secondary_index>(shared_from_this()));
-            secondary_index->from_binary((*field)[idx]);
-
-            f_secondary_indexes[secondary_index->get_name()] = secondary_index;
-        }
-    }
+    // at first I associated secondary indexes with a specific table;
+    // now indexes are independent entities that can reference multiple tables
+    // so they are loaded separately
+    //{
+    //    auto const field(f_structure->get_field(g_name_prinbee_fld_secondary_indexes));
+    //    auto const max(field->size());
+    //    for(std::remove_const<decltype(max)>::type idx(0); idx < max; ++idx)
+    //    {
+    //        schema_secondary_index::pointer_t secondary_index(std::make_shared<schema_secondary_index>(shared_from_this()));
+    //        secondary_index->from_binary((*field)[idx]);
+    //
+    //        f_secondary_indexes[secondary_index->get_name()] = secondary_index;
+    //    }
+    //}
 
     {
         auto field(f_structure->get_field(g_name_prinbee_fld_columns));
@@ -3485,6 +3570,17 @@ schema_secondary_index::pointer_t schema_table::get_secondary_index(std::string 
     }
 
     return schema_secondary_index::pointer_t();
+}
+
+
+/** \brief Get the complete list of indexes.
+ *
+ * This function returns the map of all the existing indexes in this
+ * table. This is useful to implement the SHOW INDEX command.
+ */
+schema_secondary_index::map_by_name_t const & schema_table::get_secondary_indexes() const
+{
+    return f_secondary_indexes;
 }
 
 

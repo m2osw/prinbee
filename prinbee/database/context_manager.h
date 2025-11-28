@@ -58,7 +58,10 @@ public:
     static std::string          get_group();
 
     advgetopt::string_list_t    get_context_list() const;
-    context::pointer_t          create_context(std::string const & name);
+    context::pointer_t          create_context(
+                                      std::string const & name
+                                    , std::string const & description = std::string()
+                                    , bool create = false);
     context::pointer_t          get_context(std::string const & name) const;
 
 private:

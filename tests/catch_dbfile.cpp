@@ -65,6 +65,7 @@ bool is_valid_type(prinbee::dbtype_t type)
     case prinbee::dbtype_t::FILE_TYPE_TABLE:
     case prinbee::dbtype_t::FILE_TYPE_INDEX:
     case prinbee::dbtype_t::FILE_TYPE_BLOOM_FILTER:
+    case prinbee::dbtype_t::FILE_TYPE_INDEX_DESCRIPTION:
     case prinbee::dbtype_t::FILE_TYPE_SCHEMA:
     case prinbee::dbtype_t::FILE_TYPE_PRIMARY_INDEX:
     case prinbee::dbtype_t::FILE_TYPE_COMPLEX_TYPE:

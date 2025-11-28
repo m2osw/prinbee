@@ -65,6 +65,7 @@ public:
 
     //bool                        has_input() const;
     //bool                        has_output() const;
+    addr::addr const &          get_remote_address() const;
     void                        send_message(binary_message::pointer_t msg);
     binary_message::callback_manager_t::callback_id_t
                                 add_message_callback(

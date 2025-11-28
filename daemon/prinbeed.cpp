@@ -181,10 +181,35 @@
  * * node_listener -- listen for connections from another prinbeed
  * * proxy_listener -- listen for connections from a proxy
  * * direct_listener -- listen for connections directly from a client
- * * prinbee::binary_server_client -- binary connection (prinbeed, proxy, or client)
+ * * prinbee::binary_server_client -- binary connection (prinbeed [direct],
+ *                                    proxy, or client)
  *
  * The prinbee::binary_server_client gets used for incoming connections
  * from node_listener, proxy_listener, direct_listener.
+ *
+ * \code
+ *     +----------+
+ *     | prinbeed |  node with IP > than this prinbeed
+ *     |  (node)  |
+ *     +----+-----+
+ *          |
+ *          v
+ *     +----------+                             +---------+
+ *     |          |<----------------------------+  proxy  |
+ *     | prinbeed |                             +---------+
+ *     |  (this)  |              +---------+         ^
+ *     |          |<-------------+ client  +---------+
+ *     +----+-----+              +---------+
+ *          |
+ *          v
+ *     +----------+
+ *     | prinbeed |  node with IP < than this prindbeed
+ *     |  (node)  |
+ *     +----------+
+ * \endcode
+ *
+ * The prinbeed nodes auto-connect to each other through their binary
+ * connection using a scheme similar to the communicator daemon.
  */
 
 
@@ -237,7 +262,6 @@
 // snapdev
 //
 #include    <snapdev/gethostname.h>
-//#include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/stringize.h>
 //#include    <snapdev/tokenize_string.h>
 #include    <snapdev/to_lower.h>
@@ -439,6 +463,7 @@ advgetopt::options_environment const g_options_environment =
  */
 prinbeed::prinbeed(int argc, char * argv[])
     : f_opts(g_options_environment)
+    , f_start_date(snapdev::now())
 {
     snaplogger::add_logger_options(f_opts);
 
@@ -530,6 +555,18 @@ void prinbeed::finish_initialization()
     // communicator daemon
     //
     f_messenger->finish_parsing();
+
+    // initialize the ping pong timer
+    //
+    std::int64_t ping_pong_interval(5 * 1'000'000);  // send a PING to other nodes every 5 seconds
+    if(f_opts.is_defined("ping_pong_interval"))
+    {
+        // minimum is 1 second and maximum 1 hour
+        //
+        ping_pong_interval = std::clamp(f_opts.get_long("ping_pong_interval"), 1L, 60L * 60L) * 1'000'000;
+    }
+    f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
+    f_communicator->add_connection(f_ping_pong_timer);
 
     // initialize the worker threads
     //
@@ -1060,7 +1097,7 @@ void prinbeed::connect_to_node(addr::addr const & a, std::string const & name)
     // it does not send the REG message to the other side, which we do
     // just after
     //
-    register_connection(n);
+    connection_reference::pointer_t ref(register_connection(n, connection_type_t::CONNECTION_TYPE_NODE));
 
     // send a REG, we expect an ACK or ERR as a reply
     //
@@ -1070,17 +1107,18 @@ void prinbeed::connect_to_node(addr::addr const & a, std::string const & name)
         , prinbee::g_name_prinbee_protocol_version_node);
     n->send_message(register_msg);
 
-    expect_acknowledgment(register_msg);
+    payload_t::pointer_t payload(std::make_shared<payload_t>());
+    payload->f_peer = ref->get_connection();
+    payload->f_message = register_msg;
+
+    expect_acknowledgment(payload, register_msg);
 }
 
 
-connection_reference::pointer_t prinbeed::register_connection(ed::connection::pointer_t c)
+connection_reference::pointer_t prinbeed::register_connection(ed::connection::pointer_t c, connection_type_t t)
 {
-    connection_reference::pointer_t ref(std::make_shared<connection_reference>());
-    std::string const & name(c->get_name());
-    ref->set_name(name);
-    ref->set_connection(c);
-    f_connection_reference[name] = ref;
+    connection_reference::pointer_t ref(std::make_shared<connection_reference>(c, t));
+    f_connection_references.push_back(ref);
     return ref;
 }
 
@@ -1094,40 +1132,33 @@ connection_reference::pointer_t prinbeed::register_connection(ed::connection::po
  *
  * If an error occurs, the reply will be an ERR (error) instead.
  *
+ * \param[in] payload  The payload that expects an acknowledgment.
  * \param[in] msg  The message expecting a reply.
  */
-void prinbeed::expect_acknowledgment(prinbee::binary_message::pointer_t msg)
+void prinbeed::expect_acknowledgment(
+      payload_t::pointer_t payload
+    , prinbee::binary_message::pointer_t msg)
 {
-    f_expected_acknowledgment[msg->get_serial_number()] = msg;
+    payload->add_message_to_acknowledge(msg->get_serial_number(), msg);
+
+    cppthread::guard lock(f_mutex);
+    f_expected_acknowledgment[msg->get_serial_number()] = payload;
 }
 
 
-// if we need it I'll add it, right now it doesn't get called
-//connection_reference::pointer_t prinbeed::find_reference_connection(ed::connection::pointer_t connection)
+//connection_reference::pointer_t prinbeed::find_connection(std::string const & name)
 //{
-//    auto it(f_connection_reference.find(c->get_name()));
-//    if(it == f_connection_reference.end())
+//    auto it(f_connection_references.find(name));
+//    if(it == f_connection_references.end())
 //    {
-//        return connection_reference::pointer_t();
+//        throw prinbee::logic_error(
+//              "connection reference \""
+//            + name
+//            + "\" not found.");
 //    }
 //
 //    return it->second;
 //}
-
-
-connection_reference::pointer_t prinbeed::find_connection(std::string const & name)
-{
-    auto it(f_connection_reference.find(name));
-    if(it == f_connection_reference.end())
-    {
-        throw prinbee::logic_error(
-              "connection reference \""
-            + name
-            + "\" not found.");
-    }
-
-    return it->second;
-}
 
 
 bool prinbeed::msg_error(
@@ -1180,30 +1211,7 @@ void prinbeed::send_message(
 }
 
 
-bool prinbeed::msg_ping(
-      ed::connection::pointer_t peer
-    , prinbee::binary_message::pointer_t msg)
-{
-    snapdev::NOT_USED(msg);
-
-    prinbee::binary_message::pointer_t pong(std::make_shared<prinbee::binary_message>());
-    pong->set_name(prinbee::g_message_pong);
-    send_message(peer, pong);
-
-    return true;
-}
-
-
-bool prinbeed::msg_pong(
-      ed::connection::pointer_t peer
-    , prinbee::binary_message::pointer_t msg)
-{
-    snapdev::NOT_USED(peer, msg);
-    return true;
-}
-
-
-bool prinbeed::msg_process_workload(
+bool prinbeed::msg_process_payload(
       ed::connection::pointer_t peer
     , prinbee::binary_message::pointer_t msg)
 {
@@ -1214,6 +1222,12 @@ bool prinbeed::msg_process_workload(
     f_worker_pool->push_back(payload);
 
     return true;
+}
+
+
+void prinbeed::push_payload(payload_t::pointer_t payload)
+{
+    f_worker_pool->push_back(payload);
 }
 
 
@@ -1271,138 +1285,66 @@ bool prinbeed::register_client(payload_t::pointer_t payload)
 
     payload->f_peer->set_name(r.f_name);
 
-    connection_reference::pointer_t ref(register_connection(payload->f_peer));
+    connection_reference::pointer_t ref(register_connection(payload->f_peer, connection_type_t::CONNECTION_TYPE_NODE));
     ref->set_protocol(their_protocol);
 
-    send_acknowledgment(payload);
+    send_acknowledgment(payload, 0);
 
     return true;
 }
 
 
-void prinbeed::send_acknowledgment(payload_t::pointer_t payload)
+bool prinbeed::acknowledge(payload_t::pointer_t payload)
 {
-    prinbee::binary_message::pointer_t acknowledge_msg(std::make_shared<prinbee::binary_message>());
-    acknowledge_msg->create_acknowledge_message(payload->f_message);
-    payload->send_message(acknowledge_msg);
-}
-
-
-bool prinbeed::list_contexts(payload_t::pointer_t payload)
-{
-    // there is nothing for us to deserialize
-    //prinbee::msg_list_context_t l;
-    //if(!payload.f_message->deserialize_list_context_message(l))
-    //{
-    //    return false; // LCOV_EXCL_LINE
-    //}
-
-    advgetopt::string_list_t const list(f_context_manager->get_context_list());
-    payload->f_message->create_list_contexts_message(list);
-    payload->send_message(payload->f_message);
-
-    return false;
-}
-
-
-bool prinbeed::get_context(payload_t::pointer_t payload)
-{
-    prinbee::msg_context_t c;
-    if(!payload->f_message->deserialize_context_message(c))
+    prinbee::msg_acknowledge_t ack;
+    if(!payload->f_message->deserialize_acknowledge_message(ack))
     {
-        return false; // LCOV_EXCL_LINE
-    }
-
-    return false;
-}
-
-
-bool prinbeed::set_context(payload_t::pointer_t payload)
-{
-    prinbee::msg_context_t c;
-    if(!payload->f_message->deserialize_context_message(c))
-    {
-        return false; // LCOV_EXCL_LINE
-    }
-
-    // the context name may have up to 3 pre-segments; we need to
-    // extract the name itself
-    //
-    prinbee::context_setup cs;
-    try
-    {
-        cs.set_name(c.f_context_name);
-    }
-    catch(prinbee::invalid_parameter const & e)
-    {
-        prinbee::binary_message::pointer_t error_msg(std::make_shared<prinbee::binary_message>());
-        error_msg->create_error_message(
-              payload->f_message
-            , prinbee::err_code_t::ERR_CODE_INVALID_PARAMETERS
-            , std::string("invalid context name: ")
-            + e.what());
-        payload->send_message(error_msg);
         return true;
     }
 
-    // get the canonicalized name
-    //
-    c.f_context_name = cs.get_name();
-
-    switch(payload->f_stage)
+    payload_t::pointer_t other_payload;
     {
-    case 0:
-        // we need to obtain a lock first
+        cppthread::guard lock(f_mutex);
+        auto it(f_expected_acknowledgment.find(ack.f_serial_number));
+        if(it == f_expected_acknowledgment.end())
         {
-            payload->f_stage = 1;
-            std::string lock_name("context::");
-            lock_name += c.f_context_name;
-            obtain_cluster_lock(payload, lock_name);
+            return true;
         }
-        break;
-
-    case 1:
-        {
-            // we obtained the "context::<name>" lock, go ahead and handle the changes
-            //
-            prinbee::context::pointer_t context(f_context_manager->get_context(c.f_context_name));
-            if(context != nullptr)
-            {
-                // context exists, do an update if the serial number is correct
-                // (i.e. changes are accepted only if the existing context
-                // version + 1 is equal to the version in 'c'; if not, then
-                // two set_context() happened "simultaneously" and we ignore
-                // the second one with an error or the version is 1 meaning that
-                // the IF NOT EXISTS was used.)
-                //
-                
-            }
-            else
-            {
-                // the context does not exist, create it now
-                //
-            }
-
-            // next make sure that all the other nodes are also updated
-            // with the same changes
-            //
-            payload->f_stage = 2;
-        }
-        break;
-
-    case 2:
-        payload->f_stage = 3;
-        break;
-
-    case 3:
-        // done with the lock now
-        //
-        release_cluster_lock(payload);
-        break;
-
+        other_payload = it->second;
+        f_expected_acknowledgment.erase(it);
     }
+    other_payload->set_acknowledged_by(ack.f_serial_number, payload->f_peer);
+    push_payload(other_payload);
 
-    return false;
+    return true;
+}
+
+
+connection_reference::pointer_t prinbeed::find_connection_reference(ed::connection::pointer_t c)
+{
+    // TBD: if this is the only find() we need, we should instead create
+    //      a map based on the connection pointer
+    //
+    auto it(std::find_if(
+          f_connection_references.begin()
+        , f_connection_references.end()
+        , [&c](auto const & ref)
+        {
+            return ref->get_connection() == c;
+        }));
+    if(it == f_connection_references.end())
+    {
+        return connection_reference::pointer_t();
+    }
+    return *it;
+}
+
+
+void prinbeed::send_acknowledgment(payload_t::pointer_t payload, std::uint32_t phase)
+{
+    prinbee::binary_message::pointer_t acknowledge_msg(std::make_shared<prinbee::binary_message>());
+    acknowledge_msg->create_acknowledge_message(payload->f_message, phase);
+    payload->send_message(acknowledge_msg);
 }
 
 
@@ -1435,23 +1377,33 @@ void prinbeed::stop(bool quitting)
 
     if(f_node_listener != nullptr)
     {
-        f_communicator->add_connection(f_node_listener);
+        f_communicator->remove_connection(f_node_listener);
         f_node_listener.reset();
     }
 
     if(f_proxy_listener != nullptr)
     {
-        f_communicator->add_connection(f_proxy_listener);
+        f_communicator->remove_connection(f_proxy_listener);
         f_proxy_listener.reset();
     }
 
     if(f_direct_listener != nullptr)
     {
-        f_communicator->add_connection(f_direct_listener);
+        f_communicator->remove_connection(f_direct_listener);
         f_direct_listener.reset();
     }
 
+    if(f_ping_pong_timer != nullptr)
+    {
+        f_communicator->remove_connection(f_ping_pong_timer);
+        f_ping_pong_timer.reset();
+    }
+
 // TODO: also close all the node_client connections
+//
+// TODO: also stop the worker threads (that is, we need to stop adding more
+//       work and once the FIFO is empty & all the threads are waiting we
+//       can then stop the whole thing...)
 }
 
 
