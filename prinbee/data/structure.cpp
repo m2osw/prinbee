@@ -189,9 +189,13 @@ constexpr field_sizes_t const g_struct_type_sizes[] =
     [static_cast<int>(struct_type_t::STRUCT_TYPE_P16STRING)]            = { VARIABLE_SIZE,                2 },
     [static_cast<int>(struct_type_t::STRUCT_TYPE_P32STRING)]            = { VARIABLE_SIZE,                4 },
     [static_cast<int>(struct_type_t::STRUCT_TYPE_STRUCTURE)]            = { VARIABLE_SIZE,                0 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UNION)]                = { VARIABLE_SIZE,                0 },
     [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY8)]               = { VARIABLE_SIZE,                1 },
     [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY16)]              = { VARIABLE_SIZE,                2 },
     [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY32)]              = { VARIABLE_SIZE,                4 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UNION_ARRAY8)]         = { VARIABLE_SIZE,                1 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UNION_ARRAY16)]        = { VARIABLE_SIZE,                2 },
+    [static_cast<int>(struct_type_t::STRUCT_TYPE_UNION_ARRAY32)]        = { VARIABLE_SIZE,                4 },
     [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER8)]              = { VARIABLE_SIZE,                1 },
     [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER16)]             = { VARIABLE_SIZE,                2 },
     [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER32)]             = { VARIABLE_SIZE,                4 },
@@ -1242,12 +1246,6 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
             not_found.set_parameter("full_field_name", field_name);
             throw not_found;
         }
-        // LCOV_EXCL_START
-        catch(...)
-        {
-            throw;
-        }
-        // LCOV_EXCL_STOP
         if(*e == '='
         || *e == '\0')
         {
@@ -1268,6 +1266,7 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
         switch(f->type())
         {
         case struct_type_t::STRUCT_TYPE_STRUCTURE:
+        case struct_type_t::STRUCT_TYPE_UNION:
             break;
 
         case struct_type_t::STRUCT_TYPE_BITS8:
@@ -1278,9 +1277,8 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
         case struct_type_t::STRUCT_TYPE_BITS256:
         case struct_type_t::STRUCT_TYPE_BITS512:
             // the sub-name is not a field name, it's a flag name in this case
-            //
             {
-                flag_definition::pointer_t flag(f->find_flag_definition(e + 1));
+                snapdev::NOT_USED(f->find_flag_definition(e + 1));
                 if(type != struct_type_t::STRUCT_TYPE_END
                 && f->type() != type)
                 {
@@ -1298,7 +1296,7 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
             throw type_mismatch(
                       "field \""
                     + sub_field_name
-                    + "\" is not of type structure or bit field so you can't"
+                    + "\" is not of type structure, union, or bit field so you can't"
                       " get a sub-field (i.e. have a period in the name).");
 
         }
@@ -1311,7 +1309,7 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
         {
             // LCOV_EXCL_START
             throw invalid_size(
-                      "a structure requires a sub_structure vector of size 1 (got "
+                      "structures and unions require a sub_structure vector of size 1 (got "
                     + std::to_string(f->sub_structures().size())
                     + " instead).");
             // LCOV_EXCL_STOP
@@ -3073,6 +3071,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             break;
 
         case struct_type_t::STRUCT_TYPE_STRUCTURE:
+        case struct_type_t::STRUCT_TYPE_UNION:
             // here f_size is a count, not a byte size
             //
             // note that some of the fields within the structure may be
@@ -3084,6 +3083,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             break;
 
         case struct_type_t::STRUCT_TYPE_ARRAY8:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY8:
             // here f_size is a count, not a byte size
             //
             f->add_flags(field_t::FIELD_FLAG_VARIABLE_SIZE);
@@ -3099,6 +3099,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             break;
 
         case struct_type_t::STRUCT_TYPE_ARRAY16:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY16:
             // here f_size is a count, not a byte size
             //
             f->add_flags(field_t::FIELD_FLAG_VARIABLE_SIZE);
@@ -3114,6 +3115,7 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
             break;
 
         case struct_type_t::STRUCT_TYPE_ARRAY32:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY32:
             // here f_size is a count, not a byte size
             //
             f->add_flags(field_t::FIELD_FLAG_VARIABLE_SIZE);
@@ -3157,17 +3159,208 @@ std::uint64_t structure::parse_descriptions(std::uint64_t offset) const
                         + "\" has its \"f_sub_description\" field set to a pointer when its type does not allow it.");
             }
 
-            if(def->f_type != struct_type_t::STRUCT_TYPE_RENAMED)
+            switch(def->f_type)
             {
-                pointer_t me(const_cast<structure *>(this)->shared_from_this());
-                f->sub_structures().reserve(f->size());
-                for(size_t idx(0); idx < f->size(); ++idx)
+            case struct_type_t::STRUCT_TYPE_STRUCTURE:
+            case struct_type_t::STRUCT_TYPE_ARRAY8:
+            case struct_type_t::STRUCT_TYPE_ARRAY16:
+            case struct_type_t::STRUCT_TYPE_ARRAY32:
                 {
-                    pointer_t s(std::make_shared<structure>(def->f_sub_description, me));
-                    s->set_virtual_buffer(f_buffer, offset);
-                    offset = s->parse_descriptions(offset);
-                    f->sub_structures().push_back(s);
+                    pointer_t me(const_cast<structure *>(this)->shared_from_this());
+                    f->sub_structures().reserve(f->size());
+                    for(size_t idx(0); idx < f->size(); ++idx)
+                    {
+                        pointer_t s(std::make_shared<structure>(def->f_sub_description, me));
+                        s->set_virtual_buffer(f_buffer, offset);
+                        offset = s->parse_descriptions(offset);
+                        f->sub_structures().push_back(s);
+                    }
                 }
+                break;
+
+            case struct_type_t::STRUCT_TYPE_UNION:
+            case struct_type_t::STRUCT_TYPE_UNION_ARRAY8:
+            case struct_type_t::STRUCT_TYPE_UNION_ARRAY16:
+            case struct_type_t::STRUCT_TYPE_UNION_ARRAY32:
+                {
+                    pointer_t me(const_cast<structure *>(this)->shared_from_this());
+                    f->sub_structures().reserve(f->size());
+                    for(size_t idx(0); idx < f->size(); ++idx)
+                    {
+                        // a union definition is a NULL terminated array
+                        // of structure definitions; we use the very first
+                        // definition to determine the union type which must
+                        // be using an integer type
+                        //
+                        struct_description_t const * const * union_descriptions(reinterpret_cast<struct_description_t const * const *>(def->f_sub_description));
+                        if(union_descriptions[0] == nullptr)
+                        {
+                            throw logic_error(
+                                      "union field \""
+                                    + field_name
+                                    + "\" has no definitions.");
+                        }
+                        if(strcmp(union_descriptions[0]->f_field_name, g_system_field_name_union_selector) != 0)
+                        {
+                            throw logic_error(
+                                      "first sub-field of union field \""
+                                    + field_name
+                                    + "\" is not named \""
+                                    + g_system_field_name_union_selector
+                                    + "\".");
+                        }
+                        switch(union_descriptions[0]->f_type) // the offset is going to be updated by the sub-description we select so no need to do that here
+                        {
+                        case struct_type_t::STRUCT_TYPE_INT8:
+                        case struct_type_t::STRUCT_TYPE_UINT8:
+                            //offset += 1;
+                            break;
+
+                        case struct_type_t::STRUCT_TYPE_INT16:
+                        case struct_type_t::STRUCT_TYPE_UINT16:
+                            //offset += 2;
+                            break;
+
+                        case struct_type_t::STRUCT_TYPE_INT32:
+                        case struct_type_t::STRUCT_TYPE_UINT32:
+                            //offset += 4;
+                            break;
+
+                        default:
+                            throw logic_error(
+                                      "union field \""
+                                    + field_name
+                                    + "\" has a definition which does not start with one of INT8, UINT8, INT16, UINT16, INT32, or UINT32.");
+
+                        }
+
+                        if(f_buffer != nullptr)
+                        {
+                            // if the buffer is defined, search for the corresponding
+                            // union definition, but first make sure the buffer is
+                            // the right size
+                            //
+                            if(f_buffer->count_buffers() != 0
+                            && offset > f_buffer->size())
+                            {
+                                throw corrupted_data(
+                                          "field \""
+                                        + field_name
+                                        + "\" is too large for the specified data buffer.");
+                            }
+
+                            std::uint32_t union_selector(0);
+                            switch(f->type())
+                            {
+                            case struct_type_t::STRUCT_TYPE_INT8:
+                            case struct_type_t::STRUCT_TYPE_UINT8:
+                                {
+                                    std::uint8_t value(0);
+                                    f_buffer->pread(&value, sizeof(value), offset);
+                                    union_selector = value;
+                                }
+                                break;
+
+                            case struct_type_t::STRUCT_TYPE_INT16:
+                            case struct_type_t::STRUCT_TYPE_UINT16:
+                                {
+                                    std::uint16_t value(0);
+                                    f_buffer->pread(&value, sizeof(value), offset);
+                                    union_selector = value;
+                                }
+                                break;
+
+                            case struct_type_t::STRUCT_TYPE_INT32:
+                            case struct_type_t::STRUCT_TYPE_UINT32:
+                                {
+                                    std::uint32_t value(0);
+                                    f_buffer->pread(&value, sizeof(value), offset);
+                                    union_selector = value;
+                                }
+                                break;
+
+                            default:
+                                throw logic_error(
+                                          "type of union field \""
+                                        + field_name
+                                        + "\" mishandled type.");
+
+                            }
+
+                            for(; union_descriptions[0] != nullptr; ++union_descriptions)
+                            {
+                                if(union_descriptions[0]->f_default_value == nullptr)
+                                {
+                                    throw logic_error(
+                                              "union field \""
+                                            + field_name
+                                            + "\" selector must have a default value.");
+                                }
+                                if(strcmp(union_descriptions[0]->f_field_name, g_system_field_name_union_selector) != 0)
+                                {
+                                    throw logic_error(
+                                              "sub-field of union field \""
+                                            + field_name
+                                            + "\" is not named \""
+                                            + g_system_field_name_union_selector
+                                            + "\".");
+                                }
+                                std::int64_t selector(0);
+                                if(!advgetopt::validator_integer::convert_string(union_descriptions[0]->f_default_value, selector))
+                                {
+                                    throw invalid_number(
+                                          "union selector \""
+                                        + std::string(union_descriptions[0]->f_default_value)
+                                        + "\" from union field \""
+                                        + field_name
+                                        + "\" is not a valid integer.");
+                                }
+                                if(selector == union_selector)
+                                {
+                                    goto found;
+                                }
+                            }
+                            throw type_not_found(
+                                  "union selector \""
+                                + std::string(union_descriptions[0]->f_default_value)
+                                + "\" from union field \""
+                                + field_name
+                                + "\" was not found in the available union definitions.");
+found:;
+                        }
+                        // else -- use entry [0] since we do not yet have a buffer
+
+                        // TODO: here we attach one specific definition,
+                        //       if the user wants to use a different type
+                        //       then the whole parsing needs to be redone
+                        //       for that union definition--I'm wondering
+                        //       whether the parser should allow for all
+                        //       the be parsed; but then we'd get different
+                        //       offsets and that is not going to work for
+                        //       us here... at the same time, each time the
+                        //       user changes the type selector of a union
+                        //       it forces us to reparse to properly
+                        //       regenerate the correct offsets of the
+                        //       entire structure (well, from the union down)
+                        //
+                        pointer_t s(std::make_shared<structure>(union_descriptions[0], me));
+                        s->set_virtual_buffer(f_buffer, offset);
+                        offset = s->parse_descriptions(offset);
+                        f->sub_structures().push_back(s);
+                    }
+                }
+                break;
+
+            case struct_type_t::STRUCT_TYPE_RENAMED:
+                // that pointer is the new name
+                break;
+
+            default:
+                throw logic_error(
+                          "field \""
+                        + field_name
+                        + "\" is defined has supporting a \"f_sub_description\" field but it's not handled in this switch.");
+
             }
         }
         else if(has_sub_defs)

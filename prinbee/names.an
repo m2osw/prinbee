@@ -9,6 +9,8 @@ cmd_interconnect=INTERCONNECT
 cmd_prinbee_client_listener=PRINBEE_CLIENT_LISTENER
 cmd_prinbee_current_status=PRINBEE_CURRENT_STATUS
 cmd_prinbee_get_status=PRINBEE_GET_STATUS
+cmd_prinbee_proxy_current_status=PRINBEE_PROXY_CURRENT_STATUS
+cmd_prinbee_proxy_get_status=PRINBEE_PROXY_GET_STATUS
 cmd_prinbee_server_listener=PRINBEE_SERVER_LISTENER
 
 # message parameters

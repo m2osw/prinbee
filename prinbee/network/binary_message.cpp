@@ -268,9 +268,16 @@ message_name_t binary_message::get_name() const
 }
 
 
-void binary_message::set_acknowledged_by(ed::connection::pointer_t peer)
+void binary_message::set_acknowledged_by(ed::connection::pointer_t peer, bool success)
 {
     f_acknowledged_by = peer;
+    f_acknowledged_success = success;
+}
+
+
+bool binary_message::get_acknowledged_success() const
+{
+    return f_acknowledged_success;
 }
 
 

@@ -119,6 +119,7 @@ namespace prinbee
 
 constexpr char const * const    g_system_field_name_magic = "_magic";
 constexpr char const * const    g_system_field_name_structure_version = "_structure_version";
+constexpr char const * const    g_system_field_name_union_selector = "_union_selector";
 
 constexpr   std::uint16_t                   STRUCTURE_VERSION_MAJOR = 0;
 constexpr   std::uint16_t                   STRUCTURE_VERSION_MINOR = 1;
@@ -412,14 +413,23 @@ enum class struct_type_t : std::uint16_t
     STRUCT_TYPE_P32STRING,          // UINT32 for size
 
     STRUCT_TYPE_STRUCTURE,          // one sub-structure (i.e. to access use "foo.blah")
+    STRUCT_TYPE_UNION,              // one sub-union (i.e. to access use "foo.blah" where the availability of "blah" depends on the union type)
 
-    // array items get accessed with "foo[index]" (child structure has 1 field) and "foo[index].blah"
-    // and to get the count use the hash character "#foo"
+    // array items get accessed with "foo[index]" when child structure has
+    // 1 field, otherwise "foo[index].blah"
+    //
+    // to get the count use the hash character "#foo"
+    //
     STRUCT_TYPE_ARRAY8,             // UINT8 for count
     STRUCT_TYPE_ARRAY16,            // UINT16 for count
     STRUCT_TYPE_ARRAY32,            // UINT32 for count
+    STRUCT_TYPE_UNION_ARRAY8,       // UINT8 for count
+    STRUCT_TYPE_UNION_ARRAY16,      // UINT16 for count
+    STRUCT_TYPE_UNION_ARRAY32,      // UINT32 for count
 
-    // buffers are an equivalent to uint8_t arrays, no need for a sub-structure description
+    // buffers are an equivalent to uint8_t array of bytes
+    // no need for a sub-structure description
+    //
     STRUCT_TYPE_BUFFER8,            // UINT8 for count
     STRUCT_TYPE_BUFFER16,           // UINT16 for count
     STRUCT_TYPE_BUFFER32,           // UINT32 for count
@@ -560,9 +570,30 @@ public:
 };
 
 
+class FieldSubUnion
+    : public snapdev::StructureValue<struct_description_t const **>
+{
+public:
+    constexpr FieldSubUnion()
+        : snapdev::StructureValue<struct_description_t const **>(nullptr)
+    {
+    }
+
+    constexpr FieldSubUnion(struct_description_t const ** sub_description)
+        : snapdev::StructureValue<struct_description_t const **>(sub_description)
+    {
+    }
+};
+
+
 template<class ...ARGS>
 constexpr struct_description_t define_description(ARGS ...args)
 {
+    // we may have a sub-description or a sub-union
+    //
+    struct_description_t const * sub_description = snapdev::find_field<FieldSubDescription>(args..., FieldSubDescription());
+    struct_description_t const ** sub_union = snapdev::find_field<FieldSubUnion>(args..., FieldSubUnion());
+
     struct_description_t s =
     {
         .f_field_name =          snapdev::find_field<FieldName          >(args...),        // no default, mandatory
@@ -572,17 +603,19 @@ constexpr struct_description_t define_description(ARGS ...args)
         .f_default_value =       snapdev::find_field<FieldDefaultValue  >(args..., FieldDefaultValue()),
         .f_min_version =         snapdev::find_field<FieldVersion       >(args..., FieldVersion()).min(),
         .f_max_version =         snapdev::find_field<FieldVersion       >(args..., FieldVersion()).max(),
-        .f_sub_description =     snapdev::find_field<FieldSubDescription>(args..., FieldSubDescription()),
+        .f_sub_description =     sub_description != nullptr
+                                    ? sub_description
+                                    : static_cast<struct_description_t const *>(static_cast<void *>(sub_union)),
     };
 
-    // TODO: once possible (C++17/20?) add verification tests here
-
     // whether a sub-description is allowed or not varies depending on the type
+    //
     constexpr std::uint32_t FIELD_MUST_HAVE_A_NAME              = 0x0001;
     constexpr std::uint32_t FIELD_MUST_HAVE_SUB_DESCRIPTION     = 0x0002;
-    constexpr std::uint32_t FIELD_MUST_HAVE_VERSION             = 0x0004;
-    constexpr std::uint32_t FIELD_IS_A_BIT_FIELD                = 0x0008;
-    constexpr std::uint32_t FIELD_IS_A_CHAR_FIELD               = 0x0010;
+    constexpr std::uint32_t FIELD_MUST_HAVE_SUB_UNION           = 0x0004;
+    constexpr std::uint32_t FIELD_MUST_HAVE_VERSION             = 0x0008;
+    constexpr std::uint32_t FIELD_IS_A_BIT_FIELD                = 0x0010;
+    constexpr std::uint32_t FIELD_IS_A_CHAR_FIELD               = 0x0020;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -664,12 +697,20 @@ constexpr struct_description_t define_description(ARGS ...args)
             FIELD_MUST_HAVE_A_NAME,
         [static_cast<int>(struct_type_t::STRUCT_TYPE_STRUCTURE)] =
             FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_DESCRIPTION,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UNION)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_UNION,
         [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY8)] =
             FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_DESCRIPTION,
         [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY16)] =
             FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_DESCRIPTION,
         [static_cast<int>(struct_type_t::STRUCT_TYPE_ARRAY32)] =
             FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_DESCRIPTION,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UNION_ARRAY8)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_UNION,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UNION_ARRAY16)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_UNION,
+        [static_cast<int>(struct_type_t::STRUCT_TYPE_UNION_ARRAY32)] =
+            FIELD_MUST_HAVE_A_NAME | FIELD_MUST_HAVE_SUB_UNION,
         [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER8)] =
             FIELD_MUST_HAVE_A_NAME,
         [static_cast<int>(struct_type_t::STRUCT_TYPE_BUFFER16)] =
@@ -759,16 +800,33 @@ constexpr struct_description_t define_description(ARGS ...args)
     //
     if((verifications[static_cast<int>(s.f_type)] & FIELD_MUST_HAVE_SUB_DESCRIPTION) == 0)
     {
-        if(s.f_sub_description != nullptr)
+        if(sub_description != nullptr)
         {
             throw invalid_parameter("this structure field cannot have a sub-description field.");
         }
     }
     else
     {
-        if(s.f_sub_description == nullptr)
+        if(sub_description == nullptr)
         {
             throw invalid_parameter("this structure field must have a sub-description field.");
+        }
+    }
+
+    // SUB_UNION
+    //
+    if((verifications[static_cast<int>(s.f_type)] & FIELD_MUST_HAVE_SUB_UNION) == 0)
+    {
+        if(sub_union != nullptr)
+        {
+            throw invalid_parameter("this structure field cannot have a sub-union field.");
+        }
+    }
+    else
+    {
+        if(sub_union == nullptr)
+        {
+            throw invalid_parameter("this structure field must have a sub-union field.");
         }
     }
 
@@ -976,19 +1034,21 @@ public:
     long double                             get_float128(std::string const & field_name) const;
     void                                    set_float128(std::string const & field_name, long double value);
 
-    // strings/buffers
+    // strings
     std::string                             get_string(std::string const & field_name) const;
     void                                    set_string(std::string const & field_name, std::string const & value);
 
     structure::pointer_t                    get_structure(std::string const & field_name) const;
     //void                                    set_structure(std::string const & field_name, pointer_t & value);
 
+    // arrays
     structure::vector_t const &             get_array(std::string const & field_name) const;
     structure::vector_t &                   get_array(std::string const & field_name);
     //void                                    set_array(std::string const & field_name, vector_t const & value);
     structure::pointer_t                    new_array_item(std::string const & field_name);
     void                                    delete_array_item(std::string const & field_name, int idx);
 
+    // buffers
     buffer_t                                get_buffer(std::string const & field_name) const;
     void                                    set_buffer(std::string const & field_name, buffer_t const & value);
 

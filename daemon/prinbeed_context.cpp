@@ -297,14 +297,14 @@ bool prinbeed::set_context(payload_t::pointer_t payload)
 
         for(auto const & ref : f_connection_references)
         {
-            //ed::connection::pointer_t connection(ref->get_connection());
-            connection_type_t const type(ref->get_connection_type());
+            //ed::connection::pointer_t connection(ref.second->get_connection());
+            connection_type_t const type(ref.second->get_connection_type());
             if(type == connection_type_t::CONNECTION_TYPE_NODE)
             {
                 prinbee::binary_message::pointer_t set_context_msg(std::make_shared<prinbee::binary_message>());
                 set_context_msg->create_context_message(c);
                 expect_acknowledgment(payload, set_context_msg); // you must call this before the send_message()
-                send_message(ref->get_connection(), set_context_msg);
+                send_message(ref.second->get_connection(), set_context_msg);
             }
         }
 
@@ -316,6 +316,10 @@ bool prinbeed::set_context(payload_t::pointer_t payload)
             prinbee::binary_message::pointer_t msg(payload->get_acknowledged_message());
             ed::connection::pointer_t peer(msg->get_acknowledged_by());
             connection_reference::pointer_t ref(find_connection_reference(peer));
+
+            // got all the ACK messages, move on to stage 4
+            //
+            payload->f_stage = 4;
         }
         break;
 

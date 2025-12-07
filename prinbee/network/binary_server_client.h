@@ -43,8 +43,9 @@ class binary_server_client
 {
 public:
     typedef std::shared_ptr<binary_server_client>       pointer_t;
-    //typedef std::function<bool(binary_message & msg)>   callback_t;
-    //typedef snapdev::callback_manager<callback_t>       callback_manager_t;
+    //typedef std::vector<pointer_t>                      vector_t;
+    typedef std::map<binary_server_client *, pointer_t> map_t;
+    typedef std::function<void(pointer_t)>              callback_t;
 
                                 binary_server_client(ed::tcp_bio_client::pointer_t client);
                                 binary_server_client(binary_server_client const &) = delete;
@@ -58,6 +59,7 @@ public:
                                       message_name_t name
                                     , binary_message::callback_t callback
                                     , binary_message::callback_manager_t::priority_t priority = binary_message::callback_manager_t::DEFAULT_PRIORITY);
+    void                        set_disconnected_callback(callback_t callback);
 
     // ed::tcp_server_client_connection implementation
     //
@@ -65,7 +67,9 @@ public:
     virtual bool                is_writer() const override;
     virtual void                process_read() override;
     virtual void                process_write() override;
+    virtual void                process_error() override;
     virtual void                process_hup() override;
+    virtual void                process_invalid() override;
 
     // new callback
     //
@@ -83,9 +87,11 @@ private:
 
     binary_message::pointer_t   get_binary_message();
     void                        reset_binary_message();
+    void                        signal_error();
 
     binary_message::callback_map_t
                                 f_callback_map = binary_message::callback_map_t();
+    callback_t                  f_disconnected_callback = callback_t();
 
     read_state_t                f_read_state = read_state_t::READ_STATE_HEADER;
     std::vector<char>           f_data = std::vector<char>();

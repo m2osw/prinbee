@@ -127,13 +127,13 @@ void prinbeed::send_pings()
     addr::addr const my_address(f_messenger->get_my_address());
     for(auto const & ref : f_connection_references)
     {
-        connection_type_t const type(ref->get_connection_type());
+        connection_type_t const type(ref.second->get_connection_type());
         if(type == connection_type_t::CONNECTION_TYPE_NODE
-        && ref->get_remote_address() < my_address)
+        && ref.second->get_remote_address() < my_address)
         {
-            if(ref->get_expected_ping() != 0)
+            if(ref.second->get_expected_ping() != 0)
             {
-                std::uint32_t const count(ref->increment_no_pong_answer());
+                std::uint32_t const count(ref.second->increment_no_pong_answer());
                 if(count >= MAX_PING_PONG_FAILURES)
                 {
                     SNAP_LOG_ERROR
@@ -156,8 +156,8 @@ void prinbeed::send_pings()
 
             prinbee::binary_message::pointer_t ping_msg(std::make_shared<prinbee::binary_message>());
             ping_msg->create_ping_message();
-            ref->set_expected_ping(ping_msg->get_serial_number());
-            send_message(ref->get_connection(), ping_msg);
+            ref.second->set_expected_ping(ping_msg->get_serial_number());
+            send_message(ref.second->get_connection(), ping_msg);
         }
     }
 }
@@ -191,9 +191,9 @@ bool prinbeed::msg_pong(
     //
     for(auto const & ref : f_connection_references)
     {
-        connection_type_t const type(ref->get_connection_type());
+        connection_type_t const type(ref.second->get_connection_type());
         if(type == connection_type_t::CONNECTION_TYPE_NODE
-        && ref->has_expected_ping(pong.f_ping_serial_number))
+        && ref.second->has_expected_ping(pong.f_ping_serial_number))
         {
             SNAP_LOG_VERBOSE
                 << "PONG found a corresponding PING request."

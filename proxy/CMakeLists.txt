@@ -23,27 +23,38 @@
 project(prinbee-proxy)
 
 add_executable(${PROJECT_NAME}
-    prinbee-proxy.cpp
+    main.cpp
+
+    connection_reference.cpp
+    daemon.cpp
+    interrupt.cpp
+    listener.cpp
+    messenger.cpp
+    ping_pong_timer.cpp
+    proxy.cpp
+    timeout_timer.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         ${ADVGETOPT_INCLUDE_DIRS}
-        #${COMMUNICATORD_INCLUDE_DIRS}
-        #${CPPPROCESS_INCLUDE_DIRS}
+        ${COMMUNICATORD_INCLUDE_DIRS}
+        ${CPPPROCESS_INCLUDE_DIRS}
         #${CPPTHREAD_INCLUDE_DIRS}
-        #${EVENTDISPATCHER_INCLUDE_DIRS}
-        #${FLUIDSETTINGS_INCLUDE_DIRS}
-        #${LIBADDR_INCLUDE_DIRS}
-        #${LIBEXCEPT_INCLUDE_DIRS}
+        ${EVENTDISPATCHER_INCLUDE_DIRS}
+        ${FLUIDSETTINGS_INCLUDE_DIRS}
+        ${LIBADDR_INCLUDE_DIRS}
+        ${LIBEXCEPT_INCLUDE_DIRS}
         #${LIBUFTF8_INCLUDE_DIRS}
         #${MURMUR3_INCLUDE_DIRS}
-        #${SNAPLOGGER_INCLUDE_DIRS}
+        ${SNAPLOGGER_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}
     prinbee
-    ${ADVGETOPT_LIBRARIES}
+    ${CPPPROCESS_LIBRARIES}
+    ${FLUIDSETTINGS_LIBRARIES}
+    ${VERSIONTHECA_LIBRARIES}
 )
 
 install(

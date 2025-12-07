@@ -17,44 +17,46 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-// self
+// eventdispatcher
 //
-#include    "prinbeed.h"
+#include    <eventdispatcher/signal.h>
 
 
-// prinbee
+// C
 //
-#include    <prinbee/network/binary_client.h>
+#include    <signal.h>
 
 
 
-namespace prinbee_daemon
+namespace prinbee_proxy
 {
 
 
 
-// Note: the node client is a permanent connection so we do not have the
-//       need for a disconnected callback
-//
-class node_client
-    : public prinbee::binary_client
+class proxy;
+
+
+
+class interrupt
+    : public ed::signal
 {
 public:
-    typedef std::shared_ptr<node_client> pointer_t;
+    typedef std::shared_ptr<interrupt>  pointer_t;
 
-                                node_client(prinbeed * p, addr::addr const & a);
-                                node_client(node_client const & rhs) = delete;
-    virtual                     ~node_client() override;
+                                interrupt(proxy * p);
+                                interrupt(interrupt const & rhs) = delete;
+    virtual                     ~interrupt() override;
 
-    node_client &               operator = (node_client const & rhs) = delete;
+    interrupt &                 operator = (interrupt const & rhs) = delete;
 
-    void                        add_callbacks();
+    // ed::connection implementation
+    virtual void                process_signal() override;
 
 private:
-    prinbeed *                  f_prinbeed = nullptr;
+    proxy *                     f_proxy = nullptr;
 };
 
 
 
-} // namespace prinbee_daemon
+} // namespace prinbee_proxy
 // vim: ts=4 sw=4 et

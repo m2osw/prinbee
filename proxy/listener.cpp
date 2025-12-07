@@ -19,9 +19,13 @@
 
 // self
 //
-#include    "direct_listener.h"
+#include    "listener.h"
 
-#include    "prinbeed.h"
+
+
+// prinbee
+//
+#include    <prinbee/network/binary_message.h>
 
 
 // last include
@@ -30,7 +34,7 @@
 
 
 
-namespace prinbee_daemon
+namespace prinbee_proxy
 {
 
 
@@ -56,14 +60,14 @@ namespace prinbee_daemon
  * \param[in] p  The prinbee server we are listening for.
  * \param[in] a  The address to listen on.
  */
-direct_listener::direct_listener(prinbeed * p, addr::addr const & a)
+listener::listener(proxy * p, addr::addr const & a)
     : binary_server(a)
-    , f_prinbeed(p)
+    , f_proxy(p)
 {
 }
 
 
-direct_listener::~direct_listener()
+listener::~listener()
 {
 }
 
@@ -77,31 +81,42 @@ direct_listener::~direct_listener()
  * \param[in] client  The binary server client object that just connected
  * to us.
  */
-void direct_listener::process_new_connection(prinbee::binary_server_client::pointer_t client)
+void listener::process_new_connection(prinbee::binary_server_client::pointer_t client)
 {
     // call the base class version
     //
     binary_server::process_new_connection(client);
 
+    // I don't think clients need to acknowledge anything, the proxy sends
+    // acknowledgment to them though
+    //client->add_message_callback(
+    //      prinbee::g_message_acknowledge
+    //    , std::bind(&proxy::msg_acknowledge, f_proxy, client, std::placeholders::_1));
     client->add_message_callback(
           prinbee::g_message_error
-        , std::bind(&prinbeed::msg_error, f_prinbeed, client, std::placeholders::_1));
+        , std::bind(&proxy::msg_error, f_proxy, client, std::placeholders::_1));
     client->add_message_callback(
           prinbee::g_message_ping
-        , std::bind(&prinbeed::msg_ping, f_prinbeed, client, std::placeholders::_1));
+        , std::bind(&proxy::msg_ping, f_proxy, client, std::placeholders::_1));
+    //client->add_message_callback( -- we reply with a PING, we don't get PONG from clients
+    //      prinbee::g_message_pong
+    //    , std::bind(&proxy::msg_pong, f_proxy, client, std::placeholders::_1));
+    client->add_message_callback(
+          prinbee::g_message_register
+        , std::bind(&proxy::msg_register, f_proxy, client, std::placeholders::_1));
 
-    // messages to send to workers are all sent to the same function
+    // messages to forward to daemons
     //
     client->add_message_callback(
           prinbee::g_message_unknown
-        , std::bind(&prinbeed::msg_process_payload, f_prinbeed, client, std::placeholders::_1));
+        , std::bind(&proxy::msg_forward, f_proxy, client, std::placeholders::_1));
 
-    client->set_disconnected_callback(std::bind(&prinbeed::client_disconnected, f_prinbeed, std::placeholders::_1));
+    client->set_disconnected_callback(std::bind(&proxy::client_disconnected, f_proxy, std::placeholders::_1));
 
-    f_prinbeed->register_connection(client, connection_type_t::CONNECTION_TYPE_NODE);
+    f_proxy->register_client(client);
 }
 
 
 
-} // namespace prinbee_daemon
+} // namespace prinbee_proxy
 // vim: ts=4 sw=4 et

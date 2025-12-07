@@ -61,6 +61,7 @@ typedef std::uint8_t            message_version_t;
 typedef std::uint32_t           message_name_t;
 typedef std::uint32_t           context_id_t;
 typedef std::uint32_t           data_version_t;         // used to make sure schema alterations are sequential
+typedef std::uint32_t           message_serial_t;
 
 
 constexpr message_version_t     g_binary_message_version = 1;
@@ -168,6 +169,7 @@ enum class err_code_t : std::uint32_t
     ERR_CODE_PROTOCOL_UNSUPPORTED,
     ERR_CODE_TIME_DIFFERENCE_TOO_LARGE,
     ERR_CODE_UNEXPECTED_VERSION,
+    ERR_CODE_UNKNOWN_PEER,
 };
 
 
@@ -192,7 +194,7 @@ enum class err_code_t : std::uint32_t
 struct msg_error_t
 {
     message_name_t          f_message_name = g_message_unknown;
-    std::uint32_t           f_serial_number = 0;
+    message_serial_t        f_serial_number = 0;
     err_code_t              f_code = err_code_t::ERR_CODE_NONE;
     std::string             f_error_message = std::string();
 };
@@ -220,7 +222,7 @@ struct msg_error_t
 struct msg_acknowledge_t
 {
     message_name_t          f_message_name = g_message_unknown;
-    std::uint32_t           f_serial_number = 0;
+    message_serial_t        f_serial_number = 0;
     std::uint32_t           f_phase = 0;
 };
 
@@ -238,7 +240,7 @@ struct msg_acknowledge_t
  */
 struct msg_pong_t
 {
-    std::uint32_t           f_ping_serial_number = 0;
+    message_serial_t        f_ping_serial_number = 0;
     double                  f_loadavg_1min = 0.0;
 };
 
@@ -390,7 +392,7 @@ class binary_message
 {
 public:
     typedef std::shared_ptr<binary_message>                 pointer_t;
-    typedef std::map<std::uint32_t, pointer_t>              map_t;
+    typedef std::map<message_serial_t, pointer_t>           map_t;
 
     // for our cheap dispatcher like code
     //
@@ -402,12 +404,13 @@ public:
                                 binary_message(binary_message const &) = delete;
     binary_message &            operator = (binary_message const &) = delete;
 
-    std::uint32_t               get_next_serial_number();
+    message_serial_t            get_next_serial_number();
 
     void                        set_name(message_name_t name);
     message_name_t              get_name() const;
-    void                        set_acknowledged_by(ed::connection::pointer_t peer);
+    void                        set_acknowledged_by(ed::connection::pointer_t peer, bool success);
     ed::connection::pointer_t   get_acknowledged_by() const;
+    bool                        get_acknowledged_success() const;
 
     static std::size_t          get_message_header_size();
     void                        set_message_header_data(void const * data, std::size_t size);
@@ -415,7 +418,7 @@ public:
     bool                        is_message_header_valid() const;
     std::size_t                 get_data_size() const;
     void const *                get_header();
-    std::uint32_t               get_serial_number() const;
+    message_serial_t            get_serial_number() const;
     snapdev::timespec_ex        get_creation_date() const;
 
     bool                        has_data() const;
@@ -449,7 +452,7 @@ private:
         std::uint8_t            f_flags = 0;
         message_name_t          f_name = g_message_unknown;
         std::int64_t            f_created_on = 0;                       // this is a timespec_ex converted to an int64_t (i.e. timespec_ex cannot be in a bare struct we can copy with memcpy)
-        std::uint32_t           f_serial_number = 0;                    // to match a reply to the original message (i.e. ACK and ERR especially)
+        message_serial_t        f_serial_number = 0;                    // to match a reply to the original message (i.e. ACK and ERR especially)
         std::uint32_t           f_size = 0;                             // size of following data
         crc16_t                 f_data_crc16 = 0;                       // following data CRC16
         crc16_t                 f_header_crc16 = 0;                     // CRC16 of this header
@@ -459,6 +462,7 @@ private:
     void *                      f_data = nullptr;
     std::vector<std::uint8_t>   f_buffer = std::vector<std::uint8_t>();
     ed::connection::pointer_t   f_acknowledged_by = ed::connection::pointer_t();
+    bool                        f_acknowledged_success = false;
 };
 
 

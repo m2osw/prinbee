@@ -17,44 +17,19 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-// self
-//
-#include    "prinbeed.h"
 
 
-// prinbee
-//
-#include    <prinbee/network/binary_client.h>
-
-
-
-namespace prinbee_daemon
+namespace prinbee
 {
 
 
 
-// Note: the node client is a permanent connection so we do not have the
-//       need for a disconnected callback
-//
-class node_client
-    : public prinbee::binary_client
-{
-public:
-    typedef std::shared_ptr<node_client> pointer_t;
-
-                                node_client(prinbeed * p, addr::addr const & a);
-                                node_client(node_client const & rhs) = delete;
-    virtual                     ~node_client() override;
-
-    node_client &               operator = (node_client const & rhs) = delete;
-
-    void                        add_callbacks();
-
-private:
-    prinbeed *                  f_prinbeed = nullptr;
-};
+constexpr int const             DIRECT_BINARY_PORT = 4012;  // daemon listen on this port for direct connections from clients (rarely used)
+constexpr int const             NODE_BINARY_PORT = 4011;    // daemon listen on this port for other daemons
+constexpr int const             PROXY_BINARY_PORT = 4010;   // daemon listen on this port for proxies
+constexpr int const             CLIENT_BINARY_PORT = 4013;  // proxy listen on this port for clients
 
 
 
-} // namespace prinbee_daemon
+} // namespace prinbee
 // vim: ts=4 sw=4 et

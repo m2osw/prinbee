@@ -229,6 +229,7 @@
 //
 #include    <prinbee/exception.h>
 #include    <prinbee/names.h>
+#include    <prinbee/network/ports.h>
 #include    <prinbee/version.h>
 
 
@@ -715,7 +716,7 @@ void prinbeed::register_prinbee_daemon(ed::message & msg)
     addr::addr const a(addr::string_to_addr(
                       node_address
                     , std::string()
-                    , NODE_BINARY_PORT));
+                    , prinbee::NODE_BINARY_PORT));
     switch(a.get_network_type())
     {
     case addr::network_type_t::NETWORK_TYPE_PUBLIC:
@@ -965,13 +966,13 @@ void prinbeed::start_binary_connection()
     addr::addr node_address(addr::string_to_addr(
                           f_opts.get_string("node_listen")
                         , std::string()
-                        , NODE_BINARY_PORT));
+                        , prinbee::NODE_BINARY_PORT));
     my_address.set_port(node_address.get_port());
     if(node_address.is_default())
     {
         node_address = my_address;
     }
-    f_node_address = my_address.to_ipv4or6_string(
+    f_node_address = node_address.to_ipv4or6_string(
                           addr::STRING_IP_ADDRESS
                         | addr::STRING_IP_BRACKET_ADDRESS
                         | addr::STRING_IP_PORT);
@@ -979,13 +980,13 @@ void prinbeed::start_binary_connection()
     addr::addr proxy_address(addr::string_to_addr(
                           f_opts.get_string("proxy_listen")
                         , std::string()
-                        , PROXY_BINARY_PORT));
+                        , prinbee::PROXY_BINARY_PORT));
     my_address.set_port(proxy_address.get_port());
     if(proxy_address.is_default())
     {
         proxy_address = my_address;
     }
-    f_proxy_address = my_address.to_ipv4or6_string(
+    f_proxy_address = proxy_address.to_ipv4or6_string(
                           addr::STRING_IP_ADDRESS
                         | addr::STRING_IP_BRACKET_ADDRESS
                         | addr::STRING_IP_PORT);
@@ -993,13 +994,13 @@ void prinbeed::start_binary_connection()
     addr::addr direct_address(addr::string_to_addr(
                           f_opts.get_string("direct_listen")
                         , std::string()
-                        , DIRECT_BINARY_PORT));
+                        , prinbee::DIRECT_BINARY_PORT));
     my_address.set_port(direct_address.get_port());
     if(direct_address.is_default())
     {
         direct_address = my_address;
     }
-    f_direct_address = my_address.to_ipv4or6_string(
+    f_direct_address = direct_address.to_ipv4or6_string(
                           addr::STRING_IP_ADDRESS
                         | addr::STRING_IP_BRACKET_ADDRESS
                         | addr::STRING_IP_PORT);
@@ -1118,8 +1119,35 @@ void prinbeed::connect_to_node(addr::addr const & a, std::string const & name)
 connection_reference::pointer_t prinbeed::register_connection(ed::connection::pointer_t c, connection_type_t t)
 {
     connection_reference::pointer_t ref(std::make_shared<connection_reference>(c, t));
-    f_connection_references.push_back(ref);
+    f_connection_references[c.get()] = ref;
     return ref;
+}
+
+
+void prinbeed::client_disconnected(ed::connection::pointer_t client)
+{
+    auto it(f_connection_references.find(client.get()));
+    if(it != f_connection_references.end())
+    {
+        f_connection_references.erase(it);
+    }
+    else
+    {
+        SNAP_LOG_RECOVERABLE_ERROR
+            << "received a request to disconnect a client when client was not registered."
+            << SNAP_LOG_SEND;
+    }
+}
+
+
+connection_reference::pointer_t prinbeed::find_connection_reference(ed::connection::pointer_t c)
+{
+    auto const it(f_connection_references.find(c.get()));
+    if(it == f_connection_references.end())
+    {
+        return connection_reference::pointer_t();
+    }
+    return it->second;
 }
 
 
@@ -1146,44 +1174,25 @@ void prinbeed::expect_acknowledgment(
 }
 
 
-//connection_reference::pointer_t prinbeed::find_connection(std::string const & name)
-//{
-//    auto it(f_connection_references.find(name));
-//    if(it == f_connection_references.end())
-//    {
-//        throw prinbee::logic_error(
-//              "connection reference \""
-//            + name
-//            + "\" not found.");
-//    }
-//
-//    return it->second;
-//}
-
-
 bool prinbeed::msg_error(
       ed::connection::pointer_t peer
     , prinbee::binary_message::pointer_t msg)
 {
-    std::string name;
-    ed::connection::pointer_t client(std::dynamic_pointer_cast<ed::connection>(peer));
-    if(client == nullptr)
-    {
-        throw prinbee::logic_error("peer is not an eventdispatcher connection, cannot retrieve its name.");
-    }
-    name = client->get_name();
-
     prinbee::msg_error_t err;
     msg->deserialize_error_message(err);
 
     SNAP_LOG_ERROR
-        << name
+        << peer->get_name()
         << ": "
         << err.f_message_name
         << " ("
         << static_cast<int>(err.f_code)
         << ")"
         << SNAP_LOG_SEND;
+
+    // acknowledge failure
+    //
+    process_acknowledgment(peer, err.f_serial_number, false);
 
     return true;
 }
@@ -1302,41 +1311,28 @@ bool prinbeed::acknowledge(payload_t::pointer_t payload)
         return true;
     }
 
-    payload_t::pointer_t other_payload;
-    {
-        cppthread::guard lock(f_mutex);
-        auto it(f_expected_acknowledgment.find(ack.f_serial_number));
-        if(it == f_expected_acknowledgment.end())
-        {
-            return true;
-        }
-        other_payload = it->second;
-        f_expected_acknowledgment.erase(it);
-    }
-    other_payload->set_acknowledged_by(ack.f_serial_number, payload->f_peer);
-    push_payload(other_payload);
+    process_acknowledgment(payload->f_peer, ack.f_serial_number, true);
 
     return true;
 }
 
 
-connection_reference::pointer_t prinbeed::find_connection_reference(ed::connection::pointer_t c)
+void prinbeed::process_acknowledgment(
+      ed::connection::pointer_t peer
+    , prinbee::message_serial_t serial_number
+    , bool success)
 {
-    // TBD: if this is the only find() we need, we should instead create
-    //      a map based on the connection pointer
-    //
-    auto it(std::find_if(
-          f_connection_references.begin()
-        , f_connection_references.end()
-        , [&c](auto const & ref)
-        {
-            return ref->get_connection() == c;
-        }));
-    if(it == f_connection_references.end())
+    cppthread::guard lock(f_mutex);
+    auto it(f_expected_acknowledgment.find(serial_number));
+    if(it == f_expected_acknowledgment.end())
     {
-        return connection_reference::pointer_t();
+        return;
     }
-    return *it;
+    payload_t::pointer_t acknowledged_payload(it->second);
+    f_expected_acknowledgment.erase(it);
+
+    acknowledged_payload->set_acknowledged_by(serial_number, peer, success);
+    push_payload(acknowledged_payload);
 }
 
 

@@ -88,16 +88,11 @@ void node_client::add_callbacks()
     add_message_callback(
           prinbee::g_message_unknown
         , std::bind(&prinbeed::msg_process_payload, f_prinbeed, shared_from_this(), std::placeholders::_1));
-}
 
-
-/** \brief Call the stop function of the prinbeed object.
- *
- * When this function is called, the signal was received and thus we are
- * asked to quit as soon as possible.
- */
-void node_client::process_signal()
-{
+    // Note: the node_client is a permanent connection which does not
+    //       require an auto-disconnect like the listener clients
+    //
+    //client->set_disconnected_callback(std::bind(&prinbeed::client_disconnected, f_prinbeed, std::placeholders::_1));
 }
 
 

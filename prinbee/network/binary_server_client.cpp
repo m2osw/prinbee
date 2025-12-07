@@ -428,15 +428,44 @@ binary_message::callback_manager_t::callback_id_t binary_server_client::add_mess
 }
 
 
-void binary_server_client::process_hup()
+void binary_server_client::set_disconnected_callback(callback_t callback)
 {
-    // this connection is dead...
-    //
+    f_disconnected_callback = callback;
+}
+
+
+void binary_server_client::signal_error()
+{
     close();
 
-    // process next level too
-    //
+    if(f_disconnected_callback != nullptr)
+    {
+        f_disconnected_callback(std::dynamic_pointer_cast<binary_server_client>(shared_from_this()));
+    }
+}
+
+
+void binary_server_client::process_error()
+{
+    tcp_server_client_connection::process_error();
+
+    signal_error();
+}
+
+
+void binary_server_client::process_hup()
+{
     tcp_server_client_connection::process_hup();
+
+    signal_error();
+}
+
+
+void binary_server_client::process_invalid()
+{
+    tcp_server_client_connection::process_invalid();
+
+    signal_error();
 }
 
 

@@ -19,42 +19,44 @@
 
 // self
 //
-#include    "prinbeed.h"
+#include    "proxy.h"
 
 
 // prinbee
 //
-#include    <prinbee/network/binary_client.h>
+#include    <prinbee/network/binary_server.h>
 
 
 
-namespace prinbee_daemon
+namespace prinbee_proxy
 {
 
 
 
-// Note: the node client is a permanent connection so we do not have the
-//       need for a disconnected callback
-//
-class node_client
-    : public prinbee::binary_client
+//#pragma GCC diagnostic push
+//#pragma GCC diagnostic ignored "-Weffc++"
+class listener
+    : public prinbee::binary_server
 {
 public:
-    typedef std::shared_ptr<node_client> pointer_t;
+    typedef std::shared_ptr<listener> pointer_t;
 
-                                node_client(prinbeed * p, addr::addr const & a);
-                                node_client(node_client const & rhs) = delete;
-    virtual                     ~node_client() override;
+                                listener(proxy * p, addr::addr const & a);
+                                listener(listener const & rhs) = delete;
+    virtual                     ~listener() override;
 
-    node_client &               operator = (node_client const & rhs) = delete;
+    listener &                  operator = (listener const & rhs) = delete;
 
-    void                        add_callbacks();
+    // prinbee::binary_server implementation
+    //
+    virtual void                process_new_connection(prinbee::binary_server_client::pointer_t client) override;
 
 private:
-    prinbeed *                  f_prinbeed = nullptr;
+    proxy *                     f_proxy = nullptr;
 };
+//#pragma GCC diagnostic pop
 
 
 
-} // namespace prinbee_daemon
+} // namespace prinbee_proxy
 // vim: ts=4 sw=4 et

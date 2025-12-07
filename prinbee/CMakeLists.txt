@@ -228,6 +228,7 @@ install(
     FILES
         network/consistency.h
         network/crc16.h
+        network/ports.h
 
     DESTINATION
         include/prinbee/network

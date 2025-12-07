@@ -79,12 +79,12 @@ namespace prinbee_daemon
 
 /** \brief The messenger initialization.
  *
- * The messenger is the cluck daemon connection to the communicator server.
+ * The messenger is the Prinbee daemon connection to the communicator server.
  *
- * It sets up its dispatcher and calls prinbeed functions whenever it
+ * It sets up its dispatcher and calls Prinbeed functions whenever it
  * receives a message.
  *
- * \param[in] p  The prinbee object we are listening for (i.e. "daemon").
+ * \param[in] p  The Prinbee object we are listening for (i.e. "daemon").
  * \param[in] opts  The options received from the command line.
  */
 messenger::messenger(prinbeed * p, advgetopt::getopt & opts)

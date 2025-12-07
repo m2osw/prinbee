@@ -110,7 +110,8 @@ void payload_t::add_message_to_acknowledge(
 
 void payload_t::set_acknowledged_by(
       std::uint32_t serial_number
-    , ed::connection::pointer_t peer)
+    , ed::connection::pointer_t peer
+    , bool success)
 {
     cppthread::guard lock(f_mutex);
     auto it(f_acknowledgment_messages.find(serial_number));
@@ -118,7 +119,7 @@ void payload_t::set_acknowledged_by(
     {
         return;
     }
-    it->second->set_acknowledged_by(peer);
+    it->second->set_acknowledged_by(peer, success);
 }
 
 

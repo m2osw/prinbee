@@ -23,12 +23,12 @@
 
 
 
-namespace prinbee_daemon
+namespace prinbee_proxy
 {
 
 
 
-class prinbeed;
+class proxy;
 
 
 class messenger
@@ -37,7 +37,7 @@ class messenger
 public:
     typedef std::shared_ptr<messenger>     pointer_t;
 
-                                messenger(prinbeed * c, advgetopt::getopt & opts);
+                                messenger(proxy * c, advgetopt::getopt & opts);
                                 messenger(messenger const &) = delete;
     virtual                     ~messenger() override;
 
@@ -57,12 +57,15 @@ public:
 
 private:
     void                        msg_ipwall_current_status(ed::message & msg);
+    void                        msg_prinbee_current_status(ed::message & msg);
+    void                        msg_clock_stable(ed::message & msg);
+    void                        msg_clock_unstable(ed::message & msg);
 
-    prinbeed *                  f_prinbeed = nullptr;
+    proxy *                     f_proxy = nullptr;
     ed::dispatcher::pointer_t   f_dispatcher = ed::dispatcher::pointer_t();
 };
 
 
 
-} // namespace prinbee_daemon
+} // namespace prinbee_proxy
 // vim: ts=4 sw=4 et

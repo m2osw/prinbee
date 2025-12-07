@@ -853,9 +853,13 @@ void cell::value_to_binary(buffer_t & buffer) const
     case struct_type_t::STRUCT_TYPE_MAGIC:
     case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
     case struct_type_t::STRUCT_TYPE_STRUCTURE:
+    case struct_type_t::STRUCT_TYPE_UNION:
     case struct_type_t::STRUCT_TYPE_ARRAY8:
     case struct_type_t::STRUCT_TYPE_ARRAY16:
     case struct_type_t::STRUCT_TYPE_ARRAY32:
+    case struct_type_t::STRUCT_TYPE_UNION_ARRAY8:
+    case struct_type_t::STRUCT_TYPE_UNION_ARRAY16:
+    case struct_type_t::STRUCT_TYPE_UNION_ARRAY32:
     case struct_type_t::STRUCT_TYPE_BUFFER8:
     case struct_type_t::STRUCT_TYPE_BUFFER16:
     case struct_type_t::STRUCT_TYPE_BUFFER32:
@@ -1069,9 +1073,13 @@ void cell::value_from_binary(buffer_t const & buffer, std::size_t & pos)
     case struct_type_t::STRUCT_TYPE_MAGIC:
     case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
     case struct_type_t::STRUCT_TYPE_STRUCTURE:
+    case struct_type_t::STRUCT_TYPE_UNION:
     case struct_type_t::STRUCT_TYPE_ARRAY8:
     case struct_type_t::STRUCT_TYPE_ARRAY16:
     case struct_type_t::STRUCT_TYPE_ARRAY32:
+    case struct_type_t::STRUCT_TYPE_UNION_ARRAY8:
+    case struct_type_t::STRUCT_TYPE_UNION_ARRAY16:
+    case struct_type_t::STRUCT_TYPE_UNION_ARRAY32:
     case struct_type_t::STRUCT_TYPE_BUFFER8:
     case struct_type_t::STRUCT_TYPE_BUFFER16:
     case struct_type_t::STRUCT_TYPE_BUFFER32:
@@ -1149,9 +1157,13 @@ void cell::copy_from(cell const & source)
         case struct_type_t::STRUCT_TYPE_MAGIC:
         case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
         case struct_type_t::STRUCT_TYPE_STRUCTURE:
+        case struct_type_t::STRUCT_TYPE_UNION:
         case struct_type_t::STRUCT_TYPE_ARRAY8:
         case struct_type_t::STRUCT_TYPE_ARRAY16:
         case struct_type_t::STRUCT_TYPE_ARRAY32:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY8:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY16:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY32:
         case struct_type_t::STRUCT_TYPE_BUFFER8:
         case struct_type_t::STRUCT_TYPE_BUFFER16:
         case struct_type_t::STRUCT_TYPE_BUFFER32:
@@ -1232,9 +1244,13 @@ void cell::copy_from(cell const & source)
         case struct_type_t::STRUCT_TYPE_MAGIC:
         case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
         case struct_type_t::STRUCT_TYPE_STRUCTURE:
+        case struct_type_t::STRUCT_TYPE_UNION:
         case struct_type_t::STRUCT_TYPE_ARRAY8:
         case struct_type_t::STRUCT_TYPE_ARRAY16:
         case struct_type_t::STRUCT_TYPE_ARRAY32:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY8:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY16:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY32:
         case struct_type_t::STRUCT_TYPE_BUFFER8:
         case struct_type_t::STRUCT_TYPE_BUFFER16:
         case struct_type_t::STRUCT_TYPE_BUFFER32:
@@ -1331,9 +1347,13 @@ void cell::copy_from(cell const & source)
         case struct_type_t::STRUCT_TYPE_MAGIC:
         case struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION:
         case struct_type_t::STRUCT_TYPE_STRUCTURE:
+        case struct_type_t::STRUCT_TYPE_UNION:
         case struct_type_t::STRUCT_TYPE_ARRAY8:
         case struct_type_t::STRUCT_TYPE_ARRAY16:
         case struct_type_t::STRUCT_TYPE_ARRAY32:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY8:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY16:
+        case struct_type_t::STRUCT_TYPE_UNION_ARRAY32:
         case struct_type_t::STRUCT_TYPE_BUFFER8:
         case struct_type_t::STRUCT_TYPE_BUFFER16:
         case struct_type_t::STRUCT_TYPE_BUFFER32:

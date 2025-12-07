@@ -94,6 +94,8 @@ void proxy_listener::process_new_connection(prinbee::binary_server_client::point
           prinbee::g_message_unknown
         , std::bind(&prinbeed::msg_process_payload, f_prinbeed, client, std::placeholders::_1));
 
+    client->set_disconnected_callback(std::bind(&prinbeed::client_disconnected, f_prinbeed, std::placeholders::_1));
+
     f_prinbeed->register_connection(client, connection_type_t::CONNECTION_TYPE_NODE);
 }
 
