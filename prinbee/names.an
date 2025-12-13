@@ -66,10 +66,13 @@ fld_versioned_rows=versioned_rows
 
 # services
 service_prinbee=prinbee
+service_proxy=proxy
 
 # other names
 protocol_version_node=0.1
 protocol_version_proxy=0.1
 protocol_version_client=0.1
+
+cui_client=cui
 
 # vim: syntax=dosini

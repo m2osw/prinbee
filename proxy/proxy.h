@@ -49,7 +49,7 @@ enum msg_reply_t
 class proxy
 {
 public:
-    typedef std::shared_ptr<proxy>      pointer_t;
+    //typedef std::shared_ptr<proxy>      pointer_t;
 
                                 proxy(int argc, char * argv[]);
                                 proxy(proxy const & rhs) = delete;

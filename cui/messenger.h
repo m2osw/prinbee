@@ -23,12 +23,12 @@
 
 
 
-namespace prinbee_proxy
+namespace prinbee_cui
 {
 
 
 
-class proxy;
+class cui;
 
 
 class messenger
@@ -37,7 +37,7 @@ class messenger
 public:
     typedef std::shared_ptr<messenger>     pointer_t;
 
-                                messenger(proxy * c, advgetopt::getopt & opts);
+                                messenger(cui * c, advgetopt::getopt & opts);
                                 messenger(messenger const &) = delete;
     virtual                     ~messenger() override;
 
@@ -56,17 +56,15 @@ public:
                                     , std::string const & value) override;
 
 private:
-    void                        msg_ipwall_current_status(ed::message & msg);
-    void                        msg_prinbee_current_status(ed::message & msg);
-    void                        msg_prinbee_proxy_get_status(ed::message & msg);
+    void                        msg_prinbee_proxy_current_status(ed::message & msg);
     void                        msg_clock_stable(ed::message & msg);
     void                        msg_clock_unstable(ed::message & msg);
 
-    proxy *                     f_proxy = nullptr;
+    cui *                       f_cui = nullptr;
     ed::dispatcher::pointer_t   f_dispatcher = ed::dispatcher::pointer_t();
 };
 
 
 
-} // namespace prinbee_proxy
+} // namespace prinbee_cui
 // vim: ts=4 sw=4 et

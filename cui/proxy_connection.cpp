@@ -19,9 +19,19 @@
 
 // self
 //
-#include    "daemon.h"
+#include    "proxy_connection.h"
 
-#include    "proxy.h"
+#include    "cui.h"
+
+
+// prinbee
+//
+#include    <prinbee/names.h>
+
+
+// snaplogger
+//
+#include    <snaplogger/message.h>
 
 
 // last include
@@ -30,107 +40,114 @@
 
 
 
-namespace prinbee_proxy
+namespace prinbee_cui
 {
 
 
 
-/** \class node_client
- * \brief Implementation of a node_client connection.
+/** \class proxy_connection
+ * \brief Implementation of a proxy connection.
  *
- * The proxy supports two types of connections. Those from clients and
- * those to daemons. This one is used to connect to the daemons.
+ * The cui connects to a Prinbee proxy daemon using a proxy connection.
  *
- * For most messages received by the client, the proxy forward them to
- * the daemons as is. There are a few exceptions:
- *
- * \li commands used to write data (insert, set, update, delete) are
- *     journaled first so if the daemon does not acknowledge the
- *     change for some time, the proxy can try again (possibly with
- *     a different daemon)
- * \li commands to get data available in the proxy's cache are not sent
- *     to the daemons
- * \li commands directed to the proxy itself are not forwarded
+ * The proxy connection is used to send binary messages to the proxy daemon,
+ * which either interprets the message (such as the REG message) or
+ * forwards it to one or more Prinbee daemons.
  */
 
 
 
-/** \brief Initialize the daemon object.
+/** \brief Initialize the proxy connection object.
  *
- * The daemon object is a permanent connection to a Prinbee daemon. This
- * means if the connection goes down, it will auto-reconnect over and
- * over again until we quit the proxy.
+ * The proxy connection is a permanent connection to a Prinbee proxy daemon.
+ * This means if the connection goes down, it auto-reconnects over and
+ * over again until we quit the cui.
  *
- * The proxy uses this type of object to communicate with all the Prinbee
- * daemons.
+ * The cui creates one proxy object to communicate with the proxy daemon.
  *
- * \param[in] p  The proxy server.
+ * \param[in] c  The cui object.
  */
-daemon::daemon(proxy * p, addr::addr const & a)
+proxy_connection::proxy_connection(cui * c, addr::addr const & a)
     : binary_client(a)
-    , f_proxy(p)
+    , f_cui(c)
 {
 }
 
 
-daemon::~daemon()
+proxy_connection::~proxy_connection()
 {
 }
 
 
 /** \brief Add callbacks to automatically dispatch messages.
  *
- * This function is called from:
+ * This function is called from cui::start_binary_connection()
+ * function.
  *
- * proxy::connect_to_daemon(addr::addr const & a, std::string const & name);
- *
- * so we do not need to register ourselves since it is done by that function.
+ * The function also sends the REG message and saves it in the
+ * list of messages to be acknowledged.
  */
-void daemon::add_callbacks()
+void proxy_connection::add_callbacks()
 {
-    pointer_t d(std::dynamic_pointer_cast<daemon>(shared_from_this()));
+    pointer_t d(std::dynamic_pointer_cast<proxy_connection>(shared_from_this()));
     add_message_callback(
           prinbee::g_message_error
-        , std::bind(&daemon::msg_error, d, d, std::placeholders::_1));
+        , std::bind(&proxy_connection::msg_error, d, d, std::placeholders::_1));
     add_message_callback(
           prinbee::g_message_acknowledge
-        , std::bind(&daemon::msg_acknowledge, d, d, std::placeholders::_1));
+        , std::bind(&proxy_connection::msg_acknowledge, d, d, std::placeholders::_1));
     // prinbee daemons do not send proxies PING messages, proxies do
     //add_message_callback(
     //      prinbee::g_message_ping
-    //    , std::bind(&proxy::msg_ping, f_proxy, shared_from_this(), std::placeholders::_1));
+    //    , std::bind(&proxy_connection::msg_ping, f_proxy, shared_from_this(), std::placeholders::_1));
     add_message_callback(
           prinbee::g_message_pong
-        , std::bind(&daemon::msg_pong, d, d, std::placeholders::_1));
+        , std::bind(&proxy_connection::msg_pong, d, d, std::placeholders::_1));
 
-    // other replies by the daemons
+    // other replies by the proxy
     //
     add_message_callback(
           prinbee::g_message_unknown
-        , std::bind(&proxy::msg_process_reply, f_proxy, d, std::placeholders::_1, msg_reply_t::MSG_REPLY_RECEIVED));
+        , std::bind(&cui::msg_process_reply, f_cui, std::placeholders::_1, msg_reply_t::MSG_REPLY_RECEIVED));
+
+    // send a REG, we expect an ACK or ERR as a reply
+    //
+    prinbee::binary_message::pointer_t register_msg(std::make_shared<prinbee::binary_message>());
+    register_msg->create_register_message(
+          prinbee::g_name_prinbee_cui_client
+        , prinbee::g_name_prinbee_protocol_version_node);
+    send_message(register_msg);
+
+    expect_acknowledgment(register_msg);
 }
 
 
 /** \brief Record the fact that a message is expecting an acknowledgment.
  *
- * After sending certain messages to a daemon, the proxy expects an
- * acknowledgment.
+ * After sending certain messages to a proxy, the proxy connection expects
+ * an acknowledgment.
  *
  * For example, when we send the REG (register) message, we expect the ACK
  * (acknowledgment) reply to clearly say that the message was positively
- * received.
+ * received and the proxy connection is registered.
  *
  * If an error occurs, the reply is an ERR (error) instead.
  *
  * \param[in] msg  The message expecting a reply.
  */
-void daemon::expect_acknowledgment(prinbee::binary_message::pointer_t msg)
+void proxy_connection::expect_acknowledgment(prinbee::binary_message::pointer_t msg)
 {
     f_expected_acknowledgment[msg->get_serial_number()] = msg;
 }
 
 
-bool daemon::msg_pong(
+prinbee::msg_error_t const & proxy_connection::get_last_error_message() const
+{
+    return f_last_error_message;
+}
+
+
+bool proxy_connection::msg_pong(
       ed::connection::pointer_t peer
     , prinbee::binary_message::pointer_t msg)
 {
@@ -164,33 +181,32 @@ bool daemon::msg_pong(
 }
 
 
-bool daemon::msg_error(
+bool proxy_connection::msg_error(
       ed::connection::pointer_t peer
     , prinbee::binary_message::pointer_t msg)
 {
     snapdev::NOT_USED(peer);
 
-    prinbee::msg_error_t err;
-    msg->deserialize_error_message(err);
+    msg->deserialize_error_message(f_last_error_message);
 
     SNAP_LOG_ERROR
         << peer->get_name()
         << ": "
-        << err.f_message_name
+        << f_last_error_message.f_message_name
         << " ("
-        << static_cast<int>(err.f_code)
+        << static_cast<int>(f_last_error_message.f_code)
         << ")"
         << SNAP_LOG_SEND;
 
     // acknowledge failure
     //
-    process_acknowledgment(err.f_serial_number, false);
+    process_acknowledgment(f_last_error_message.f_serial_number, false);
 
     return true;
 }
 
 
-bool daemon::msg_acknowledge(
+bool proxy_connection::msg_acknowledge(
       ed::connection::pointer_t peer
     , prinbee::binary_message::pointer_t msg)
 {
@@ -210,7 +226,7 @@ bool daemon::msg_acknowledge(
 }
 
 
-void daemon::process_acknowledgment(prinbee::message_serial_t serial_number, bool success)
+void proxy_connection::process_acknowledgment(prinbee::message_serial_t serial_number, bool success)
 {
     auto it(f_expected_acknowledgment.find(serial_number));
     if(it == f_expected_acknowledgment.end())
@@ -219,25 +235,26 @@ void daemon::process_acknowledgment(prinbee::message_serial_t serial_number, boo
         //
         return;
     }
-    f_expected_acknowledgment.erase(it);
 
-    f_proxy->msg_process_reply(shared_from_this(), it->second, success ? MSG_REPLY_SUCCEEDED : MSG_REPLY_FAILED);
+    f_cui->msg_process_reply(
+          it->second
+        , success ? MSG_REPLY_SUCCEEDED : MSG_REPLY_FAILED);
 }
 
 
-prinbee::message_serial_t daemon::get_expected_ping() const
+prinbee::message_serial_t proxy_connection::get_expected_ping() const
 {
     return f_ping_serial_number;
 }
 
 
-void daemon::set_expected_ping(prinbee::message_serial_t serial_number)
+void proxy_connection::set_expected_ping(prinbee::message_serial_t serial_number)
 {
     f_ping_serial_number = serial_number;
 }
 
 
-bool daemon::has_expected_ping(prinbee::message_serial_t serial_number)
+bool proxy_connection::has_expected_ping(prinbee::message_serial_t serial_number)
 {
     if(f_ping_serial_number == serial_number)
     {
@@ -253,12 +270,12 @@ bool daemon::has_expected_ping(prinbee::message_serial_t serial_number)
 }
 
 
-std::uint32_t daemon::increment_no_pong_answer()
+std::uint32_t proxy_connection::increment_no_pong_answer()
 {
     return ++f_no_pong_answer;
 }
 
 
 
-} // namespace daemon
+} // namespace prinbee_cui
 // vim: ts=4 sw=4 et

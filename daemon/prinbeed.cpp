@@ -217,7 +217,6 @@
 //
 #include    "prinbeed.h"
 
-#include    "connection_reference.h"
 #include    "node_client.h"
 #include    "node_listener.h"
 #include    "proxy_listener.h"
@@ -228,14 +227,12 @@
 // prinbee
 //
 #include    <prinbee/exception.h>
-#include    <prinbee/names.h>
 #include    <prinbee/network/ports.h>
 #include    <prinbee/version.h>
 
 
 // communicatord
 //
-//#include    <communicatord/flags.h>
 #include    <communicatord/names.h>
 
 
@@ -320,6 +317,14 @@ advgetopt::option const g_options[] =
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
         , advgetopt::Help("Specify the name of the cluster this prinbee is a part of.")
         , advgetopt::DefaultValue("prinbee")
+    ),
+    advgetopt::define_option(
+          advgetopt::Name("direct-listen")
+        , advgetopt::Flags(advgetopt::all_flags<
+                      advgetopt::GETOPT_FLAG_REQUIRED
+                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("Specify an address and port to listen on for direct client connections; if the IP is not defined or set to ANY, then only the port is used and this computer public IP address is used.")
+        , advgetopt::DefaultValue(":4012")
     ),
     advgetopt::define_option(
           advgetopt::Name("node-name")
@@ -1365,7 +1370,7 @@ void prinbeed::stop(bool quitting)
         f_messenger.reset();
     }
 
-    if(f_communicator != nullptr)
+    if(f_interrupt != nullptr)
     {
         f_communicator->remove_connection(f_interrupt);
         f_interrupt.reset();

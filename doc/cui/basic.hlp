@@ -1,0 +1,5 @@
+Basic Help:
+   HELP;                 -- print out this basic help screen
+   HELP COMMANDS;        -- print out all the available PBQL commands
+   HELP COMMAND <name>;  -- print help out the specific PBQL command <name>
+   ...

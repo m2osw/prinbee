@@ -97,7 +97,7 @@ enum class param_t
     PARAM_EXPRESSION,
     PARAM_EXPRESSION_end = PARAM_EXPRESSION + MAX_EXPRESSIONS - 1,
     PARAM_COLUMN_NAME,
-    PARAM_COLUMN_NAME_end = PARAM_COLUMN_NAME + MAX_EXPRESSIONS - 1,
+    PARAM_COLUMN_NAME_end = PARAM_COLUMN_NAME + MAX_EXPRESSIONS - 1, // this is for the `<name>` part in `<expr> AS <name>` so same number
     PARAM_TABLE,
     PARAM_TABLE_end = PARAM_TABLE + MAX_TABLES - 1,
     PARAM_TABLE_NAME,

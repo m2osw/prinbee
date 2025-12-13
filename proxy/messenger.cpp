@@ -96,6 +96,7 @@ messenger::messenger(proxy * p, advgetopt::getopt & opts)
     f_dispatcher->add_matches({
             DISPATCHER_MATCH(communicatord::g_name_communicatord_cmd_ipwall_current_status, &messenger::msg_ipwall_current_status),
             DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_current_status, &messenger::msg_prinbee_current_status),
+            DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_proxy_get_status, &messenger::msg_prinbee_proxy_get_status),
     });
     f_dispatcher->add_communicator_commands();
 
@@ -233,6 +234,26 @@ void messenger::msg_ipwall_current_status(ed::message & msg)
 void messenger::msg_prinbee_current_status(ed::message & msg)
 {
     f_proxy->msg_prinbee_current_status(msg);
+}
+
+
+/** \brief Handle the PRINBEE_PROXY_GET_STATUS message.
+ *
+ * This function is called whenever the proxy receives the
+ * PRINBEE_PROXY_GET_STATUS message. This happens whenever a
+ * prinbee client broadcasts that message. It sends a direct
+ * reply to that client with the PRINBEE_PROXY_CURRENT_STATUS
+ * message.
+ *
+ * \note
+ * The proxy also broadcasts the PRINBEE_PROXY_CURRENT_STATUS
+ * once it is ready to receive connections.
+ *
+ * \param[in,out] msg  The PRINBEE_PROXY_GET_STATUS message.
+ */
+void messenger::msg_prinbee_proxy_get_status(ed::message & msg)
+{
+    f_proxy->send_our_status(&msg);
 }
 
 

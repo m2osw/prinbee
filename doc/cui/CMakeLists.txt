@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2025  Made to Order Software Corp.  All Rights Reserved
+# Copyright (c) 2013-2025  Made to Order Software Corp.  All Rights Reserved
 #
 # https://snapwebsites.org/project/prinbee
 # contact@m2osw.com
@@ -18,20 +18,20 @@
 
 
 ##
-## Documentation
+## CUI inline documentation
 ##
-project(prinbee-documentation)
+project(prinbee_cui)
 
-find_package(SnapDoxygen)
-AddDoxygenTarget(
-    prinbee
-    ${PRINBEE_VERSION_MAJOR}
-    ${PRINBEE_VERSION_MINOR}
-    ${PRINBEE_VERSION_PATCH}
+install(
+    DIRECTORY
+        ${CMAKE_CURRENT_SOURCE_DIR}/
+
+    DESTINATION
+        share/prinbee/cui
+
+    FILES_MATCHING PATTERN
+        "*.hlp"
 )
 
 
-add_subdirectory(cui)
-
-
-# vim: ts=4 sw=4 et nocindent
+# vim: ts=4 sw=4 et

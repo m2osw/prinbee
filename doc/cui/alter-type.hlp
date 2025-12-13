@@ -1,0 +1,10 @@
+ALTER TYPE [IF EXISTS] <type-name> ...
+    ... RENAME [TO | AS] <new-type-name>;
+    ... SET COMMENT <description>;
+    ... ADD [COLUMN] <name> <column-definition>;
+    ... DROP [COLUMN] <name>;
+    ... ALTER [COLUMN] <name> <column-definition> ...
+         ... [USING <expression>];
+
+Use `HELP COMMAND column-definition` for description of the possible
+definitions.

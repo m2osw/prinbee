@@ -1,0 +1,24 @@
+ALTER TABLE [IF EXISTS] [<context-name>.]<table-name> ...
+    ... RENAME [TO | AS] <new-table-name>;
+    ... SET [NOT] SECURE;
+    ... SET {LOGGED | UNLOGGED};
+    ... SET REPLICATION <integer>;
+    ... SET MODEL <model>;
+    ... SET COMMENT <description>;
+    ... SET VERSION ROWS <integer>.<integer>;
+    ... DROP VERSION ROWS;
+    ... SET TRANSLATABLE {TRUE | FALSE};
+    ... SET BLOB LIMIT <itneger>;
+    ... SET BLOB COMPRESSOR <command>;
+    ... SET INLINE LIMIT <integer>;
+    ... SET EXTERNAL FILE COMPRESSOR <command> ...
+         ... FILTER [OUT] <pattern1> [AND] <pattern2> ...
+         ... [AND] <patternN>;
+    ... ADD [COLUMN] <name> <column-definition> ...
+         ... [{BEFORE | AFTER} {<name> | <position>}];
+    ... DROP [COLUMN] {<name> | <position>};
+    ... ALTER [COLUMN] <name> <column-definition> ...
+         ... [USING <expression>];
+
+Use `HELP COMMAND column-definition` for description of the possible
+definitions.

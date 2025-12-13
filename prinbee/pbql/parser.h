@@ -35,6 +35,11 @@
 #include    <advgetopt/utils.h>
 
 
+// C++
+//
+#include    <functional>
+
+
 
 namespace prinbee
 {
@@ -55,11 +60,19 @@ class parser
 {
 public:
     typedef std::shared_ptr<parser>     pointer_t;
+    typedef std::function<bool(std::string const & command)>
+                                        capture_t;
 
                         parser(lexer::pointer_t l);
 
+    void                set_user_capture(capture_t capture);
+    bool                quit() const;
     command::vector_t const &
                         parse();
+
+    void                expect_semi_colon(
+                              std::string const & command
+                            , node::pointer_t n = node::pointer_t());
 
 private:
     void                parse_alter_index();
@@ -74,9 +87,6 @@ private:
 
     void                parse_select();
 
-    void                expect_semi_colon(
-                              std::string const & command
-                            , node::pointer_t n = node::pointer_t());
     node::pointer_t     keyword_string(
                               std::string commands
                             , advgetopt::string_list_t const & keywords
@@ -88,6 +98,8 @@ private:
 
     lexer::pointer_t    f_lexer = lexer::pointer_t();
     command::vector_t   f_commands = command::vector_t();
+    capture_t           f_user_capture = capture_t();
+    bool                f_quit = false;
 };
 
 

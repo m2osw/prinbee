@@ -84,6 +84,29 @@ parser::parser(lexer::pointer_t l)
 }
 
 
+/** \brief Allow for the capture of unknown commands by the user.
+ *
+ * The user of this class (see CUI for an example) can capture unknown
+ * commands. The function is called if the command is not recognized
+ * as an internal command. Note that this is somewhat limited since
+ * it can only capture commands that start with an unrecognized
+ * keyword. So for example, only PBQL can capture the commands that
+ * start with ALTER, CREATE, DROP, etc. What the capture function
+ * receives are other commands such as CLEARSCREEN that maybe would
+ * clear the content of the CUI window.
+ */
+void parser::set_user_capture(capture_t capture)
+{
+    f_user_capture = capture;
+}
+
+
+bool parser::quit() const
+{
+    return f_quit;
+}
+
+
 command::vector_t const & parser::parse()
 {
     for(;;)
@@ -155,6 +178,7 @@ command::vector_t const & parser::parse()
                     }
                     if(command == "BYE")
                     {
+                        f_quit = true;
                         expect_semi_colon(command);
                         return f_commands;
                     }
@@ -214,9 +238,19 @@ command::vector_t const & parser::parse()
                     }
                     break;
 
+                case 'E':
+                    if(command == "EXIT")
+                    {
+                        f_quit = true;
+                        expect_semi_colon(command);
+                        return f_commands;
+                    }
+                    break;
+
                 case 'Q':
                     if(command == "QUIT")
                     {
+                        f_quit = true;
                         expect_semi_colon(command);
                         return f_commands;
                     }
@@ -238,6 +272,20 @@ command::vector_t const & parser::parse()
                     }
                     break;
 
+                }
+
+                // no matches from the standard PBQL language,
+                // send the command to the "user" (cui interface uses that
+                // when setup in interactive mode)
+                //
+                if(f_user_capture != nullptr)
+                {
+                    if(f_user_capture(command))
+                    {
+                        // f_commands should be empty as a result
+                        //
+                        return f_commands;
+                    }
                 }
 
                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);

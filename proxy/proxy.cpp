@@ -122,6 +122,14 @@ advgetopt::option const g_options[] =
         , advgetopt::DefaultValue(":4011")
     ),
     advgetopt::define_option(
+          advgetopt::Name("ping-pong-interval")
+        , advgetopt::Flags(advgetopt::all_flags<
+                      advgetopt::GETOPT_FLAG_REQUIRED
+                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("How often to send a PING to all the daemons.")
+        , advgetopt::DefaultValue("5")
+    ),
+    advgetopt::define_option(
           advgetopt::Name("prinbee-path")
         , advgetopt::Flags(advgetopt::all_flags<
                       advgetopt::GETOPT_FLAG_REQUIRED
@@ -303,14 +311,10 @@ void proxy::finish_initialization()
     f_messenger->finish_parsing();
 
     // initialize the ping pong timer
+    // minimum is 1 second and maximum 1 hour
     //
-    std::int64_t ping_pong_interval(5 * 1'000'000);  // send a PING to other nodes every 5 seconds
-    if(f_opts.is_defined("ping_pong_interval"))
-    {
-        // minimum is 1 second and maximum 1 hour
-        //
-        ping_pong_interval = std::clamp(f_opts.get_long("ping_pong_interval"), 1L, 60L * 60L) * 1'000'000;
-    }
+    std::int64_t ping_pong_interval(0);
+    ping_pong_interval = std::clamp(f_opts.get_long("ping_pong_interval"), 1L, 60L * 60L) * 1'000'000;
     f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
     f_communicator->add_connection(f_ping_pong_timer);
 
@@ -911,9 +915,9 @@ void proxy::send_pings()
                 continue;
             }
             SNAP_LOG_MAJOR
-                << "connection never replied from our last PING signal ("
+                << "connection never replied from our last "
                 << count
-                << ")."
+                << " PING signals."
                 << SNAP_LOG_SEND;
         }
 
@@ -1096,7 +1100,7 @@ void proxy::stop(bool quitting)
         f_messenger.reset();
     }
 
-    if(f_communicator != nullptr)
+    if(f_interrupt != nullptr)
     {
         f_communicator->remove_connection(f_interrupt);
         f_interrupt.reset();

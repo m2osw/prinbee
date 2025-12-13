@@ -19,9 +19,9 @@
 
 // self
 //
-#include    "messenger.h"
-#include    "interrupt.h"
 #include    "connection_reference.h"
+#include    "interrupt.h"
+#include    "messenger.h"
 #include    "ping_pong_timer.h"
 #include    "worker_pool.h"
 

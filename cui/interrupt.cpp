@@ -21,7 +21,7 @@
 //
 #include    "interrupt.h"
 
-#include    "proxy.h"
+#include    "cui.h"
 
 
 // last include
@@ -30,7 +30,7 @@
 
 
 
-namespace prinbee_proxy
+namespace prinbee_cui
 {
 
 
@@ -57,11 +57,11 @@ namespace prinbee_proxy
  * message. If that fails, then send a SIGINT. If that fails too, use the
  * SIGKILL as a last resort.
  *
- * \param[in] p  The proxy server we are listening for.
+ * \param[in] c  The proxy server we are listening for.
  */
-interrupt::interrupt(proxy * p)
+interrupt::interrupt(cui * c)
     : signal(SIGINT)
-    , f_proxy(p)
+    , f_cui(c)
 {
     unblock_signal_on_destruction();
     set_name("interrupt");
@@ -82,10 +82,10 @@ void interrupt::process_signal()
 {
     // we simulate the STOP, so pass 'false' (i.e. not quitting)
     //
-    f_proxy->stop(false);
+    f_cui->stop(false);
 }
 
 
 
-} // namespace prinbee_proxy
+} // namespace prinbee_cui
 // vim: ts=4 sw=4 et
