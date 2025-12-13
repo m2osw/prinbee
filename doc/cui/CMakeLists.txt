@@ -27,7 +27,7 @@ install(
         ${CMAKE_CURRENT_SOURCE_DIR}/
 
     DESTINATION
-        share/prinbee/cui
+        share/doc/prinbee/cui
 
     FILES_MATCHING PATTERN
         "*.hlp"

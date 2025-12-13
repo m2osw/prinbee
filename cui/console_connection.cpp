@@ -151,6 +151,7 @@ console_connection::console_connection(cui * c)
         throw std::logic_error("there can be only one console_connection");
     }
     g_console = this;
+    prompt_to_output_command("> ");
 }
 
 
@@ -195,6 +196,7 @@ void console_connection::process_quit()
 
 void console_connection::process_help()
 {
+    output("> HELP;");
     help("basic");
 }
 
@@ -285,6 +287,12 @@ void console_connection::process_help()
 //    c->send_message(command);
 //    return false;
 //}
+
+
+void console_connection::ready()
+{
+    output("Ready.\nType HELP; or F1 for basic help screen.");
+}
 
 
 void console_connection::help(std::string const & section_name)

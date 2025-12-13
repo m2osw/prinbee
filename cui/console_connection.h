@@ -47,6 +47,8 @@ public:
                         console_connection(console_connection const & rhs) = delete;
                         console_connection & operator = (console_connection const & rhs) = delete;
 
+    virtual void        ready() override;
+
     void                set_documentation_path(std::string const & path);
     void                reset_prompt();
     void                help(std::string const & section_name);

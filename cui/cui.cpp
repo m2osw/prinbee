@@ -166,7 +166,7 @@ const advgetopt::option g_command_line_options[] =
               advgetopt::GETOPT_FLAG_GROUP_COMMANDS
             , advgetopt::GETOPT_FLAG_FLAG
             , advgetopt::GETOPT_FLAG_COMMAND_LINE>())
-        , advgetopt::Help("if defined, open a prompt; this is the default is no --command or --file is specified.")
+        , advgetopt::Help("if defined, open a prompt; this is the default if no --command or --file is specified.")
     ),
     advgetopt::define_option(
           advgetopt::Name("ping-pong-interval")
@@ -253,8 +253,14 @@ cui::cui(int argc, char * argv[])
         throw advgetopt::getopt_exit("logger options generated an error.", 1);
     }
 
-    f_command = f_opts.get_string("command");
-    f_file = f_opts.get_string("file");
+    if(f_opts.is_defined("command"))
+    {
+        f_command = f_opts.get_string("command");
+    }
+    if(f_opts.is_defined("file"))
+    {
+        f_file = f_opts.get_string("file");
+    }
 
     if(f_command.empty()
     && f_file.empty())
@@ -373,6 +379,7 @@ bool cui::init_connections()
 bool cui::init_console_connection()
 {
     f_console_connection = std::make_shared<console_connection>(this);
+    f_console_connection->ready();
     f_console_connection->set_documentation_path(f_opts.get_string("documentation"));
     f_console_connection->reset_prompt();
     if(!ed::communicator::instance()->add_connection(f_console_connection))
@@ -550,6 +557,13 @@ void cui::stop(bool quitting)
 
 void cui::send_ping()
 {
+    // this happens if we don't get a proxy connection in time
+    //
+    if(f_proxy_connection == nullptr)
+    {
+        return;
+    }
+
     if(f_proxy_connection->get_expected_ping() != 0)
     {
         std::uint32_t const count(f_proxy_connection->increment_no_pong_answer());
@@ -625,14 +639,21 @@ void cui::execute_commands(std::string const & commands)
     f_lexer->set_input(in);
     f_parser = std::make_shared<prinbee::pbql::parser>(f_lexer);
     f_parser->set_user_capture(std::bind(&cui::user_commands, this, std::placeholders::_1));
-    prinbee::pbql::command::vector_t cmds(f_parser->parse());
+    try
+    {
+        f_cmds = f_parser->parse();
+    }
+    catch(prinbee::prinbee_exception const & e)
+    {
+        f_console_connection->output(e.what());
+    }
     f_quit = f_parser->quit();
     f_parser.reset();
     f_lexer.reset();
 
     // execute the command(s)
     //
-    if(!cmds.empty())
+    if(!f_cmds.empty())
     {
         // note that some of the work is likely async so the `cmds` probably
         // needs to be a variable member which we reduce each time a command
@@ -668,9 +689,16 @@ bool cui::user_commands(std::string const & command)
 bool cui::parse_help()
 {
     prinbee::pbql::node::pointer_t n(f_lexer->get_next_token());
+    if(n->get_token() == prinbee::pbql::token_t::TOKEN_SEMI_COLON)
+    {
+        f_console_connection->help("basic");
+        return true;
+    }
+
     if(n->get_token() == prinbee::pbql::token_t::TOKEN_IDENTIFIER)
     {
         std::string keyword(n->get_string_upper());
+std::cerr << "got sub keyword: [" << keyword << "].\n";
         switch(keyword[0])
         {
         case 'C':

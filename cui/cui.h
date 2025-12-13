@@ -83,6 +83,8 @@ private:
     proxy_connection::pointer_t     f_proxy_connection = proxy_connection::pointer_t();
     interrupt::pointer_t            f_interrupt = interrupt::pointer_t();
     ping_pong_timer::pointer_t      f_ping_pong_timer = ping_pong_timer::pointer_t();
+    prinbee::pbql::command::vector_t
+                                    f_cmds = prinbee::pbql::command::vector_t();
     std::string                     f_command = std::string();
     std::string                     f_file = std::string();
     std::string                     f_address = std::string();
