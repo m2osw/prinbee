@@ -616,6 +616,7 @@ void binary_client::process_timeout()
     try
     {
         f_impl = std::make_shared<detail::binary_client_impl>(this, f_remote_address);
+        f_last_error.clear();
         process_connected();
         return;
     }

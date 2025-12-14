@@ -79,11 +79,6 @@
 #include    <atomic>
 
 
-// ncurses
-//
-#include    <ncurses.h>
-
-
 // readline
 //
 #include    <readline/readline.h>
@@ -142,6 +137,19 @@ constexpr char const *  g_history_file = "~/.message_history";
 console_connection *    g_console = nullptr;
 
 
+int show_status(int count, int c)
+{
+    snapdev::NOT_USED(count, c);
+
+    if(g_console != nullptr)
+    {
+        g_console->open_close_status_window();
+    }
+
+    return 0;
+}
+
+
 console_connection::console_connection(cui * c)
     : cui_connection(g_history_file)
     , f_cui(c)
@@ -152,6 +160,7 @@ console_connection::console_connection(cui * c)
     }
     g_console = this;
     prompt_to_output_command("> ");
+    set_name("prinbee console");
 }
 
 
@@ -182,7 +191,7 @@ void console_connection::process_command(std::string const & command)
 
 void console_connection::process_quit()
 {
-    ed::communicator::instance()->remove_connection(shared_from_this());
+    f_cui->stop(false);
 
     // remove the pipes for stdout and stderr
     //
@@ -287,6 +296,114 @@ void console_connection::process_help()
 //    c->send_message(command);
 //    return false;
 //}
+
+
+void console_connection::set_status_window_key_binding()
+{
+    if(rl_bind_keyseq("\\eOQ" /* F2 */, &show_status) != 0)
+    {
+        std::cerr << "error: status window key (^[OQ a.k.a. F2) binding failed.\n";
+    }
+}
+
+
+void console_connection::open_close_status_window()
+{
+    if(f_win_status != nullptr)
+    {
+output("> hide status;");
+        del_panel(f_pan_status);
+        f_pan_status = nullptr;
+        delwin(f_win_status);
+        f_win_status = nullptr;
+        //refresh();
+        update_panels();
+        return;
+    }
+output("> show status;");
+
+    // TODO: gather the screen size and make sure it fits
+    //
+    int width = 80;
+    int height = 12;
+    f_win_status = newwin(height - 4, width - 4, 3, 12);
+    if(f_win_status == nullptr)
+    {
+        output("error: couldn't create status window.");
+        return;
+    }
+    f_pan_status = new_panel(f_win_status);
+    if(f_pan_status == nullptr)
+    {
+        output("error: could not create status panel");
+        delwin(f_win_status);
+        f_win_status = nullptr;
+        return;
+    }
+
+    wborder(f_win_status, 0, 0, 0, 0, 0, 0, 0, 0);
+    mvwprintw(f_win_status, 0, 2, " Status ");
+
+    update_status();
+}
+
+
+void console_connection::update_status()
+{
+    if(f_win_status != nullptr)
+    {
+        {
+            std::string msg(" Communicator: ");
+            msg += f_cui->get_messenger_status();
+            mvwprintw(f_win_status, 1, 2, "%s", msg.c_str());
+        }
+
+        {
+            std::string msg("Fluid Service: ");
+            msg += f_cui->get_fluid_settings_status();
+            mvwprintw(f_win_status, 2, 2, "%s", msg.c_str());
+        }
+
+        {
+            std::string msg("        Proxy: ");
+            msg += f_cui->get_proxy_status();
+            mvwprintw(f_win_status, 3, 2, "%s", msg.c_str());
+        }
+
+        {
+            std::string msg("    Last Ping: ");
+            snapdev::timespec_ex const last_ping(f_cui->get_last_ping());
+            if(last_ping == snapdev::timespec_ex())
+            {
+                msg += "never";
+            }
+            else
+            {
+                msg += last_ping.to_string("%Y/%m/%d %T", true);
+            }
+            mvwprintw(f_win_status, 4, 2, "%s", msg.c_str());
+        }
+
+        {
+            std::string msg("      Pinbree: ");
+            msg += f_cui->get_prinbee_status();
+            mvwprintw(f_win_status, 5, 2, "%s", msg.c_str());
+        }
+
+        {
+            std::string msg("      Console: ");
+            msg += f_cui->get_console_status();
+            mvwprintw(f_win_status, 6, 2, "%s", msg.c_str());
+        }
+
+        //if(wrefresh(f_win_status) != OK)
+        //{
+        //    output("error: wrefresh() to status message window failed.");
+        //    return;
+        //}
+        update_panels();
+    }
+}
 
 
 void console_connection::ready()

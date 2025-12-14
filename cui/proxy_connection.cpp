@@ -166,6 +166,10 @@ bool proxy_connection::msg_pong(
         SNAP_LOG_VERBOSE
             << "PONG found a corresponding PING request."
             << SNAP_LOG_SEND;
+
+        f_proxy_loadavg = pong.f_loadavg_1min;
+
+        // TODO: do the necessary to get the loadavg from other sources
     }
     else
     {
@@ -262,6 +266,7 @@ bool proxy_connection::has_expected_ping(prinbee::message_serial_t serial_number
         //
         f_ping_serial_number = 0;
         f_no_pong_answer = 0;
+        f_last_ping = snapdev::now();
 
         return true;
     }
@@ -273,6 +278,24 @@ bool proxy_connection::has_expected_ping(prinbee::message_serial_t serial_number
 std::uint32_t proxy_connection::increment_no_pong_answer()
 {
     return ++f_no_pong_answer;
+}
+
+
+std::uint32_t proxy_connection::get_no_pong_answer() const
+{
+    return f_no_pong_answer;
+}
+
+
+snapdev::timespec_ex const & proxy_connection::get_last_ping() const
+{
+    return f_last_ping;
+}
+
+
+double proxy_connection::get_proxy_loadavg() const
+{
+    return f_proxy_loadavg;
 }
 
 

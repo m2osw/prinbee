@@ -310,14 +310,6 @@ void proxy::finish_initialization()
     //
     f_messenger->finish_parsing();
 
-    // initialize the ping pong timer
-    // minimum is 1 second and maximum 1 hour
-    //
-    std::int64_t ping_pong_interval(0);
-    ping_pong_interval = std::clamp(f_opts.get_long("ping_pong_interval"), 1L, 60L * 60L) * 1'000'000;
-    f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
-    f_communicator->add_connection(f_ping_pong_timer);
-
     if(f_opts.is_defined("owner"))
     {
         std::string owner(f_opts.get_string("owner"));
@@ -763,6 +755,17 @@ void proxy::start_binary_connection()
     // we also need to send our status to everyone else
     //
     send_our_status(nullptr);
+
+    // initialize the ping pong timer
+    // minimum is 1 second and maximum 1 hour
+    //
+    if(f_ping_pong_timer == nullptr)
+    {
+        std::int64_t ping_pong_interval(0);
+        ping_pong_interval = std::clamp(f_opts.get_long("ping_pong_interval"), 1L, 60L * 60L) * 1'000'000;
+        f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
+        f_communicator->add_connection(f_ping_pong_timer);
+    }
 }
 
 

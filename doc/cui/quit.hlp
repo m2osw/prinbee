@@ -1,0 +1,3 @@
+QUIT;
+
+This command let you end a script (non-interactive) or exit the console. The EXIT; and BYE; commands are synonyms.

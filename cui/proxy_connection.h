@@ -52,6 +52,10 @@ public:
     void                        set_expected_ping(prinbee::message_serial_t serial_number);
     bool                        has_expected_ping(prinbee::message_serial_t serial_number);
     std::uint32_t               increment_no_pong_answer();
+    std::uint32_t               get_no_pong_answer() const;
+    snapdev::timespec_ex const &
+                                get_last_ping() const;
+    double                      get_proxy_loadavg() const;
 
 private:
     typedef std::map<prinbee::message_serial_t, prinbee::binary_message::pointer_t>
@@ -75,6 +79,9 @@ private:
     prinbee::message_serial_t   f_ping_serial_number = 0;
     std::uint32_t               f_no_pong_answer = 0;
     prinbee::msg_error_t        f_last_error_message = prinbee::msg_error_t();
+    snapdev::timespec_ex        f_last_ping = snapdev::timespec_ex();
+    double                      f_proxy_loadavg = -2.0; // -1.0 is error and 0.0 or more a valid number from the proxy
+    bool                        f_registered = false;
 };
 
 

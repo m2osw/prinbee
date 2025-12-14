@@ -27,6 +27,11 @@
 #include    <eventdispatcher/cui_connection.h>
 
 
+// C
+//
+#include    <panel.h>
+
+
 
 namespace prinbee_cui
 {
@@ -51,18 +56,20 @@ public:
 
     void                set_documentation_path(std::string const & path);
     void                reset_prompt();
+    void                set_status_window_key_binding();
     void                help(std::string const & section_name);
+    void                open_close_status_window();
+    void                update_status();
 
     virtual void        process_command(std::string const & command) override;
     virtual void        process_quit() override;
     virtual void        process_help() override;
 
 private:
-
     cui *               f_cui = nullptr;
     std::string         f_documentation_path = std::string();
-
-    //WINDOW *            f_win_message = nullptr;
+    WINDOW *            f_win_status = nullptr;
+    PANEL *             f_pan_status = nullptr;
 };
 
 

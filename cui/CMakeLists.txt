@@ -53,6 +53,9 @@ target_link_libraries(${PROJECT_NAME}
     #${CPPPROCESS_LIBRARIES}
     ${FLUIDSETTINGS_LIBRARIES}
     #${VERSIONTHECA_LIBRARIES}
+    ncurses
+    panel
+    readline
 )
 
 install(

@@ -65,8 +65,8 @@
 
 // snapdev
 //
-//#include    <snapdev/gethostname.h>
 #include    <snapdev/file_contents.h>
+#include    <snapdev/math.h>
 #include    <snapdev/stringize.h>
 
 
@@ -323,6 +323,7 @@ int cui::run()
         }
     }
 
+SNAP_LOG_ERROR << "start communicator run()" << SNAP_LOG_SEND;
     if(ed::communicator::instance()->run())
     {
         return 0;
@@ -360,18 +361,6 @@ bool cui::init_connections()
     //
     f_messenger->finish_parsing();
 
-    // initialize the ping pong timer
-    // minimum is 1 second and maximum 1 hour
-    //
-    std::int64_t ping_pong_interval(0);
-    ping_pong_interval = std::clamp(f_opts.get_long("ping_pong_interval"), 1L, 60L * 60L) * 1'000'000;
-    f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
-    if(!f_communicator->add_connection(f_ping_pong_timer))
-    {
-        std::cerr << "error: could not add ping-ping timer to list of ed::communicator connections.\n";
-        return false;
-    }
-
     return true;
 }
 
@@ -380,6 +369,7 @@ bool cui::init_console_connection()
 {
     f_console_connection = std::make_shared<console_connection>(this);
     f_console_connection->ready();
+    f_console_connection->set_status_window_key_binding();
     f_console_connection->set_documentation_path(f_opts.get_string("documentation"));
     f_console_connection->reset_prompt();
     if(!ed::communicator::instance()->add_connection(f_console_connection))
@@ -508,6 +498,20 @@ void cui::start_binary_connection()
     f_proxy_connection = std::make_shared<proxy_connection>(this, a);
     f_proxy_connection->add_callbacks();
     f_communicator->add_connection(f_proxy_connection);
+
+    // now that we have a proxy connection initialize the ping pong timer
+    // minimum is 1 second and maximum 1 hour
+    //
+    if(f_ping_pong_timer == nullptr)
+    {
+        std::int64_t ping_pong_interval(0);
+        ping_pong_interval = std::clamp(f_opts.get_long("ping_pong_interval"), 1L, 60L * 60L) * 1'000'000;
+        f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
+        if(!f_communicator->add_connection(f_ping_pong_timer))
+        {
+            std::cerr << "error: could not add ping-ping timer to list of ed::communicator connections.\n";
+        }
+    }
 }
 
 
@@ -535,12 +539,6 @@ void cui::stop(bool quitting)
         f_interrupt.reset();
     }
 
-    if(f_console_connection != nullptr)
-    {
-        f_communicator->remove_connection(f_console_connection);
-        f_console_connection.reset();
-    }
-
     if(f_proxy_connection != nullptr)
     {
         f_communicator->remove_connection(f_proxy_connection);
@@ -552,6 +550,24 @@ void cui::stop(bool quitting)
         f_communicator->remove_connection(f_ping_pong_timer);
         f_ping_pong_timer.reset();
     }
+
+    if(f_console_connection != nullptr)
+    {
+        f_communicator->remove_connection(f_console_connection);
+
+        // IMPORTANT: we must delete the console connection to remove the
+        //            stdin/stdout pipes we create in there
+        //
+        f_console_connection.reset();
+    }
+
+//{
+//ed::connection::vector_t connections(f_communicator->get_connections());
+//for(auto const & c : connections)
+//{
+//    SNAP_LOG_ERROR << "connection left: \"" << c->get_name() << "\"." << SNAP_LOG_SEND;
+//}
+//}
 }
 
 
@@ -648,6 +664,7 @@ void cui::execute_commands(std::string const & commands)
         f_console_connection->output(e.what());
     }
     f_quit = f_parser->quit();
+std::cerr << "--- parser says: " << (f_quit ? "QUIT" : "HOLD") << "\n";
     f_parser.reset();
     f_lexer.reset();
 
@@ -662,6 +679,13 @@ void cui::execute_commands(std::string const & commands)
 
         // ... TODO ...
     }
+    else if(f_quit)
+    {
+        // special case where there was just a QUIT; command, then the
+        // list of commands is empty and the f_quit flag is true
+        //
+        stop(false);
+    }
 }
 
 
@@ -671,6 +695,13 @@ bool cui::user_commands(std::string const & command)
     //
     switch(command[0])
     {
+    case 'C':
+        if(command == "CLEAR")
+        {
+            return parse_clear();
+        }
+        break;
+
     case 'H':
         if(command == "HELP")
         {
@@ -686,6 +717,191 @@ bool cui::user_commands(std::string const & command)
 }
 
 
+std::string cui::get_messenger_status() const
+{
+    if(f_messenger == nullptr)
+    {
+        // by the time this function gets called, this should never happen
+        //
+        return "--";
+    }
+
+    if(!f_messenger->is_connected())
+    {
+        if(f_messenger->is_enabled())
+        {
+            return "waiting";
+        }
+        return "connecting";
+    }
+
+    if(!f_messenger->is_ready())
+    {
+        return "connected";
+    }
+
+    // now it's ready
+    //
+    return "registered";
+}
+
+
+std::string cui::get_fluid_settings_status() const
+{
+    if(f_messenger == nullptr)
+    {
+        // by the time this function gets called, this should never happen
+        //
+        return "--";
+    }
+
+    if(!f_messenger->is_connected())
+    {
+        return "connecting";
+    }
+
+    if(!f_messenger->is_ready())
+    {
+        return "connected";
+    }
+
+    // this means the fluid settings is connected and registered with us
+    //
+    if(!f_messenger->is_registered())
+    {
+        return "ready";
+    }
+
+    return "registered";
+}
+
+
+std::string cui::get_proxy_status() const
+{
+    if(f_proxy_connection == nullptr)
+    {
+        return "waiting";
+    }
+
+    std::stringstream ss;
+
+    if(!f_ready)
+    {
+        // TODO: last_error.empty() is not sufficient
+        //
+        std::string const & last_error(f_proxy_connection->get_last_error());
+        if(last_error.empty())
+        {
+            if(f_proxy_connection->is_enabled())
+            {
+                // no error but the timer is enabled that means we are
+                // still trying to connect; this state happens at the
+                // beginning or right after a lost connection
+                //
+                return "connecting";
+            }
+
+            // if there are no errors and the timer is disabled, then the
+            // connection is there, but we're not yet "ready" (the REG
+            // message was not acknowledge positively)
+            //
+            return "connected";
+        }
+        ss << "connection error: " << last_error;
+        return ss.str();
+    }
+
+    ss << "registered";
+
+    if(f_proxy_connection->get_last_ping() != snapdev::timespec_ex())
+    {
+        double const loadavg(f_proxy_connection->get_proxy_loadavg());
+        if(loadavg >= 0.0)
+        {
+            ss << ", loadavg: "
+               << loadavg;
+        }
+        else if(snapdev::quiet_floating_point_equal(loadavg, -1.0))
+        {
+            ss << ", loadavg: err";
+        }
+        // else loadavg == -2.0, not known yet
+
+        std::uint32_t const no_answer(f_proxy_connection->get_no_pong_answer());
+        if(no_answer > 0)
+        {
+            ss << " (stale: " << no_answer << ")";
+        }
+        else
+        {
+            ss << " (active)";
+        }
+    }
+
+    return ss.str();
+}
+
+
+snapdev::timespec_ex cui::get_last_ping() const
+{
+    if(f_proxy_connection == nullptr)
+    {
+        return snapdev::timespec_ex();
+    }
+
+    return f_proxy_connection->get_last_ping();
+}
+
+
+std::string cui::get_prinbee_status() const
+{
+    if(f_proxy_connection == nullptr
+    || f_proxy_connection->get_last_ping() == snapdev::timespec_ex())
+    {
+        return "unknown";
+    }
+
+    // we do not yet transmit the status of each backend daemon to
+    // the client; the proxy needs to do that and at the moment I
+    // am not too sure what I want to send other than the loadavg
+    //
+    std::stringstream ss;
+    ss << "TODO";
+
+    return ss.str();
+}
+
+
+std::string cui::get_console_status() const
+{
+    if(f_console_connection == nullptr)
+    {
+        return "close";
+    }
+
+    // I think this is not sufficient if we already sent the last commands
+    // but are still waiting for the ACK or ERR reply
+    //
+    if(f_cmds.empty())
+    {
+        return "open";
+    }
+
+    // it is still running commands
+    //
+    return "busy";
+}
+
+
+bool cui::parse_clear()
+{
+    f_parser->expect_semi_colon("HELP COMMANDS");
+    f_console_connection->clear_output();
+
+    return true;
+}
+
+
 bool cui::parse_help()
 {
     prinbee::pbql::node::pointer_t n(f_lexer->get_next_token());
@@ -698,7 +914,6 @@ bool cui::parse_help()
     if(n->get_token() == prinbee::pbql::token_t::TOKEN_IDENTIFIER)
     {
         std::string keyword(n->get_string_upper());
-std::cerr << "got sub keyword: [" << keyword << "].\n";
         switch(keyword[0])
         {
         case 'C':
@@ -748,6 +963,12 @@ std::cerr << "got sub keyword: [" << keyword << "].\n";
                     || command == "begin-transaction")
                     {
                         command = "transaction";
+                        break;
+                    }
+                    if(command == "bye")
+                    {
+                        command = "quit";
+                        break;
                     }
                     break;
 
@@ -757,6 +978,14 @@ std::cerr << "got sub keyword: [" << keyword << "].\n";
                     || command == "commit-transaction")
                     {
                         command = "transaction";
+                    }
+                    break;
+
+                case 'e':
+                    if(command == "exit")
+                    {
+                        command = "quit";
+                        break;
                     }
                     break;
 

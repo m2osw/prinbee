@@ -1,5 +1,13 @@
 Basic Help:
+
+Enter a command terminated by a semicolon and hit enter. You can use the up and down arrow keys to navigate through your command history.
+
+Here are basic and useful commands:
+
+   BYE;                  -- exit the application
+   CLEAR;                -- clear the output screen
+   EXIT;                 -- exit the application
    HELP;                 -- print out this basic help screen
    HELP COMMANDS;        -- print out all the available PBQL commands
    HELP COMMAND <name>;  -- print help out the specific PBQL command <name>
-   ...
+   QUIT;                 -- exit the application

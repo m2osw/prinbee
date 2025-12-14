@@ -20,5 +20,4 @@ ALTER TABLE [IF EXISTS] [<context-name>.]<table-name> ...
     ... ALTER [COLUMN] <name> <column-definition> ...
          ... [USING <expression>];
 
-Use `HELP COMMAND column-definition` for description of the possible
-definitions.
+Use `HELP COMMAND column-definition` for description of the possible definitions.

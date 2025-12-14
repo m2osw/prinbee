@@ -45,6 +45,7 @@ enum msg_reply_t
 };
 
 
+
 constexpr std::uint32_t const       MAX_PING_PONG_FAILURES = 5;
 
 
@@ -64,6 +65,12 @@ public:
     std::string                     define_prompt();
     void                            execute_commands(std::string const & commands);
     bool                            user_commands(std::string const & command);
+    std::string                     get_messenger_status() const;
+    std::string                     get_fluid_settings_status() const;
+    std::string                     get_proxy_status() const;
+    snapdev::timespec_ex            get_last_ping() const;
+    std::string                     get_prinbee_status() const;
+    std::string                     get_console_status() const;
 
     void                            msg_prinbee_proxy_current_status(ed::message & msg);
     bool                            msg_process_reply(
@@ -74,6 +81,7 @@ private:
     bool                            init_connections();
     bool                            init_console_connection();
     bool                            init_file();
+    bool                            parse_clear();
     bool                            parse_help();
 
     advgetopt::getopt               f_opts;
