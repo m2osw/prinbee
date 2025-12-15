@@ -298,7 +298,7 @@ void console_connection::process_help()
 //}
 
 
-void console_connection::set_status_window_key_binding()
+void console_connection::set_key_bindings()
 {
     if(rl_bind_keyseq("\\eOQ" /* F2 */, &show_status) != 0)
     {
@@ -408,7 +408,10 @@ void console_connection::update_status()
 
 void console_connection::ready()
 {
-    output("Ready.\nType HELP; or F1 for basic help screen.");
+    output(
+        "Ready.\n"
+        "Type HELP; or hit F1 for basic help screen.\n"
+        "Hit F2 to see the current console status.\n");
 }
 
 
@@ -438,21 +441,6 @@ void console_connection::help(std::string const & section_name)
     // the function expects the file contents to be "correct"
     //
     output(in.contents());
-
-    //output("Help:");
-    //output("Internal commands start with a  slash (/). Supported commands:");
-    //output("  /connect <scheme>://<ip>:<port> | <scheme>:///<path> -- connect to specified URI");
-    //output("    i.e. /connect cd://192.168.2.1:4004");
-    //output("  /disconnect -- explicitly disconnect any existing connection");
-    //output("  /help or /? or ? or <F1> key -- print this help screen");
-    //output("  /quit -- leave tool");
-    //output("  <F2> key -- create a message in a popup window");
-    //output("  ... -- message to send to current connection (/msg_help for more)");
-    //output("    a message is composed of:");
-    //output("      ['<'<server>:<service>' '][<server>:<service>'/']command[' '<name>=<value>';'...]");
-    //output("    where the first <server>:<service> is the origin (\"sent from\")");
-    //output("    where the second <server>:<service> is the destination");
-    //output("    where <name>=<value> pairs are parameters (can be repeated)");
 }
 
 

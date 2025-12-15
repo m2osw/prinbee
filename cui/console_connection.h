@@ -56,7 +56,7 @@ public:
 
     void                set_documentation_path(std::string const & path);
     void                reset_prompt();
-    void                set_status_window_key_binding();
+    void                set_key_bindings();
     void                help(std::string const & section_name);
     void                open_close_status_window();
     void                update_status();

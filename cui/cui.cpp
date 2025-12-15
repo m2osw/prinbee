@@ -369,7 +369,7 @@ bool cui::init_console_connection()
 {
     f_console_connection = std::make_shared<console_connection>(this);
     f_console_connection->ready();
-    f_console_connection->set_status_window_key_binding();
+    f_console_connection->set_key_bindings();
     f_console_connection->set_documentation_path(f_opts.get_string("documentation"));
     f_console_connection->reset_prompt();
     if(!ed::communicator::instance()->add_connection(f_console_connection))
@@ -664,7 +664,6 @@ void cui::execute_commands(std::string const & commands)
         f_console_connection->output(e.what());
     }
     f_quit = f_parser->quit();
-std::cerr << "--- parser says: " << (f_quit ? "QUIT" : "HOLD") << "\n";
     f_parser.reset();
     f_lexer.reset();
 

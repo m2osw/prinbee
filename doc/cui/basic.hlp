@@ -1,6 +1,6 @@
 Basic Help:
 
-Enter a command terminated by a semicolon and hit enter. You can use the up and down arrow keys to navigate through your command history.
+Enter a command terminated by a semicolon and hit enter. You can use the up and down arrow keys to navigate through your command history. The command history remains between sessions. Use the Page Up and Page Down keys to scroll the output window contents.
 
 Here are basic and useful commands:
 
