@@ -40,6 +40,7 @@ rm -f "${CUI_LOG_FILE}" "${COMMUNICATORD_LOG_FILE}"
 	--my-address 127.0.0.1 \
 	--services ../BUILD/Debug/dist/share/communicatord/services \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
+	--timedate-wait-command "../../BUILD/Debug/dist/bin/timedate-wait" \
 	--unix-listen "${COMMUNICATORD_SOCK}" &
 
 # Now run the pbql command
