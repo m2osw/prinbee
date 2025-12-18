@@ -42,7 +42,7 @@
 
 // edhttp
 //
-#include    <edhttp/uri.h>
+//#include    <edhttp/uri.h>
 
 
 // snaplogger
