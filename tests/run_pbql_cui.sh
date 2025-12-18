@@ -7,10 +7,12 @@
 #  * daemon
 #  * communicatord
 #  * fluid settings
+#  * cluck
 #
 
 CUI_LOG_FILE="tmp/cui.log"
 COMMUNICATORD_LOG_FILE="tmp/communicatord.log"
+FLUID_SETTINGS_LOG_FILE="tmp/fluid-settings.log"
 COMMUNICATORD_SOCK="tmp/communicatord.sock"
 
 if ! test -f tests/run_pbql_cui.sh
@@ -26,7 +28,7 @@ mkdir -p tmp
 # Remove the previous log file (that way we have one session in the entire
 # file which makes it easier to follow)
 #
-rm -f "${CUI_LOG_FILE}" "${COMMUNICATORD_LOG_FILE}"
+rm -f "${CUI_LOG_FILE}" "${COMMUNICATORD_LOG_FILE}" "${FLUID_SETTINGS_LOG_FILE}"
 
 # Recompile so we run the latest
 #
@@ -42,6 +44,14 @@ rm -f "${CUI_LOG_FILE}" "${COMMUNICATORD_LOG_FILE}"
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--timedate-wait-command "../../BUILD/Debug/dist/bin/timedate-wait" \
 	--unix-listen "${COMMUNICATORD_SOCK}" &
+
+# Start the fluid-settings daemon
+#
+../../BUILD/Debug/contrib/fluid-settings/daemon/fluid-settings \
+	--log-file "${FLUID_SETTINGS_LOG_FILE}" \
+	--trace \
+	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
+	--communicatord-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
 
 # Now run the pbql command
 #
