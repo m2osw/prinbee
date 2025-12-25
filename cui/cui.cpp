@@ -464,6 +464,9 @@ void cui::start_binary_connection()
     //
     if(f_proxy_connection != nullptr)
     {
+        SNAP_LOG_TRACE
+            << "start_binary_connection: Proxy connection already allocated."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -471,6 +474,9 @@ void cui::start_binary_connection()
     //
     if(!f_messenger->is_ready())
     {
+        SNAP_LOG_TRACE
+            << "start_binary_connection: messenger not ready."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -478,6 +484,9 @@ void cui::start_binary_connection()
     //
     if(!f_messenger->is_registered())
     {
+        SNAP_LOG_TRACE
+            << "start_binary_connection: fluid settings not ready."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -485,6 +494,9 @@ void cui::start_binary_connection()
     //
     if(f_address.empty())
     {
+        SNAP_LOG_TRACE
+            << "start_binary_connection: no address to the Proxy service."
+            << SNAP_LOG_SEND;
         return;
     }
     addr::addr const a(addr::string_to_addr(
@@ -499,7 +511,7 @@ void cui::start_binary_connection()
     f_proxy_connection->add_callbacks();
     f_communicator->add_connection(f_proxy_connection);
 
-    // now that we have a proxy connection initialize the ping pong timer
+    // now that we have a proxy connection, initialize the ping-pong timer
     // minimum is 1 second and maximum 1 hour
     //
     if(f_ping_pong_timer == nullptr)
@@ -509,7 +521,9 @@ void cui::start_binary_connection()
         f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
         if(!f_communicator->add_connection(f_ping_pong_timer))
         {
-            std::cerr << "error: could not add ping-ping timer to list of ed::communicator connections.\n";
+            SNAP_LOG_ERROR
+                << "error: could not add ping-ping timer to list of ed::communicator connections."
+                << SNAP_LOG_SEND;
         }
     }
 }
@@ -779,7 +793,7 @@ std::string cui::get_proxy_status() const
 {
     if(f_proxy_connection == nullptr)
     {
-        return "waiting";
+        return "--";
     }
 
     std::stringstream ss;

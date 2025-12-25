@@ -48,9 +48,9 @@
 #include    <eventdispatcher/names.h>
 
 
-// communicatord
+// communicator
 //
-#include    <communicatord/names.h>
+#include    <communicator/names.h>
 
 
 // last include
@@ -86,7 +86,7 @@ namespace prinbee_proxy
  * \param[in] opts  The options received from the command line.
  */
 messenger::messenger(proxy * p, advgetopt::getopt & opts)
-    : fluid_settings_connection(opts, "pb_proxy")
+    : fluid_settings_connection(opts, prinbee::g_name_prinbee_service_proxy)
     , f_proxy(p)
     , f_dispatcher(std::make_shared<ed::dispatcher>(this))
 {
@@ -94,7 +94,7 @@ messenger::messenger(proxy * p, advgetopt::getopt & opts)
     set_dispatcher(f_dispatcher);
     add_fluid_settings_commands();
     f_dispatcher->add_matches({
-            DISPATCHER_MATCH(communicatord::g_name_communicatord_cmd_ipwall_current_status, &messenger::msg_ipwall_current_status),
+            DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_ipwall_current_status, &messenger::msg_ipwall_current_status),
             DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_current_status, &messenger::msg_prinbee_current_status),
             DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_proxy_get_status, &messenger::msg_prinbee_proxy_get_status),
     });
@@ -149,10 +149,10 @@ void messenger::ready(ed::message & msg)
     {
         ed::message ipwall_get_status;
         ipwall_get_status.reply_to(msg);
-        ipwall_get_status.set_command(communicatord::g_name_communicatord_cmd_ipwall_get_status);
+        ipwall_get_status.set_command(::communicator::g_name_communicator_cmd_ipwall_get_status);
         ipwall_get_status.add_parameter(
-                  communicatord::g_name_communicatord_param_cache
-                , communicatord::g_name_communicatord_value_no);
+                  ::communicator::g_name_communicator_param_cache
+                , ::communicator::g_name_communicator_value_no);
         send_message(ipwall_get_status);
     }
 
@@ -160,10 +160,10 @@ void messenger::ready(ed::message & msg)
     //
     ed::message clock_status;
     clock_status.reply_to(msg); // the message is from the communicatord so we can use reply_to() here
-    clock_status.set_command(communicatord::g_name_communicatord_cmd_clock_status);
+    clock_status.set_command(::communicator::g_name_communicator_cmd_clock_status);
     clock_status.add_parameter(
-              communicatord::g_name_communicatord_param_cache
-            , communicatord::g_name_communicatord_value_no);
+              ::communicator::g_name_communicator_param_cache
+            , ::communicator::g_name_communicator_value_no);
     send_message(clock_status);
 
     // for completeness, call the following, however:
@@ -188,8 +188,8 @@ void messenger::ready(ed::message & msg)
  */
 void messenger::msg_clock_stable(ed::message & msg)
 {
-    f_proxy->set_clock_status(msg.get_parameter(communicatord::g_name_communicatord_param_clock_resolution)
-                                        == communicatord::g_name_communicatord_value_verified);
+    f_proxy->set_clock_status(msg.get_parameter(::communicator::g_name_communicator_param_clock_resolution)
+                                        == ::communicator::g_name_communicator_value_verified);
 }
 
 
@@ -217,8 +217,8 @@ void messenger::msg_clock_unstable(ed::message & msg)
  */
 void messenger::msg_ipwall_current_status(ed::message & msg)
 {
-    f_proxy->set_ipwall_status(msg.get_parameter(communicatord::g_name_communicatord_param_status)
-                                        == communicatord::g_name_communicatord_value_up);
+    f_proxy->set_ipwall_status(msg.get_parameter(::communicator::g_name_communicator_param_status)
+                                        == ::communicator::g_name_communicator_value_up);
 }
 
 

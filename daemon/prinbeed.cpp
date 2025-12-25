@@ -231,9 +231,9 @@
 #include    <prinbee/version.h>
 
 
-// communicatord
+// communicator
 //
-#include    <communicatord/names.h>
+#include    <communicator/names.h>
 
 
 // cluck
@@ -283,11 +283,6 @@
 //#include    <algorithm>
 //#include    <iostream>
 //#include    <sstream>
-//
-//
-//// openssl
-////
-//#include    <openssl/rand.h>
 
 
 // last include
@@ -620,6 +615,28 @@ void prinbeed::finish_initialization()
 }
 
 
+/** \brief Run the prinbee daemon.
+ *
+ * This function is the core function of the daemon. It runs the loop
+ * used to accept messenger and direct binary connections between the
+ * database daemon (prinbeed) and proxy.
+ *
+ * \sa add_connections()
+ */
+int prinbeed::run()
+{
+    SNAP_LOG_INFO
+        << "--------------------------------- prinbeed started."
+        << SNAP_LOG_SEND;
+
+    // now run our listening loop
+    //
+    f_communicator->run();
+
+    return 0;
+}
+
+
 /** \brief Set the ipwall status from the IPWALL_CURRENT_STATUS message.
  *
  * The daemon listens for IPWALL_CURRENT_STATUS messages, it accepts
@@ -684,7 +701,7 @@ void prinbeed::register_prinbee_daemon(ed::message & msg)
         }
     }
 
-    if(!msg.has_parameter(communicatord::g_name_communicatord_param_status))
+    if(!msg.has_parameter(communicator::g_name_communicator_param_status))
     {
         SNAP_LOG_ERROR
             << "PRINBEE_CURRENT_STATUS message is missing the status parameter."
@@ -692,8 +709,8 @@ void prinbeed::register_prinbee_daemon(ed::message & msg)
         return;
     }
 
-    if(msg.get_parameter(communicatord::g_name_communicatord_param_status)
-                            != communicatord::g_name_communicatord_value_up)
+    if(msg.get_parameter(communicator::g_name_communicator_param_status)
+                            != communicator::g_name_communicator_value_up)
     {
         SNAP_LOG_VERBOSE
             << "received a PRINBEE_CURRENT_STATUS message where the status is not UP."
@@ -794,28 +811,6 @@ void prinbeed::lock_status_changed()
 }
 
 
-/** \brief Run the prinbee daemon.
- *
- * This function is the core function of the daemon. It runs the loop
- * used to accept messenger and direct binary connections between the
- * database daemon (prinbeed) and proxy.
- *
- * \sa add_connections()
- */
-int prinbeed::run()
-{
-    SNAP_LOG_INFO
-        << "--------------------------------- prinbeed started."
-        << SNAP_LOG_SEND;
-
-    // now run our listening loop
-    //
-    f_communicator->run();
-
-    return 0;
-}
-
-
 /** \brief Check whether we can find iplock.
  *
  * The system checks whether the firewall is in place by waiting for the
@@ -905,6 +900,9 @@ void prinbeed::start_binary_connection()
     && f_proxy_listener != nullptr
     && f_direct_listener != nullptr)
     {
+        SNAP_LOG_TRACE
+            << "start_binary_connection: node listener, proxy listener, and/or direct listeners already started."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -912,6 +910,9 @@ void prinbeed::start_binary_connection()
     //
     if(!f_messenger->is_ready())
     {
+        SNAP_LOG_TRACE
+            << "start_binary_connection: messenger not ready."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -919,6 +920,9 @@ void prinbeed::start_binary_connection()
     //
     if(!f_messenger->is_registered())
     {
+        SNAP_LOG_TRACE
+            << "start_binary_connection: messenger not register."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -926,6 +930,9 @@ void prinbeed::start_binary_connection()
     //
     if(!f_ipwall_is_up)
     {
+        SNAP_LOG_TRACE
+            << "start_binary_connection: firewall is down."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -934,6 +941,9 @@ void prinbeed::start_binary_connection()
     //
     if(!f_stable_clock)
     {
+        SNAP_LOG_TRACE
+            << "start_binary_connection: clock is not yet stable."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -946,6 +956,9 @@ void prinbeed::start_binary_connection()
     //
     if(!f_lock_ready)
     {
+        SNAP_LOG_TRACE
+            << "start_binary_connection: cluck is not ready."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -1026,10 +1039,10 @@ void prinbeed::start_binary_connection()
     ed::message prinbee_get_status;
     prinbee_get_status.set_command(prinbee::g_name_prinbee_cmd_prinbee_get_status);
     prinbee_get_status.set_service(prinbee::g_name_prinbee_service_prinbee);
-    prinbee_get_status.set_server(communicatord::g_name_communicatord_service_private_broadcast);
+    prinbee_get_status.set_server(communicator::g_name_communicator_service_private_broadcast);
     prinbee_get_status.add_parameter(
-              communicatord::g_name_communicatord_param_cache
-            , communicatord::g_name_communicatord_value_no);
+              communicator::g_name_communicator_param_cache
+            , communicator::g_name_communicator_value_no);
     f_messenger->send_message(prinbee_get_status);
 
     // we also need to send our status to everyone else
@@ -1048,7 +1061,7 @@ void prinbeed::send_our_status(ed::message * msg)
     prinbee_current_status.set_command(prinbee::g_name_prinbee_cmd_prinbee_current_status);
     if(msg == nullptr)
     {
-        prinbee_current_status.set_service(communicatord::g_name_communicatord_service_private_broadcast);
+        prinbee_current_status.set_service(communicator::g_name_communicator_service_private_broadcast);
     }
     else
     {
@@ -1062,22 +1075,22 @@ void prinbeed::send_our_status(ed::message * msg)
               prinbee::g_name_prinbee_param_node_name
             , f_node_name);
     prinbee_current_status.add_parameter(
-              communicatord::g_name_communicatord_param_cache
-            , communicatord::g_name_communicatord_value_no);
+              communicator::g_name_communicator_param_cache
+            , communicator::g_name_communicator_value_no);
 
     if(f_node_address.empty()
     || f_proxy_address.empty()
     || f_direct_address.empty())
     {
         prinbee_current_status.add_parameter(
-                  communicatord::g_name_communicatord_param_status
-                , communicatord::g_name_communicatord_value_down);
+                  communicator::g_name_communicator_param_status
+                , communicator::g_name_communicator_value_down);
     }
     else
     {
         prinbee_current_status.add_parameter(
-                  communicatord::g_name_communicatord_param_status
-                , communicatord::g_name_communicatord_value_up);
+                  communicator::g_name_communicator_param_status
+                , communicator::g_name_communicator_value_up);
         prinbee_current_status.add_parameter(
                   prinbee::g_name_prinbee_param_node_ip
                 , f_node_address);

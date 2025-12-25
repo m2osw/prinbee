@@ -49,9 +49,9 @@
 #include    <eventdispatcher/names.h>
 
 
-// communicatord
+// communicator
 //
-#include    <communicatord/names.h>
+#include    <communicator/names.h>
 
 
 // snapdev
@@ -113,7 +113,7 @@ void prinbee_connection::add_prinbee_commands()
     dispatcher->add_matches({
             DISPATCHER_MATCH(g_name_prinbee_cmd_prinbee_current_status, &prinbee_connection::msg_prinbee_current_status),
             ed::define_match(
-                  ed::Expression(communicatord::g_name_communicatord_cmd_status)
+                  ed::Expression(communicator::g_name_communicator_cmd_status)
                 , ed::Callback(std::bind(&prinbee_connection::msg_status, this, std::placeholders::_1))
                 , ed::MatchFunc(&ed::one_to_one_callback_match)
                 , ed::Priority(ed::dispatcher_match::DISPATCHER_MATCH_CALLBACK_PRIORITY)
@@ -130,7 +130,7 @@ void prinbee_connection::add_prinbee_commands()
 
 void prinbee_connection::msg_prinbee_current_status(ed::message & msg)
 {
-    std::string const state(msg.get_parameter(communicatord::g_name_communicatord_param_status));
+    std::string const state(msg.get_parameter(communicator::g_name_communicator_param_status));
     f_prinbee_state.from_json(
               STATE_JOURNAL_APPLICATION_STATUS
             | STATE_JOURNAL_LOCAL_STATUS
@@ -145,21 +145,21 @@ void prinbee_connection::msg_prinbee_current_status(ed::message & msg)
 
 void prinbee_connection::msg_status(ed::message & msg)
 {
-    if(!msg.has_parameter(communicatord::g_name_communicatord_param_status)
-    || !msg.has_parameter(communicatord::g_name_communicatord_param_service))
+    if(!msg.has_parameter(communicator::g_name_communicator_param_status)
+    || !msg.has_parameter(communicator::g_name_communicator_param_service))
     {
         return;
     }
 
-    std::string const service(msg.get_parameter(communicatord::g_name_communicatord_param_service));
+    std::string const service(msg.get_parameter(communicator::g_name_communicator_param_service));
     if(service == g_name_prinbee_service_prinbee)
     {
         // in this case, if the service goes UP, we ignore the message because
         // we will soon receive the PRINBEE_CURRENT_STATUS message; in all other
         // cases we make sure that the status gets checked
         //
-        std::string const status(msg.get_parameter(communicatord::g_name_communicatord_param_status));
-        if(status != communicatord::g_name_communicatord_value_up)
+        std::string const status(msg.get_parameter(communicator::g_name_communicator_param_status));
+        if(status != communicator::g_name_communicator_value_up)
         {
             // the connection is down; so we should reset the state
             // to all unknown?
@@ -186,8 +186,8 @@ void prinbee_connection::msg_ready(ed::message & msg)
     prinbee_get_status.reply_to(msg);
     prinbee_get_status.set_command(g_name_prinbee_cmd_prinbee_get_status);
     prinbee_get_status.add_parameter(
-              communicatord::g_name_communicatord_param_cache
-            , communicatord::g_name_communicatord_value_no);
+              communicator::g_name_communicator_param_cache
+            , communicator::g_name_communicator_value_no);
     c->send_message(prinbee_get_status);
 }
 

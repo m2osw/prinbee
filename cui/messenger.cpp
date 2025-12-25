@@ -41,9 +41,9 @@
 #include    <eventdispatcher/names.h>
 
 
-// communicatord
+// communicator
 //
-#include    <communicatord/names.h>
+#include    <communicator/names.h>
 
 
 // last include
@@ -136,10 +136,10 @@ void messenger::ready(ed::message & msg)
     ed::message proxy_status;
     proxy_status.set_command(prinbee::g_name_prinbee_cmd_prinbee_proxy_get_status);
     proxy_status.set_service(prinbee::g_name_prinbee_service_proxy);
-    proxy_status.set_server(communicatord::g_name_communicatord_service_private_broadcast);
+    proxy_status.set_server(::communicator::g_name_communicator_service_private_broadcast);
     proxy_status.add_parameter(
-              communicatord::g_name_communicatord_param_cache
-            , communicatord::g_name_communicatord_value_no);
+              ::communicator::g_name_communicator_param_cache
+            , ::communicator::g_name_communicator_value_no);
     send_message(proxy_status);
 
     // the following call is for completeness, but since we just sent the

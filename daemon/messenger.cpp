@@ -20,7 +20,7 @@
  * \brief Messenger for the prinbee daemon.
  *
  * The Prinbee daemon has a normal messenger connection. This is used to
- * find the daemons and connect to them. The clients make use of a
+ * find the other daemons and connect to them. The clients make use of a
  * direct connection so communication can happen with large binary data
  * (i.e. large files are to be sent to the backends).
  */
@@ -48,9 +48,9 @@
 #include    <eventdispatcher/names.h>
 
 
-// communicatord
+// communicator
 //
-#include    <communicatord/names.h>
+#include    <communicator/names.h>
 
 
 // last include
@@ -96,17 +96,13 @@ messenger::messenger(prinbeed * p, advgetopt::getopt & opts)
     set_dispatcher(f_dispatcher);
     add_fluid_settings_commands();
     f_dispatcher->add_matches({
-            DISPATCHER_MATCH(communicatord::g_name_communicatord_cmd_clock_stable,          &messenger::msg_clock_stable),
-            DISPATCHER_MATCH(communicatord::g_name_communicatord_cmd_clock_unstable,        &messenger::msg_clock_unstable),
-            DISPATCHER_MATCH(communicatord::g_name_communicatord_cmd_ipwall_current_status, &messenger::msg_ipwall_current_status),
+            DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_clock_stable,          &messenger::msg_clock_stable),
+            DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_clock_unstable,        &messenger::msg_clock_unstable),
+            DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_ipwall_current_status, &messenger::msg_ipwall_current_status),
             DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_current_status,            &messenger::msg_prinbee_current_status),
             DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_get_status,                &messenger::msg_prinbee_get_status),
     });
     f_dispatcher->add_communicator_commands();
-    cluck::listen_to_cluck_status(
-              std::dynamic_pointer_cast<ed::connection_with_send_message>(shared_from_this())
-            , f_dispatcher
-            , std::bind(&messenger::msg_lock_status, this, std::placeholders::_1));
 
 #ifdef _DEBUG
     // further dispatcher initialization
@@ -129,6 +125,11 @@ messenger::~messenger()
  */
 void messenger::finish_parsing()
 {
+    cluck::listen_to_cluck_status(
+              std::dynamic_pointer_cast<ed::connection_with_send_message>(shared_from_this())
+            , f_dispatcher
+            , std::bind(&messenger::msg_lock_status, this, std::placeholders::_1));
+
     process_fluid_settings_options();
     automatic_watch_initialization();
 }
@@ -147,6 +148,9 @@ void messenger::finish_parsing()
  */
 void messenger::ready(ed::message & msg)
 {
+    SNAP_LOG_TRACE
+        << "got messenger::ready() called."
+        << SNAP_LOG_SEND;
     fluid_settings_connection::ready(msg);
 
     // check the ipwall service status using the IPWALL_GET_STATUS message
@@ -163,10 +167,10 @@ void messenger::ready(ed::message & msg)
         ed::message ipwall_get_status;
         ipwall_get_status.set_server(".");
         ipwall_get_status.set_service("ipwall"); // WARNING: iplock depends on prinbee so we cannot use the iplock names.an info
-        ipwall_get_status.set_command(communicatord::g_name_communicatord_cmd_ipwall_get_status);
+        ipwall_get_status.set_command(::communicator::g_name_communicator_cmd_ipwall_get_status);
         ipwall_get_status.add_parameter(
-                  communicatord::g_name_communicatord_param_cache
-                , communicatord::g_name_communicatord_value_no);
+                  ::communicator::g_name_communicator_param_cache
+                , ::communicator::g_name_communicator_value_no);
         send_message(ipwall_get_status);
     }
 
@@ -174,10 +178,10 @@ void messenger::ready(ed::message & msg)
     //
     ed::message clock_status;
     clock_status.reply_to(msg); // the message is from the communicatord so we can use reply_to() here
-    clock_status.set_command(communicatord::g_name_communicatord_cmd_clock_status);
+    clock_status.set_command(::communicator::g_name_communicator_cmd_clock_status);
     clock_status.add_parameter(
-              communicatord::g_name_communicatord_param_cache
-            , communicatord::g_name_communicatord_value_no);
+              ::communicator::g_name_communicator_param_cache
+            , ::communicator::g_name_communicator_value_no);
     send_message(clock_status);
 
     // for completeness, call the following, however:
@@ -202,8 +206,8 @@ void messenger::ready(ed::message & msg)
  */
 void messenger::msg_clock_stable(ed::message & msg)
 {
-    f_prinbeed->set_clock_status(msg.get_parameter(communicatord::g_name_communicatord_param_clock_resolution)
-                                        == communicatord::g_name_communicatord_value_verified);
+    f_prinbeed->set_clock_status(msg.get_parameter(::communicator::g_name_communicator_param_clock_resolution)
+                                        == ::communicator::g_name_communicator_value_verified);
 }
 
 
@@ -231,8 +235,8 @@ void messenger::msg_clock_unstable(ed::message & msg)
  */
 void messenger::msg_ipwall_current_status(ed::message & msg)
 {
-    f_prinbeed->set_ipwall_status(msg.get_parameter(communicatord::g_name_communicatord_param_status)
-                                        == communicatord::g_name_communicatord_value_up);
+    f_prinbeed->set_ipwall_status(msg.get_parameter(::communicator::g_name_communicator_param_status)
+                                        == ::communicator::g_name_communicator_value_up);
 }
 
 

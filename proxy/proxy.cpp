@@ -36,10 +36,10 @@
 //#include    <advgetopt/utils.h>
 
 
-// communicatord
+// communicator
 //
-//#include    <communicatord/flags.h>
-#include    <communicatord/names.h>
+//#include    <communicator/flags.h>
+#include    <communicator/names.h>
 
 
 // snaplogger
@@ -120,6 +120,13 @@ advgetopt::option const g_options[] =
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
         , advgetopt::Help("Specify an address and port to listen on for direct client connections; if the IP is not defined or set to ANY, then only the port is used and this computer public IP address is used.")
         , advgetopt::DefaultValue(":4011")
+    ),
+    advgetopt::define_option(
+          advgetopt::Name("cluster-name")
+        , advgetopt::Flags(advgetopt::all_flags<
+                      advgetopt::GETOPT_FLAG_REQUIRED
+                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("Specify the name of the cluster the proxy will be working with.")
     ),
     advgetopt::define_option(
           advgetopt::Name("ping-pong-interval")
@@ -407,7 +414,7 @@ void proxy::msg_prinbee_current_status(ed::message & msg)
         }
     }
 
-    if(!msg.has_parameter(communicatord::g_name_communicatord_param_status))
+    if(!msg.has_parameter(communicator::g_name_communicator_param_status))
     {
         SNAP_LOG_ERROR
             << "PRINBEE_CURRENT_STATUS message is missing the status parameter."
@@ -415,8 +422,8 @@ void proxy::msg_prinbee_current_status(ed::message & msg)
         return;
     }
 
-    if(msg.get_parameter(communicatord::g_name_communicatord_param_status)
-                            != communicatord::g_name_communicatord_value_up)
+    if(msg.get_parameter(communicator::g_name_communicator_param_status)
+                            != communicator::g_name_communicator_value_up)
     {
         SNAP_LOG_VERBOSE
             << "received a PRINBEE_CURRENT_STATUS message where the status is not UP."
@@ -746,10 +753,10 @@ void proxy::start_binary_connection()
     ed::message prinbee_get_status;
     prinbee_get_status.set_command(prinbee::g_name_prinbee_cmd_prinbee_get_status);
     prinbee_get_status.set_service(prinbee::g_name_prinbee_service_prinbee);
-    prinbee_get_status.set_server(communicatord::g_name_communicatord_service_private_broadcast);
+    prinbee_get_status.set_server(communicator::g_name_communicator_service_private_broadcast);
     prinbee_get_status.add_parameter(
-              communicatord::g_name_communicatord_param_cache
-            , communicatord::g_name_communicatord_value_no);
+              communicator::g_name_communicator_param_cache
+            , communicator::g_name_communicator_value_no);
     f_messenger->send_message(prinbee_get_status);
 
     // we also need to send our status to everyone else
@@ -778,7 +785,7 @@ void proxy::send_our_status(ed::message * msg)
     prinbee_current_status.set_command(prinbee::g_name_prinbee_cmd_prinbee_proxy_current_status);
     if(msg == nullptr)
     {
-        prinbee_current_status.set_service(communicatord::g_name_communicatord_service_private_broadcast);
+        prinbee_current_status.set_service(communicator::g_name_communicator_service_private_broadcast);
     }
     else
     {
@@ -789,20 +796,20 @@ void proxy::send_our_status(ed::message * msg)
               prinbee::g_name_prinbee_param_cluster_name
             , f_cluster_name);
     prinbee_current_status.add_parameter(
-              communicatord::g_name_communicatord_param_cache
-            , communicatord::g_name_communicatord_value_no);
+              communicator::g_name_communicator_param_cache
+            , communicator::g_name_communicator_value_no);
 
     if(f_address.empty())
     {
         prinbee_current_status.add_parameter(
-                  communicatord::g_name_communicatord_param_status
-                , communicatord::g_name_communicatord_value_down);
+                  communicator::g_name_communicator_param_status
+                , communicator::g_name_communicator_value_down);
     }
     else
     {
         prinbee_current_status.add_parameter(
-                  communicatord::g_name_communicatord_param_status
-                , communicatord::g_name_communicatord_value_up);
+                  communicator::g_name_communicator_param_status
+                , communicator::g_name_communicator_value_up);
         prinbee_current_status.add_parameter(
                   prinbee::g_name_prinbee_param_proxy_ip
                 , f_address);
