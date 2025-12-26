@@ -47,7 +47,7 @@ rm -f "${CUI_LOG_FILE}" \
 # Start the communicator daemon
 #
 echo "--- start communicator daemon"
-../../BUILD/Debug/contrib/communicator/daemon/communicatord \
+ADVGETOPT_OPTIONS_FILES_DIRECTORY="../../BUILD/Debug/dist/share/communicator/options" ../../BUILD/Debug/contrib/communicator/daemon/communicatord \
 	--log-file "${COMMUNICATORD_LOG_FILE}" \
 	--trace \
 	--debug-all-messages \

@@ -60,7 +60,7 @@ public:
 private:
     void                        msg_clock_stable(ed::message & msg);
     void                        msg_clock_unstable(ed::message & msg);
-    void                        msg_ipwall_current_status(ed::message & msg);
+    void                        msg_iplock_current_status(ed::message & msg);
     void                        msg_lock_status(ed::message & msg);
     void                        msg_prinbee_current_status(ed::message & msg);
     void                        msg_prinbee_get_status(ed::message & msg);

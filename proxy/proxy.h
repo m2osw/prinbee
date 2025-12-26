@@ -134,7 +134,6 @@ private:
     versiontheca::versiontheca::pointer_t   f_protocol_version = std::make_shared<versiontheca::versiontheca>(f_protocol_trait, prinbee::g_name_prinbee_protocol_version_node);
 
     bool                                    f_fluid_settings_ready = false;
-    bool                                    f_ipwall_is_installed = false;
     bool                                    f_ipwall_is_up = false;
     bool                                    f_stable_clock = false;
 };

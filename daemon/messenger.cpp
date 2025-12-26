@@ -98,7 +98,7 @@ messenger::messenger(prinbeed * p, advgetopt::getopt & opts)
     f_dispatcher->add_matches({
             DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_clock_stable,          &messenger::msg_clock_stable),
             DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_clock_unstable,        &messenger::msg_clock_unstable),
-            DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_ipwall_current_status, &messenger::msg_ipwall_current_status),
+            DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_iplock_current_status, &messenger::msg_iplock_current_status),
             DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_current_status,            &messenger::msg_prinbee_current_status),
             DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_get_status,                &messenger::msg_prinbee_get_status),
     });
@@ -153,42 +153,41 @@ void messenger::ready(ed::message & msg)
         << SNAP_LOG_SEND;
     fluid_settings_connection::ready(msg);
 
-    // check the ipwall service status using the IPWALL_GET_STATUS message
+    // make sure the firewall is in place, which means:
     //
-    // WARNING: we do need to use the message because package wise, iplock
-    //          depends on prinbee and thus we cannot be sure it is even
-    //          installed without testing; similarly, the prinbee daemon
-    //          service cannot wait on ipload to run ahead of time since
-    //          it may want to use the database... a chicken and the egg
-    //          issue.
+    // 1. We want to make sure that the ipload command ran successfully
+    // 2. The status of the firewall is UP or ACTIVE
+    // 3. This service accepts the IPLOCK_CURRENT_STATUS message
+    // 4. Here we pro-actively request the status with IPLOCK_GET_STATUS
+    // 5. Future changes are broadcast so we do not need to repeat the GET
     //
-    if(f_prinbeed->is_ipwall_installed())
-    {
-        ed::message ipwall_get_status;
-        ipwall_get_status.set_server(".");
-        ipwall_get_status.set_service("ipwall"); // WARNING: iplock depends on prinbee so we cannot use the iplock names.an info
-        ipwall_get_status.set_command(::communicator::g_name_communicator_cmd_ipwall_get_status);
-        ipwall_get_status.add_parameter(
-                  ::communicator::g_name_communicator_param_cache
-                , ::communicator::g_name_communicator_value_no);
-        send_message(ipwall_get_status);
-    }
+    ed::message iplock_get_status_msg;
+    //iplock_get_status_msg.set_server(".");
+    //iplock_get_status_msg.set_service(::communicator::g_name_communicator__service_communicatord);
+    iplock_get_status_msg.reply_to(msg); // the ready message is from the communicatord so we can use reply_to() here
+    iplock_get_status_msg.set_command(::communicator::g_name_communicator_cmd_iplock_get_status);
+    iplock_get_status_msg.add_parameter(
+              ::communicator::g_name_communicator_param_cache
+            , ::communicator::g_name_communicator_value_no);
+    send_message(iplock_get_status_msg);
 
     // request the current clock status
     //
-    ed::message clock_status;
-    clock_status.reply_to(msg); // the message is from the communicatord so we can use reply_to() here
-    clock_status.set_command(::communicator::g_name_communicator_cmd_clock_status);
-    clock_status.add_parameter(
+    ed::message clock_status_msg;
+    //clock_status_msg.set_server(".");
+    //clock_status_msg.set_service(::communicator::g_name_communicator__service_communicatord);
+    clock_status_msg.reply_to(msg); // the ready message is from the communicatord so we can use reply_to() here
+    clock_status_msg.set_command(::communicator::g_name_communicator_cmd_clock_status);
+    clock_status_msg.add_parameter(
               ::communicator::g_name_communicator_param_cache
             , ::communicator::g_name_communicator_value_no);
-    send_message(clock_status);
+    send_message(clock_status_msg);
 
     // for completeness, call the following, however:
     //
-    // * the firewall, if installed, will not yet have responded
+    // * the firewall status will not yet be known
     // * the clock status will not have had time to respond either
-    // * the fluid-settings service is not registered yet
+    // * the fluid-settings service is not yet registered
     //
     // the prinbee daemon just never expects any of the necessary messages
     // before the READY message is received
@@ -233,10 +232,17 @@ void messenger::msg_clock_unstable(ed::message & msg)
  *
  * \param[in,out] msg  The IPWALL_CURRENT_STATUS message.
  */
-void messenger::msg_ipwall_current_status(ed::message & msg)
+void messenger::msg_iplock_current_status(ed::message & msg)
 {
-    f_prinbeed->set_ipwall_status(msg.get_parameter(::communicator::g_name_communicator_param_status)
-                                        == ::communicator::g_name_communicator_value_up);
+    // WARNING: the status is checked "manually" instead of calling the
+    //          iplock::wait_on_firewall::from_string() and then
+    //          testing the result; this is because prinbee cannot
+    //          depend on the iplock project
+    //
+    std::string const status(msg.get_parameter(::communicator::g_name_communicator_param_status));
+    f_prinbeed->set_ipwall_status(
+               status == ::communicator::g_name_communicator_value_up
+            || status == ::communicator::g_name_communicator_value_active);
 }
 
 

@@ -590,55 +590,6 @@ void proxy::timed_out()
 }
 
 
-/** \brief Check whether we can find iplock.
- *
- * The system checks whether the firewall is in place by waiting for the
- * ipload and ipwall to be ready. This works by sending an IPWALL_GET_STATUS
- * message and expecting the IPWALL_CURRENT_STATUS as the reply.
- *
- * Only, the iplock services depends on the prinbee services. This is because
- * the iplock system wants to have access to a table in the database. So to
- * make things work, we instead use the messages. However, the messages will
- * never happen if the packages weren't installed, which is a possible
- * installation scheme. After all, if you have prinbee installed on a
- * back end system with firewall on other computers, it would not be
- * required to have iplock running on its own computers.
- *
- * So here we check whether the iplock system is installed. If not, we'll
- * skip on the IPWALL_CURRENT_STATUS altogether.
- */
-void proxy::check_ipwall_status()
-{
-    cppprocess::process p("is ipwall active?");
-    p.set_command("systemctl");
-    p.add_argument("is-enabled");
-    p.add_argument("ipwall");
-    cppprocess::io_capture_pipe::pointer_t out(std::make_shared<cppprocess::io_capture_pipe>());
-    p.set_output_io(out);
-    int r(p.start());
-    if(r == 0)
-    {
-        r = p.wait();
-    }
-    SNAP_LOG_VERBOSE
-        << '"'
-        << p.get_command_line()
-        << "\" query output ("
-        << r
-        << "): "
-        << out->get_trimmed_output()
-        << SNAP_LOG_SEND;
-
-    f_ipwall_is_installed = r == 0;
-}
-
-
-bool proxy::is_ipwall_installed() const
-{
-    return f_ipwall_is_installed;
-}
-
-
 /** \brief Start the binary connection.
  *
  * First, this function makes sure it can start the binary connections.

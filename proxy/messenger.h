@@ -56,7 +56,7 @@ public:
                                     , std::string const & value) override;
 
 private:
-    void                        msg_ipwall_current_status(ed::message & msg);
+    void                        msg_iplock_current_status(ed::message & msg);
     void                        msg_prinbee_current_status(ed::message & msg);
     void                        msg_prinbee_proxy_get_status(ed::message & msg);
     void                        msg_clock_stable(ed::message & msg);
