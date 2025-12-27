@@ -1,0 +1,85 @@
+#!/bin/bash -e
+#
+# Simulate the systemctl command so we can pretend that the ipload service
+# ran and the firewall is active; this is used by our CUI test
+
+if test -z "${1}"
+then
+	echo "error: an action is required."
+	exit 1
+fi
+
+if test "${1}" = "-h" -o "${1}" = "--help" -o "${1}" = "help"
+then
+	echo "Usage: `basename $0` [-h|--help]"
+	echo "       `basename $0` <action> [-q] <service>"
+	exit 1
+fi
+
+ACTION="$1"
+if test "${ACTION}" != "is-enabled" -a "${ACTION}" != "is-active"
+then
+	echo "error: unknown action."
+	exit 1
+fi
+
+shift
+
+QUIET=false
+SERVICE=
+while test -n "$1"
+do
+	case "$1" in
+	"-q")
+		QUIET=true
+		shift
+		;;
+
+	*)
+		if test -n "${SERVICE}"
+		then
+			echo "error: service already specified."
+			exit 1
+		fi
+		SERVICE="$1"
+		shift
+		;;
+
+	esac
+done
+
+if test -z "${SERVICE}"
+then
+	echo "error: the service name is mandatory"
+	exit 1
+fi
+
+if test "${SERVICE}" != "ipload"
+then
+	if test "${QUIET}" = "false"
+	then
+		if test "${ACTION}" = "is-enabled"
+		then
+			echo "disabled"
+		elif test "${ACTION}" = "is-active"
+		then
+			echo "inactive"
+		else
+			echo "error: unknown action."
+		fi
+	fi
+	exit 1
+fi
+
+if test "${QUIET}" = "false"
+then
+	if test "${ACTION}" = "is-enabled"
+	then
+		echo "enabled"
+	elif test "${ACTION}" = "is-active"
+	then
+		echo "active"
+	fi
+fi
+
+exit 0

@@ -46,16 +46,25 @@ rm -f "${CUI_LOG_FILE}" \
 
 # Start the communicator daemon
 #
+# The PATH is changed so the systemctl defined in our tests folder is used
+# and that way we can pretend that the ipload ran successfully
+#
 echo "--- start communicator daemon"
-ADVGETOPT_OPTIONS_FILES_DIRECTORY="../../BUILD/Debug/dist/share/communicator/options" ../../BUILD/Debug/contrib/communicator/daemon/communicatord \
+PATH="`pwd`/tests:${PATH}" \
+ADVGETOPT_OPTIONS_FILES_DIRECTORY="../../BUILD/Debug/dist/share/communicator/options" \
+../../BUILD/Debug/contrib/communicator/daemon/communicatord \
 	--log-file "${COMMUNICATORD_LOG_FILE}" \
 	--trace \
 	--debug-all-messages \
 	--my-address 127.0.0.1 \
-	--services ../BUILD/Debug/dist/share/communicator/services \
+	--services "../../BUILD/Debug/dist/share/communicator/services" \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
+	--communicator-plugin-paths "`pwd`/../../BUILD/Debug/dist/lib/communicator/plugins" \
 	--timedate-wait-command "../../BUILD/Debug/dist/bin/timedate-wait" \
 	--unix-listen "${COMMUNICATORD_SOCK}" &
+
+wait
+exit 1
 
 # Start the fluid-settings daemon
 #
@@ -64,7 +73,7 @@ echo "--- start fluid-settings"
 	--log-file "${FLUID_SETTINGS_LOG_FILE}" \
 	--trace \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
-	--communicatord-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
+	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
 
 # Start the proxy daemon
 #
@@ -76,7 +85,7 @@ echo "--- start prinbee proxy"
 	--prinbee-path "`pwd`/tmp" \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--cluster-name "test_cluster" \
-	--communicatord-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
+	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
 
 # Start the actual daemon
 #
@@ -88,7 +97,7 @@ echo "--- start prinbee daemon"
 	--prinbee-path "`pwd`/tmp" \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--cluster-name "test_cluster" \
-	--communicatord-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
+	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
 
 # Now run the pbql command
 #
@@ -98,7 +107,7 @@ echo "--- start pbql..."
 	--trace \
 	--documentation "../../BUILD/Debug/dist/share/doc/prinbee/cui/" \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
-	--communicatord-listen "cd://`pwd`/${COMMUNICATORD_SOCK}"
+	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}"
 
 # Stop everything except the communicator daemon itself
 echo "--- ed-signal to broadcast STOP to all clients..."
