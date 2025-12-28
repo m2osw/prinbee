@@ -67,12 +67,6 @@
 #include    <cppprocess/io_capture_pipe.h>
 
 
-// boost
-//
-//#include    <boost/algorithm/string/join.hpp>
-//#include    <boost/preprocessor/stringize.hpp>
-
-
 //// C++
 ////
 //#include    <fstream>
