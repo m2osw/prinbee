@@ -31,12 +31,12 @@
 #include    <prinbee/version.h>
 
 
-//// communicatord
-////
+// communicatord
+//
 //#include    <communicatord/communicator.h>
-//#include    <communicatord/names.h>
-//
-//
+#include    <communicator/names.h>
+
+
 //// eventdispatcher
 ////
 //#include    <eventdispatcher/cui_connection.h>
@@ -403,6 +403,11 @@ bool cui::init_file()
 
 void cui::msg_prinbee_proxy_current_status(ed::message & msg)
 {
+    f_proxy_status = "unknown";
+    if(msg.has_parameter(communicator::g_name_communicator_param_status))
+    {
+        f_proxy_status = msg.get_parameter(communicator::g_name_communicator_param_status);
+    }
     if(msg.has_parameter(prinbee::g_name_prinbee_param_proxy_ip))
     {
         f_address = msg.get_parameter(prinbee::g_name_prinbee_param_proxy_ip);
@@ -793,6 +798,14 @@ std::string cui::get_proxy_status() const
 {
     if(f_proxy_connection == nullptr)
     {
+        // the status "down" means we receive a PRINBEE_PROXY_CURRENT_STATUS
+        // message and that means the proxy service is running but not yet
+        // available to receive binary connections
+        //
+        if(f_proxy_status == "down")
+        {
+            return "not available";
+        }
         return "--";
     }
 

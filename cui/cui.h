@@ -96,6 +96,7 @@ private:
     std::string                     f_command = std::string();
     std::string                     f_file = std::string();
     std::string                     f_address = std::string();
+    std::string                     f_proxy_status = "unknown";
     bool                            f_interactive = false;
     bool                            f_ready = false; // received the ACK from the REG message
     bool                            f_quit = false; // if true and all the commands were executed, we quit if true
