@@ -901,7 +901,7 @@ void prinbeed::start_binary_connection()
     && f_direct_listener != nullptr)
     {
         SNAP_LOG_TRACE
-            << "start_binary_connection: node listener, proxy listener, and/or direct listeners already started."
+            << "node, proxy, and direct listeners already started."
             << SNAP_LOG_SEND;
         return;
     }
@@ -911,7 +911,7 @@ void prinbeed::start_binary_connection()
     if(!f_messenger->is_ready())
     {
         SNAP_LOG_TRACE
-            << "start_binary_connection: messenger not ready."
+            << "messenger not ready."
             << SNAP_LOG_SEND;
         return;
     }
@@ -921,7 +921,7 @@ void prinbeed::start_binary_connection()
     if(!f_messenger->is_registered())
     {
         SNAP_LOG_TRACE
-            << "start_binary_connection: messenger not register."
+            << "messenger not register."
             << SNAP_LOG_SEND;
         return;
     }
@@ -931,7 +931,7 @@ void prinbeed::start_binary_connection()
     if(!f_ipwall_is_up)
     {
         SNAP_LOG_TRACE
-            << "start_binary_connection: firewall is down."
+            << "firewall is down."
             << SNAP_LOG_SEND;
         return;
     }
@@ -942,7 +942,7 @@ void prinbeed::start_binary_connection()
     if(!f_stable_clock)
     {
         SNAP_LOG_TRACE
-            << "start_binary_connection: clock is not yet stable."
+            << "clock is not yet stable."
             << SNAP_LOG_SEND;
         return;
     }
@@ -957,7 +957,7 @@ void prinbeed::start_binary_connection()
     if(!f_lock_ready)
     {
         SNAP_LOG_TRACE
-            << "start_binary_connection: cluck is not ready."
+            << "cluck is not ready."
             << SNAP_LOG_SEND;
         return;
     }

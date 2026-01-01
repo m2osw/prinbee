@@ -12,8 +12,9 @@
 
 # TODO: move those to the BUILD folder
 #
-CUI_LOG_FILE="tmp/cui.log"
+CLUCK_LOG_FILE="tmp/cluck.log"
 COMMUNICATORD_LOG_FILE="tmp/communicatord.log"
+CUI_LOG_FILE="tmp/cui.log"
 DAEMON_LOG_FILE="tmp/daemon.log"
 FLUID_SETTINGS_LOG_FILE="tmp/fluid-settings.log"
 PROXY_LOG_FILE="tmp/proxy.log"
@@ -49,6 +50,7 @@ check_daemon() {
 
 check_daemon communicatord
 check_daemon fluid-settings
+check_daemon cluckd
 check_daemon prinbee-proxy
 check_daemon prinbee-daemon
 
@@ -60,8 +62,9 @@ mkdir -p tmp/contexts
 # Remove the previous log file (that way we have one session in the entire
 # file which makes it easier to follow)
 #
-rm -f "${CUI_LOG_FILE}" \
+rm -f "${CLUCK_LOG_FILE}"\
 	"${COMMUNICATORD_LOG_FILE}" \
+	"${CUI_LOG_FILE}" \
 	"${DAEMON_LOG_FILE}" \
 	"${FLUID_SETTINGS_LOG_FILE}" \
 	"${PROXY_LOG_FILE}"
@@ -98,6 +101,15 @@ echo "info: start fluid-settings"
 	--trace \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--definitions "../../BUILD/Debug/dist/share/fluid-settings/definitions" \
+	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
+
+# Start the cluck daemon
+#
+echo "info: start cluck"
+../../BUILD/Debug/contrib/cluck/daemon/cluckd \
+	--log-file "${CLUCK_LOG_FILE}" \
+	--trace \
+	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
 
 # Start the proxy daemon
