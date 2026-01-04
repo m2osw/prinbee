@@ -75,6 +75,7 @@
 #include    <advgetopt/advgetopt.h>
 //#include    <advgetopt/conf_file.h>
 #include    <advgetopt/exception.h>
+#include    <advgetopt/validator_duration.h>
 
 
 //// C++
@@ -174,7 +175,8 @@ const advgetopt::option g_command_line_options[] =
                       advgetopt::GETOPT_FLAG_REQUIRED
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
         , advgetopt::Help("How often to send a PING to all the daemons.")
-        , advgetopt::DefaultValue("5")
+        , advgetopt::Validator("duration")
+        , advgetopt::DefaultValue("5s")
     ),
     advgetopt::end_options()
 };
@@ -521,13 +523,24 @@ void cui::start_binary_connection()
     //
     if(f_ping_pong_timer == nullptr)
     {
-        std::int64_t ping_pong_interval(0);
-        ping_pong_interval = std::clamp(f_opts.get_long("ping_pong_interval"), 1L, 60L * 60L) * 1'000'000;
+        double ping_pong_interval(0.0);
+        if(!advgetopt::validator_duration::convert_string(
+                      f_opts.get_string("ping_pong_interval")
+                    , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                    , ping_pong_interval))
+        {
+            SNAP_LOG_CONFIGURATION_WARNING
+                << "the --ping-pong-interval does not represent a valid duration."
+                << SNAP_LOG_SEND;
+            return;
+        }
+
+        ping_pong_interval = std::clamp(ping_pong_interval, 1L, 60L * 60L) * 1'000'000;
         f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
         if(!f_communicator->add_connection(f_ping_pong_timer))
         {
-            SNAP_LOG_ERROR
-                << "error: could not add ping-ping timer to list of ed::communicator connections."
+            SNAP_LOG_RECOVERABLE_ERROR
+                << "could not add ping-pong timer to list of ed::communicator connections."
                 << SNAP_LOG_SEND;
         }
     }

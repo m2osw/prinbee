@@ -1,0 +1,5 @@
+usr/bin/pbql
+usr/share/doc/prinbee/cui
+
+conf/pbql.conf                                         etc/prinbee/
+conf/logger/pbql.conf                                  etc/prinbee/logger/

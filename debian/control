@@ -83,8 +83,16 @@ Section: utils
 Architecture: any
 Depends: prinbee (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
 Suggests: prinbee-doc
-Description: The Prinbee Proxy to ease access to your database system.
+Description: The Prinbee Proxy to ease access to the database system.
  This service runs along your client. It is used to manage the connections
  to the backend Prinbee Daemon. The Prinbee Proxy is access via the
  Prinbee library.
+
+Package: prinbee-client
+Section: utils
+Architecture: any
+Depends: prinbee (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Suggests: prinbee-doc
+Description: The Prinbee Client to access the database system.
+ This clients is used to manage Prinbee database system.
 
