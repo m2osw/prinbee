@@ -65,7 +65,7 @@ fld_version=version
 fld_versioned_rows=versioned_rows
 
 # services
-service_prinbee=prinbee
+service_prinbeed=prinbeed
 service_proxy=pb_proxy
 
 # other names

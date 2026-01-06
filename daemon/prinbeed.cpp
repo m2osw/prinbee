@@ -1038,7 +1038,7 @@ void prinbeed::start_binary_connection()
     //
     ed::message prinbee_get_status;
     prinbee_get_status.set_command(prinbee::g_name_prinbee_cmd_prinbee_get_status);
-    prinbee_get_status.set_service(prinbee::g_name_prinbee_service_prinbee);
+    prinbee_get_status.set_service(prinbee::g_name_prinbee_service_prinbeed);
     prinbee_get_status.set_server(communicator::g_name_communicator_service_private_broadcast);
     prinbee_get_status.add_parameter(
               communicator::g_name_communicator_param_cache

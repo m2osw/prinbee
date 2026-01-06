@@ -152,7 +152,7 @@ void prinbee_connection::msg_status(ed::message & msg)
     }
 
     std::string const service(msg.get_parameter(communicator::g_name_communicator_param_service));
-    if(service == g_name_prinbee_service_prinbee)
+    if(service == g_name_prinbee_service_prinbeed)
     {
         // in this case, if the service goes UP, we ignore the message because
         // we will soon receive the PRINBEE_CURRENT_STATUS message; in all other

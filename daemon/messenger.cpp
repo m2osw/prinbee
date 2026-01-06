@@ -88,7 +88,7 @@ namespace prinbee_daemon
  * \param[in] opts  The options received from the command line.
  */
 messenger::messenger(prinbeed * p, advgetopt::getopt & opts)
-    : fluid_settings_connection(opts, "prinbeed")
+    : fluid_settings_connection(opts, prinbee::g_name_prinbee_service_prinbeed)
     , f_prinbeed(p)
     , f_dispatcher(std::make_shared<ed::dispatcher>(this))
 {

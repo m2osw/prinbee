@@ -535,7 +535,7 @@ void cui::start_binary_connection()
             return;
         }
 
-        ping_pong_interval = std::clamp(ping_pong_interval, 1L, 60L * 60L) * 1'000'000;
+        ping_pong_interval = std::clamp(ping_pong_interval, 1.0, 60.0 * 60.0) * 1'000'00.0;
         f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
         if(!f_communicator->add_connection(f_ping_pong_timer))
         {
