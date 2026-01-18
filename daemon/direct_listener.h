@@ -24,13 +24,7 @@
 
 // prinbee
 //
-#include    <prinbee/network/binary_server.h>
 #include    <prinbee/network/binary_server_client.h>
-
-
-// C
-//
-//#include    <signal.h>
 
 
 
@@ -39,8 +33,6 @@ namespace prinbee_daemon
 
 
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Weffc++"
 class direct_listener
     : public prinbee::binary_server
 {
@@ -48,7 +40,10 @@ public:
     typedef std::shared_ptr<direct_listener> pointer_t;
 
                                 direct_listener(prinbeed * p, addr::addr const & a);
+                                direct_listener(direct_listener const & rhs) = delete;
     virtual                     ~direct_listener() override;
+
+    direct_listener &           operator = (direct_listener const & rhs) = delete;
 
     // prinbee::binary_server implementation
     //
@@ -57,7 +52,6 @@ public:
 private:
     prinbeed *                  f_prinbeed = nullptr;
 };
-#pragma GCC diagnostic pop
 
 
 

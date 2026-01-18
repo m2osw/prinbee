@@ -22,25 +22,12 @@
 #include    "prinbeed.h"
 
 
-// prinbee
-//
-#include    <prinbee/network/binary_server.h>
-//#include    <prinbee/network/binary_server_client.h>
-
-
-// C
-//
-//#include    <signal.h>
-
-
 
 namespace prinbee_daemon
 {
 
 
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Weffc++"
 class node_listener
     : public prinbee::binary_server
 {
@@ -60,7 +47,6 @@ public:
 private:
     prinbeed *                  f_prinbeed = nullptr;
 };
-#pragma GCC diagnostic pop
 
 
 
