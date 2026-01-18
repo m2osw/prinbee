@@ -57,6 +57,7 @@ node_listener::node_listener(prinbeed * p, addr::addr const & a)
     : binary_server(a)
     , f_prinbeed(p)
 {
+    set_name("node_listener");
 }
 
 

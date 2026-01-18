@@ -28,6 +28,7 @@ constexpr int const             DIRECT_BINARY_PORT = 4012;  // daemon listen on 
 constexpr int const             NODE_BINARY_PORT = 4011;    // daemon listen on this port for other daemons
 constexpr int const             PROXY_BINARY_PORT = 4010;   // daemon listen on this port for proxies
 constexpr int const             CLIENT_BINARY_PORT = 4013;  // proxy listen on this port for clients
+constexpr std::uint32_t const   MAX_PING_PONG_FAILURES = 5; // maximum number of ping-pong failures before turning off a connection
 
 
 

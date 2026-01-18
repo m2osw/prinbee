@@ -22,6 +22,7 @@
 #include    "ping_pong_timer.h"
 
 #include    "prinbeed.h"
+#include    "prinbee/network/constants.h"
 
 
 // last include

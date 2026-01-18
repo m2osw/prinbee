@@ -107,7 +107,12 @@ void daemon::add_callbacks()
     //
     add_message_callback(
           prinbee::g_message_unknown
-        , std::bind(&proxy::msg_process_reply, f_proxy, d, std::placeholders::_1, msg_reply_t::MSG_REPLY_RECEIVED));
+        , std::bind(
+              &proxy::msg_process_reply
+            , f_proxy
+            , d
+            , std::placeholders::_1
+            , prinbee::msg_reply_t::MSG_REPLY_RECEIVED));
 }
 
 
@@ -221,7 +226,7 @@ void daemon::process_acknowledgment(prinbee::message_serial_t serial_number, boo
     }
     f_expected_acknowledgment.erase(it);
 
-    f_proxy->msg_process_reply(shared_from_this(), it->second, success ? MSG_REPLY_SUCCEEDED : MSG_REPLY_FAILED);
+    f_proxy->msg_process_reply(shared_from_this(), it->second, success ? prinbee::MSG_REPLY_SUCCEEDED : prinbee::MSG_REPLY_FAILED);
 }
 
 

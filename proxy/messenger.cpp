@@ -88,24 +88,13 @@ namespace prinbee_proxy
 messenger::messenger(proxy * p, advgetopt::getopt & opts)
     : fluid_settings_connection(opts, prinbee::g_name_prinbee_service_proxy)
     , f_proxy(p)
-    , f_dispatcher(std::make_shared<ed::dispatcher>(this))
 {
-    set_name("messenger");
-    set_dispatcher(f_dispatcher);
-    add_fluid_settings_commands();
-    f_dispatcher->add_matches({
+    set_name("prinbee_proxy_messenger");
+    get_dispatcher()->add_matches({
             DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_iplock_current_status, &messenger::msg_iplock_current_status),
-            DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_current_status, &messenger::msg_prinbee_current_status),
-            DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_proxy_get_status, &messenger::msg_prinbee_proxy_get_status),
+            DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_current_status,            &messenger::msg_prinbee_current_status),
+            DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_get_status,                &messenger::msg_prinbee_proxy_get_status),
     });
-    f_dispatcher->add_communicator_commands();
-
-    // further dispatcher initialization
-    //
-#ifdef _DEBUG
-    f_dispatcher->set_trace();
-    f_dispatcher->set_show_matches();
-#endif
 }
 
 

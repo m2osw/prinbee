@@ -70,33 +70,20 @@ namespace prinbee_cui
 
 /** \brief The messenger initialization.
  *
- * The messenger is the proxy daemon connection to the communicator server.
+ * The messenger is primarily the CUI connection to the communicator server.
+ * Since it derives from the prinbee_connection, it also manages the
+ * binary connection to the prinbee proxy.
  *
  * It sets up its dispatcher and calls prinbeed functions whenever it
  * receives a message.
  *
  * \param[in] c  The PBQL CUI object we are listening for (the client).
- * \param[in] opts  The options received from the command line.
+ * \param[in] opts  The list of command line options.
  */
 messenger::messenger(cui * c, advgetopt::getopt & opts)
-    : fluid_settings_connection(opts, "pbql_cui")
+    : prinbee_connection(opts, "pbql_cui")
     , f_cui(c)
-    , f_dispatcher(std::make_shared<ed::dispatcher>(this))
 {
-    set_name("messenger");
-    set_dispatcher(f_dispatcher);
-    add_fluid_settings_commands();
-    f_dispatcher->add_matches({
-            DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_proxy_current_status, &messenger::msg_prinbee_proxy_current_status),
-    });
-    f_dispatcher->add_communicator_commands();
-
-    // further dispatcher initialization
-    //
-#ifdef _DEBUG
-    f_dispatcher->set_trace();
-    f_dispatcher->set_show_matches();
-#endif
 }
 
 
@@ -112,53 +99,38 @@ messenger::~messenger()
  */
 void messenger::finish_parsing()
 {
-    process_fluid_settings_options();
-    automatic_watch_initialization();
+    prinbee_connection::finish_initialization();
 }
 
 
 /** \brief Messenger received the READY message.
  *
  * Whenever we receive the READY message, we also receive our IP address
- * as the "my_address" parameter. This gets copied in the prinbeed object.
+ * in the "my_address" parameter. This gets copied in the messenger object.
  *
  * \param[in,out] msg  The READY message.
  */
 void messenger::ready(ed::message & msg)
 {
     fluid_settings_connection::ready(msg);
-
-    // request the local proxy status
-    //
-    // if the proxy has been ready for a while, it won't be sending it's
-    // status to us automatically
-    //
-    ed::message proxy_status;
-    proxy_status.set_command(prinbee::g_name_prinbee_cmd_prinbee_proxy_get_status);
-    proxy_status.set_service(prinbee::g_name_prinbee_service_proxy);
-    proxy_status.set_server(::communicator::g_name_communicator_service_private_broadcast);
-    proxy_status.add_parameter(
-              ::communicator::g_name_communicator_param_cache
-            , ::communicator::g_name_communicator_value_no);
-    send_message(proxy_status);
-
-    // the following call is for completeness, but since we just sent the
-    // PRINBEE_PROXY_GET_STATUS it won't work since we need that status first
-    //
-    f_cui->start_binary_connection();
 }
 
 
-/** \brief Handle the CLOCK_STABLE message.
+/** \brief Handle a change of status in the proxy.
  *
- * This function gets called whenever the daemon receives the
- * CLOCK_STABLE message.
- *
- * \param[in,out] msg  The CLOCK_STABLE message.
+ * This function gets called whenever the prinbee_connection receives
+ * a message that ends up changing the proxy status.
  */
-void messenger::msg_prinbee_proxy_current_status(ed::message & msg)
+void messenger::process_proxy_status()
 {
-    f_cui->msg_prinbee_proxy_current_status(msg);
+    prinbee_connection::process_proxy_status();
+
+    if(is_proxy_connected())
+    {
+        f_cui->proxy_ready();
+    }
+
+    f_cui->update_status();
 }
 
 
@@ -193,11 +165,26 @@ void messenger::fluid_settings_changed(
     , std::string const & name
     , std::string const & value)
 {
-    fluid_settings_connection::fluid_settings_changed(status, name, value);
+    prinbee_connection::fluid_settings_changed(status, name, value);
 
-    if(status == fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_READY)
+    switch(status)
     {
-        f_cui->start_binary_connection();
+    case fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_READY:
+        // ...
+        break;
+
+    case fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_VALUE:
+    case fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_NEW_VALUE:
+        //if(name == "...")
+        //{
+        //    apply_new_value();
+        //}
+        break;
+
+    default:
+        // ignore the delete, etc.
+        break;
+
     }
 }
 

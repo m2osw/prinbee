@@ -227,7 +227,7 @@
 // prinbee
 //
 #include    <prinbee/exception.h>
-#include    <prinbee/network/ports.h>
+#include    <prinbee/network/constants.h>
 #include    <prinbee/version.h>
 
 
@@ -276,6 +276,7 @@
 //
 //#include    <advgetopt/advgetopt.h>
 #include    <advgetopt/exception.h>
+#include    <advgetopt/validator_duration.h>
 
 
 //// C++
@@ -343,6 +344,15 @@ advgetopt::option const g_options[] =
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
         , advgetopt::Help("Specify the number of worker threads, minimum is 2 and maximum is the number of available CPU times 2; set to \"default\" to get one worker per CPU.")
         , advgetopt::DefaultValue("/var/lib/prinbee")
+    ),
+    advgetopt::define_option(
+          advgetopt::Name("ping-pong-interval")
+        , advgetopt::Flags(advgetopt::all_flags<
+                      advgetopt::GETOPT_FLAG_REQUIRED
+                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("How often to send a PING to the neighbor daemons.")
+        , advgetopt::Validator("duration(1s...1h)")
+        , advgetopt::DefaultValue("5s")
     ),
     advgetopt::define_option(
           advgetopt::Name("prinbee-path")
@@ -425,7 +435,15 @@ advgetopt::options_environment const g_options_environment =
 
 
 
+ed::timer::pointer_t g_ticks;
 
+
+bool process_tick(ed::timer::pointer_t t)
+{
+    t->set_timeout_delay(10'000'000);
+    SNAP_LOG_VERBOSE << "--- TICK ---" << SNAP_LOG_SEND;
+    return true;
+}
 
 
 
@@ -483,9 +501,9 @@ prinbeed::prinbeed(int argc, char * argv[])
     // setup the path to the prinbee data folder which includes things like
     // the list of contexts
     //
-    if(f_opts.is_defined("prinbee-path"))
+    if(f_opts.is_defined("prinbee_path"))
     {
-        prinbee::set_prinbee_path(f_opts.get_string("prinbee-path"));
+        prinbee::set_prinbee_path(f_opts.get_string("prinbee_path"));
     }
 
     f_cluster_name = snapdev::to_lower(f_opts.get_string("cluster_name"));
@@ -504,6 +522,10 @@ prinbeed::prinbeed(int argc, char * argv[])
     if(!prinbee::validate_name(f_node_name.c_str(), 100))
     {
         throw advgetopt::getopt_exit("the node name is not considered a valid name.", 1);
+    }
+    if(!prinbee::verify_node_name(f_node_name.c_str()))
+    {
+        throw advgetopt::getopt_exit("the node name cannot end with \"_proxy\" or \"_client\".", 1);
     }
 
     if(getuid() == 0
@@ -542,6 +564,11 @@ void prinbeed::finish_initialization()
 {
     f_communicator = ed::communicator::instance();
 
+//g_ticks = std::make_shared<ed::timer>(0);
+//g_ticks->set_name("ticks");
+//g_ticks->get_callback_manager().add_callback(&process_tick);
+//f_communicator->add_connection(g_ticks);
+
     // capture Ctrl-C (SIGINT) to get a clean exit by default
     //
     f_interrupt = std::make_shared<interrupt>(this);
@@ -559,15 +586,28 @@ void prinbeed::finish_initialization()
 
     // initialize the ping pong timer
     //
-    std::int64_t ping_pong_interval(5 * 1'000'000);  // send a PING to other nodes every 5 seconds
-    if(f_opts.is_defined("ping_pong_interval"))
+    double ping_pong_interval(0.0);
+    if(!advgetopt::validator_duration::convert_string(
+                  f_opts.get_string("ping_pong_interval")
+                , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                , ping_pong_interval))
     {
-        // minimum is 1 second and maximum 1 hour
-        //
-        ping_pong_interval = std::clamp(f_opts.get_long("ping_pong_interval"), 1L, 60L * 60L) * 1'000'000;
+        SNAP_LOG_CONFIGURATION_WARNING
+            << "the --ping-pong-interval does not represent a valid duration."
+            << SNAP_LOG_SEND;
+        ping_pong_interval = 5.0;
     }
+
+    // minimum is 1 second and maximum 1 hour
+    //
+    ping_pong_interval = std::clamp(ping_pong_interval, 1.0, 60.0 * 60.0) * 1'000'000.0;
     f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
-    f_communicator->add_connection(f_ping_pong_timer);
+    if(!f_communicator->add_connection(f_ping_pong_timer))
+    {
+        SNAP_LOG_RECOVERABLE_ERROR
+            << "could not add ping-pong timer to list of ed::communicator connections."
+            << SNAP_LOG_SEND;
+    }
 
     // initialize the worker threads
     //
@@ -582,7 +622,8 @@ void prinbeed::finish_initialization()
         }
     }
     cppthread::fifo<payload_t::pointer_t>::pointer_t fifo(std::make_shared<cppthread::fifo<payload_t::pointer_t>>());
-    f_worker_pool = std::make_shared<worker_pool>(this, workers_count, fifo);
+    f_worker_pool = std::make_shared<worker_pool>(this, 1, fifo);
+    //f_worker_pool = std::make_shared<worker_pool>(this, workers_count, fifo);
 
     if(f_opts.is_defined("owner"))
     {
@@ -1057,24 +1098,24 @@ void prinbeed::send_our_status(ed::message * msg)
     // since this message is used to interconnect all the prinbee daemons
     // and prinbee proxies in a cluster
     //
-    ed::message prinbee_current_status;
-    prinbee_current_status.set_command(prinbee::g_name_prinbee_cmd_prinbee_current_status);
+    ed::message prinbee_current_status_msg;
+    prinbee_current_status_msg.set_command(prinbee::g_name_prinbee_cmd_prinbee_current_status);
     if(msg == nullptr)
     {
-        prinbee_current_status.set_service(communicator::g_name_communicator_service_private_broadcast);
+        prinbee_current_status_msg.set_service(communicator::g_name_communicator_service_private_broadcast);
     }
     else
     {
-        prinbee_current_status.reply_to(*msg);
+        prinbee_current_status_msg.reply_to(*msg);
     }
 
-    prinbee_current_status.add_parameter(
+    prinbee_current_status_msg.add_parameter(
               prinbee::g_name_prinbee_param_cluster_name
             , f_cluster_name);
-    prinbee_current_status.add_parameter(
+    prinbee_current_status_msg.add_parameter(
               prinbee::g_name_prinbee_param_node_name
             , f_node_name);
-    prinbee_current_status.add_parameter(
+    prinbee_current_status_msg.add_parameter(
               communicator::g_name_communicator_param_cache
             , communicator::g_name_communicator_value_no);
 
@@ -1082,27 +1123,27 @@ void prinbeed::send_our_status(ed::message * msg)
     || f_proxy_address.empty()
     || f_direct_address.empty())
     {
-        prinbee_current_status.add_parameter(
+        prinbee_current_status_msg.add_parameter(
                   communicator::g_name_communicator_param_status
                 , communicator::g_name_communicator_value_down);
     }
     else
     {
-        prinbee_current_status.add_parameter(
+        prinbee_current_status_msg.add_parameter(
                   communicator::g_name_communicator_param_status
                 , communicator::g_name_communicator_value_up);
-        prinbee_current_status.add_parameter(
+        prinbee_current_status_msg.add_parameter(
                   prinbee::g_name_prinbee_param_node_ip
                 , f_node_address);
-        prinbee_current_status.add_parameter(
+        prinbee_current_status_msg.add_parameter(
                   prinbee::g_name_prinbee_param_proxy_ip
                 , f_proxy_address);
-        prinbee_current_status.add_parameter(
+        prinbee_current_status_msg.add_parameter(
                   prinbee::g_name_prinbee_param_direct_ip
                 , f_direct_address);
     }
 
-    f_messenger->send_message(prinbee_current_status);
+    f_messenger->send_message(prinbee_current_status_msg);
 }
 
 
@@ -1122,7 +1163,7 @@ void prinbeed::connect_to_node(addr::addr const & a, std::string const & name)
     //
     prinbee::binary_message::pointer_t register_msg(std::make_shared<prinbee::binary_message>());
     register_msg->create_register_message(
-          f_opts.get_string(prinbee::g_name_prinbee_param_node_name)
+          f_node_name
         , prinbee::g_name_prinbee_protocol_version_node);
     n->send_message(register_msg);
 
@@ -1246,7 +1287,7 @@ bool prinbeed::msg_process_payload(
     payload->f_peer = peer;
     payload->f_message = msg;
 
-    f_worker_pool->push_back(payload);
+    push_payload(payload);
 
     return true;
 }
@@ -1312,7 +1353,14 @@ bool prinbeed::register_client(payload_t::pointer_t payload)
 
     payload->f_peer->set_name(r.f_name);
 
-    connection_reference::pointer_t ref(register_connection(payload->f_peer, connection_type_t::CONNECTION_TYPE_NODE));
+    connection_reference::pointer_t ref(find_connection_reference(payload->f_peer));
+    if(ref == nullptr)
+    {
+        throw prinbee::logic_error(
+              "the connection \""
+            + r.f_name
+            + "\" is registering itself, so it must exist in the list of registered connections.");
+    }
     ref->set_protocol(their_protocol);
 
     send_acknowledgment(payload, 0);

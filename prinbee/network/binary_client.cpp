@@ -675,6 +675,12 @@ void binary_client::process_disconnected()
 }
 
 
+bool binary_client::is_connected() const
+{
+    return f_impl != nullptr;
+}
+
+
 /** \brief Function called whenever a binary message is received.
  *
  * Whenever the process_read() function completes the receipt of a

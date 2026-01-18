@@ -17,6 +17,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+// prinbee
+//
+#include    <prinbee/network/prinbee_connection.h>
+
+
 // fluid-settings
 //
 #include    <fluid-settings/fluid_settings_connection.h>
@@ -32,7 +37,7 @@ class cui;
 
 
 class messenger
-    : public fluid_settings::fluid_settings_connection
+    : public prinbee::prinbee_connection
 {
 public:
     typedef std::shared_ptr<messenger>     pointer_t;
@@ -46,22 +51,26 @@ public:
     void                        finish_parsing();
 
     // ed::connection_with_send_message implementation
+    //
     virtual void                ready(ed::message & msg);
     virtual void                stop(bool quitting);
 
     // fluid_settings::fluid_settings_connection implementation
+    //
     virtual void                fluid_settings_changed(
                                       fluid_settings::fluid_settings_status_t status
                                     , std::string const & name
                                     , std::string const & value) override;
 
+    // prinbee::prinbee_connection implementation
+    //
+    virtual void                process_proxy_status() override;
+
 private:
-    void                        msg_prinbee_proxy_current_status(ed::message & msg);
     void                        msg_clock_stable(ed::message & msg);
     void                        msg_clock_unstable(ed::message & msg);
 
     cui *                       f_cui = nullptr;
-    ed::dispatcher::pointer_t   f_dispatcher = ed::dispatcher::pointer_t();
 };
 
 

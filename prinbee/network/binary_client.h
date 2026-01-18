@@ -63,6 +63,7 @@ public:
 
     binary_client &             operator = (binary_client const &) = delete;
 
+    bool                        is_connected() const;
     //bool                        has_input() const;
     //bool                        has_output() const;
     addr::addr const &          get_remote_address() const;

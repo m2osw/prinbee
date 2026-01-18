@@ -350,59 +350,61 @@ output("> show status;");
 
 void console_connection::update_status()
 {
-    if(f_win_status != nullptr)
+    if(f_win_status == nullptr)
     {
-        {
-            std::string msg(" Communicator: ");
-            msg += f_cui->get_messenger_status();
-            mvwprintw(f_win_status, 1, 2, "%s", msg.c_str());
-        }
-
-        {
-            std::string msg("Fluid Service: ");
-            msg += f_cui->get_fluid_settings_status();
-            mvwprintw(f_win_status, 2, 2, "%s", msg.c_str());
-        }
-
-        {
-            std::string msg("        Proxy: ");
-            msg += f_cui->get_proxy_status();
-            mvwprintw(f_win_status, 3, 2, "%s", msg.c_str());
-        }
-
-        {
-            std::string msg("    Last Ping: ");
-            snapdev::timespec_ex const last_ping(f_cui->get_last_ping());
-            if(last_ping == snapdev::timespec_ex())
-            {
-                msg += "never";
-            }
-            else
-            {
-                msg += last_ping.to_string("%Y/%m/%d %T", true);
-            }
-            mvwprintw(f_win_status, 4, 2, "%s", msg.c_str());
-        }
-
-        {
-            std::string msg("      Pinbree: ");
-            msg += f_cui->get_prinbee_status();
-            mvwprintw(f_win_status, 5, 2, "%s", msg.c_str());
-        }
-
-        {
-            std::string msg("      Console: ");
-            msg += f_cui->get_console_status();
-            mvwprintw(f_win_status, 6, 2, "%s", msg.c_str());
-        }
-
-        //if(wrefresh(f_win_status) != OK)
-        //{
-        //    output("error: wrefresh() to status message window failed.");
-        //    return;
-        //}
-        update_panels();
+        return;
     }
+
+    {
+        std::string msg(" Communicator: ");
+        msg += f_cui->get_messenger_status();
+        mvwprintw(f_win_status, 1, 2, "%s", msg.c_str());
+    }
+
+    {
+        std::string msg("Fluid Service: ");
+        msg += f_cui->get_fluid_settings_status();
+        mvwprintw(f_win_status, 2, 2, "%s", msg.c_str());
+    }
+
+    {
+        std::string msg("        Proxy: ");
+        msg += f_cui->get_proxy_status();
+        mvwprintw(f_win_status, 3, 2, "%s", msg.c_str());
+    }
+
+    {
+        std::string msg("    Last Ping: ");
+        snapdev::timespec_ex const last_ping(f_cui->get_last_ping());
+        if(last_ping == snapdev::timespec_ex())
+        {
+            msg += "never";
+        }
+        else
+        {
+            msg += last_ping.to_string("%Y/%m/%d %T", true);
+        }
+        mvwprintw(f_win_status, 4, 2, "%s", msg.c_str());
+    }
+
+    {
+        std::string msg("      Pinbree: ");
+        msg += f_cui->get_prinbee_status();
+        mvwprintw(f_win_status, 5, 2, "%s", msg.c_str());
+    }
+
+    {
+        std::string msg("      Console: ");
+        msg += f_cui->get_console_status();
+        mvwprintw(f_win_status, 6, 2, "%s", msg.c_str());
+    }
+
+    //if(wrefresh(f_win_status) != OK)
+    //{
+    //    output("error: wrefresh() to status message window failed.");
+    //    return;
+    //}
+    update_panels();
 }
 
 

@@ -385,6 +385,96 @@ constexpr bool validate_bit_field_name(
 }
 
 
+/** \brief Make sure the node name does not include a known suffix.
+ *
+ * This function verifies that the specified string (node name) does
+ * not end with of of the currently known suffixes.
+ *
+ * We prevent the names from ending with "_proxy" and "_client"
+ * because we do add that to the name when registering a proxy
+ * or a client to a prinbee daemon.
+ *
+ * \note
+ * We also prevent the name as a whole to be set to "proxy" or
+ * "client". Just use something else. (i.e. "proxy1" and "client1"
+ * would work.)
+ *
+ * \todo
+ * Should we also prevent "_daemon" just for completeness? After
+ * all we do have the daemon nodes too even if we do not currently
+ * add that suffix.
+ *
+ * \param[in] name  The node name to verify.
+ *
+ * \return true if the node name is considered valid.
+ */
+constexpr bool verify_node_name(char const * const name)
+{
+    if(name == nullptr)
+    {
+        return false;
+    }
+
+    if(name[0] == 'p'
+    && name[1] == 'r'
+    && name[2] == 'o'
+    && name[3] == 'x'
+    && name[4] == 'y'
+    && name[5] == '\0')
+    {
+        return false;
+    }
+
+    if(name[0] == 'c'
+    && name[1] == 'l'
+    && name[2] == 'i'
+    && name[3] == 'e'
+    && name[4] == 'n'
+    && name[5] == 't'
+    && name[6] == '\0')
+    {
+        return false;
+    }
+
+    char const * e(name);
+    while(*e != '\0')
+    {
+        ++e;
+    }
+
+    if(e - name < 6)
+    {
+        return true;
+    }
+    if(e[-1] == 'y'
+    && e[-2] == 'x'
+    && e[-3] == 'o'
+    && e[-4] == 'r'
+    && e[-5] == 'p'
+    && e[-6] == '_')
+    {
+        return false;
+    }
+
+    if(e - name < 7)
+    {
+        return true;
+    }
+    if(e[-1] == 't'
+    && e[-2] == 'n'
+    && e[-3] == 'e'
+    && e[-4] == 'i'
+    && e[-5] == 'l'
+    && e[-6] == 'c'
+    && e[-7] == '_')
+    {
+        return false;
+    }
+
+    return true;
+}
+
+
 
 } // namespace prinbee
 // vim: ts=4 sw=4 et

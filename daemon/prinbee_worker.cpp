@@ -17,12 +17,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /** \file
- * \brief Messenger for the prinbee daemon.
+ * \brief Worker threads for the prinbee daemon.
  *
- * The Prinbee daemon has a normal messenger connection. This is used to
- * find the daemons and connect to them. The clients make use of a
- * direct connection so communication can happen with large binary data
- * (i.e. large files are to be sent to the backends).
+ * The Prinbee daemon works on payloads using separate threads. This allows
+ * for heavy parallelism when you have large nodes (i.e. 64 CPUs).
  */
 
 

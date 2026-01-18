@@ -63,7 +63,6 @@ private:
     void                        msg_clock_unstable(ed::message & msg);
 
     proxy *                     f_proxy = nullptr;
-    ed::dispatcher::pointer_t   f_dispatcher = ed::dispatcher::pointer_t();
 };
 
 

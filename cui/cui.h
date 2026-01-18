@@ -22,12 +22,11 @@
 #include    "console_connection.h"
 #include    "interrupt.h"
 #include    "messenger.h"
-#include    "ping_pong_timer.h"
-#include    "proxy_connection.h"
 
 
 // prinbee
 //
+#include    <prinbee/network/prinbee_connection.h>
 #include    <prinbee/pbql/parser.h>
 
 
@@ -59,7 +58,7 @@ public:
     //cui &                       operator = (cui const & rhs) = delete;
 
     int                             run();
-    void                            start_binary_connection();
+    //void                            start_binary_connection();
     void                            stop(bool quitting);
     void                            send_ping();
     std::string                     define_prompt();
@@ -71,6 +70,8 @@ public:
     snapdev::timespec_ex            get_last_ping() const;
     std::string                     get_prinbee_status() const;
     std::string                     get_console_status() const;
+    void                            update_status();
+    void                            proxy_ready();
 
     void                            msg_prinbee_proxy_current_status(ed::message & msg);
     bool                            msg_process_reply(
@@ -88,9 +89,9 @@ private:
     messenger::pointer_t            f_messenger = messenger::pointer_t();
     ed::communicator::pointer_t     f_communicator = ed::communicator::pointer_t();
     console_connection::pointer_t   f_console_connection = console_connection::pointer_t();
-    proxy_connection::pointer_t     f_proxy_connection = proxy_connection::pointer_t();
+    prinbee::prinbee_connection::pointer_t
+                                    f_prinbee_connection = prinbee::prinbee_connection::pointer_t();
     interrupt::pointer_t            f_interrupt = interrupt::pointer_t();
-    ping_pong_timer::pointer_t      f_ping_pong_timer = ping_pong_timer::pointer_t();
     prinbee::pbql::command::vector_t
                                     f_cmds = prinbee::pbql::command::vector_t();
     std::string                     f_command = std::string();

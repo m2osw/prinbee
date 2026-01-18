@@ -66,7 +66,6 @@ private:
     void                        msg_prinbee_get_status(ed::message & msg);
 
     prinbeed *                  f_prinbeed = nullptr;
-    ed::dispatcher::pointer_t   f_dispatcher = ed::dispatcher::pointer_t();
 };
 
 

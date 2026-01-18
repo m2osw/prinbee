@@ -23,12 +23,12 @@
 
 
 
-namespace prinbee_cui
+namespace prinbee
 {
 
 
 
-class cui;
+class prinbee_connection;
 
 
 class proxy_connection
@@ -37,7 +37,7 @@ class proxy_connection
 public:
     typedef std::shared_ptr<proxy_connection>         pointer_t;
 
-                                proxy_connection(cui * c, addr::addr const & a);
+                                proxy_connection(prinbee_connection * c, addr::addr const & a);
                                 proxy_connection(proxy_connection const & rhs) = delete;
     virtual                     ~proxy_connection() override;
 
@@ -74,7 +74,7 @@ private:
                                       std::uint32_t serial_number
                                     , bool success);
 
-    cui *                       f_cui = nullptr;
+    prinbee_connection *        f_prinbee_connection = nullptr;
     acknowledgment_t            f_expected_acknowledgment = acknowledgment_t();
     prinbee::message_serial_t   f_ping_serial_number = 0;
     std::uint32_t               f_no_pong_answer = 0;

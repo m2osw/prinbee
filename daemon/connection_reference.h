@@ -63,9 +63,6 @@ enum class connection_type_t
 };
 
 
-constexpr std::uint32_t const       MAX_PING_PONG_FAILURES = 5;
-
-
 class connection_reference
 {
 public:

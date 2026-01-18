@@ -18,21 +18,22 @@
 #pragma once
 
 /** \file
- * \brief A connection used by clients to connect and communicate with Prinbee.
+ * \brief Describe the current state of the prinbee environment.
  *
- * This file defines the prinbee_connection class which is expected to be
- * used by clients to communicate with Prinbee. It keeps track of the
- * status of Prinbee (mainly UP or DOWN, but it knows about the state of
- * each node too).
+ * The state object records the status of the various journals, proxies,
+ * daemons, and the cluster in general.
  *
- * The class also offers functions to send data (write) and retrieve data
- * (read) from the Prinbee database.
+ * The state is communicated between all the participants through their
+ * binary connection(s), although it does not include the state of clients
+ * which is up to the clients (and the daemons do not have the state of
+ * the proxies either).
  */
 
 // self
 //
 //#include    <prinbee/pbql/location.h>
 //#include    <prinbee/bigint/uint512.h>
+#include    <prinbee/network/proxy_connection.h>
 
 
 

@@ -40,6 +40,7 @@
 //
 //#include    <prinbee/exception.h>
 //#include    <prinbee/names.h>
+#include    <prinbee/network/constants.h>
 //#include    <prinbee/version.h>
 
 
@@ -134,11 +135,11 @@ void prinbeed::send_pings()
             if(ref.second->get_expected_ping() != 0)
             {
                 std::uint32_t const count(ref.second->increment_no_pong_answer());
-                if(count >= MAX_PING_PONG_FAILURES)
+                if(count >= prinbee::MAX_PING_PONG_FAILURES)
                 {
                     SNAP_LOG_ERROR
                         << "connection never replied from our last "
-                        << MAX_PING_PONG_FAILURES
+                        << prinbee::MAX_PING_PONG_FAILURES
                         << " PING signals; reconnecting."
                         << SNAP_LOG_SEND;
                     throw prinbee::not_yet_implemented("easy in concept, we'll implement that later though...");

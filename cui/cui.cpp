@@ -26,7 +26,7 @@
 // prinbee
 //
 #include    <prinbee/names.h>
-#include    <prinbee/network/ports.h>
+#include    <prinbee/network/constants.h>
 #include    <prinbee/pbql/parser.h>
 #include    <prinbee/version.h>
 
@@ -66,7 +66,6 @@
 // snapdev
 //
 #include    <snapdev/file_contents.h>
-#include    <snapdev/math.h>
 #include    <snapdev/stringize.h>
 
 
@@ -141,7 +140,7 @@ const advgetopt::option g_command_line_options[] =
               advgetopt::GETOPT_FLAG_GROUP_COMMANDS
             , advgetopt::GETOPT_FLAG_REQUIRED
             , advgetopt::GETOPT_FLAG_COMMAND_LINE>())
-        , advgetopt::Help("if defined, run this command and then exit.")
+        , advgetopt::Help("if defined, run the command specified as <arg> and then exit.")
     ),
     advgetopt::define_option(
           advgetopt::Name("documentation")
@@ -168,15 +167,6 @@ const advgetopt::option g_command_line_options[] =
             , advgetopt::GETOPT_FLAG_FLAG
             , advgetopt::GETOPT_FLAG_COMMAND_LINE>())
         , advgetopt::Help("if defined, open a prompt; this is the default if no --command or --file is specified.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("ping-pong-interval")
-        , advgetopt::Flags(advgetopt::all_flags<
-                      advgetopt::GETOPT_FLAG_REQUIRED
-                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
-        , advgetopt::Help("How often to send a PING to all the daemons.")
-        , advgetopt::Validator("duration")
-        , advgetopt::DefaultValue("5s")
     ),
     advgetopt::end_options()
 };
@@ -403,18 +393,41 @@ bool cui::init_file()
 }
 
 
-void cui::msg_prinbee_proxy_current_status(ed::message & msg)
-{
-    f_proxy_status = "unknown";
-    if(msg.has_parameter(communicator::g_name_communicator_param_status))
-    {
-        f_proxy_status = msg.get_parameter(communicator::g_name_communicator_param_status);
-    }
-    if(msg.has_parameter(prinbee::g_name_prinbee_param_proxy_ip))
-    {
-        f_address = msg.get_parameter(prinbee::g_name_prinbee_param_proxy_ip);
+//void cui::msg_prinbee_proxy_current_status(ed::message & msg)
+//{
+//    f_proxy_status = "unknown";
+//    if(msg.has_parameter(communicator::g_name_communicator_param_status))
+//    {
+//        f_proxy_status = msg.get_parameter(communicator::g_name_communicator_param_status);
+//    }
+//    if(msg.has_parameter(prinbee::g_name_prinbee_param_proxy_ip))
+//    {
+//        f_address = msg.get_parameter(prinbee::g_name_prinbee_param_proxy_ip);
+//
+//        start_binary_connection();
+//    }
+//}
 
-        start_binary_connection();
+
+void cui::update_status()
+{
+    // if we have a console, we may be displaying the status (F2 key popup window)
+    //
+    if(f_console_connection != nullptr)
+    {
+        f_console_connection->update_status();
+    }
+}
+
+
+void cui::proxy_ready()
+{
+    if(!f_interactive)
+    {
+        // TBD: can we really just call that function from here?
+        //
+        execute_commands(f_command);
+        f_quit = true;
     }
 }
 
@@ -465,88 +478,6 @@ bool cui::msg_process_reply(
 }
 
 
-void cui::start_binary_connection()
-{
-    // already connected?
-    //
-    if(f_proxy_connection != nullptr)
-    {
-        SNAP_LOG_TRACE
-            << "start_binary_connection: Proxy connection already allocated."
-            << SNAP_LOG_SEND;
-        return;
-    }
-
-    // did we receive the READY message?
-    //
-    if(!f_messenger->is_ready())
-    {
-        SNAP_LOG_TRACE
-            << "start_binary_connection: messenger not ready."
-            << SNAP_LOG_SEND;
-        return;
-    }
-
-    // did we receive the FLUID_SETTINGS_READY message?
-    //
-    if(!f_messenger->is_registered())
-    {
-        SNAP_LOG_TRACE
-            << "start_binary_connection: fluid settings not ready."
-            << SNAP_LOG_SEND;
-        return;
-    }
-
-    // did we receive the proxy STATUS message?
-    //
-    if(f_address.empty())
-    {
-        SNAP_LOG_TRACE
-            << "start_binary_connection: no address to the Proxy service."
-            << SNAP_LOG_SEND;
-        return;
-    }
-    addr::addr const a(addr::string_to_addr(
-              f_address
-            , "127.0.0.1"
-            , prinbee::CLIENT_BINARY_PORT
-            , "tcp"));
-
-    // the client is ready to connect to the local proxy
-    //
-    f_proxy_connection = std::make_shared<proxy_connection>(this, a);
-    f_proxy_connection->add_callbacks();
-    f_communicator->add_connection(f_proxy_connection);
-
-    // now that we have a proxy connection, initialize the ping-pong timer
-    // minimum is 1 second and maximum 1 hour
-    //
-    if(f_ping_pong_timer == nullptr)
-    {
-        double ping_pong_interval(0.0);
-        if(!advgetopt::validator_duration::convert_string(
-                      f_opts.get_string("ping_pong_interval")
-                    , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
-                    , ping_pong_interval))
-        {
-            SNAP_LOG_CONFIGURATION_WARNING
-                << "the --ping-pong-interval does not represent a valid duration."
-                << SNAP_LOG_SEND;
-            return;
-        }
-
-        ping_pong_interval = std::clamp(ping_pong_interval, 1.0, 60.0 * 60.0) * 1'000'00.0;
-        f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
-        if(!f_communicator->add_connection(f_ping_pong_timer))
-        {
-            SNAP_LOG_RECOVERABLE_ERROR
-                << "could not add ping-pong timer to list of ed::communicator connections."
-                << SNAP_LOG_SEND;
-        }
-    }
-}
-
-
 /** \brief Called whenever we receive the STOP command or equivalent.
  *
  * This function makes sure the prinbee cui exits as quickly as
@@ -571,16 +502,10 @@ void cui::stop(bool quitting)
         f_interrupt.reset();
     }
 
-    if(f_proxy_connection != nullptr)
+    if(f_prinbee_connection != nullptr)
     {
-        f_communicator->remove_connection(f_proxy_connection);
-        f_proxy_connection.reset();
-    }
-
-    if(f_ping_pong_timer != nullptr)
-    {
-        f_communicator->remove_connection(f_ping_pong_timer);
-        f_ping_pong_timer.reset();
+        f_communicator->remove_connection(f_prinbee_connection);
+        f_prinbee_connection.reset();
     }
 
     if(f_console_connection != nullptr)
@@ -600,48 +525,6 @@ void cui::stop(bool quitting)
 //    SNAP_LOG_ERROR << "connection left: \"" << c->get_name() << "\"." << SNAP_LOG_SEND;
 //}
 //}
-}
-
-
-void cui::send_ping()
-{
-    // this happens if we don't get a proxy connection in time
-    //
-    if(f_proxy_connection == nullptr)
-    {
-        return;
-    }
-
-    if(f_proxy_connection->get_expected_ping() != 0)
-    {
-        std::uint32_t const count(f_proxy_connection->increment_no_pong_answer());
-        if(count >= MAX_PING_PONG_FAILURES)
-        {
-            SNAP_LOG_ERROR
-                << "connection never replied from our last "
-                << MAX_PING_PONG_FAILURES
-                << " PING signals; reconnecting."
-                << SNAP_LOG_SEND;
-
-            // TODO: actually implement...
-            //
-            throw prinbee::not_yet_implemented("easy in concept, we'll implement that later though...");
-
-            // don't send a PING now
-            //
-            return;
-        }
-        SNAP_LOG_MAJOR
-            << "connection never replied from our last "
-            << count
-            << " PING signals."
-            << SNAP_LOG_SEND;
-    }
-
-    prinbee::binary_message::pointer_t ping_msg(std::make_shared<prinbee::binary_message>());
-    ping_msg->create_ping_message();
-    f_proxy_connection->set_expected_ping(ping_msg->get_serial_number());
-    f_proxy_connection->send_message(ping_msg);
 }
 
 
@@ -809,93 +692,25 @@ std::string cui::get_fluid_settings_status() const
 
 std::string cui::get_proxy_status() const
 {
-    if(f_proxy_connection == nullptr)
-    {
-        // the status "down" means we receive a PRINBEE_PROXY_CURRENT_STATUS
-        // message and that means the proxy service is running but not yet
-        // available to receive binary connections
-        //
-        if(f_proxy_status == "down")
-        {
-            return "not available";
-        }
-        return "--";
-    }
-
-    std::stringstream ss;
-
-    if(!f_ready)
-    {
-        // TODO: last_error.empty() is not sufficient
-        //
-        std::string const & last_error(f_proxy_connection->get_last_error());
-        if(last_error.empty())
-        {
-            if(f_proxy_connection->is_enabled())
-            {
-                // no error but the timer is enabled that means we are
-                // still trying to connect; this state happens at the
-                // beginning or right after a lost connection
-                //
-                return "connecting";
-            }
-
-            // if there are no errors and the timer is disabled, then the
-            // connection is there, but we're not yet "ready" (the REG
-            // message was not acknowledge positively)
-            //
-            return "connected";
-        }
-        ss << "connection error: " << last_error;
-        return ss.str();
-    }
-
-    ss << "registered";
-
-    if(f_proxy_connection->get_last_ping() != snapdev::timespec_ex())
-    {
-        double const loadavg(f_proxy_connection->get_proxy_loadavg());
-        if(loadavg >= 0.0)
-        {
-            ss << ", loadavg: "
-               << loadavg;
-        }
-        else if(snapdev::quiet_floating_point_equal(loadavg, -1.0))
-        {
-            ss << ", loadavg: err";
-        }
-        // else loadavg == -2.0, not known yet
-
-        std::uint32_t const no_answer(f_proxy_connection->get_no_pong_answer());
-        if(no_answer > 0)
-        {
-            ss << " (stale: " << no_answer << ")";
-        }
-        else
-        {
-            ss << " (active)";
-        }
-    }
-
-    return ss.str();
+    return f_messenger == nullptr ? "--" : f_messenger->get_proxy_status();
 }
 
 
 snapdev::timespec_ex cui::get_last_ping() const
 {
-    if(f_proxy_connection == nullptr)
+    if(f_prinbee_connection == nullptr)
     {
         return snapdev::timespec_ex();
     }
 
-    return f_proxy_connection->get_last_ping();
+    return f_prinbee_connection->get_last_ping();
 }
 
 
 std::string cui::get_prinbee_status() const
 {
-    if(f_proxy_connection == nullptr
-    || f_proxy_connection->get_last_ping() == snapdev::timespec_ex())
+    if(f_prinbee_connection == nullptr
+    || f_prinbee_connection->get_last_ping() == snapdev::timespec_ex())
     {
         return "unknown";
     }

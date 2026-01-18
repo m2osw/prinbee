@@ -25,7 +25,7 @@
 
 // prinbee
 //
-#include    <prinbee/network/ports.h>
+#include    <prinbee/network/constants.h>
 #include    <prinbee/version.h>
 
 
@@ -34,6 +34,7 @@
 #include    <advgetopt/exception.h>
 //#include    <advgetopt/options.h>
 //#include    <advgetopt/utils.h>
+#include    <advgetopt/validator_duration.h>
 
 
 // communicator
@@ -54,8 +55,8 @@
 
 // snapdev
 //
+#include    <snapdev/gethostname.h>
 //#include    <snapdev/not_reached.h>
-//#include    <snapdev/not_used.h>
 //#include    <snapdev/raii_generic_deleter.h>
 #include    <snapdev/stringize.h>
 #include    <snapdev/to_lower.h>
@@ -120,7 +121,14 @@ advgetopt::option const g_options[] =
         , advgetopt::Flags(advgetopt::all_flags<
                       advgetopt::GETOPT_FLAG_REQUIRED
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
-        , advgetopt::Help("Specify the name of the cluster the proxy will be working with.")
+        , advgetopt::Help("Specify the name of the cluster the proxy is to work with.")
+    ),
+    advgetopt::define_option(
+          advgetopt::Name("node-name")
+        , advgetopt::Flags(advgetopt::all_flags<
+                      advgetopt::GETOPT_FLAG_REQUIRED
+                    , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
+        , advgetopt::Help("Specify the name of this prinbee proxy node. By default the host name is used.")
     ),
     advgetopt::define_option(
           advgetopt::Name("ping-pong-interval")
@@ -128,7 +136,8 @@ advgetopt::option const g_options[] =
                       advgetopt::GETOPT_FLAG_REQUIRED
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
         , advgetopt::Help("How often to send a PING to all the daemons.")
-        , advgetopt::DefaultValue("5")
+        , advgetopt::Validator("duration(1s...1h)")
+        , advgetopt::DefaultValue("5s")
     ),
     advgetopt::define_option(
           advgetopt::Name("prinbee-path")
@@ -245,7 +254,7 @@ proxy::proxy(int argc, char * argv[])
     }
 
     // setup the path to the prinbee data folder which includes things like
-    // the list of contexts
+    // the journals used by the proxy
     //
     if(f_opts.is_defined("prinbee-path"))
     {
@@ -256,10 +265,29 @@ proxy::proxy(int argc, char * argv[])
     // Prinbee daemon; at some point, though, we probably want to
     // support all clusters within one proxy
     //
+    // we also want to include a node name that way we know which proxy
+    // connects to which Prinbee daemon
+    //
     f_cluster_name = snapdev::to_lower(f_opts.get_string("cluster_name"));
     if(!prinbee::validate_name(f_cluster_name.c_str(), 100))
     {
         throw advgetopt::getopt_exit("the cluster name is not considered a valid name.", 1);
+    }
+    if(f_opts.is_defined("node_name"))
+    {
+        f_node_name = f_opts.get_string("node_name");
+    }
+    else
+    {
+        f_node_name = snapdev::gethostname();
+    }
+    if(!prinbee::validate_name(f_node_name.c_str(), 100))
+    {
+        throw advgetopt::getopt_exit("the node name is not considered a valid name.", 1);
+    }
+    if(!prinbee::verify_node_name(f_node_name.c_str()))
+    {
+        throw advgetopt::getopt_exit("the node name cannot end with \"_proxy\" or \"_client\".", 1);
     }
 
     if(getuid() == 0
@@ -436,7 +464,7 @@ void proxy::msg_prinbee_current_status(ed::message & msg)
     if(!msg.has_parameter(prinbee::g_name_prinbee_param_node_name))
     {
         SNAP_LOG_ERROR
-            << "PRINBEE_CURRENT_STATUS message is missing the parameter with the other prinbeed node name."
+            << "PRINBEE_CURRENT_STATUS message is missing the parameter with the prinbeed node name."
             << SNAP_LOG_SEND;
         return;
     }
@@ -713,10 +741,26 @@ void proxy::start_binary_connection()
     //
     if(f_ping_pong_timer == nullptr)
     {
-        std::int64_t ping_pong_interval(0);
-        ping_pong_interval = std::clamp(f_opts.get_long("ping_pong_interval"), 1L, 60L * 60L) * 1'000'000;
+        double ping_pong_interval(0.0);
+        if(!advgetopt::validator_duration::convert_string(
+                      f_opts.get_string("ping_pong_interval")
+                    , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                    , ping_pong_interval))
+        {
+            SNAP_LOG_CONFIGURATION_WARNING
+                << "the --ping-pong-interval does not represent a valid duration."
+                << SNAP_LOG_SEND;
+            ping_pong_interval = 5.0;
+        }
+
+        ping_pong_interval = std::clamp(ping_pong_interval, 1.0, 60.0 * 60.0) * 1'000'000.0;
         f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
-        f_communicator->add_connection(f_ping_pong_timer);
+        if(!f_communicator->add_connection(f_ping_pong_timer))
+        {
+            SNAP_LOG_RECOVERABLE_ERROR
+                << "could not add ping-pong timer to list of ed::communicator connections."
+                << SNAP_LOG_SEND;
+        }
     }
 }
 
@@ -780,7 +824,7 @@ void proxy::connect_to_daemon(addr::addr const & a, std::string const & name)
     //
     prinbee::binary_message::pointer_t register_msg(std::make_shared<prinbee::binary_message>());
     register_msg->create_register_message(
-          f_opts.get_string(prinbee::g_name_prinbee_param_node_name)
+          f_node_name + "_proxy"
         , prinbee::g_name_prinbee_protocol_version_node);
     d->send_message(register_msg);
 
@@ -819,7 +863,7 @@ bool proxy::msg_error(
 bool proxy::msg_process_reply(
       ed::connection::pointer_t peer
     , prinbee::binary_message::pointer_t msg
-    , msg_reply_t state)
+    , prinbee::msg_reply_t state)
 {
     snapdev::NOT_USED(peer, msg, state);
 
@@ -856,11 +900,11 @@ void proxy::send_pings()
         if(it.second->get_expected_ping() != 0)
         {
             std::uint32_t const count(it.second->increment_no_pong_answer());
-            if(count >= MAX_PING_PONG_FAILURES)
+            if(count >= prinbee::MAX_PING_PONG_FAILURES)
             {
                 SNAP_LOG_ERROR
                     << "connection never replied from our last "
-                    << MAX_PING_PONG_FAILURES
+                    << prinbee::MAX_PING_PONG_FAILURES
                     << " PING signals; reconnecting."
                     << SNAP_LOG_SEND;
                 throw prinbee::not_yet_implemented("easy in concept, we'll implement that later though...");

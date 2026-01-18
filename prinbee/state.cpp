@@ -18,15 +18,28 @@
 
 
 /** \file
- * \brief Lexer of the Prinbee Query Language.
+ * \brief Implementation of the Prinbee network state.
  *
- * The Prinbee Query Language (PBQL) is an SQL-like language. This file
- * transforms the input data in tokens that the parser can then use to
- * create statements.
+ * The Prinbee environment includes many parts. This state attempts to
+ * track the current status of all of those parts. This includes the
+ * local journal (where the application saves data to make sure it
+ * eventually gets in the database), the Proxy journal, the Daemon
+ * journal. The state of the local proxy (local compared to your
+ * client) and daemons. The state of the Prinbee cluster as a whole
+ * (all the daemon nodes).
  *
- * The lexer supports tokens that include keywords (SELECT), identifiers
- * (column name), numbers (integers, floating points), operators (for
- * expressions; +, -, *, /, etc.).
+ * From that status, we can infer whether it is possible to read
+ * and/or write to the database.
+ *
+ * The class also includes a callback manager so your objects can
+ * add a callback function that gets called whenever the state
+ * changes.
+ *
+ * For clients (Proxy & end user Clients), the state is defined in
+ * the prinbee_connection object through the binary connection
+ * managed there. If there is no binary connection, then the state
+ * for the local journal is pretty much the only thing you get as
+ * a client.
  */
 
 // self

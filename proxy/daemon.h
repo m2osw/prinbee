@@ -36,9 +36,6 @@ namespace prinbee_proxy
 class proxy;
 
 
-constexpr std::uint32_t const       MAX_PING_PONG_FAILURES = 5;
-
-
 class daemon
     : public prinbee::binary_client
 {

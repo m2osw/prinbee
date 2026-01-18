@@ -60,6 +60,7 @@ direct_listener::direct_listener(prinbeed * p, addr::addr const & a)
     : binary_server(a)
     , f_prinbeed(p)
 {
+    set_name("direct_listener");
 }
 
 
@@ -98,7 +99,7 @@ void direct_listener::process_new_connection(prinbee::binary_server_client::poin
 
     client->set_disconnected_callback(std::bind(&prinbeed::client_disconnected, f_prinbeed, std::placeholders::_1));
 
-    f_prinbeed->register_connection(client, connection_type_t::CONNECTION_TYPE_NODE);
+    f_prinbeed->register_connection(client, connection_type_t::CONNECTION_TYPE_DIRECT);
 }
 
 

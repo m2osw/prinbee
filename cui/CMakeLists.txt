@@ -29,8 +29,6 @@ add_executable(${PROJECT_NAME}
     cui.cpp
     interrupt.cpp
     messenger.cpp
-    ping_pong_timer.cpp
-    proxy_connection.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -51,7 +49,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     prinbee
     #${CPPPROCESS_LIBRARIES}
-    ${FLUIDSETTINGS_LIBRARIES}
+    #${FLUIDSETTINGS_LIBRARIES}
     #${VERSIONTHECA_LIBRARIES}
     ncurses
     panel

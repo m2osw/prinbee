@@ -30,20 +30,13 @@
 //
 #include    <prinbee/names.h>
 #include    <prinbee/network/binary_server.h>
+#include    <prinbee/network/prinbee_connection.h>
 
 
 
 namespace prinbee_proxy
 {
 
-
-
-enum msg_reply_t
-{
-    MSG_REPLY_RECEIVED,         // when we receive a message (i.e. not ACK nor ERR)
-    MSG_REPLY_FAILED,           // ERR a message we sent
-    MSG_REPLY_SUCCEEDED,        // ACK a message we sent
-};
 
 
 class proxy
@@ -104,7 +97,7 @@ public:
     bool                        msg_process_reply(
                                       ed::connection::pointer_t peer
                                     , prinbee::binary_message::pointer_t msg
-                                    , msg_reply_t state);
+                                    , prinbee::msg_reply_t state);
 
 private:
     void                        check_ipwall_status();
@@ -122,6 +115,7 @@ private:
     ed::communicator::pointer_t             f_communicator = ed::communicator::pointer_t();
     messenger::pointer_t                    f_messenger = messenger::pointer_t();
     std::string                             f_cluster_name = std::string();
+    std::string                             f_node_name = std::string();
     interrupt::pointer_t                    f_interrupt = interrupt::pointer_t();
     ping_pong_timer::pointer_t              f_ping_pong_timer = ping_pong_timer::pointer_t();
     std::string                             f_address = std::string();

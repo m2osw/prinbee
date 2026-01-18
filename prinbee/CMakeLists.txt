@@ -84,8 +84,9 @@ add_library(${PROJECT_NAME} SHARED
     network/binary_message.cpp
     network/binary_server.cpp  # server listening for client connections
     network/binary_server_client.cpp  # connection to a client from a server (from the accept() call)
-    network/prinbee_connection.cpp
     network/crc16.cpp
+    network/prinbee_connection.cpp
+    network/proxy_connection.cpp
 
     pbql/command.cpp
     pbql/input.cpp
@@ -108,6 +109,7 @@ target_include_directories(${PROJECT_NAME}
         ${BASIC_XML_DIRS}
         ${COMMUNICATOR_INCLUDE_DIRS}
         ${CPPTHREAD_INCLUDE_DIRS}
+        ${FLUIDSETTINGS_INCLUDE_DIRS}
         ${LIBADDR_INCLUDE_DIRS}
         ${LIBEXCEPT_INCLUDE_DIRS}
         ${LIBUFTF8_INCLUDE_DIRS}
@@ -123,6 +125,7 @@ target_link_libraries(${PROJECT_NAME}
     ${COMMUNICATOR_LIBRARIES}
     ${CPPTHREAD_LIBRARIES}
     ${EVENTDISPATCHER_LIBRARIES}
+    ${FLUIDSETTINGS_LIBRARIES}
     ${LIBADDR_LIBRARIES}
     ${LIBEXCEPT_LIBRARIES}
     ${LIBUFTF8_LIBRARIES}
@@ -229,7 +232,7 @@ install(
     FILES
         network/consistency.h
         network/crc16.h
-        network/ports.h
+        network/constants.h
 
     DESTINATION
         include/prinbee/network

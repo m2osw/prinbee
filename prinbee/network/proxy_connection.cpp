@@ -21,7 +21,7 @@
 //
 #include    "proxy_connection.h"
 
-#include    "cui.h"
+#include    "prinbee_connection.h"
 
 
 // prinbee
@@ -40,7 +40,7 @@
 
 
 
-namespace prinbee_cui
+namespace prinbee
 {
 
 
@@ -48,11 +48,15 @@ namespace prinbee_cui
 /** \class proxy_connection
  * \brief Implementation of a proxy connection.
  *
- * The cui connects to a Prinbee proxy daemon using a proxy connection.
+ * The prinbee_connection connects to a Prinbee proxy daemon using a
+ * proxy connection.
  *
- * The proxy connection is used to send binary messages to the proxy daemon,
- * which either interprets the message (such as the REG message) or
- * forwards it to one or more Prinbee daemons.
+ * The proxy connection is used to send binary messages to the proxy
+ * daemon, which either interprets the message (such as the REG message)
+ * or forwards it to one or more Prinbee daemons.
+ *
+ * \note
+ * This connection is considered private within a prinbee_connection.
  */
 
 
@@ -66,10 +70,11 @@ namespace prinbee_cui
  * The cui creates one proxy object to communicate with the proxy daemon.
  *
  * \param[in] c  The cui object.
+ * \param[in] a  The address to connect to.
  */
-proxy_connection::proxy_connection(cui * c, addr::addr const & a)
+proxy_connection::proxy_connection(prinbee_connection * c, addr::addr const & a)
     : binary_client(a)
-    , f_cui(c)
+    , f_prinbee_connection(c)
 {
 }
 
@@ -108,7 +113,7 @@ void proxy_connection::add_callbacks()
     //
     add_message_callback(
           prinbee::g_message_unknown
-        , std::bind(&cui::msg_process_reply, f_cui, std::placeholders::_1, msg_reply_t::MSG_REPLY_RECEIVED));
+        , std::bind(&prinbee_connection::msg_process_reply, f_prinbee_connection, std::placeholders::_1, msg_reply_t::MSG_REPLY_RECEIVED));
 
     // send a REG, we expect an ACK or ERR as a reply
     //
@@ -240,7 +245,7 @@ void proxy_connection::process_acknowledgment(prinbee::message_serial_t serial_n
         return;
     }
 
-    f_cui->msg_process_reply(
+    f_prinbee_connection->msg_process_reply(
           it->second
         , success ? MSG_REPLY_SUCCEEDED : MSG_REPLY_FAILED);
 }
