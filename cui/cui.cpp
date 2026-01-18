@@ -681,12 +681,17 @@ std::string cui::get_fluid_settings_status() const
 
     // this means the fluid settings is connected and registered with us
     //
-    if(!f_messenger->is_registered())
+    if(f_messenger->are_fluid_settings_ready())
     {
         return "ready";
     }
 
-    return "registered";
+    if(f_messenger->are_fluid_settings_registered())
+    {
+        return "registered";
+    }
+
+    return "registering";
 }
 
 

@@ -959,7 +959,7 @@ void prinbeed::start_binary_connection()
 
     // did we receive the FLUID_SETTINGS_READY message?
     //
-    if(!f_messenger->is_registered())
+    if(!f_messenger->are_fluid_settings_ready())
     {
         SNAP_LOG_TRACE
             << "messenger not register."
