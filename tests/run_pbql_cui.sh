@@ -12,14 +12,15 @@
 
 # TODO: move those to the BUILD folder
 #
-CLUCK_LOG_FILE="tmp/cluck.log"
-COMMUNICATORD_LOG_FILE="tmp/communicatord.log"
-CUI_LOG_FILE="tmp/cui.log"
-DAEMON_LOG_FILE="tmp/daemon.log"
-FLUID_SETTINGS_LOG_FILE="tmp/fluid-settings.log"
-PROXY_LOG_FILE="tmp/proxy.log"
+BUILD_TMPDIR="../../BUILD/Debug/contrib/prinbee/tmp"
+CLUCK_LOG_FILE="${BUILD_TMPDIR}/cluck.log"
+COMMUNICATORD_LOG_FILE="${BUILD_TMPDIR}/communicatord.log"
+CUI_LOG_FILE="${BUILD_TMPDIR}/cui.log"
+DAEMON_LOG_FILE="${BUILD_TMPDIR}/daemon.log"
+FLUID_SETTINGS_LOG_FILE="${BUILD_TMPDIR}/fluid-settings.log"
+PROXY_LOG_FILE="${BUILD_TMPDIR}/proxy.log"
 
-COMMUNICATORD_SOCK="tmp/communicatord.sock"
+COMMUNICATORD_SOCK="${BUILD_TMPDIR}/communicatord.sock"
 
 if ! test -f tests/run_pbql_cui.sh
 then
@@ -57,7 +58,7 @@ check_daemon prinbee-daemon
 # Create a temporary folder if it does not exist yet
 # and a sub-directory "contexts" for the prinbee daemon to use to create files
 #
-mkdir -p tmp/contexts
+mkdir -p ${BUILD_TMPDIR}/contexts
 
 # Remove the previous log file (that way we have one session in the entire
 # file which makes it easier to follow)
@@ -119,7 +120,7 @@ echo "info: start prinbee proxy"
 	--log-file "${PROXY_LOG_FILE}" \
 	--trace \
 	--owner alexis:alexis \
-	--prinbee-path "`pwd`/tmp" \
+	--prinbee-path "`pwd`/${BUILD_TMPDIR}" \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--cluster-name "test_cluster" \
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
@@ -131,7 +132,7 @@ echo "info: start prinbee daemon"
 	--log-file "${DAEMON_LOG_FILE}" \
 	--trace \
 	--owner alexis:alexis \
-	--prinbee-path "`pwd`/tmp" \
+	--prinbee-path "`pwd`/${BUILD_TMPDIR}" \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--cluster-name "test_cluster" \
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &

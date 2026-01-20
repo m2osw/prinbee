@@ -22,5 +22,23 @@ project(prinbee_conf)
 #snap_validate_xml(bundle-database.xml bundles.xsd)
 
 
+# Define prinbee as a Communicator Service
+install(
+    FILES
+        prinbee.service
+
+    DESTINATION
+        ${COMMUNICATOR_SERVICES_INSTALL_DIR}
+)
+
+# definitions for fluid-settings
+install(
+    FILES
+        pbql.ini
+
+    DESTINATION
+        ${FLUIDSETTINGS_DEFINITIONS_INSTALL_DIR}
+)
+
 
 # vim: ts=4 sw=4 et

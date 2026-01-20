@@ -156,11 +156,11 @@ console_connection::console_connection(cui * c)
 {
     if(g_console != nullptr)
     {
-        throw std::logic_error("there can be only one console_connection");
+        throw std::logic_error("there can be only one console_connection.");
     }
     g_console = this;
     prompt_to_output_command("> ");
-    set_name("prinbee console");
+    set_name("prinbee_console");
 }
 
 

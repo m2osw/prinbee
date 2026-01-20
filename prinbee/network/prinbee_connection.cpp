@@ -415,21 +415,17 @@ void prinbee_connection::msg_prinbee_proxy_current_status(ed::message & msg)
 
 void prinbee_connection::service_status(std::string const & service, std::string const & status)
 {
-    if(service != g_name_prinbee_service_proxy)
-    {
-        return;
-    }
+    fluid_settings_connection::service_status(service, status);
 
-    // in this case, if the service goes UP, we ignore the message because
-    // we will soon receive the PRINBEE_PROXY_CURRENT_STATUS message;
-    // in all other cases we reset the status to "down"
-    //
-    if(status == ::communicator::g_name_communicator_value_up)
+    if(service == g_name_prinbee_service_proxy
+    && status != ::communicator::g_name_communicator_value_up)
     {
-        return;
+        // in this case, if the service goes UP, we ignore the message because
+        // we will soon receive the PRINBEE_PROXY_CURRENT_STATUS message;
+        // in all other cases we reset the status back to "down"
+        //
+        set_proxy_status_and_address("down", f_address);
     }
-
-    set_proxy_status_and_address("down", f_address);
 }
 
 

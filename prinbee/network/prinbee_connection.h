@@ -120,7 +120,6 @@ public:
 
 private:
     void                        msg_prinbee_proxy_current_status(ed::message & msg);
-    void                        msg_status(ed::message & msg);
 
     void                        set_proxy_status_and_address(
                                       std::string const & status
