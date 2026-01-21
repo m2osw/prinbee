@@ -607,7 +607,7 @@ void prinbee_connection::fluid_settings_changed(
 
     case fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_VALUE:
     case fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_NEW_VALUE:
-        if(name == "ping_pong_interval")
+        if(name == "pbql-cui::ping-pong-interval")
         {
             set_ping_pong_interval();
         }
