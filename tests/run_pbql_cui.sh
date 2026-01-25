@@ -18,6 +18,7 @@ COMMUNICATORD_LOG_FILE="${BUILD_TMPDIR}/communicatord.log"
 CUI_LOG_FILE="${BUILD_TMPDIR}/cui.log"
 DAEMON_LOG_FILE="${BUILD_TMPDIR}/daemon.log"
 FLUID_SETTINGS_LOG_FILE="${BUILD_TMPDIR}/fluid-settings.log"
+FLUID_SETTINGS="${BUILD_TMPDIR}/fluid-settings.conf"
 PROXY_LOG_FILE="${BUILD_TMPDIR}/proxy.log"
 
 COMMUNICATORD_SOCK="${BUILD_TMPDIR}/communicatord.sock"
@@ -60,7 +61,7 @@ check_daemon prinbee-daemon
 #
 mkdir -p ${BUILD_TMPDIR}/contexts
 
-# Remove the previous log file (that way we have one session in the entire
+# Remove the previous log files (that way we have one session in the entire
 # file which makes it easier to follow)
 #
 rm -f "${CLUCK_LOG_FILE}"\
@@ -102,6 +103,7 @@ echo "info: start fluid-settings"
 	--trace \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--definitions "../../BUILD/Debug/dist/share/fluid-settings/definitions" \
+	--settings "${FLUID_SETTINGS}" \
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
 
 # Start the cluck daemon

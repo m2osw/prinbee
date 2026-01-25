@@ -33,11 +33,6 @@
 #include    "prinbee/exception.h"
 
 
-// libutf8
-//
-//#include    <libutf8/libutf8.h>
-
-
 // snaplogger
 //
 #include    <snaplogger/message.h>
@@ -51,12 +46,6 @@
 //#include    <snapdev/stream_fd.h>
 #include    <snapdev/tokenize_string.h>
 //#include    <snapdev/unique_number.h>
-
-
-//// C
-////
-//#include    <linux/fs.h>
-//#include    <sys/ioctl.h>
 
 
 // last include
@@ -135,7 +124,12 @@ command::vector_t const & parser::parse()
                         if(n->get_token() == token_t::TOKEN_IDENTIFIER)
                         {
                             command = n->get_string_upper();
-                            if(command == "INDEX")
+                            if(command == "CONTEXT")
+                            {
+                                parse_alter_context();
+                                continue;
+                            }
+                            else if(command == "INDEX")
                             {
                                 parse_alter_index();
                                 continue;
@@ -152,9 +146,9 @@ command::vector_t const & parser::parse()
                             }
                             else
                             {
-                                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                                 msg << n->get_location().get_location()
-                                    << "ALTER is expected to be followed by INDEX or TABLE, not \""
+                                    << "ALTER is expected to be followed by CONTEXT, INDEX, TABLE, or TYPE, not \""
                                     << command
                                     << "\".";
                                 throw invalid_token(msg.str());
@@ -162,9 +156,9 @@ command::vector_t const & parser::parse()
                         }
                         else
                         {
-                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                             msg << n->get_location().get_location()
-                                << "ALTER is expected to be followed by an identifier: INDEX or TABLE.";
+                                << "ALTER is expected to be followed by an identifier: CONTEXT, INDEX, TABLE, or TYPE.";
                             throw invalid_token(msg.str());
                         }
                     }
@@ -188,6 +182,11 @@ command::vector_t const & parser::parse()
                     if(command == "COMMIT")
                     {
                         parse_transaction_command(command, command_t::COMMAND_COMMIT);
+                        continue;
+                    }
+                    if(command == "CONFIG")
+                    {
+                        parse_config();
                         continue;
                     }
                     if(command == "CREATE")
@@ -220,7 +219,7 @@ command::vector_t const & parser::parse()
                             }
                             else
                             {
-                                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                                 msg << n->get_location().get_location()
                                     << "CREATE is expected to be followed by: CONTEXT, INDEX, TABLE, TYPE, not \""
                                     << command
@@ -230,7 +229,7 @@ command::vector_t const & parser::parse()
                         }
                         else
                         {
-                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                             msg << n->get_location().get_location()
                                 << "CREATE is expected to be followed by an identifier: CONTEXT, INDEX, TABLE, TYPE.";
                             throw invalid_token(msg.str());
@@ -270,6 +269,11 @@ command::vector_t const & parser::parse()
                         parse_select();
                         continue;
                     }
+                    if(command == "SET")
+                    {
+                        parse_set();
+                        continue;
+                    }
                     break;
 
                 }
@@ -288,7 +292,7 @@ command::vector_t const & parser::parse()
                     }
                 }
 
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_SEVERE);
                 msg << n->get_location().get_location()
                     << "found unknown command \""
                     << command
@@ -299,7 +303,7 @@ command::vector_t const & parser::parse()
 
         default:
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_CRITICAL);
                 msg << n->get_location().get_location()
                     << "expected the beginning of the line to start with an identifier representing a PBQL keyword.";
                 throw invalid_token(msg.str());
@@ -310,12 +314,18 @@ command::vector_t const & parser::parse()
 }
 
 
+void parser::parse_alter_context()
+{
+    throw not_yet_implemented("parser::parse_select()");
+}
+
+
 void parser::parse_alter_index()
 {
     node::pointer_t n(f_lexer->get_next_token());
     if(n->get_token() != token_t::TOKEN_IDENTIFIER)
     {
-        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
         msg << n->get_location().get_location()
             << "expected an identifier after ALTER INDEX.";
         throw invalid_token(msg.str());
@@ -336,7 +346,7 @@ void parser::parse_alter_index()
     n = f_lexer->get_next_token();
     if(n->get_token() != token_t::TOKEN_IDENTIFIER)
     {
-        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
         msg << n->get_location().get_location()
             << "expected an index action after ALTER INDEX [IF EXISTS] name <action>.";
         throw invalid_token(msg.str());
@@ -371,9 +381,9 @@ void parser::parse_alter_index()
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_IDENTIFIER)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
-                    << "expected the name of a column after the ADD COLUMN of an ALTER INDEX [IF EXISTS] name ADD COLUMN <column-name>.";
+                    << "expected an identifier after the SET of an ALTER INDEX [IF EXISTS] name SET <sub-action>.";
                 throw invalid_token(msg.str());
             }
             command = n->get_string_upper();
@@ -384,9 +394,9 @@ void parser::parse_alter_index()
                 n = f_lexer->get_next_token();
                 if(n->get_token() != token_t::TOKEN_IDENTIFIER)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
-                        << "expected an identifier after the SET NOT action of al ALTER INDEX [IF EXISTS] name SET NOT <sub-action>.";
+                        << "expected an identifier after the SET NOT action of an ALTER INDEX [IF EXISTS] name SET NOT <sub-action>.";
                     throw invalid_token(msg.str());
                 }
                 command = n->get_string_upper();
@@ -407,7 +417,7 @@ void parser::parse_alter_index()
             }
             if(negate)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "unexpected NOT with the ALTER INDEX [IF EXISTS] name SET "
                     << command
@@ -425,9 +435,9 @@ void parser::parse_alter_index()
                 }
                 if(n->get_token() != token_t::TOKEN_IDENTIFIER)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
-                        << "expected an identifier with the model name after the SET MODEL action of al ALTER INDEX [IF EXISTS] name SET MODEL [=] <model>.";
+                        << "expected an identifier with the model name after the SET MODEL action of an ALTER INDEX [IF EXISTS] name SET MODEL [=] <model>.";
                     throw invalid_token(msg.str());
                 }
                 model_t const model(name_to_model(n->get_string()));
@@ -449,7 +459,7 @@ void parser::parse_alter_index()
                 }
                 if(n->get_token() != token_t::TOKEN_STRING)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "expected a string to set the index comment: ALTER INDEX [IF EXISTS] name SET COMMENT [=] <comment>.";
                     throw invalid_token(msg.str());
@@ -486,9 +496,16 @@ void parser::parse_alter_index()
                     // TODO: implement the DROP COLUMN <position>
                     return;
                 }
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
-                msg << n->get_location().get_location()
-                    << "expected the name of a column after the ADD COLUMN of an ALTER INDEX [IF EXISTS] name ADD COLUMN <column-name>.";
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                msg << n->get_location().get_location();
+                if(add_drop == add_drop_t::ADD_DROP_DROP)
+                {
+                    msg << "expected the name or position of a column after the DROP COLUMN of an ALTER INDEX [IF EXISTS] name DROP COLUMN <column-name>.";
+                }
+                else
+                {
+                    msg << "expected the name of a column after the ADD COLUMN of an ALTER INDEX [IF EXISTS] name ADD COLUMN <column-name>.";
+                }
                 throw invalid_token(msg.str());
             }
             else if(command != "EXPRESSION")
@@ -515,14 +532,14 @@ void parser::parse_alter_index()
         }
         else
         {
-            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
             msg << n->get_location().get_location()
                 << "unexpected token after ALTER INDEX [IF EXISTS] name ADD/DROP ....";
             throw invalid_token(msg.str());
         }
     }
 
-    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
     msg << n->get_location().get_location()
         << "unknown index action \""
         << command
@@ -567,7 +584,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_IDENTIFIER)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "expected identifier SCHEMA or DATA after BEGIN ON.";
                 throw invalid_token(msg.str());
@@ -586,7 +603,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
         }
         else if(schema_data_required)
         {
-            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
             msg << n->get_location().get_location()
                 << "expected identifier SCHEMA or DATA after BEGIN ON.";
             throw invalid_token(msg.str());
@@ -599,7 +616,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
     {
         if(n->get_string_upper() != "IF")
         {
-            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
             msg << n->get_location().get_location()
                 << "expected IF clause or ';' at the end of a COMMIT or ROLLBACK.";
             throw invalid_token(msg.str());
@@ -610,7 +627,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
         {
             if(n->get_string_upper() != "OTHERWISE")
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "expected OTHERWISE after the IF expression of COMMIT or ROLLBACK.";
                 throw invalid_token(msg.str());
@@ -623,7 +640,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
             if(n->get_token() != token_t::TOKEN_IDENTIFIER
             || n->get_string_upper() != expects)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "expected "
                     << expects
@@ -658,7 +675,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
             }
             if(f_commands[idx]->get_command() == command_t::COMMAND_BEGIN)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "work transactions cannot be nested (a BEGIN must first end with a COMMIT or ROLLBACK before another BEGIN is used).";
                 throw invalid_entity(msg.str());
@@ -688,7 +705,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
                 {
                     if(transaction_type != static_cast<transaction_t>(f_commands[idx]->get_int64(param_t::PARAM_TYPE)))
                     {
-                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                         msg << n->get_location().get_location()
                             << "transaction type mismatch between BEGIN and "
                             << cmd_name
@@ -702,7 +719,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
         }
         if(!found)
         {
-            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
             msg << n->get_location().get_location()
                 << "found a dangling "
                 << cmd_name
@@ -720,7 +737,7 @@ void parser::parse_create_context()
     node::pointer_t n(f_lexer->get_next_token());
     if(n->get_token() != token_t::TOKEN_IDENTIFIER)
     {
-        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
         msg << n->get_location().get_location()
             << "expected an identifier after CREATE CONTEXT.";
         throw invalid_token(msg.str());
@@ -745,7 +762,7 @@ void parser::parse_create_context()
     if(!validate_name(context_name.c_str()))
     {
         // LCOV_EXCL_START
-        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
         msg << n->get_location().get_location()
             << "context name \""
             << context_name
@@ -772,7 +789,7 @@ void parser::parse_create_context()
         {
             if(!context_path.empty())
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "USING keyword found twice after CREATE CONTEXT.";
                 throw invalid_token(msg.str());
@@ -780,7 +797,7 @@ void parser::parse_create_context()
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_STRING)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "expected a path after the USING keyword of CREATE CONTEXT.";
                 throw invalid_token(msg.str());
@@ -788,7 +805,7 @@ void parser::parse_create_context()
             context_path = n->get_string_lower();
             if(context_path.empty())
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "expected a non-empty path after the USING keyword of CREATE CONTEXT.";
                 throw invalid_token(msg.str());
@@ -797,7 +814,7 @@ void parser::parse_create_context()
             snapdev::tokenize_string(segments, context_path, "/", true);
             if(segments.size() >= MAX_CONTEXT_NAME_SEGMENTS) // here we use >= because the USING path does not include the context name
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "expected a maximum number of "
                     << MAX_CONTEXT_NAME_SEGMENTS - 1
@@ -810,7 +827,7 @@ void parser::parse_create_context()
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_OPEN_PARENTHESIS)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "WITH feature definitions must be defined between parenthesis, '(' missing in CREATE CONTEXT.";
                 throw invalid_token(msg.str());
@@ -821,7 +838,7 @@ void parser::parse_create_context()
                 n = f_lexer->get_next_token();
                 if(n->get_token() != token_t::TOKEN_IDENTIFIER)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "WITH feature definitions must be named using an identifier in CREATE CONTEXT.";
                     throw invalid_token(msg.str());
@@ -843,7 +860,7 @@ void parser::parse_create_context()
                 {
                     if(!owner.empty())
                     {
-                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                         msg << n->get_location().get_location()
                             << "WITH OWNER found twice after CREATE CONTEXT.";
                         throw invalid_token(msg.str());
@@ -889,7 +906,7 @@ void parser::parse_create_context()
                             }
                             else
                             {
-                                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                                 msg << n->get_location().get_location()
                                     << "expected a group name after ':' in CREATE CONTEXT ... WITH ( OWNER <user>:<group> ), not a "
                                     << to_string(n->get_token())
@@ -902,7 +919,7 @@ void parser::parse_create_context()
                     }
                     else
                     {
-                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                         msg << n->get_location().get_location()
                             << "expected a string or an identifier after WITH ( OWNER <owner>[:<group>] ).";
                         throw invalid_token(msg.str());
@@ -912,7 +929,7 @@ void parser::parse_create_context()
                 {
                     if(!description.empty())
                     {
-                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                         msg << n->get_location().get_location()
                             << "WITH COMMENT found twice after CREATE CONTEXT.";
                         throw invalid_token(msg.str());
@@ -920,7 +937,7 @@ void parser::parse_create_context()
 
                     if(n->get_token() != token_t::TOKEN_STRING)
                     {
-                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                         msg << n->get_location().get_location()
                             << "expected a string for <description> in CREATE CONTEXT ... WITH ( COMMENT <description> ) got a "
                             << to_string(n->get_token())
@@ -939,7 +956,7 @@ void parser::parse_create_context()
 
                 if(n->get_token() != token_t::TOKEN_COMMA)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "expected a comma to separate feature definitions in CREATE CONTEXT.";
                     throw invalid_token(msg.str());
@@ -999,7 +1016,7 @@ void parser::parse_select()
         {
             if(command->is_defined_as(param_t::PARAM_EXPRESSION) == param_type_t::PARAM_TYPE_STRING)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "SELECT DEFAULT VALUES cannot be used with other fields.";
                 throw invalid_token(msg.str());
@@ -1009,7 +1026,7 @@ void parser::parse_select()
             if(n->get_token() != token_t::TOKEN_IDENTIFIER
             && n->get_string_upper() != "VALUES")
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "SELECT DEFAULT is expected to be followed by VALUES.";
                 throw invalid_token(msg.str());
@@ -1021,7 +1038,7 @@ void parser::parse_select()
 
         if(count >= MAX_EXPRESSIONS)
         {
-            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
             msg << n->get_location().get_location()
                 << "SELECT can be followed by at most "
                 << MAX_EXPRESSIONS
@@ -1042,7 +1059,7 @@ void parser::parse_select()
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_IDENTIFIER)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "SELECT <expression> AS ... is expected to be followed by a name (an identifier).";
                 throw invalid_token(msg.str());
@@ -1078,7 +1095,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
         {
             if(count >= MAX_TABLES)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "SELECT ... FROM can be followed by at most "
                     << MAX_TABLES
@@ -1088,7 +1105,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
 
             if(n->get_token() != token_t::TOKEN_IDENTIFIER)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "SELECT ... FROM <table-name> is expected to be the name of a table (an identifier).";
                 throw invalid_token(msg.str());
@@ -1106,7 +1123,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 n = f_lexer->get_next_token();
                 if(n->get_token() != token_t::TOKEN_IDENTIFIER)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "SELECT ... FROM <table-name> AS ... is expected to be followed by a name (an identifier).";
                     throw invalid_token(msg.str());
@@ -1134,7 +1151,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 //
                 if(!where.empty())
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "SELECT ... WHERE ... found twice.";
                     throw invalid_token(msg.str());
@@ -1151,7 +1168,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 //
                 if(!order_by.empty())
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "SELECT ... ORDER BY ... found twice.";
                     throw invalid_token(msg.str());
@@ -1160,7 +1177,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 if(n->get_token() != token_t::TOKEN_IDENTIFIER
                 || n->get_string_upper() != "BY")
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "SELECT ... ORDER ... is expected to be followed by the 'BY' keyword.";
                     throw invalid_token(msg.str());
@@ -1169,7 +1186,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 n = f_lexer->get_next_token();
                 if(n->get_token() != token_t::TOKEN_IDENTIFIER)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "SELECT ... ORDER BY ... is expected to be the name of an index or 'PRIMARY KEY'.";
                     throw invalid_token(msg.str());
@@ -1180,7 +1197,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                     if(n->get_token() != token_t::TOKEN_IDENTIFIER
                     || n->get_string_upper() != "KEY")
                     {
-                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                         msg << n->get_location().get_location()
                             << "SELECT ... ORDER BY PRIMARY ... is expected to be followed by the 'KEY' keyword.";
                         throw invalid_token(msg.str());
@@ -1202,7 +1219,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 //
                 if(limit != 0)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "SELECT ... LIMIT ... found twice.";
                     throw invalid_token(msg.str());
@@ -1210,7 +1227,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 n = f_lexer->get_next_token();
                 if(n->get_token() != token_t::TOKEN_INTEGER)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "SELECT ... LIMIT ... is expected to be followed by an integer.";
                     throw invalid_token(msg.str());
@@ -1218,11 +1235,13 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 limit = n->get_integer().f_value[0];
                 if(limit <= 0 || limit > MAX_LIMIT)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "SELECT ... LIMIT "
                         << limit
-                        << " is out of range: (0, 1,000,000].";
+                        << " is out of range: (0, "
+                        << MAX_LIMIT
+                        << "].";
                     throw invalid_token(msg.str());
                 }
                 command->set_int64(param_t::PARAM_LIMIT, limit);
@@ -1245,6 +1264,106 @@ SNAP_LOG_WARNING << "identifier [" << n->get_string() << "] instead of ';' ?!" <
 }
 
 
+void parser::parse_config()
+{
+    // CONFIG <path>::<name> = <expression>
+    //
+    // all the parameters are optional, although if a <path> is defined, then
+    // a <name> exists too and the equal sign is mandatory if you assign
+    // an expression
+    //
+    command::pointer_t command(std::make_shared<command>(command_t::COMMAND_CONFIG));
+
+    prinbee::pbql::node::pointer_t n(f_lexer->get_next_token());
+    if(n->get_token() != token_t::TOKEN_SEMI_COLON)
+    {
+        if(n->get_token() == prinbee::pbql::token_t::TOKEN_STRING)
+        {
+            // regular expression case
+            //
+            std::string name(n->get_string());
+            if(!name.empty())
+            {
+                if(name.front() != '/'
+                || name.back() != '/')
+                {
+                    // clearly mark it as a regular expression
+                    //
+                    name = advgetopt::quote(name, '/');
+                }
+                command->set_string(param_t::PARAM_NAME, name);
+            }
+            // else -- the empty string means display all like /.*/ or just CONFIG;
+
+            n = f_lexer->get_next_token();
+        }
+        else if(n->get_token() == prinbee::pbql::token_t::TOKEN_IDENTIFIER)
+        {
+            std::string name(n->get_string());
+
+            n = f_lexer->get_next_token();
+            if(n->get_token() == prinbee::pbql::token_t::TOKEN_SCOPE)
+            {
+                n = f_lexer->get_next_token();
+                if(n->get_token() != prinbee::pbql::token_t::TOKEN_IDENTIFIER)
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                    msg << n->get_location().get_location()
+                        << "expected a configuration parameter name after the scope (::), not token '"
+                        << to_string(n->get_token())
+                        << "'.";
+                    throw prinbee::invalid_token(msg.str());
+                }
+
+                // the name above was the "path" (left handside of the scope operator)
+                //
+                command->set_string(param_t::PARAM_PATH, name);
+
+                // the right handside is the actual name
+                //
+                name = n->get_string();
+
+                // when we have two names separated by a scope token, we support
+                // setting/getting parameters from any layer; i.e. the pbql::...,
+                // proxy::..., or prinbee::... or something like that
+
+                n = f_lexer->get_next_token();
+            }
+            command->set_string(param_t::PARAM_NAME, name);
+
+            if(n->get_token() == prinbee::pbql::token_t::TOKEN_EQUAL)
+            {
+                n = f_lexer->get_next_token();
+                command->set_string(param_t::PARAM_EXPRESSION, parse_expression(n));
+
+                // parse_expression() should stop on ';' when valid
+            }
+        }
+        else
+        {
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+            msg << n->get_location().get_location()
+                << "expected a parameter name after CONFIG, not token '"
+                << to_string(n->get_token())
+                << "'.";
+            throw prinbee::invalid_token(msg.str());
+        }
+
+        expect_semi_colon("CONFIG", n);
+    }
+    // else ...
+    // CONFIG; by itself to list all existing parameters
+
+    f_commands.push_back(command);
+}
+
+
+void parser::parse_set()
+{
+    throw not_yet_implemented("parser::parse_set()");
+}
+
+
 void parser::expect_semi_colon(std::string const & command, node::pointer_t n)
 {
     if(n == nullptr)
@@ -1253,7 +1372,7 @@ void parser::expect_semi_colon(std::string const & command, node::pointer_t n)
     }
     if(n->get_token() != token_t::TOKEN_SEMI_COLON)
     {
-        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
         msg << n->get_location().get_location()
             << "expected ';' at the end of '"
             << command
@@ -1302,7 +1421,7 @@ node::pointer_t parser::keyword_string(
         n = f_lexer->get_next_token();
         if(n->get_token() != token_t::TOKEN_IDENTIFIER)
         {
-            snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
             msg << n->get_location().get_location()
                 << "expected "
                 << k
@@ -1318,7 +1437,7 @@ node::pointer_t parser::keyword_string(
         {
             if(!optional)
             {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
                     << "expected the "
                     << k
@@ -1345,7 +1464,7 @@ node::pointer_t parser::keyword_string(
     if(next_token_type != token_t::TOKEN_UNKNOWN
     && n->get_token() != next_token_type)
     {
-        snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
         msg << n->get_location().get_location()
             << "expected a "
             << to_string(next_token_type)

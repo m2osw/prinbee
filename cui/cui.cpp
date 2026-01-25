@@ -551,7 +551,7 @@ void cui::execute_commands(std::string const & commands)
     std::string filename(f_file);
     if(filename.empty())
     {
-        if(f_command.empty())
+        if(!f_command.empty())
         {
             filename = "<command>";
         }
@@ -570,6 +570,7 @@ void cui::execute_commands(std::string const & commands)
     f_lexer->set_input(in);
     f_parser = std::make_shared<prinbee::pbql::parser>(f_lexer);
     f_parser->set_user_capture(std::bind(&cui::user_commands, this, std::placeholders::_1));
+    f_cmds.clear();
     try
     {
         f_cmds = f_parser->parse();
@@ -590,6 +591,34 @@ void cui::execute_commands(std::string const & commands)
         // needs to be a variable member which we reduce each time a command
         // was executed...
         //
+f_console_connection->output("--- execute pbql system commands ---");
+
+        if(f_cmds[0]->get_command() == prinbee::pbql::command_t::COMMAND_CONFIG)
+        {
+f_console_connection->output("--- seeing a CONFIG command! ---");
+std::string const path(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_PATH));
+if(!path.empty())
+{
+f_console_connection->output("--- namespace: " + path + " ---");
+}
+std::string const name(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_NAME));
+if(!name.empty())
+{
+if(name[0] == '/')
+{
+f_console_connection->output("--- regex: " + name + " ---");
+}
+else
+{
+f_console_connection->output("--- name: " + name + " ---");
+}
+}
+std::string const expr(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_EXPRESSION));
+if(!expr.empty())
+{
+f_console_connection->output("--- set to value: " + expr + " ---");
+}
+        }
 
         // ... TODO ...
     }
@@ -787,7 +816,7 @@ bool cui::parse_help()
                 n = f_lexer->get_next_token();
                 if(n->get_token() != prinbee::pbql::token_t::TOKEN_IDENTIFIER)
                 {
-                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
                         << "expected a command name after HELP COMMAND not token '"
                         << to_string(n->get_token())

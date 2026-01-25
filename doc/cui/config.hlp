@@ -1,0 +1,25 @@
+CONFIG [{[<namespace>::]<name> [= <value>] | '<regex>'}];
+
+The pbql command line tool makes use of various parameters that can be tweaked using this command.
+
+To display all the values, use the command by itself:
+
+CONFIG;
+
+To display the current value of a specific parameter, specify its name:
+
+CONFIG <name>;
+
+You may include one namespace since parameters are grouped by name of the system using the parameter:
+
+CONFIG <namespace>::<name>;
+
+To display a list of parameters that match a regular expression, use a string instead of an exact name:
+
+CONFIG '<regex>';
+
+To change the value of a parameter use the equal sign and a value, which can be a constant expression. Here too, the namespace can be specified:
+
+CONFIG [<namespace>::]<name> = <value>;
+
+How the parameters are saved depends on the parameter itself. Some are found in the fluid-settings, others are specific to the local computer or even to the current user.

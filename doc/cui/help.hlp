@@ -1,0 +1,3 @@
+HELP;                 -- print out the list of basic commands
+HELP COMMANDS;        -- print out all the available PBQL commands including CUI specific commands
+HELP COMMAND <name>;  -- print help out the specific PBQL command <name>

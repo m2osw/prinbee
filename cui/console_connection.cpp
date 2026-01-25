@@ -436,7 +436,7 @@ void console_connection::help(std::string const & section_name)
             << filename
             << "\" -- "
             << in.last_error()
-            << ".\n";
+            << "\n";
         return;
     }
 

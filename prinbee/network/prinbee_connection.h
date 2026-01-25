@@ -96,11 +96,14 @@ public:
 
     // fluid_settings_connection implementation
     //
-    void                        service_status(std::string const & service, std::string const & status);
-    void                        fluid_settings_changed(
+    virtual void                service_status(
+                                      std::string const & server
+                                    , std::string const & service
+                                    , std::string const & status) override;
+    virtual void                fluid_settings_changed(
                                       fluid_settings::fluid_settings_status_t status
                                     , std::string const & name
-                                    , std::string const & value);
+                                    , std::string const & value) override;
 
     // new callbacks
     //
