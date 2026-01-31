@@ -283,11 +283,11 @@ proxy::proxy(int argc, char * argv[])
     }
     if(!prinbee::validate_name(f_node_name.c_str(), 100))
     {
-        throw advgetopt::getopt_exit("the node name is not considered a valid name.", 1);
+        throw advgetopt::getopt_exit("node name \"" + f_node_name + "\" is not considered valid.", 1);
     }
     if(!prinbee::verify_node_name(f_node_name.c_str()))
     {
-        throw advgetopt::getopt_exit("the node name cannot end with \"_proxy\" or \"_client\".", 1);
+        throw advgetopt::getopt_exit("the node name cannot end with \"_proxy\" or \"_client\", \"" + f_node_name + "\" is not considered valid.", 1);
     }
 
     if(getuid() == 0
@@ -307,6 +307,12 @@ proxy::proxy(int argc, char * argv[])
  */
 proxy::~proxy()
 {
+}
+
+
+std::string const & proxy::get_node_name() const
+{
+    return f_node_name;
 }
 
 
@@ -439,7 +445,9 @@ void proxy::msg_prinbee_current_status(ed::message & msg)
     if(!msg.has_parameter(communicator::g_name_communicator_param_status))
     {
         SNAP_LOG_ERROR
-            << "PRINBEE_CURRENT_STATUS message is missing the status parameter."
+            << "PRINBEE_CURRENT_STATUS message is missing the "
+            << communicator::g_name_communicator_param_status
+            << " parameter."
             << SNAP_LOG_SEND;
         return;
     }
@@ -453,10 +461,13 @@ void proxy::msg_prinbee_current_status(ed::message & msg)
         return;
     }
 
-    if(!msg.has_parameter(prinbee::g_name_prinbee_param_node_ip))
+    // the proxy needs to use the Proxy IP address
+    // (of the three sent by the Prinbee daemon)
+    //
+    if(!msg.has_parameter(prinbee::g_name_prinbee_param_proxy_ip))
     {
         SNAP_LOG_ERROR
-            << "PRINBEE_CURRENT_STATUS message is missing the node IP address."
+            << "PRINBEE_CURRENT_STATUS message is missing the proxy IP address."
             << SNAP_LOG_SEND;
         return;
     }
@@ -469,7 +480,7 @@ void proxy::msg_prinbee_current_status(ed::message & msg)
         return;
     }
 
-    std::string const daemon_address(msg.get_parameter(prinbee::g_name_prinbee_param_node_ip));
+    std::string const daemon_address(msg.get_parameter(prinbee::g_name_prinbee_param_proxy_ip));
     addr::addr const a(addr::string_to_addr(
                       daemon_address
                     , std::string()
@@ -816,19 +827,18 @@ void proxy::connect_to_daemon(addr::addr const & a, std::string const & name)
 
     // this call just registers the connection in a table in prinbeed,
     // it does not send the REG message to the other side, which we do
-    // just after
+    // when we get the process_connected() called
     //
     f_daemon_connections[d.get()] = d;
 
-    // send a REG, we expect an ACK or ERR as a reply
-    //
-    prinbee::binary_message::pointer_t register_msg(std::make_shared<prinbee::binary_message>());
-    register_msg->create_register_message(
-          f_node_name + "_proxy"
-        , prinbee::g_name_prinbee_protocol_version_node);
-    d->send_message(register_msg);
+    if(!f_communicator->add_connection(d))
+    {
+        SNAP_LOG_RECOVERABLE_ERROR
+            << "could not add connection to daemon to list of ed::communicator connections."
+            << SNAP_LOG_SEND;
+    }
 
-    d->expect_acknowledgment(register_msg);
+SNAP_LOG_WARNING << "--- connected with " << name << " prinbee daemon at " << a << " as " << f_node_name << "_proxy ... waiting for REG acknowledgement." << SNAP_LOG_SEND;
 }
 
 

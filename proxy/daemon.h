@@ -57,6 +57,10 @@ public:
     bool                        has_expected_ping(prinbee::message_serial_t serial_number);
     std::uint32_t               increment_no_pong_answer();
 
+    // binary_client implementation
+    //
+    virtual void                process_connected();
+
 private:
     typedef std::map<prinbee::message_serial_t, prinbee::binary_message::pointer_t>
                                 acknowledgment_t;

@@ -154,6 +154,7 @@ int init_tests(Catch::Session & session)
     snapdev::NOT_USED(session);
 
     snaplogger::setup_catch2_nested_diagnostics();
+    snaplogger::mark_ready(); // we do not process options, so we have to explicitly call ready()
 
     // simulate a /var/lib/prinbee/... under our test temporary directory
     //

@@ -37,21 +37,6 @@
 #include    <prinbee/network/binary_client.h>
 
 
-// cluck
-//
-//#include    <cluck/cluck_status.h>
-
-
-// eventdispatcher
-//
-//#include    <eventdispatcher/names.h>
-
-
-// communicatord
-//
-//#include    <communicatord/names.h>
-
-
 // last include
 //
 #include    <snapdev/poison.h>

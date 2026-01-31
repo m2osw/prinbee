@@ -1283,6 +1283,10 @@ bool prinbeed::msg_process_payload(
       ed::connection::pointer_t peer
     , prinbee::binary_message::pointer_t msg)
 {
+SNAP_LOG_WARNING << "--- msg_process_payload() called! ["
+<< prinbee::message_name_to_string(msg->get_name())
+<< "] ---" << SNAP_LOG_SEND;
+
     payload_t::pointer_t payload = std::make_shared<payload_t>();
     payload->f_peer = peer;
     payload->f_message = msg;

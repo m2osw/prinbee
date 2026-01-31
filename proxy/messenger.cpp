@@ -135,10 +135,10 @@ void messenger::ready(ed::message & msg)
     // 5. Future changes are broadcast so we do not need to repeat the GET
     //
     ed::message iplock_get_status_msg;
-    //iplock_get_status_msg.set_server(".");
-    //iplock_get_status_msg.set_service(::communicator::g_name_communicator__service_communicatord);
+    //iplock_get_status_msg.set_server(communicator::g_name_communicator_server_me);
+    //iplock_get_status_msg.set_service(communicator::g_name_communicator_service_communicatord);
     iplock_get_status_msg.reply_to(msg); // the ready message is from the communicatord so we can use reply_to() here
-    iplock_get_status_msg.set_command(::communicator::g_name_communicator_cmd_iplock_get_status);
+    iplock_get_status_msg.set_command(communicator::g_name_communicator_cmd_iplock_get_status);
     iplock_get_status_msg.add_parameter(
               ::communicator::g_name_communicator_param_cache
             , ::communicator::g_name_communicator_value_no);
@@ -147,14 +147,25 @@ void messenger::ready(ed::message & msg)
     // request the current clock status
     //
     ed::message clock_status_msg;
-    //clock_status_msg.set_server(".");
-    //clock_status_msg.set_service(::communicator::g_name_communicator__service_communicatord);
+    //clock_status_msg.set_server(communicator::g_name_communicator_server_me);
+    //clock_status_msg.set_service(communicator::g_name_communicator_service_communicatord);
     clock_status_msg.reply_to(msg); // the ready message is from the communicatord so we can use reply_to() here
-    clock_status_msg.set_command(::communicator::g_name_communicator_cmd_clock_status);
+    clock_status_msg.set_command(communicator::g_name_communicator_cmd_clock_status);
     clock_status_msg.add_parameter(
               ::communicator::g_name_communicator_param_cache
             , ::communicator::g_name_communicator_value_no);
     send_message(clock_status_msg);
+
+    // request the current prinbee status
+    //
+    ed::message prinbee_status_msg;
+    clock_status_msg.set_server(communicator::g_name_communicator_server_remote);
+    prinbee_status_msg.set_service(prinbee::g_name_prinbee_service_prinbeed);
+    prinbee_status_msg.set_command(prinbee::g_name_prinbee_cmd_prinbee_get_status);
+    prinbee_status_msg.add_parameter(
+              ::communicator::g_name_communicator_param_cache
+            , ::communicator::g_name_communicator_value_no);
+    send_message(prinbee_status_msg);
 
     // for completeness, call the following, however:
     //

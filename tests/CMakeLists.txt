@@ -42,6 +42,7 @@ if(SnapCatch2_FOUND AND Reporter_FOUND)
         catch_pbql_location.cpp
         catch_pbql_node.cpp
         catch_pbql_parser.cpp
+        catch_service_names.cpp
         catch_structure.cpp
         catch_utils.cpp
         catch_version.cpp
@@ -51,6 +52,7 @@ if(SnapCatch2_FOUND AND Reporter_FOUND)
     target_include_directories(${PROJECT_NAME}
         PUBLIC
             ${CMAKE_BINARY_DIR}
+            ${COMMUNICATOR_INCLUDE_DIRS}
             ${EVENTDISPATCHER_INCLUDE_DIRS}
             ${LIBEXCEPT_INCLUDE_DIRS}
             ${LIBUTF8_INCLUDE_DIRS}
@@ -63,6 +65,7 @@ if(SnapCatch2_FOUND AND Reporter_FOUND)
     target_link_libraries(${PROJECT_NAME}
         prinbee
         ${ADVGETOPT_LIBRARIES}
+        ${COMMUNICATOR_LIBRARIES}
         ${EVENTDISPATCHER_LIBRARIES}
         ${LIBADDR_LIBRARIES}
         ${LIBEXCEPT_LIBRARIES}

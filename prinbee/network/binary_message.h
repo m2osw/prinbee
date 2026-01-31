@@ -454,6 +454,7 @@ private:
         std::int64_t            f_created_on = 0;                       // this is a timespec_ex converted to an int64_t (i.e. timespec_ex cannot be in a bare struct we can copy with memcpy)
         message_serial_t        f_serial_number = 0;                    // to match a reply to the original message (i.e. ACK and ERR especially)
         std::uint32_t           f_size = 0;                             // size of following data
+        std::uint32_t           f_padding = 0;                          // for now, we have another 32 bits available / unused
         crc16_t                 f_data_crc16 = 0;                       // following data CRC16
         crc16_t                 f_header_crc16 = 0;                     // CRC16 of this header
     };

@@ -41,34 +41,6 @@
 //#include    <prinbee/exception.h>
 //#include    <prinbee/names.h>
 #include    <prinbee/network/constants.h>
-//#include    <prinbee/version.h>
-
-
-// communicatord
-//
-//#include    <communicatord/flags.h>
-//#include    <communicatord/names.h>
-
-
-// cluck
-//
-//#include    <cluck/cluck_status.h>
-
-
-// cppprocess
-//
-//#include    <cppprocess/io_capture_pipe.h>
-//#include    <cppprocess/process.h>
-
-
-//// eventdispatcher
-////
-//#include    <eventdispatcher/names.h>
-
-
-// libaddr
-//
-//#include    <libaddr/addr_parser.h>
 
 
 // snapdev
@@ -84,24 +56,6 @@
 //#include    <snaplogger/logger.h>
 //#include    <snaplogger/options.h>
 //#include    <snaplogger/severity.h>
-
-
-// advgetopt
-//
-//#include    <advgetopt/advgetopt.h>
-//#include    <advgetopt/exception.h>
-
-
-//// C++
-////
-//#include    <algorithm>
-//#include    <iostream>
-//#include    <sstream>
-//
-//
-//// openssl
-////
-//#include    <openssl/rand.h>
 
 
 // last include

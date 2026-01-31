@@ -67,27 +67,6 @@
 //#include    <communicatord/names.h>
 
 
-// cluck
-//
-//#include    <cluck/cluck_status.h>
-
-
-// cppprocess
-//
-//#include    <cppprocess/io_capture_pipe.h>
-//#include    <cppprocess/process.h>
-
-
-//// eventdispatcher
-////
-//#include    <eventdispatcher/names.h>
-
-
-// libaddr
-//
-//#include    <libaddr/addr_parser.h>
-
-
 // snapdev
 //
 //#include    <snapdev/gethostname.h>

@@ -24,6 +24,11 @@
 #include    "prinbeed.h"
 
 
+// snaplogger
+//
+#include    <snaplogger/message.h>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
@@ -38,8 +43,8 @@ namespace prinbee_daemon
 /** \class proxy_listener
  * \brief Handle connections from proxies.
  *
- * The prinbee environment let clients connect to a proxy instead of
- * directly to one of its daemon. This allows us to ensure more data
+ * The prinbee environment expects clients to connect to a proxy instead
+ * of directly to one of its daemon. This allows for more data
  * safety by having more control over journaling. It can save data
  * being written on the client's machine until a server is available.
  * It also handles connections to the servers so that way it can
@@ -60,6 +65,7 @@ proxy_listener::proxy_listener(prinbeed * p, addr::addr const & a)
     , f_prinbeed(p)
 {
     set_name("proxy_listener");
+SNAP_LOG_WARNING << "--- proxy listener using address: " << a << " ---" << SNAP_LOG_SEND;
 }
 
 
@@ -68,16 +74,23 @@ proxy_listener::~proxy_listener()
 }
 
 
-/** \brief Call the stop function of the prinbeed object.
+/** \brief Initialize a client.
  *
- * When this function is called, the signal was received and thus we are
- * asked to quit as soon as possible.
+ * Whenever the listener receives a connection through the accept() command,
+ * this function gets called with a new client.
  *
- * \param[in] client  The binary server client object that just connected
- * to us.
+ * The function makes further client's initialization such as setting up
+ * callbacks for various messages.
+ *
+ * Finally, it registers the connection with the prinbee daemon so it
+ * can be properly managed until disconnected.
+ *
+ * \param[in] client  The binary server client object that just connected.
  */
 void proxy_listener::process_new_connection(prinbee::binary_server_client::pointer_t client)
 {
+SNAP_LOG_WARNING << "--- process new connection called! ---" << SNAP_LOG_SEND;
+
     // call the base class version
     //
     binary_server::process_new_connection(client);

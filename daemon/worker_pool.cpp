@@ -30,27 +30,6 @@
 //
 #include    "worker_pool.h"
 
-//#include    "prinbeed.h"
-
-
-// prinbee
-//
-//#include    <prinbee/names.h>
-
-
-// cluck
-//
-//#include    <cluck/cluck_status.h>
-
-
-// eventdispatcher
-//
-//#include    <eventdispatcher/names.h>
-
-
-// communicatord
-//
-//#include    <communicatord/names.h>
 
 
 // last include

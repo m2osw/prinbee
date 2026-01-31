@@ -50,6 +50,7 @@ public:
 
     proxy &                     operator = (proxy const & rhs) = delete;
 
+    std::string const &         get_node_name() const;
     void                        finish_initialization();
     void                        set_fluid_settings_ready();
     bool                        is_ipwall_installed() const;

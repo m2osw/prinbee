@@ -25,7 +25,8 @@ project(prinbee_conf)
 # Define prinbee as a Communicator Service
 install(
     FILES
-        prinbee.service
+        prinbeed.service
+        pb_proxy.service
 
     DESTINATION
         ${COMMUNICATOR_SERVICES_INSTALL_DIR}

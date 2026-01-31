@@ -553,7 +553,7 @@ void binary_client_impl::process_invalid()
  * \param[in] a  The address to connect to.
  */
 binary_client::binary_client(addr::addr const & a)
-    : timer(10)
+    : timer(0)
     , f_remote_address(a)
 {
     set_name("binary_client");
@@ -577,6 +577,14 @@ void binary_client::send_message(binary_message::pointer_t msg)
     if(!is_done() && f_impl != nullptr)
     {
         f_impl->send_message(msg);
+    }
+    else
+    {
+        SNAP_LOG_MAJOR
+            << "send_message() was called on a binary_client when the client is not connected. The message \""
+            << message_name_to_string(msg->get_name())
+            << "\" will not make it."
+            << SNAP_LOG_SEND;
     }
 }
 

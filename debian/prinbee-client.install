@@ -1,5 +1,6 @@
 usr/bin/pbql
 usr/share/doc/prinbee/cui
+usr/share/fluid-settings/definitions/pbql.ini
 
 conf/pbql.conf                                         etc/prinbee/
 conf/logger/pbql.conf                                  etc/prinbee/logger/

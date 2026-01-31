@@ -21,9 +21,9 @@
 #include    "catch_main.h"
 
 
-// prinbee
+// communicator
 //
-#include    <prinbee/version.h>
+#include    <communicator/snapcatch2.hpp>
 
 
 // last include
@@ -32,14 +32,19 @@
 
 
 
-CATCH_TEST_CASE("version", "[version]")
+CATCH_TEST_CASE("service_name", "[service]")
 {
-    CATCH_START_SECTION("version: verify runtime vs compile time version numbers")
+    CATCH_START_SECTION("service_name: verify the prinbee daemon service name")
     {
-        CATCH_REQUIRE(prinbee::get_major_version()   == PRINBEE_VERSION_MAJOR);
-        CATCH_REQUIRE(prinbee::get_release_version() == PRINBEE_VERSION_MINOR);
-        CATCH_REQUIRE(prinbee::get_patch_version()   == PRINBEE_VERSION_PATCH);
-        CATCH_REQUIRE(strcmp(prinbee::get_version_string(), PRINBEE_VERSION_STRING) == 0);
+        std::string const source_dir(SNAP_CATCH2_NAMESPACE::g_source_dir());
+        CATCH_REQUIRE(communicator::verify_service_name(source_dir));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("service_name: verify the prinbee proxy daemon service name")
+    {
+        std::string const source_dir(SNAP_CATCH2_NAMESPACE::g_source_dir());
+        CATCH_REQUIRE(communicator::verify_service_name(source_dir, "proxy/messenger.cpp"));
     }
     CATCH_END_SECTION()
 }

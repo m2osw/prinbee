@@ -325,6 +325,15 @@ snapdev::timespec_ex prinbee_connection::get_last_ping() const
  */
 bool prinbee_connection::is_proxy_ready() const
 {
+
+SNAP_LOG_INFO
+<< "----- is_proxy_ready() called! has_address()? " << std::boolalpha << has_address()
+<< " f_proxy_status = " << f_proxy_status
+<< " are fluid_settings registered? " << are_fluid_settings_registered()
+<< " are fluid_settings ready? " << are_fluid_settings_ready()
+<< " is messenger ready? " << is_ready()
+<< SNAP_LOG_SEND;
+
     return has_address()                    // proxy gave us its binary IP address and port
         && f_proxy_status == "up"           // proxy service is considered up and running
         && are_fluid_settings_registered()  // registered with fluid-settings service

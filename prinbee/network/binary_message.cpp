@@ -331,13 +331,15 @@ bool binary_message::is_message_header_valid() const
     if(f_header.f_magic[0] != 'b'
     || f_header.f_magic[1] != 'm')
     {
+SNAP_LOG_ERROR << "--- no bm ---" << SNAP_LOG_SEND;
         return false;
     }
 
     // version cannot be 0
     //
-    if(f_header.f_version != 0)
+    if(f_header.f_version == 0)
     {
+SNAP_LOG_ERROR << "--- version is 0 ---" << SNAP_LOG_SEND;
         return false;
     }
 
@@ -345,6 +347,7 @@ bool binary_message::is_message_header_valid() const
     //
     if(f_header.f_name == g_message_unknown)
     {
+SNAP_LOG_ERROR << "--- unknown f_name ---" << SNAP_LOG_SEND;
         return false;
     }
 
@@ -352,11 +355,13 @@ bool binary_message::is_message_header_valid() const
     //
     if(crc16_compute(reinterpret_cast<std::uint8_t const *>(&f_header), sizeof(f_header)) != 0)
     {
+SNAP_LOG_ERROR << "--- crc16 is wrong? ---" << SNAP_LOG_SEND;
         return false;
     }
 
     // everything looks good
     //
+SNAP_LOG_ERROR << "--- perfect ---" << SNAP_LOG_SEND;
     return true;
 }
 
@@ -404,10 +409,12 @@ void const * binary_message::get_header()
     // we call this function only once when we send the message over the
     // network
     //
-    f_header.f_header_crc16 = crc16_compute(
-              reinterpret_cast<std::uint8_t const *>(&f_header)
-            , sizeof(f_header) - sizeof(f_header.f_header_crc16));
-
+#ifdef _DEBUG
+    if(sizeof(f_header) != offsetof(header_t, f_header_crc16) + sizeof(f_header.f_header_crc16))
+    {
+        throw logic_error("the header CRC16 is expected to be the last 2 bytes of the header structure.");
+    }
+#endif
     if(has_data())
     {
         if(has_pointer())
@@ -428,9 +435,17 @@ void const * binary_message::get_header()
                     + ").");
             }
 #endif
-            f_header.f_header_crc16 = crc16_compute(f_buffer.data(), f_header.f_size);
+            f_header.f_data_crc16 = crc16_compute(f_buffer.data(), f_header.f_size);
         }
     }
+    else
+    {
+        f_header.f_data_crc16 = 0;
+    }
+
+    f_header.f_header_crc16 = crc16_compute(
+              reinterpret_cast<std::uint8_t const *>(&f_header)
+            , sizeof(f_header) - sizeof(f_header.f_header_crc16));
 
     return &f_header;
 }

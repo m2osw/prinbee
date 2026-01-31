@@ -1,4 +1,5 @@
 usr/sbin/prinbee-daemon
+usr/share/communicator/services/prinbeed.service
 
 conf/prinbee-daemon.conf                               etc/prinbee/
 conf/logger/prinbee-daemon.conf                        etc/prinbee/logger/

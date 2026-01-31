@@ -1,7 +1,4 @@
 usr/sbin/prinbee-proxy
-
-# TODO: add these
-#usr/share/communicatord
-#usr/share/fluid-settings
+usr/share/communicator/services/pb_proxy.service
 
 conf/prinbee-proxy.conf                          etc/iplock/

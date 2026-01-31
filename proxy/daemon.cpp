@@ -70,6 +70,7 @@ daemon::daemon(proxy * p, addr::addr const & a)
     : binary_client(a)
     , f_proxy(p)
 {
+SNAP_LOG_WARNING << "--- we started a proxy::daemon client..." << SNAP_LOG_SEND;
 }
 
 
@@ -113,6 +114,20 @@ void daemon::add_callbacks()
             , d
             , std::placeholders::_1
             , prinbee::msg_reply_t::MSG_REPLY_RECEIVED));
+}
+
+
+void daemon::process_connected()
+{
+    // on connection, send a REG, we expect an ACK or ERR as a reply
+    //
+    prinbee::binary_message::pointer_t register_msg(std::make_shared<prinbee::binary_message>());
+    register_msg->create_register_message(
+          f_proxy->get_node_name() + "_proxy"
+        , prinbee::g_name_prinbee_protocol_version_node);
+    send_message(register_msg);
+
+    expect_acknowledgment(register_msg);
 }
 
 
