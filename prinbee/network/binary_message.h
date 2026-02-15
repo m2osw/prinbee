@@ -401,8 +401,8 @@ public:
     typedef std::map<message_name_t, callback_manager_t>    callback_map_t;
 
                                 binary_message();
-                                binary_message(binary_message const &) = delete;
-    binary_message &            operator = (binary_message const &) = delete;
+                                binary_message(binary_message const & rhs);
+    binary_message &            operator = (binary_message const & rhs) = delete;
 
     message_serial_t            get_next_serial_number();
 
@@ -425,6 +425,7 @@ public:
     bool                        has_pointer() const;
     void                        set_data_by_pointer(void * data, std::size_t size);
     void *                      get_data_pointer(std::size_t & size) const;
+    void                        make_data_safe();
     void                        set_data(void const * data, std::size_t size);
     std::vector<std::uint8_t> const &
                                 get_data() const;
@@ -458,6 +459,9 @@ private:
         crc16_t                 f_data_crc16 = 0;                       // following data CRC16
         crc16_t                 f_header_crc16 = 0;                     // CRC16 of this header
     };
+    static_assert(
+          sizeof(header_t) == offsetof(header_t, f_header_crc16) + sizeof(header_t::f_header_crc16)
+        , "the f_header_crc16 field is expected to be the last 2 bytes of the header_t structure.");
 
     header_t                    f_header = header_t();
     void *                      f_data = nullptr;

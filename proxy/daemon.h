@@ -40,8 +40,8 @@ class daemon
     : public prinbee::binary_client
 {
 public:
-    typedef std::shared_ptr<daemon>         pointer_t;
-    typedef std::map<daemon *, pointer_t>   map_t;
+    typedef std::shared_ptr<daemon>             pointer_t;
+    typedef std::map<std::string, pointer_t>    map_t;
 
                                 daemon(proxy * p, addr::addr const & a);
                                 daemon(daemon const & rhs) = delete;

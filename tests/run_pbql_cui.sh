@@ -41,7 +41,13 @@ check_daemon() {
 		read answer
 		if test "${answer}" = "y" -o "${answer}" = "Y"
 		then
-			pkill -u "${USER}" "${NAME}"
+			echo "info: killing daemon ${NAME}."
+			if pkill -u "${USER}" "${NAME}"
+			then
+				echo "info: daemon ${NAME} killed."
+			else
+				echo "warning: daemon ${NAME} not found (killing a previous daemon may have let this one go)."
+			fi
 		else
 			echo "error: start process aborted."
 			exit 1
@@ -86,6 +92,7 @@ ADVGETOPT_OPTIONS_FILES_DIRECTORY="../../BUILD/Debug/dist/share/communicator/opt
 ../../BUILD/Debug/contrib/communicator/daemon/communicatord \
 	--log-file "${COMMUNICATORD_LOG_FILE}" \
 	--trace \
+	--except-stack-collect complete \
 	--debug-all-messages \
 	--my-address 127.0.0.1 \
 	--services "../../BUILD/Debug/dist/share/communicator/services" \
@@ -101,6 +108,7 @@ echo "info: start fluid-settings"
 ../../BUILD/Debug/contrib/fluid-settings/daemon/fluid-settings \
 	--log-file "${FLUID_SETTINGS_LOG_FILE}" \
 	--trace \
+	--except-stack-collect complete \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--definitions "../../BUILD/Debug/dist/share/fluid-settings/definitions" \
 	--settings "${FLUID_SETTINGS}" \
@@ -112,6 +120,7 @@ echo "info: start cluck"
 ../../BUILD/Debug/contrib/cluck/daemon/cluckd \
 	--log-file "${CLUCK_LOG_FILE}" \
 	--trace \
+	--except-stack-collect complete \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
 
@@ -121,6 +130,7 @@ echo "info: start prinbee proxy"
 ../../BUILD/Debug/contrib/prinbee/proxy/prinbee-proxy \
 	--log-file "${PROXY_LOG_FILE}" \
 	--trace \
+	--except-stack-collect complete \
 	--owner alexis:alexis \
 	--prinbee-path "`pwd`/${BUILD_TMPDIR}" \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
@@ -133,6 +143,7 @@ echo "info: start prinbee daemon"
 ../../BUILD/Debug/contrib/prinbee/daemon/prinbee-daemon \
 	--log-file "${DAEMON_LOG_FILE}" \
 	--trace \
+	--except-stack-collect complete \
 	--owner alexis:alexis \
 	--prinbee-path "`pwd`/${BUILD_TMPDIR}" \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
@@ -145,6 +156,7 @@ echo "info: start pbql..."
 ../../BUILD/Debug/contrib/prinbee/cui/pbql \
 	--log-file "${CUI_LOG_FILE}" \
 	--trace \
+	--except-stack-collect complete \
 	--documentation "../../BUILD/Debug/dist/share/doc/prinbee/cui/" \
 	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}"

@@ -42,6 +42,7 @@
 
 // eventdispatcher
 //
+#include    <eventdispatcher/communicator.h>
 #include    <eventdispatcher/exception.h>
 #include    <eventdispatcher/tcp_client_connection.h>
 
@@ -81,7 +82,7 @@ class binary_client_impl
     : public ed::tcp_client_connection
 {
 public:
-    typedef std::shared_ptr<binary_client>              pointer_t;
+    typedef std::shared_ptr<binary_client_impl> pointer_t;
 
                                 binary_client_impl(binary_client * parent, addr::addr const & a);
                                 binary_client_impl(binary_client_impl const &) = delete;
@@ -250,6 +251,7 @@ bool binary_client_impl::is_writer() const
  */
 void binary_client_impl::process_read()
 {
+SNAP_LOG_ERROR << "--- process_read() reacted to something..." << SNAP_LOG_SEND;
     if(valid_socket())
     {
         int count_messages(0);
@@ -265,6 +267,7 @@ void binary_client_impl::process_read()
                 {
                     f_data_size += r;
                 }
+SNAP_LOG_ERROR << "--- got " << r << " bytes of header" << SNAP_LOG_SEND;
                 break;
 
             case read_state_t::READ_STATE_HEADER_ADJUST:
@@ -278,6 +281,7 @@ void binary_client_impl::process_read()
                 {
                     get_binary_message()->add_message_header_byte(f_data[0]);
                 }
+SNAP_LOG_ERROR << "--- got " << r << " bytes of adjustment for header" << SNAP_LOG_SEND;
                 break;
 
             case read_state_t::READ_STATE_DATA:
@@ -286,6 +290,7 @@ void binary_client_impl::process_read()
                 {
                     f_data_size += r;
                 }
+SNAP_LOG_ERROR << "--- got " << r << " bytes of data" << SNAP_LOG_SEND;
                 break;
 
             }
@@ -316,6 +321,7 @@ void binary_client_impl::process_read()
 
                         if(get_binary_message()->get_data_size() == 0)
                         {
+SNAP_LOG_ERROR << "--- got whole header, no data attached" << SNAP_LOG_SEND;
                             // there is no data attached to that message,
                             // we can directly process it
                             //
@@ -331,6 +337,7 @@ void binary_client_impl::process_read()
                         }
                         else
                         {
+SNAP_LOG_ERROR << "--- got whole header, now read attached data" << SNAP_LOG_SEND;
                             // make sure the buffer is large enough
                             //
                             std::size_t const min_size((get_binary_message()->get_data_size() + PRINBEE_NETWORK_PAGE_SIZE - 1ULL) & -PRINBEE_NETWORK_PAGE_SIZE);
@@ -367,6 +374,7 @@ void binary_client_impl::process_read()
                         //
                         get_binary_message()->set_data_by_pointer(f_data.data(), f_data_size);
                         f_parent->process_message(get_binary_message());
+SNAP_LOG_ERROR << "--- got whole header & data, process message" << SNAP_LOG_SEND;
                         reset_binary_message();
                         ++count_messages;
 
@@ -563,6 +571,9 @@ binary_client::binary_client(addr::addr const & a)
 
 binary_client::~binary_client()
 {
+    // if f_impl is not null yet, we need to remove it from the communicator
+    //
+    ed::communicator::instance()->remove_connection(f_impl);
 }
 
 
@@ -615,7 +626,7 @@ void binary_client::process_timeout()
     {
         set_enable(false);
         SNAP_LOG_VERBOSE
-            << "The binary_client::process_timeout() function was called when the implementation object was already allocated."
+            << "The binary_client::process_timeout() function was called when the implementation object was already allocated. (Did you override process_connected() and did not call the base class implementation?)"
             << SNAP_LOG_SEND;
         return;
     }
@@ -623,9 +634,24 @@ void binary_client::process_timeout()
     std::string error_name;
     try
     {
-        f_impl = std::make_shared<detail::binary_client_impl>(this, f_remote_address);
-        f_last_error.clear();
-        process_connected();
+        detail::binary_client_impl::pointer_t client(std::make_shared<detail::binary_client_impl>(this, f_remote_address));
+        if(!ed::communicator::instance()->add_connection(client))
+        {
+            // this should never happen here since each new creates a
+            // new pointer
+            //
+            SNAP_LOG_ERROR
+                << "new TCP binary client \""
+                << client->get_name()
+                << "\" connection could not be added to the ed::communicator list of connections."
+                << SNAP_LOG_SEND;
+        }
+        else
+        {
+            f_impl = client;
+            f_last_error.clear();
+            process_connected();
+        }
         return;
     }
     catch(ed::failed_connecting const & e)
@@ -678,8 +704,15 @@ void binary_client::process_connected()
 
 void binary_client::process_disconnected()
 {
+    ed::communicator::instance()->remove_connection(f_impl);
     f_impl.reset();
     set_enable(true);
+}
+
+
+void binary_client::connection_removed()
+{
+    process_disconnected();
 }
 
 

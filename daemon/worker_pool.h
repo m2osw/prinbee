@@ -50,10 +50,7 @@ public:
 
     worker_pool &               operator = (worker_pool const &) = delete;
 
-
 private:
-    void                        msg_set_context(prinbee::binary_message::pointer_t msg);
-
     prinbeed *                  f_prinbeed = nullptr;
 };
 

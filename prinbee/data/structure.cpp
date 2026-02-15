@@ -1253,7 +1253,9 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
             && f->type() != type)
             {
                 throw type_mismatch(
-                          "this field type is \""
+                          "type of field \""
+                        + field_name
+                        + "\" is \""
                         + to_string(f->type())
                         + "\" but we expected \""
                         + to_string(type)
@@ -1283,7 +1285,9 @@ field_t::pointer_t structure::get_field(std::string const & field_name, struct_t
                 && f->type() != type)
                 {
                     throw type_mismatch(
-                              "this field type is \""
+                              "type of field \""
+                            + field_name
+                            + "\" is \""
                             + to_string(f->type())
                             + "\" but we expected \""
                             + to_string(type)
@@ -1462,7 +1466,9 @@ std::int64_t structure::get_integer(std::string const & field_name) const
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of field \""
+                + field_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -1522,7 +1528,9 @@ void structure::set_integer(std::string const & field_name, std::int64_t value)
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of field \""
+                + field_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -1591,7 +1599,9 @@ std::uint64_t structure::get_uinteger(std::string const & field_name) const
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of field \""
+                + field_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1667,7 +1677,9 @@ void structure::set_uinteger(std::string const & field_name, std::uint64_t value
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of field \""
+                + field_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1736,7 +1748,9 @@ std::uint64_t structure::get_bits(std::string const & flag_name) const
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of flag \""
+                + flag_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1769,7 +1783,9 @@ void structure::set_bits(std::string const & flag_name, std::uint64_t value)
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of flag \""
+                + flag_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -1891,7 +1907,9 @@ sign_extend_64bit:
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of field \""
+                + field_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -1945,7 +1963,9 @@ void structure::set_large_integer(std::string const & field_name, int512_t const
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of field \""
+                + field_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_INT8)
@@ -2009,7 +2029,9 @@ uint512_t structure::get_large_uinteger(std::string const & field_name) const
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of field \""
+                + field_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -2082,7 +2104,9 @@ void structure::set_large_uinteger(std::string const & field_name, uint512_t con
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of field \""
+                + field_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_BITS8)
@@ -2225,7 +2249,9 @@ std::string structure::get_string(std::string const & field_name) const
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of field \""
+                + field_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_CHAR)
@@ -2301,7 +2327,9 @@ SNAP_LOG_WARNING << "CHAR case: offset (2) = " << f->offset() << " + " << value.
 
     default:
         throw type_mismatch(
-                  "this field type is \""
+                  "type of field \""
+                + field_name
+                + "\" is \""
                 + to_string(f->type())
                 + "\" but we expected one of \""
                 + to_string(struct_type_t::STRUCT_TYPE_CHAR)

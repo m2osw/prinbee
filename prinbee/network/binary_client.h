@@ -78,6 +78,7 @@ public:
     // ed::tcp_client_connection implementation
     //
     virtual void                process_timeout() override;
+    virtual void                connection_removed() override;
 
     // new callback
     //

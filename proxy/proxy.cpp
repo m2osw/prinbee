@@ -32,14 +32,11 @@
 // advgetopt
 //
 #include    <advgetopt/exception.h>
-//#include    <advgetopt/options.h>
-//#include    <advgetopt/utils.h>
 #include    <advgetopt/validator_duration.h>
 
 
 // communicator
 //
-//#include    <communicator/flags.h>
 #include    <communicator/names.h>
 
 
@@ -56,8 +53,7 @@
 // snapdev
 //
 #include    <snapdev/gethostname.h>
-//#include    <snapdev/not_reached.h>
-//#include    <snapdev/raii_generic_deleter.h>
+#include    <snapdev/concat_strings.h>
 #include    <snapdev/stringize.h>
 #include    <snapdev/to_lower.h>
 
@@ -66,22 +62,6 @@
 //
 #include    <cppprocess/process.h>
 #include    <cppprocess/io_capture_pipe.h>
-
-
-//// C++
-////
-//#include    <fstream>
-//#include    <map>
-//
-//
-//// C
-////
-//#include    <glob.h>
-//#include    <limits.h>
-//#include    <stdlib.h>
-//#include    <sys/stat.h>
-//#include    <sys/sysmacros.h>
-//#include    <unistd.h>
 
 
 // last include
@@ -96,7 +76,7 @@
  * \brief Proxy daemon that runs on all the machines.
  *
  * The proxy helps each client by handling the communication between
- * the computer on which it sits (i.e. clients) and the prinbee deamons.
+ * the computer on which it sits (i.e. clients) and the prinbee daemons.
  */
 
 namespace prinbee_proxy
@@ -106,15 +86,21 @@ namespace
 
 
 
+constexpr char const g_colon[] = ":";
+
+constexpr std::string_view const g_listen_port = snapdev::integer_to_string_literal<prinbee::CLIENT_BINARY_PORT>.data();
+constexpr char const * const g_listen_default_address = snapdev::concat<g_colon, g_listen_port.data()>::value;
+
+
 advgetopt::option const g_options[] =
 {
     advgetopt::define_option(
-          advgetopt::Name("client-listen")
+          advgetopt::Name("listen")
         , advgetopt::Flags(advgetopt::all_flags<
                       advgetopt::GETOPT_FLAG_REQUIRED
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
-        , advgetopt::Help("Specify an address and port to listen on for direct client connections; if the IP is not defined or set to ANY, then only the port is used and this computer public IP address is used.")
-        , advgetopt::DefaultValue(":4011")
+        , advgetopt::Help("Specify an address and port to listen on for client connections; if the IP is not defined or set to ANY, then only the port is used and this computer public IP address is used.")
+        , advgetopt::DefaultValue(g_listen_default_address)
     ),
     advgetopt::define_option(
           advgetopt::Name("cluster-name")
@@ -137,7 +123,7 @@ advgetopt::option const g_options[] =
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
         , advgetopt::Help("How often to send a PING to all the daemons.")
         , advgetopt::Validator("duration(1s...1h)")
-        , advgetopt::DefaultValue("5s")
+        , advgetopt::DefaultValue("1m")
     ),
     advgetopt::define_option(
           advgetopt::Name("prinbee-path")
@@ -661,6 +647,9 @@ void proxy::start_binary_connection()
     //
     if(f_listener != nullptr)
     {
+        SNAP_LOG_TRACE
+            << "listener is already allocated."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -668,6 +657,9 @@ void proxy::start_binary_connection()
     //
     if(!f_messenger->is_ready())
     {
+        SNAP_LOG_VERBOSE
+            << "messenger is not ready."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -675,6 +667,9 @@ void proxy::start_binary_connection()
     //
     if(!f_messenger->are_fluid_settings_ready())
     {
+        SNAP_LOG_VERBOSE
+            << "fluid settings are not ready."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -682,6 +677,9 @@ void proxy::start_binary_connection()
     //
     if(!f_ipwall_is_up)
     {
+        SNAP_LOG_VERBOSE
+            << "firewall is not up."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -691,6 +689,17 @@ void proxy::start_binary_connection()
     //
     if(!f_stable_clock)
     {
+        SNAP_LOG_VERBOSE
+            << "clock is not considered stable."
+            << SNAP_LOG_SEND;
+        return;
+    }
+
+    if(!f_daemon_ready)
+    {
+        SNAP_LOG_VERBOSE
+            << "daemon is not ready."
+            << SNAP_LOG_SEND;
         return;
     }
 
@@ -749,6 +758,7 @@ void proxy::start_binary_connection()
 
     // initialize the ping pong timer
     // minimum is 1 second and maximum 1 hour
+    // default is 1 minute
     //
     if(f_ping_pong_timer == nullptr)
     {
@@ -761,10 +771,10 @@ void proxy::start_binary_connection()
             SNAP_LOG_CONFIGURATION_WARNING
                 << "the --ping-pong-interval does not represent a valid duration."
                 << SNAP_LOG_SEND;
-            ping_pong_interval = 5.0;
+            ping_pong_interval = 60.0;
         }
-
         ping_pong_interval = std::clamp(ping_pong_interval, 1.0, 60.0 * 60.0) * 1'000'000.0;
+
         f_ping_pong_timer = std::make_shared<ping_pong_timer>(this, ping_pong_interval);
         if(!f_communicator->add_connection(f_ping_pong_timer))
         {
@@ -821,6 +831,13 @@ void proxy::send_our_status(ed::message * msg)
 
 void proxy::connect_to_daemon(addr::addr const & a, std::string const & name)
 {
+    // are we already connected to that daemon?
+    //
+    if(f_daemon_connections.contains(name))
+    {
+        return;
+    }
+
     daemon::pointer_t d(std::make_shared<daemon>(this, a));
     d->set_name(name);
     d->add_callbacks();
@@ -829,12 +846,12 @@ void proxy::connect_to_daemon(addr::addr const & a, std::string const & name)
     // it does not send the REG message to the other side, which we do
     // when we get the process_connected() called
     //
-    f_daemon_connections[d.get()] = d;
+    f_daemon_connections[name] = d;
 
     if(!f_communicator->add_connection(d))
     {
         SNAP_LOG_RECOVERABLE_ERROR
-            << "could not add connection to daemon to list of ed::communicator connections."
+            << "could not add daemon connection to list of ed::communicator connections."
             << SNAP_LOG_SEND;
     }
 
@@ -876,6 +893,43 @@ bool proxy::msg_process_reply(
     , prinbee::msg_reply_t state)
 {
     snapdev::NOT_USED(peer, msg, state);
+SNAP_LOG_ERROR << "--- still many bugs everywhere, but we're here now..." << SNAP_LOG_SEND;
+
+    switch(msg->get_name())
+    {
+    case prinbee::g_message_register:
+        // this has to be the acknowledgment from our REG message
+        //
+        if(state == prinbee::MSG_REPLY_SUCCEEDED)
+        {
+            // we're properly connected to the daemon
+            //
+            f_daemon_ready = true;
+            start_binary_connection();
+        }
+        else
+        {
+            // TODO: broadcast a message through our messenger about this
+            //       issue
+            //
+            SNAP_LOG_FATAL
+                << "connection to daemon refused."
+                << SNAP_LOG_SEND;
+        }
+        break;
+
+    default:
+        // see the `daemon::add_callbacks()` because we're expected to
+        // capture those messages there
+        //
+        SNAP_LOG_WARNING
+            << "received unknown message \""
+            << prinbee::message_name_to_string(msg->get_name())
+            << "\"; it will not be handled."
+            << SNAP_LOG_SEND;
+        break;
+
+    }
 
     return true;
 }
@@ -934,6 +988,7 @@ void proxy::send_pings()
         ping_msg->create_ping_message();
         it.second->set_expected_ping(ping_msg->get_serial_number());
         send_message(it.second, ping_msg);
+SNAP_LOG_VERBOSE << ">>> send PING message #" << ping_msg->get_serial_number() << " to " << it.second->get_name() << " ptr=" << static_cast<void *>(it.second.get()) << SNAP_LOG_SEND;
     }
 }
 
@@ -1102,6 +1157,12 @@ void proxy::send_acknowledgment(
  */
 void proxy::stop(bool quitting)
 {
+    for(auto d : f_daemon_connections)
+    {
+        f_communicator->remove_connection(d.second);
+    }
+    f_daemon_connections.clear();
+
     if(f_messenger != nullptr)
     {
         f_messenger->unregister_fluid_settings(quitting);

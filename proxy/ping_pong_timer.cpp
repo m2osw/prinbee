@@ -57,8 +57,9 @@ namespace prinbee_proxy
  * \param[in] interval_us  Amount of time between each wake up.
  */
 ping_pong_timer::ping_pong_timer(proxy * p, std::int64_t interval_us)
-    : timer(interval_us)
+    : timer(0)
     , f_proxy(p)
+    , f_interval(interval_us)
 {
     set_name("ping_pong_timer");
 }
@@ -76,6 +77,14 @@ ping_pong_timer::~ping_pong_timer()
  */
 void ping_pong_timer::process_timeout()
 {
+    // define the delay after the first time it timed out
+    // this gives us the ability to timeout immediately the first time
+    //
+    if(f_interval != 0)
+    {
+        set_timeout_delay(f_interval);
+        f_interval = 0;
+    }
     f_proxy->send_pings();
 }
 

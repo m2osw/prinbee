@@ -91,6 +91,7 @@ messenger::messenger(proxy * p, advgetopt::getopt & opts)
 {
     set_name("prinbee_proxy_messenger");
     get_dispatcher()->add_matches({
+            DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_clock_stable,          &messenger::msg_clock_stable),
             DISPATCHER_MATCH(::communicator::g_name_communicator_cmd_iplock_current_status, &messenger::msg_iplock_current_status),
             DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_current_status,            &messenger::msg_prinbee_current_status),
             DISPATCHER_MATCH(prinbee::g_name_prinbee_cmd_prinbee_get_status,                &messenger::msg_prinbee_proxy_get_status),

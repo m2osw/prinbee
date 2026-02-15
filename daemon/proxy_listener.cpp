@@ -65,7 +65,6 @@ proxy_listener::proxy_listener(prinbeed * p, addr::addr const & a)
     , f_prinbeed(p)
 {
     set_name("proxy_listener");
-SNAP_LOG_WARNING << "--- proxy listener using address: " << a << " ---" << SNAP_LOG_SEND;
 }
 
 
@@ -89,8 +88,6 @@ proxy_listener::~proxy_listener()
  */
 void proxy_listener::process_new_connection(prinbee::binary_server_client::pointer_t client)
 {
-SNAP_LOG_WARNING << "--- process new connection called! ---" << SNAP_LOG_SEND;
-
     // call the base class version
     //
     binary_server::process_new_connection(client);

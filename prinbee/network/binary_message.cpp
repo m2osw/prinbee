@@ -89,7 +89,11 @@ constexpr prinbee::struct_description_t g_acknowledge_description[] =
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
     ),
     prinbee::define_description(
-          prinbee::FieldName("serial")
+          prinbee::FieldName("serial_number")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("phase")
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
     ),
     prinbee::end_descriptions()
@@ -211,6 +215,30 @@ binary_message::binary_message()
 {
     f_header.f_serial_number = get_next_serial_number();
     f_header.f_created_on = snapdev::now().to_nsec();
+}
+
+
+/** \brief Make a safe copy of the source message.
+ *
+ * This function makes a copy of \p rhs. The copy includes a copy of the
+ * source message data in the message allocated buffer. In other words,
+ * the source can be reset, updated, destroyed, the copy is safe.
+ *
+ * \param[in] rhs  The source being copied.
+ */
+binary_message::binary_message(binary_message const & rhs)
+    : f_header(rhs.f_header)
+    , f_buffer(rhs.f_buffer)
+    , f_acknowledged_by(rhs.f_acknowledged_by)
+    , f_acknowledged_success(rhs.f_acknowledged_success)
+{
+    // move the f_data bytes to an internally allocated f_buffer
+    //
+SNAP_LOG_ERROR << "--- copy constructor of binary message called... " << static_cast<void *>(rhs.f_data) << SNAP_LOG_SEND;
+    if(rhs.f_data != nullptr)
+    {
+        set_data(rhs.f_data, rhs.f_header.f_size);
+    }
 }
 
 
@@ -409,12 +437,6 @@ void const * binary_message::get_header()
     // we call this function only once when we send the message over the
     // network
     //
-#ifdef _DEBUG
-    if(sizeof(f_header) != offsetof(header_t, f_header_crc16) + sizeof(f_header.f_header_crc16))
-    {
-        throw logic_error("the header CRC16 is expected to be the last 2 bytes of the header structure.");
-    }
-#endif
     if(has_data())
     {
         if(has_pointer())
@@ -619,17 +641,19 @@ void binary_message::create_acknowledge_message(pointer_t original_message, std:
     set_name(g_message_acknowledge);
 
     structure::pointer_t description(std::make_shared<structure>(g_acknowledge_description));
+    description->init_buffer();
 
-    description->set_integer("message_name", original_message->f_header.f_name);
-    description->set_integer("serial_number", original_message->f_header.f_serial_number);
-    description->set_integer("phase", phase);
+    description->set_uinteger("message_name", original_message->f_header.f_name);
+    description->set_uinteger("serial_number", original_message->f_header.f_serial_number);
+    description->set_uinteger("phase", phase);
 
     reference_t start_offset(0);
     virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
-    f_buffer.resize(buffer->size());
+    f_header.f_size = buffer->size();
+    f_buffer.resize(f_header.f_size);
     buffer->pread(
           f_buffer.data()
-        , f_buffer.size()
+        , f_header.f_size
         , 0);
 }
 
@@ -645,9 +669,9 @@ bool binary_message::deserialize_acknowledge_message(msg_acknowledge_t & acknowl
     structure::pointer_t description(std::make_shared<structure>(g_acknowledge_description));
     description->set_virtual_buffer(buffer, 0);
 
-    acknowledge.f_message_name = description->get_integer("message_name");
-    acknowledge.f_serial_number = description->get_integer("serial_number");
-    acknowledge.f_phase = description->get_integer("phase");
+    acknowledge.f_message_name = description->get_uinteger("message_name");
+    acknowledge.f_serial_number = description->get_uinteger("serial_number");
+    acknowledge.f_phase = description->get_uinteger("phase");
 
     return true;
 }
@@ -733,7 +757,7 @@ void binary_message::create_register_message(std::string const & name, std::stri
 
 bool binary_message::deserialize_register_message(msg_register_t & r)
 {
-    auto callback([&r](snapdev::deserializer<std::iostream> & s, snapdev::field_t const & f)
+    auto const callback([&r](snapdev::deserializer<std::iostream> & s, snapdev::field_t const & f)
     {
         if(f.f_name == "protocol")
         {
@@ -762,6 +786,7 @@ bool binary_message::deserialize_register_message(msg_register_t & r)
 
     std::size_t size(0L);
     void const * data(get_either_pointer(size));
+SNAP_LOG_ERROR << "--- use binary message data for deserialization... " << static_cast<void const *>(data) << SNAP_LOG_SEND;
     snapdev::memory_streambuf<char> buffer(data, size);
     std::iostream in(&buffer);
     snapdev::deserializer d(in);
@@ -784,10 +809,11 @@ void binary_message::create_pong_message(binary_message::pointer_t ping_message)
     set_name(g_message_pong);
 
     structure::pointer_t description(std::make_shared<structure>(g_pong_description));
+    description->init_buffer();
 
     // 'this' message is expected to be the PING message so we use its serial number
     //
-    description->set_integer("ping_serial_number", ping_message->f_header.f_serial_number);
+    description->set_uinteger("ping_serial_number", ping_message->f_header.f_serial_number);
     double loadavg(-1.0);
     if(getloadavg(&loadavg, 1) != 1)
     {
@@ -797,7 +823,9 @@ void binary_message::create_pong_message(binary_message::pointer_t ping_message)
 
     reference_t start_offset(0);
     virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+    f_header.f_size = buffer->size();
     f_buffer.resize(buffer->size());
+SNAP_LOG_ERROR << "--- buffer size for PONG message is " << f_buffer.size() << SNAP_LOG_SEND;
     buffer->pread(
           f_buffer.data()
         , f_buffer.size()
@@ -816,7 +844,7 @@ bool binary_message::deserialize_pong_message(msg_pong_t & pong)
     structure::pointer_t description(std::make_shared<structure>(g_pong_description));
     description->set_virtual_buffer(buffer, 0);
 
-    pong.f_ping_serial_number = description->get_integer("ping_serial_number");
+    pong.f_ping_serial_number = description->get_uinteger("ping_serial_number");
     pong.f_loadavg_1min = description->get_float64("loadavg_1min");
 
     return true;
@@ -828,6 +856,7 @@ void binary_message::create_list_contexts_message(advgetopt::string_list_t const
     set_name(g_message_list_contexts);
 
     structure::pointer_t description(std::make_shared<structure>(g_list_contexts_description));
+    description->init_buffer();
 
     for(auto const & n : list)
     {
@@ -837,6 +866,7 @@ void binary_message::create_list_contexts_message(advgetopt::string_list_t const
 
     reference_t start_offset(0);
     virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+    f_header.f_size = buffer->size();
     f_buffer.resize(buffer->size());
     buffer->pread(
           f_buffer.data()
@@ -872,6 +902,7 @@ void binary_message::create_context_message(msg_context_t const & context)
     set_name(g_message_set_context);
 
     structure::pointer_t description(std::make_shared<structure>(g_set_context_description));
+    description->init_buffer();
 
     description->set_string("context_name", context.f_context_name);
     description->set_string("description", context.f_description);
@@ -883,6 +914,7 @@ void binary_message::create_context_message(msg_context_t const & context)
 
     reference_t start_offset(0);
     virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
+    f_header.f_size = buffer->size();
     f_buffer.resize(buffer->size());
     buffer->pread(
           f_buffer.data()

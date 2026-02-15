@@ -243,55 +243,17 @@ void binary_server_client::process_read()
                         throw invalid_size("the binary message header size is larger than the exact header size?!");
                     }
 #endif
-SNAP_LOG_ERROR << "--- got the message header "
-<< std::boolalpha << get_binary_message()->is_message_header_valid()
-<< " -- size = " << f_data_size
-<< " -- " << std::hex << std::setfill('0')
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[ 0])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[ 1])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[ 2])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[ 3])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[ 4])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[ 5])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[ 6])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[ 7])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[ 8])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[ 9])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[10])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[11])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[12])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[13])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[14])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[15])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[16])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[17])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[18])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[19])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[20])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[21])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[22])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[23])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[24])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[25])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[26])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[27])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[28])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[29])) << " "
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[30])) << ":"
-    << std::setw(2) << static_cast<int>(static_cast<std::uint8_t>(f_data[31])) << " "
-<< SNAP_LOG_SEND;
                     if(get_binary_message()->is_message_header_valid())
                     {
                         f_data_size = 0;
 
-SNAP_LOG_ERROR << "--- Any data? " << get_binary_message()->get_data_size() << SNAP_LOG_SEND;
                         if(get_binary_message()->get_data_size() == 0)
                         {
                             // there is no data attached to that message,
                             // we can directly process it
                             //
                             get_binary_message()->set_data_by_pointer(nullptr, 0);
-SNAP_LOG_ERROR << "--- process_message" << SNAP_LOG_SEND;
+SNAP_LOG_ERROR << "--- process_message (NO DATA)" << SNAP_LOG_SEND;
                             process_message(get_binary_message());
                             reset_binary_message();
                             ++count_messages;
@@ -339,6 +301,7 @@ SNAP_LOG_ERROR << "--- read data" << SNAP_LOG_SEND;
                         // we got the data now we can process the message
                         //
                         get_binary_message()->set_data_by_pointer(f_data.data(), f_data_size);
+SNAP_LOG_ERROR << "--- process_message (WITH DATA)" << SNAP_LOG_SEND;
                         process_message(get_binary_message());
                         reset_binary_message();
                         ++count_messages;
@@ -517,7 +480,9 @@ void binary_server_client::process_invalid()
 
 void binary_server_client::send_message(binary_message::pointer_t msg)
 {
+SNAP_LOG_WARNING << "binary server client: send message header..." << SNAP_LOG_SEND;
     write(msg->get_header(), binary_message::get_message_header_size());
+SNAP_LOG_WARNING << "binary server client: send message data " << std::boolalpha << msg->has_data() << "..." << SNAP_LOG_SEND;
     if(msg->has_data())
     {
         if(msg->has_pointer())

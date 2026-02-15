@@ -150,7 +150,7 @@ bool prinbeed::get_context(payload_t::pointer_t payload)
             + c.f_context_name
             + "\" not found.");
         payload->send_message(error_msg);
-        return true;
+        return false;
     }
 
     //c.f_context_name = ... already set
@@ -194,7 +194,7 @@ bool prinbeed::set_context(payload_t::pointer_t payload)
             , std::string("invalid context name: ")
             + e.what());
         payload->send_message(error_msg);
-        return true;
+        return false;
     }
 
     // get the canonicalized name
@@ -241,7 +241,7 @@ bool prinbeed::set_context(payload_t::pointer_t payload)
                         + std::to_string(c.f_schema_version)
                         + " instead.");
                     payload->send_message(error_msg);
-                    return true;
+                    return false;
                 }
                 prinbee::context_update new_info;
                 new_info.set_schema_version(c.f_schema_version);

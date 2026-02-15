@@ -261,7 +261,8 @@
 //
 #include    <snapdev/gethostname.h>
 #include    <snapdev/stringize.h>
-//#include    <snapdev/tokenize_string.h>
+#include    <snapdev/concat_strings.h>
+#include    <snapdev/to_string_literal.h>
 #include    <snapdev/to_lower.h>
 
 
@@ -304,6 +305,18 @@ namespace
 
 
 
+constexpr char const g_colon[] = ":";
+
+constexpr std::string_view const g_direct_listen_port = snapdev::integer_to_string_literal<prinbee::DIRECT_BINARY_PORT>.data();
+constexpr char const * const g_direct_listen_default_address = snapdev::concat<g_colon, g_direct_listen_port.data()>::value;
+
+constexpr std::string_view const g_node_listen_port = snapdev::integer_to_string_literal<prinbee::NODE_BINARY_PORT>.data();
+constexpr char const * const g_node_listen_default_address = snapdev::concat<g_colon, g_node_listen_port.data()>::value;
+
+constexpr std::string_view const g_proxy_listen_port = snapdev::integer_to_string_literal<prinbee::PROXY_BINARY_PORT>.data();
+constexpr char const * const g_proxy_listen_default_address = snapdev::concat<g_colon, g_proxy_listen_port.data()>::value;
+
+
 advgetopt::option const g_options[] =
 {
     advgetopt::define_option(
@@ -320,7 +333,7 @@ advgetopt::option const g_options[] =
                       advgetopt::GETOPT_FLAG_REQUIRED
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
         , advgetopt::Help("Specify an address and port to listen on for direct client connections; if the IP is not defined or set to ANY, then only the port is used and this computer public IP address is used.")
-        , advgetopt::DefaultValue(":4012")
+        , advgetopt::DefaultValue(g_direct_listen_default_address)
     ),
     advgetopt::define_option(
           advgetopt::Name("node-name")
@@ -335,7 +348,7 @@ advgetopt::option const g_options[] =
                       advgetopt::GETOPT_FLAG_REQUIRED
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
         , advgetopt::Help("Specify an address and port to listen on for node connections; if the IP is not defined or set to ANY, then only the port is used and this computer public IP address is used.")
-        , advgetopt::DefaultValue(":4011")
+        , advgetopt::DefaultValue(g_node_listen_default_address)
     ),
     advgetopt::define_option(
           advgetopt::Name("number-of-workers")
@@ -368,7 +381,7 @@ advgetopt::option const g_options[] =
                       advgetopt::GETOPT_FLAG_REQUIRED
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
         , advgetopt::Help("Specify an address and port to listen on for proxy connections; if the IP is not defined or set to ANY, then only the port is used and this computer public IP address is used.")
-        , advgetopt::DefaultValue(":4010")
+        , advgetopt::DefaultValue(g_proxy_listen_default_address)
     ),
     advgetopt::define_option(
           advgetopt::Name("owner")
@@ -951,7 +964,7 @@ void prinbeed::start_binary_connection()
     //
     if(!f_messenger->is_ready())
     {
-        SNAP_LOG_TRACE
+        SNAP_LOG_VERBOSE
             << "messenger not ready."
             << SNAP_LOG_SEND;
         return;
@@ -961,7 +974,7 @@ void prinbeed::start_binary_connection()
     //
     if(!f_messenger->are_fluid_settings_ready())
     {
-        SNAP_LOG_TRACE
+        SNAP_LOG_VERBOSE
             << "messenger not register."
             << SNAP_LOG_SEND;
         return;
@@ -971,7 +984,7 @@ void prinbeed::start_binary_connection()
     //
     if(!f_ipwall_is_up)
     {
-        SNAP_LOG_TRACE
+        SNAP_LOG_VERBOSE
             << "firewall is down."
             << SNAP_LOG_SEND;
         return;
@@ -982,7 +995,7 @@ void prinbeed::start_binary_connection()
     //
     if(!f_stable_clock)
     {
-        SNAP_LOG_TRACE
+        SNAP_LOG_VERBOSE
             << "clock is not yet stable."
             << SNAP_LOG_SEND;
         return;
@@ -997,7 +1010,7 @@ void prinbeed::start_binary_connection()
     //
     if(!f_lock_ready)
     {
-        SNAP_LOG_TRACE
+        SNAP_LOG_VERBOSE
             << "cluck is not ready."
             << SNAP_LOG_SEND;
         return;
@@ -1287,9 +1300,14 @@ SNAP_LOG_WARNING << "--- msg_process_payload() called! ["
 << prinbee::message_name_to_string(msg->get_name())
 << "] ---" << SNAP_LOG_SEND;
 
+    // the message handled by the readers is unique which is great when
+    // not dealing with threads; here we need to make a copy because we're
+    // about to return but we want to keep the message for the thread to
+    // have a chance to handle it
+    //
     payload_t::pointer_t payload = std::make_shared<payload_t>();
     payload->f_peer = peer;
-    payload->f_message = msg;
+    payload->f_message = std::make_shared<prinbee::binary_message>(*msg);
 
     push_payload(payload);
 
@@ -1308,8 +1326,9 @@ bool prinbeed::register_client(payload_t::pointer_t payload)
     prinbee::msg_register_t r;
     if(!payload->f_message->deserialize_register_message(r))
     {
-        return true;
+        return false;
     }
+SNAP_LOG_ERROR << "--- got REG message deserialized!" << SNAP_LOG_SEND;
 
     // TODO: we may need to register failing connections to avoid re-trying
     //       them and have some stats about the state of the cluster; at the
@@ -1333,7 +1352,7 @@ bool prinbeed::register_client(payload_t::pointer_t payload)
             + r.f_protocol_version
             + "\" not supported.");
         payload->send_message(error_msg);
-        return true;
+        return false;
     }
 
     snapdev::timespec_ex now(snapdev::now());
@@ -1352,7 +1371,7 @@ bool prinbeed::register_client(payload_t::pointer_t payload)
             + diff.to_string("%s.%N")
             + " seconds.");
         payload->send_message(error_msg);
-        return true;
+        return false;
     }
 
     payload->f_peer->set_name(r.f_name);
@@ -1367,9 +1386,10 @@ bool prinbeed::register_client(payload_t::pointer_t payload)
     }
     ref->set_protocol(their_protocol);
 
+SNAP_LOG_ERROR << "--- REG --- send ACK reply now" << SNAP_LOG_SEND;
     send_acknowledgment(payload, 0);
 
-    return true;
+    return false;
 }
 
 

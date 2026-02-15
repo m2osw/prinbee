@@ -104,6 +104,8 @@ void daemon::add_callbacks()
           prinbee::g_message_pong
         , std::bind(&daemon::msg_pong, d, d, std::placeholders::_1));
 
+// TODO: add list of messages we know we do not accept coming in such as REG and PING
+
     // other replies by the daemons
     //
     add_message_callback(
@@ -119,6 +121,8 @@ void daemon::add_callbacks()
 
 void daemon::process_connected()
 {
+    binary_client::process_connected();
+
     // on connection, send a REG, we expect an ACK or ERR as a reply
     //
     prinbee::binary_message::pointer_t register_msg(std::make_shared<prinbee::binary_message>());
@@ -167,7 +171,9 @@ bool daemon::msg_pong(
     if(has_expected_ping(pong.f_ping_serial_number))
     {
         SNAP_LOG_VERBOSE
-            << "PONG found a corresponding PING request."
+            << "PONG found a corresponding PING request ("
+            << pong.f_ping_serial_number
+            << ")."
             << SNAP_LOG_SEND;
     }
     else
@@ -216,14 +222,17 @@ bool daemon::msg_acknowledge(
 {
     snapdev::NOT_USED(peer);
 
+SNAP_LOG_ERROR << "--- got acknowledgment..." << SNAP_LOG_SEND;
     prinbee::msg_acknowledge_t ack;
     if(!msg->deserialize_acknowledge_message(ack))
     {
+SNAP_LOG_ERROR << "--- acknowledgment deserialization failed..." << SNAP_LOG_SEND;
         return true;
     }
 
     // acknowledge success
     //
+SNAP_LOG_ERROR << "--- process acknowledgment now..." << SNAP_LOG_SEND;
     process_acknowledgment(ack.f_serial_number, true);
 
     return true;
@@ -237,11 +246,17 @@ void daemon::process_acknowledgment(prinbee::message_serial_t serial_number, boo
     {
         // message to acknowledge not found
         //
+SNAP_LOG_ERROR << "--- acknowledgment not found..." << SNAP_LOG_SEND;
         return;
     }
+    prinbee::binary_message::pointer_t acknowledged_msg(it->second);
     f_expected_acknowledgment.erase(it);
 
-    f_proxy->msg_process_reply(shared_from_this(), it->second, success ? prinbee::MSG_REPLY_SUCCEEDED : prinbee::MSG_REPLY_FAILED);
+SNAP_LOG_ERROR << "--- acknowledgment generates reply call..." << SNAP_LOG_SEND;
+    f_proxy->msg_process_reply(
+          shared_from_this()
+        , acknowledged_msg
+        , success ? prinbee::MSG_REPLY_SUCCEEDED : prinbee::MSG_REPLY_FAILED);
 }
 
 

@@ -54,7 +54,7 @@ struct payload_t
 
     ed::connection::pointer_t               f_peer = ed::connection::pointer_t();
     prinbee::binary_message::pointer_t      f_message = prinbee::binary_message::pointer_t();
-    int                                     f_stage = 0;
+    std::int_fast8_t                        f_stage = 0;
     cluck::cluck::pointer_t                 f_lock = cluck::cluck::pointer_t();
     prinbee::binary_message::map_t          f_acknowledgment_messages = prinbee::binary_message::map_t();
     cppthread::mutex                        f_mutex = cppthread::mutex();

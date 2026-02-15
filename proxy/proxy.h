@@ -131,6 +131,7 @@ private:
     bool                                    f_fluid_settings_ready = false;
     bool                                    f_ipwall_is_up = false;
     bool                                    f_stable_clock = false;
+    bool                                    f_daemon_ready = false;
 };
 
 

@@ -54,6 +54,7 @@ public:
 
 private:
     proxy *                     f_proxy = nullptr;
+    std::int64_t                f_interval = 0;
 };
 
 
