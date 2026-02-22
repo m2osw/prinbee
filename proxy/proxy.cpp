@@ -121,9 +121,10 @@ advgetopt::option const g_options[] =
         , advgetopt::Flags(advgetopt::all_flags<
                       advgetopt::GETOPT_FLAG_REQUIRED
                     , advgetopt::GETOPT_FLAG_GROUP_OPTIONS>())
-        , advgetopt::Help("How often to send a PING to all the daemons.")
+        , advgetopt::EnvironmentVariableName("PRINBEE_PROXY_PING_PONG_INTERVAL")
+        , advgetopt::Help("How often to send a PING to all the daemons. This is also used to gather the current statistics so the proxy can select the least busy Prinbee daemon to communicate with.")
         , advgetopt::Validator("duration(1s...1h)")
-        , advgetopt::DefaultValue("1m")
+        , advgetopt::DefaultValue("5s")
     ),
     advgetopt::define_option(
           advgetopt::Name("prinbee-path")
@@ -771,7 +772,7 @@ void proxy::start_binary_connection()
             SNAP_LOG_CONFIGURATION_WARNING
                 << "the --ping-pong-interval does not represent a valid duration."
                 << SNAP_LOG_SEND;
-            ping_pong_interval = 60.0;
+            ping_pong_interval = 5.0;
         }
         ping_pong_interval = std::clamp(ping_pong_interval, 1.0, 60.0 * 60.0) * 1'000'000.0;
 

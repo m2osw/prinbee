@@ -89,8 +89,6 @@ private:
     messenger::pointer_t            f_messenger = messenger::pointer_t();
     ed::communicator::pointer_t     f_communicator = ed::communicator::pointer_t();
     console_connection::pointer_t   f_console_connection = console_connection::pointer_t();
-    prinbee::prinbee_connection::pointer_t
-                                    f_prinbee_connection = prinbee::prinbee_connection::pointer_t();
     interrupt::pointer_t            f_interrupt = interrupt::pointer_t();
     prinbee::pbql::command::vector_t
                                     f_cmds = prinbee::pbql::command::vector_t();

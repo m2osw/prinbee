@@ -99,7 +99,7 @@ messenger::~messenger()
  */
 void messenger::finish_parsing()
 {
-    prinbee_connection::finish_initialization();
+    finish_initialization();
 }
 
 
@@ -112,7 +112,9 @@ void messenger::finish_parsing()
  */
 void messenger::ready(ed::message & msg)
 {
-    fluid_settings_connection::ready(msg);
+    prinbee_connection::ready(msg);
+
+    f_cui->update_status();
 }
 
 

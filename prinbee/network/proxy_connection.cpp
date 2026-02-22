@@ -101,7 +101,7 @@ void proxy_connection::add_callbacks()
     add_message_callback(
           prinbee::g_message_acknowledge
         , std::bind(&proxy_connection::msg_acknowledge, d, d, std::placeholders::_1));
-    // prinbee daemons do not send proxies PING messages, proxies do
+    // the Prinbee proxy does not send PING messages, clients do
     //add_message_callback(
     //      prinbee::g_message_ping
     //    , std::bind(&proxy_connection::msg_ping, f_proxy, shared_from_this(), std::placeholders::_1));
@@ -114,12 +114,18 @@ void proxy_connection::add_callbacks()
     add_message_callback(
           prinbee::g_message_unknown
         , std::bind(&prinbee_connection::msg_process_reply, f_prinbee_connection, std::placeholders::_1, msg_reply_t::MSG_REPLY_RECEIVED));
+}
 
-    // send a REG, we expect an ACK or ERR as a reply
+
+void proxy_connection::process_connected()
+{
+    binary_client::process_connected();
+
+    // on connection to a daemon, send a REG, we expect an ACK or ERR as a reply
     //
     prinbee::binary_message::pointer_t register_msg(std::make_shared<prinbee::binary_message>());
     register_msg->create_register_message(
-          prinbee::g_name_prinbee_cui_client
+          f_prinbee_connection->get_name() + "_client"
         , prinbee::g_name_prinbee_protocol_version_node);
     send_message(register_msg);
 
@@ -175,6 +181,8 @@ bool proxy_connection::msg_pong(
         f_proxy_loadavg = pong.f_loadavg_1min;
 
         // TODO: do the necessary to get the loadavg from other sources
+
+        f_prinbee_connection->process_proxy_status();
     }
     else
     {

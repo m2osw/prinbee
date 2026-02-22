@@ -64,7 +64,7 @@ namespace prinbee
 
 
 
-constexpr char const            g_proxy_state_unknown[] = "unknown";
+constexpr char const                    g_proxy_state_unknown[] = "unknown";
 
 
 enum msg_reply_t
@@ -130,7 +130,7 @@ private:
     void                        set_proxy_readiness(
                                       bool is_ready);
     void                        start_binary_connection();
-    void                        set_ping_pong_interval();
+    void                        setup_ping_pong_timer();
     bool                        send_ping(ed::timer::pointer_t t);
 
     ed::communicator::pointer_t f_communicator = ed::communicator::pointer_t();
@@ -138,15 +138,18 @@ private:
     addr::addr                  f_address = addr::addr();
     proxy_connection::pointer_t f_proxy_connection = proxy_connection::pointer_t();
     ed::timer::pointer_t        f_ping_pong_timer = ed::timer::pointer_t();
-    //proxy_connection::pointer_t     f_proxy_connection = proxy_connection::pointer_t();
     bool                        f_fluid_settings_ready = false;
     bool                        f_ready = false; // becomes true once we get the ACK reply from our REG message
+    bool                        f_ping_pong_timer_on = false;
 
     // the state is mainly maintained by the binary connection which is
     // managed by this prinbee_connection messenger
     //
     state                       f_prinbee_state = state();
 };
+
+
+snapdev::timespec_ex const &    proxy_ping_pong_off();
 
 
 

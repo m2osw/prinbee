@@ -502,12 +502,6 @@ void cui::stop(bool quitting)
         f_interrupt.reset();
     }
 
-    if(f_prinbee_connection != nullptr)
-    {
-        f_communicator->remove_connection(f_prinbee_connection);
-        f_prinbee_connection.reset();
-    }
-
     if(f_console_connection != nullptr)
     {
         f_communicator->remove_connection(f_console_connection);
@@ -518,13 +512,8 @@ void cui::stop(bool quitting)
         f_console_connection.reset();
     }
 
-//{
-//ed::connection::vector_t connections(f_communicator->get_connections());
-//for(auto const & c : connections)
-//{
-//    SNAP_LOG_ERROR << "connection left: \"" << c->get_name() << "\"." << SNAP_LOG_SEND;
-//}
-//}
+// in case we get stuck, this tells us what's left behind
+//f_communicator->log_connections(snaplogger::severity_t::SEVERITY_DEBUG);
 }
 
 
@@ -732,19 +721,19 @@ std::string cui::get_proxy_status() const
 
 snapdev::timespec_ex cui::get_last_ping() const
 {
-    if(f_prinbee_connection == nullptr)
+    if(f_messenger == nullptr)
     {
         return snapdev::timespec_ex();
     }
 
-    return f_prinbee_connection->get_last_ping();
+    return f_messenger->get_last_ping();
 }
 
 
 std::string cui::get_prinbee_status() const
 {
-    if(f_prinbee_connection == nullptr
-    || f_prinbee_connection->get_last_ping() == snapdev::timespec_ex())
+    if(f_messenger == nullptr
+    || f_messenger->get_last_ping() == snapdev::timespec_ex())
     {
         return "unknown";
     }

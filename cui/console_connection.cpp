@@ -341,9 +341,6 @@ output("> show status;");
         return;
     }
 
-    wborder(f_win_status, 0, 0, 0, 0, 0, 0, 0, 0);
-    mvwprintw(f_win_status, 0, 2, " Status ");
-
     update_status();
 }
 
@@ -355,56 +352,38 @@ void console_connection::update_status()
         return;
     }
 
-    {
-        std::string msg(" Communicator: ");
-        msg += f_cui->get_messenger_status();
-        mvwprintw(f_win_status, 1, 2, "%s", msg.c_str());
-    }
+    // start from scratch each time
+    //
+    werase(f_win_status);
+    wborder(f_win_status, 0, 0, 0, 0, 0, 0, 0, 0);
+    mvwprintw(f_win_status, 0, 2, " Status (F2 to close) ");
+
+    mvwprintw(f_win_status, 1, 15 - 12,  "Communicator: %s", f_cui->get_messenger_status().c_str());
+    mvwprintw(f_win_status, 2, 15 - 13, "Fluid Service: %s", f_cui->get_fluid_settings_status().c_str());
+    mvwprintw(f_win_status, 3, 15 -  5,         "Proxy: %s", f_cui->get_proxy_status().c_str());
 
     {
-        std::string msg("Fluid Service: ");
-        msg += f_cui->get_fluid_settings_status();
-        mvwprintw(f_win_status, 2, 2, "%s", msg.c_str());
-    }
-
-    {
-        std::string msg("        Proxy: ");
-        msg += f_cui->get_proxy_status();
-        mvwprintw(f_win_status, 3, 2, "%s", msg.c_str());
-    }
-
-    {
-        std::string msg("    Last Ping: ");
         snapdev::timespec_ex const last_ping(f_cui->get_last_ping());
+        std::string msg;
         if(last_ping == snapdev::timespec_ex())
         {
-            msg += "never";
+            msg = "never";
+        }
+        else if(last_ping == prinbee::proxy_ping_pong_off())
+        {
+            msg = "off";
         }
         else
         {
-            msg += last_ping.to_string("%Y/%m/%d %T", true);
+            msg = last_ping.to_string("%Y/%m/%d %T", true);
         }
-        mvwprintw(f_win_status, 4, 2, "%s", msg.c_str());
+        mvwprintw(f_win_status, 4, 15 - 9, "Last Ping: %s", msg.c_str());
     }
 
-    {
-        std::string msg("      Pinbree: ");
-        msg += f_cui->get_prinbee_status();
-        mvwprintw(f_win_status, 5, 2, "%s", msg.c_str());
-    }
+    mvwprintw(f_win_status, 5, 15 -  7, "Pinbree: %s", f_cui->get_prinbee_status().c_str());
+    mvwprintw(f_win_status, 6, 15 -  7, "Console: %s", f_cui->get_console_status().c_str());
 
-    {
-        std::string msg("      Console: ");
-        msg += f_cui->get_console_status();
-        mvwprintw(f_win_status, 6, 2, "%s", msg.c_str());
-    }
-
-    //if(wrefresh(f_win_status) != OK)
-    //{
-    //    output("error: wrefresh() to status message window failed.");
-    //    return;
-    //}
-    update_panels();
+    refresh();
 }
 
 
@@ -414,6 +393,7 @@ void console_connection::ready()
         "Ready.\n"
         "Type HELP; or hit F1 for basic help screen.\n"
         "Hit F2 to see the current console status.\n");
+//open_close_status_window(); // to test that it gets updated properly
 }
 
 

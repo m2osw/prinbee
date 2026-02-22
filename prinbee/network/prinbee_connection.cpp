@@ -95,6 +95,9 @@ namespace
 
 
 
+snapdev::timespec_ex const  g_proxy_ping_pong_off = snapdev::timespec_ex(-1, 0);
+
+
 const advgetopt::option g_options[] =
 {
     // PRINBEE CONNECTION OPTIONS
@@ -106,9 +109,9 @@ const advgetopt::option g_options[] =
             , advgetopt::GETOPT_FLAG_DYNAMIC_CONFIGURATION
             , advgetopt::GETOPT_FLAG_REQUIRED
             , advgetopt::GETOPT_FLAG_SHOW_SYSTEM>())
-        , advgetopt::EnvironmentVariableName("PRINBEE_PING_PONG_INTERVAL")
-        , advgetopt::DefaultValue("5s")
-        , advgetopt::Validator("duration(1s...1h)")
+        , advgetopt::EnvironmentVariableName("PRINBEE_CLIENT_PING_PONG_INTERVAL")
+        , advgetopt::DefaultValue("1m")
+        , advgetopt::Validator("duration(0s,1s...1h)")
         , advgetopt::Help("How often to send a PING to the Prinbee proxy.")
     ),
 
@@ -149,6 +152,8 @@ prinbee_connection::prinbee_connection(
 
 prinbee_connection::~prinbee_connection()
 {
+    f_communicator->remove_connection(f_ping_pong_timer);
+    f_communicator->remove_connection(f_proxy_connection);
 }
 
 
@@ -170,11 +175,12 @@ void prinbee_connection::finish_initialization()
 /** \brief Called whenever the proxy status changes.
  *
  * Whether we just got the connection to the communicator, fluid-settings,
- * or proxy we get this function called.
+ * or proxy we get this function called. It is used to attempt a connection
+ * to the proxy binary endpoint.
  */
 void prinbee_connection::process_proxy_status()
 {
-    // nothing to do here
+    start_binary_connection();
 }
 
 
@@ -254,7 +260,7 @@ std::string prinbee_connection::get_proxy_status() const
 
     ss << "registered";
 
-    if(f_proxy_connection->get_last_ping() != snapdev::timespec_ex())
+    if(get_last_ping() != snapdev::timespec_ex())
     {
         double const loadavg(f_proxy_connection->get_proxy_loadavg());
         if(loadavg >= 0.0)
@@ -288,6 +294,11 @@ snapdev::timespec_ex prinbee_connection::get_last_ping() const
     if(f_proxy_connection == nullptr)
     {
         return snapdev::timespec_ex();
+    }
+
+    if(!f_ping_pong_timer_on)
+    {
+        return proxy_ping_pong_off();
     }
 
     return f_proxy_connection->get_last_ping();
@@ -494,42 +505,39 @@ void prinbee_connection::start_binary_connection()
 
     // the client is ready to connect to the local proxy binary port
     //
-    f_proxy_connection = std::make_shared<proxy_connection>(this, f_address);
-    f_proxy_connection->add_callbacks();
-    f_communicator->add_connection(f_proxy_connection);
+    proxy_connection::pointer_t proxy(std::make_shared<proxy_connection>(this, f_address));
+    proxy->add_callbacks();
+    if(!f_communicator->add_connection(proxy))
+    {
+        SNAP_LOG_ERROR
+            << "could not add binary proxy to the list of ed::communicator connections."
+            << SNAP_LOG_SEND;
+        return;
+    }
+    f_proxy_connection = proxy;
 
     // now that we have a proxy connection, initialize the ping-pong timer
     //
     if(f_ping_pong_timer == nullptr)
     {
-        f_ping_pong_timer = std::make_shared<ed::timer>(0);
-        if(f_communicator->add_connection(f_ping_pong_timer))
-        {
-            f_ping_pong_timer->get_callback_manager().add_callback(
-                [this](ed::timer::pointer_t t) {
-                    return this->send_ping(t);
-                });
-
-            set_ping_pong_interval();
-        }
-        else
-        {
-            SNAP_LOG_RECOVERABLE_ERROR
-                << "could not add ping-pong timer to list of ed::communicator connections."
-                << SNAP_LOG_SEND;
-            f_ping_pong_timer.reset();
-        }
+        setup_ping_pong_timer();
     }
 }
 
 
-void prinbee_connection::set_ping_pong_interval()
+void prinbee_connection::setup_ping_pong_timer()
 {
-    if(f_ping_pong_timer == nullptr)
+    if(f_proxy_connection == nullptr)
     {
         return;
     }
 
+    // the ping-pong default interval is 60 minutes; this is mostly a
+    // keep alive mechanism for clients (contrary to the proxies that
+    // make use of it to determine the best daemon to communicate with)
+    //
+    // also it is possible to turn off the feature using 0
+    //
     double ping_pong_interval(0.0);
     if(!advgetopt::validator_duration::convert_string(
                   get_options().get_string("ping_pong_interval")
@@ -539,13 +547,41 @@ void prinbee_connection::set_ping_pong_interval()
         SNAP_LOG_CONFIGURATION_WARNING
             << "the --ping-pong-interval does not represent a valid duration."
             << SNAP_LOG_SEND;
-        ping_pong_interval = 5.0;
+        ping_pong_interval = 60.0;
+    }
+
+    // by setting this value to 0.0, the user is turning the functionality OFF
+    //
+    f_ping_pong_timer_on = snapdev::quiet_floating_point_not_equal(ping_pong_interval, 0.0);
+    if(!f_ping_pong_timer_on)
+    {
+        f_communicator->remove_connection(f_ping_pong_timer);
+        f_ping_pong_timer.reset();
+        return;
+    }
+
+    if(f_ping_pong_timer == nullptr)
+    {
+        f_ping_pong_timer = std::make_shared<ed::timer>(0);
+        if(!f_communicator->add_connection(f_ping_pong_timer))
+        {
+            f_ping_pong_timer.reset();
+
+            SNAP_LOG_RECOVERABLE_ERROR
+                << "could not add ping-pong timer to the list of ed::communicator connections."
+                << SNAP_LOG_SEND;
+            return;
+        }
+
+        f_ping_pong_timer->get_callback_manager().add_callback(
+            [this](ed::timer::pointer_t t) {
+                return this->send_ping(t);
+            });
     }
 
     // minimum is 1 second and maximum 1 hour
     //
     ping_pong_interval = std::clamp(ping_pong_interval, 1.0, 60.0 * 60.0) * 1'000'000.0;
-
     f_ping_pong_timer->set_timeout_delay(ping_pong_interval);
 }
 
@@ -614,14 +650,14 @@ void prinbee_connection::fluid_settings_changed(
     switch(status)
     {
     case fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_READY:
-        start_binary_connection();
+        process_proxy_status();
         break;
 
     case fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_VALUE:
     case fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_NEW_VALUE:
         if(name == "pbql-cui::ping-pong-interval")
         {
-            set_ping_pong_interval();
+            setup_ping_pong_timer();
         }
         break;
 
@@ -649,6 +685,13 @@ void prinbee_connection::fluid_settings_changed(
     //        | STATE_DAEMONS_STATUS
     //        , state);
     //f_prinbee_state.signal_state_changed();
+
+
+snapdev::timespec_ex const & proxy_ping_pong_off()
+{
+    return g_proxy_ping_pong_off;
+}
+
 
 
 } // namespace prinbee

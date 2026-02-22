@@ -57,6 +57,10 @@ public:
                                 get_last_ping() const;
     double                      get_proxy_loadavg() const;
 
+    // binary_client implementation
+    //
+    virtual void                process_connected() override;
+
 private:
     typedef std::map<prinbee::message_serial_t, prinbee::binary_message::pointer_t>
                                 acknowledgment_t;
