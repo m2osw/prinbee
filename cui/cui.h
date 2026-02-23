@@ -71,12 +71,7 @@ public:
     std::string                     get_prinbee_status() const;
     std::string                     get_console_status() const;
     void                            update_status();
-    void                            proxy_ready();
-
-    void                            msg_prinbee_proxy_current_status(ed::message & msg);
-    bool                            msg_process_reply(
-                                          prinbee::binary_message::pointer_t msg
-                                        , msg_reply_t state);
+    void                            proxy_registered();
 
 private:
     bool                            init_connections();
@@ -84,6 +79,7 @@ private:
     bool                            init_file();
     bool                            parse_clear();
     bool                            parse_help();
+    bool                            parse_status();
 
     advgetopt::getopt               f_opts;
     messenger::pointer_t            f_messenger = messenger::pointer_t();

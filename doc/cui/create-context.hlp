@@ -1,0 +1,7 @@
+CREATE CONTEXT [IF NOT EXISTS] <context-name> ...
+    ... USING <context-path>
+    ... WITH ( <context-feature1>, <context-feature2>, ... );
+
+Where <context-featureN> is one of:
+
+    COMMENT = <description>

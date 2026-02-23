@@ -58,6 +58,7 @@ public:
     void                reset_prompt();
     void                set_key_bindings();
     void                help(std::string const & section_name);
+    bool                is_status_window_open() const;
     void                open_close_status_window();
     void                update_status();
 

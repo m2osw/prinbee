@@ -113,7 +113,7 @@ public:
     std::string                 get_proxy_status() const;
     snapdev::timespec_ex        get_last_ping() const;
     bool                        is_proxy_ready() const;
-    bool                        is_proxy_connected() const;
+    bool                        is_proxy_registered() const;
     addr::addr const &          get_address() const;
     bool                        has_address() const;
 
@@ -127,8 +127,7 @@ private:
     void                        set_proxy_status_and_address(
                                       std::string const & status
                                     , addr::addr const & address);
-    void                        set_proxy_readiness(
-                                      bool is_ready);
+    void                        set_proxy_registered(bool is_registered);
     void                        start_binary_connection();
     void                        setup_ping_pong_timer();
     bool                        send_ping(ed::timer::pointer_t t);
@@ -139,7 +138,7 @@ private:
     proxy_connection::pointer_t f_proxy_connection = proxy_connection::pointer_t();
     ed::timer::pointer_t        f_ping_pong_timer = ed::timer::pointer_t();
     bool                        f_fluid_settings_ready = false;
-    bool                        f_ready = false; // becomes true once we get the ACK reply from our REG message
+    bool                        f_registered = false; // becomes true once we get the ACK reply from our REG message
     bool                        f_ping_pong_timer_on = false;
 
     // the state is mainly maintained by the binary connection which is

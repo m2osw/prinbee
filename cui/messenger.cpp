@@ -127,9 +127,9 @@ void messenger::process_proxy_status()
 {
     prinbee_connection::process_proxy_status();
 
-    if(is_proxy_connected())
+    if(is_proxy_registered())
     {
-        f_cui->proxy_ready();
+        f_cui->proxy_registered();
     }
 
     f_cui->update_status();

@@ -257,7 +257,7 @@ cui::cui(int argc, char * argv[])
     if(f_command.empty()
     && f_file.empty())
     {
-        // this is the default is no --command and no --file was specified
+        // this is the default if no --command and no --file were specified
         // whether or not the user specified --interactive
         //
         f_interactive = true;
@@ -315,7 +315,6 @@ int cui::run()
         }
     }
 
-SNAP_LOG_ERROR << "start communicator run()" << SNAP_LOG_SEND;
     if(ed::communicator::instance()->run())
     {
         return 0;
@@ -393,22 +392,6 @@ bool cui::init_file()
 }
 
 
-//void cui::msg_prinbee_proxy_current_status(ed::message & msg)
-//{
-//    f_proxy_status = "unknown";
-//    if(msg.has_parameter(communicator::g_name_communicator_param_status))
-//    {
-//        f_proxy_status = msg.get_parameter(communicator::g_name_communicator_param_status);
-//    }
-//    if(msg.has_parameter(prinbee::g_name_prinbee_param_proxy_ip))
-//    {
-//        f_address = msg.get_parameter(prinbee::g_name_prinbee_param_proxy_ip);
-//
-//        start_binary_connection();
-//    }
-//}
-
-
 void cui::update_status()
 {
     // if we have a console, we may be displaying the status (F2 key popup window)
@@ -420,61 +403,19 @@ void cui::update_status()
 }
 
 
-void cui::proxy_ready()
+void cui::proxy_registered()
 {
     if(!f_interactive)
     {
+        // if the user specified a file (-f <filename>) then f_command
+        // is 100% of that command's content
+        //
         // TBD: can we really just call that function from here?
         //
         execute_commands(f_command);
         f_quit = true;
+        stop(false);
     }
-}
-
-
-bool cui::msg_process_reply(
-      prinbee::binary_message::pointer_t msg
-    , msg_reply_t state)
-{
-    // received a message reply from f_proxy_connection, process it
-    //
-    // the 'msg' is the message we SENT, the reply was an ACK or ERR
-    // which pointed to that message, nothing more
-    //
-    switch(msg->get_name())
-    {
-    case prinbee::g_message_register:
-        if(state == MSG_REPLY_SUCCEEDED)
-        {
-            // we are registered, ready to rock
-            //
-            f_ready = true;
-
-            if(!f_interactive)
-            {
-                // TBD: can we really just call that function from here?
-                //
-                execute_commands(f_command);
-                f_quit = true;
-            }
-        }
-        else
-        {
-            // we cannot register, trying again will fail again, what
-            // to do?!
-            //
-        }
-        return true;
-
-    }
-
-    SNAP_LOG_ERROR
-        << "prinbee reply \""
-        << prinbee::message_name_to_string(msg->get_name())
-        << "\" not understood."
-        << SNAP_LOG_SEND;
-
-    return true;
 }
 
 
@@ -580,7 +521,7 @@ void cui::execute_commands(std::string const & commands)
         // needs to be a variable member which we reduce each time a command
         // was executed...
         //
-f_console_connection->output("--- execute pbql system commands ---");
+f_console_connection->output("--- execute pbql system commands from " + filename + " ---");
 
         if(f_cmds[0]->get_command() == prinbee::pbql::command_t::COMMAND_CONFIG)
         {
@@ -605,8 +546,17 @@ f_console_connection->output("--- name: " + name + " ---");
 std::string const expr(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_EXPRESSION));
 if(!expr.empty())
 {
-f_console_connection->output("--- set to value: " + expr + " ---");
+f_console_connection->output("--- set to (new) value: " + expr + " ---");
 }
+            // TODO: if this looks like a parameter used by the CUI, then we
+            //       set it here, otherwise we probably want to pass this
+            //       command to the prinbee_connection (to the proxy) which
+            //       can then handle the configuration as expected
+            //
+            //       especially, if we are to use fluid-settings, we probably
+            //       want to somehow have a list of parameters one can update
+            //       and not let users update any parameter in fluid-settings
+            //
         }
 
         // ... TODO ...
@@ -638,6 +588,13 @@ bool cui::user_commands(std::string const & command)
         if(command == "HELP")
         {
             return parse_help();
+        }
+        break;
+
+    case 'S':
+        if(command == "STATUS")
+        {
+            return parse_status();
         }
         break;
 
@@ -772,7 +729,7 @@ std::string cui::get_console_status() const
 
 bool cui::parse_clear()
 {
-    f_parser->expect_semi_colon("HELP COMMANDS");
+    f_parser->expect_semi_colon("CLEAR");
     f_console_connection->clear_output();
 
     return true;
@@ -880,6 +837,51 @@ bool cui::parse_help()
                 // TODO: maybe add a test to verify that the token represents
                 //       a command
                 f_console_connection->help(command);
+                return true;
+            }
+            break;
+
+        }
+    }
+
+    return false;
+}
+
+
+bool cui::parse_status()
+{
+    prinbee::pbql::node::pointer_t n(f_lexer->get_next_token());
+    if(n->get_token() == prinbee::pbql::token_t::TOKEN_SEMI_COLON)
+    {
+        f_console_connection->open_close_status_window();
+        return true;
+    }
+
+    if(n->get_token() == prinbee::pbql::token_t::TOKEN_IDENTIFIER)
+    {
+        std::string keyword(n->get_string_upper());
+        switch(keyword[0])
+        {
+        case 'H':
+            if(keyword == "HIDE")
+            {
+                f_parser->expect_semi_colon("STATUS HIDE");
+                if(f_console_connection->is_status_window_open())
+                {
+                    f_console_connection->open_close_status_window();
+                }
+                return true;
+            }
+            break;
+
+        case 'S':
+            if(keyword == "SHOW")
+            {
+                f_parser->expect_semi_colon("STATUS SHOW");
+                if(!f_console_connection->is_status_window_open())
+                {
+                    f_console_connection->open_close_status_window();
+                }
                 return true;
             }
             break;

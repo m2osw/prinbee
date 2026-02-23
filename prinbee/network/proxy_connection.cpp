@@ -250,6 +250,11 @@ void proxy_connection::process_acknowledgment(prinbee::message_serial_t serial_n
     {
         // message to acknowledge not found
         //
+        SNAP_LOG_MINOR
+            << "acknowledgment for message with serial number "
+            << serial_number
+            << " not found."
+            << SNAP_LOG_SEND;
         return;
     }
 

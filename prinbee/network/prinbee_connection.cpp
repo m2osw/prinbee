@@ -201,14 +201,14 @@ void prinbee_connection::set_proxy_status_and_address(
 }
 
 
-void prinbee_connection::set_proxy_readiness(bool is_ready)
+void prinbee_connection::set_proxy_registered(bool is_registered)
 {
-    if(is_ready == f_ready)
+    if(is_registered == f_registered)
     {
         return;
     }
 
-    f_ready = is_ready;
+    f_registered = is_registered;
 
     process_proxy_status();
 }
@@ -232,7 +232,7 @@ std::string prinbee_connection::get_proxy_status() const
 
     std::stringstream ss;
 
-    if(!f_ready)
+    if(!f_registered)
     {
         // TODO: last_error.empty() is not sufficient
         //
@@ -353,9 +353,10 @@ SNAP_LOG_INFO
 }
 
 
-bool prinbee_connection::is_proxy_connected() const
+bool prinbee_connection::is_proxy_registered() const
 {
-    return f_proxy_connection != nullptr
+    return f_registered
+        && f_proxy_connection != nullptr
         && f_proxy_connection->is_connected();
 }
 
@@ -388,14 +389,16 @@ bool prinbee_connection::msg_process_reply(
         {
             // we are registered, ready to rock
             //
-            set_proxy_readiness(true);
+            set_proxy_registered(true);
         }
         else
         {
             // we cannot register, trying again will fail again, what
             // to do?!
             //
-            set_proxy_readiness(false);
+            // Note: we already logged the error message
+            //
+            set_proxy_registered(false);
         }
         return true;
 
@@ -490,6 +493,8 @@ void prinbee_connection::start_binary_connection()
 
         f_communicator->remove_connection(f_ping_pong_timer);
         f_ping_pong_timer = nullptr;
+
+        set_proxy_registered(false);
         return;
     }
 

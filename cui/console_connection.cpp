@@ -307,20 +307,23 @@ void console_connection::set_key_bindings()
 }
 
 
+bool console_connection::is_status_window_open() const
+{
+    return f_win_status != nullptr;
+}
+
+
 void console_connection::open_close_status_window()
 {
     if(f_win_status != nullptr)
     {
-output("> hide status;");
         del_panel(f_pan_status);
         f_pan_status = nullptr;
         delwin(f_win_status);
         f_win_status = nullptr;
-        //refresh();
         update_panels();
         return;
     }
-output("> show status;");
 
     // TODO: gather the screen size and make sure it fits
     //
@@ -358,6 +361,8 @@ void console_connection::update_status()
     wborder(f_win_status, 0, 0, 0, 0, 0, 0, 0, 0);
     mvwprintw(f_win_status, 0, 2, " Status (F2 to close) ");
 
+    // the X position makes the labels right aligned to column 15
+    //
     mvwprintw(f_win_status, 1, 15 - 12,  "Communicator: %s", f_cui->get_messenger_status().c_str());
     mvwprintw(f_win_status, 2, 15 - 13, "Fluid Service: %s", f_cui->get_fluid_settings_status().c_str());
     mvwprintw(f_win_status, 3, 15 -  5,         "Proxy: %s", f_cui->get_proxy_status().c_str());
@@ -380,8 +385,8 @@ void console_connection::update_status()
         mvwprintw(f_win_status, 4, 15 - 9, "Last Ping: %s", msg.c_str());
     }
 
-    mvwprintw(f_win_status, 5, 15 -  7, "Pinbree: %s", f_cui->get_prinbee_status().c_str());
-    mvwprintw(f_win_status, 6, 15 -  7, "Console: %s", f_cui->get_console_status().c_str());
+    mvwprintw(f_win_status, 5, 15 - 7, "Pinbree: %s", f_cui->get_prinbee_status().c_str());
+    mvwprintw(f_win_status, 6, 15 - 7, "Console: %s", f_cui->get_console_status().c_str());
 
     refresh();
 }
@@ -392,7 +397,8 @@ void console_connection::ready()
     output(
         "Ready.\n"
         "Type HELP; or hit F1 for basic help screen.\n"
-        "Hit F2 to see the current console status.\n");
+        "Hit F2 to see the current console status.\n"
+        "Use Page Up / Page Down to scroll the Output window.\n");
 //open_close_status_window(); // to test that it gets updated properly
 }
 
@@ -424,17 +430,6 @@ void console_connection::help(std::string const & section_name)
     //
     output(in.contents());
 }
-
-
-//void console_connection::help_pbql()
-//{
-//    // TODO: actually, we want that in separate .hlp files
-//    //
-//    output("Help:");
-//    output("PBQL commands:");
-//    output("  CREATE CONTEXT <name> ...;");
-//    output("  SHOW CONTEXT;");
-//}
 
 
 

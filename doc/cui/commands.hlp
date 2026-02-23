@@ -6,9 +6,34 @@ PBQL commands:
   BEGIN [{WORK | TRANSACTION}] ...
   BYE;
   CLEAR;
-  COMMIT [{WORK | TRANSACTION}] ...;
+  COMMIT [{WORK | TRANSACTION}] ...
+  CONFIG ... (TODO)
+  CONNECT TO <context-name>;
+  CREATE CONTEXT <name> ...
+  CREATE INDEX <name> ...
+  CREATE TABLE <name> ...
+  CREATE TYPE <name> ...
+  DELETE FROM <table-name> [WHERE <expression>];
+  DISCONNECT <context-name> | ALL | [CURRENT];
+  DROP CONTEXT [IF EXISTS] <name>;
+  DROP INDEX [IF EXISTS] <name>;
+  DROP TABLE [IF EXISTS] <name>;
+  DROP TYPE [IF EXISTS] <name>;
   EXIT;
   HELP [{COMMANDS | COMMAND <name>}];
-  PARAMETER [<name> [= <value>]];
+  INSERT INTO <table-name> (<column-name>, ...) VALUES (<value>, ...);
+  LOCK [TABLE] <table-name>, ... [IN <lock-mode> MODE];
+  PARAMETER [<name> [= <value>]]; (TODO: or CONFIG?)
   QUIT;
-  ROLLBACK [{WORK | TRANSACTION}] ...;
+  REINDEX {INDEX <index-name> | TABLE <table-name> | SCHEMA | CONTEXT};
+  ROLLBACK [{WORK | TRANSACTION}] ...
+  SELECT {* | <column-name>} FROM {<table-name>} WHERE ...
+  SET <column-name> = <value>, ... INTO <table-name> WHERE ...
+  SHOW CONTEXTS [NAMES ONLY];
+  SHOW INDEX <table-name>.<index-name>;
+  SHOW INDEXES <table-name>;
+  SHOW [{TABLE | TYPE}] SCHEMA <schema-name>;
+  SHOW TABLES;
+  SHOW TYPES;
+  UPDATE <table-name> SET <column-name> = <value>, ... WHERE ...
+  USE <context-name>;

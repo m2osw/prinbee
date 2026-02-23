@@ -1,10 +1,10 @@
 ALTER INDEX [IF EXISTS] <index-name> ...
-    ... RENAME [TO | AS] <new-index-name>;
-    ... SET COMMENT <description>;
-    ... SET NULLS [NOT] DISTINCT;
-    ... SET FILTER <expression>;
+    ... RENAME [TO | AS] <new-index-name>
+    ... SET COMMENT <description>
+    ... SET NULLS [NOT] DISTINCT
+    ... SET FILTER <expression>
     ... ADD [COLUMN] {<name>[(<length>)] | (<expression>)} ...
-         ... [{BEFORE | AFTER} {<name> | <position>}];
-    ... ALTER [COLUMN] {<name>[(<length>)] | (<expression)};
-    ... ALTER [COLUMN] <name> MOVE {BEFORE|AFTER} {<name> | <position>};
+         ... [{BEFORE | AFTER} {<name> | <position>}]
+    ... ALTER [COLUMN] {<name>[(<length>)] | (<expression)}
+    ... ALTER [COLUMN] <name> MOVE {BEFORE|AFTER} {<name> | <position>}
     ... DROP [COLUMN] {<name> | <position>};
