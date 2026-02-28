@@ -107,6 +107,10 @@ constexpr prinbee::struct_description_t g_name_description[] =
           prinbee::FieldName("name")
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
     ),
+    prinbee::define_description(
+          prinbee::FieldName("id")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
     prinbee::end_descriptions()
 };
 
@@ -177,7 +181,23 @@ constexpr prinbee::struct_description_t g_set_context_description[] =
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P32STRING)
     ),
     prinbee::define_description(
+          prinbee::FieldName("schema_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::define_description(
           prinbee::FieldName("context_id")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("created_on")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_NSTIME)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("last_updated_on")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_NSTIME)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("table_count")
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
     ),
     prinbee::end_descriptions()
@@ -186,6 +206,39 @@ constexpr prinbee::struct_description_t g_set_context_description[] =
 
 
 } // no name namespace
+
+
+context_id_t msg_list_contexts_t::get_context_id(std::string const & name)
+{
+    auto const it(std::find(f_list.begin(), f_list.end(), [name](auto const & item)
+        {
+            return item.f_name == name;
+        }));
+    if(it == f_list.end())
+    {
+        return 0;
+    }
+
+    return it->f_context_id;
+}
+
+
+std::string msg_list_contexts_t::get_context_name(context_id_t id)
+{
+    auto const it(std::find(f_list.begin(), f_list.end(), [id](auto const & item)
+        {
+            return item.f_context_id == id;
+        }));
+    if(it == f_list.end())
+    {
+        return std::string();
+    }
+
+    return it->f_name;
+}
+
+
+
 
 
 /** \class binary_message
@@ -786,7 +839,6 @@ bool binary_message::deserialize_register_message(msg_register_t & r)
 
     std::size_t size(0L);
     void const * data(get_either_pointer(size));
-SNAP_LOG_ERROR << "--- use binary message data for deserialization... " << static_cast<void const *>(data) << SNAP_LOG_SEND;
     snapdev::memory_streambuf<char> buffer(data, size);
     std::iostream in(&buffer);
     snapdev::deserializer d(in);
@@ -825,7 +877,6 @@ void binary_message::create_pong_message(binary_message::pointer_t ping_message)
     virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
     f_header.f_size = buffer->size();
     f_buffer.resize(buffer->size());
-SNAP_LOG_ERROR << "--- buffer size for PONG message is " << f_buffer.size() << SNAP_LOG_SEND;
     buffer->pread(
           f_buffer.data()
         , f_buffer.size()
@@ -858,6 +909,8 @@ void binary_message::create_list_contexts_message(advgetopt::string_list_t const
     structure::pointer_t description(std::make_shared<structure>(g_list_contexts_description));
     description->init_buffer();
 
+    // if the GET has names then only those contexts are retrieved
+    //
     for(auto const & n : list)
     {
         structure::pointer_t name(description->new_array_item("names"));
@@ -901,16 +954,32 @@ void binary_message::create_context_message(msg_context_t const & context)
 {
     set_name(g_message_set_context);
 
-    structure::pointer_t description(std::make_shared<structure>(g_set_context_description));
+    structure::pointer_t description(std::make_shared<structure>(g_context_description));
     description->init_buffer();
 
+    // WARNING: the `context_name` can be empty when running a command that
+    //          uses the context_id instead; i.e. most commands except:
+    //
+    //          1. when creating a new context
+    //          2. when renaming an existing context
+    //
+    // so in case you do `CREATE CONTEXT <context-name> ...`
+    // or `ALTER CONTEXT ... RENAME TO ...`
+    //
+    // the `SHOW CONTEXT <context-name>` is also expected to use the name
+    //
+    //          note that if the new name is already in use, the renaming
+    //          fails
+    //
     description->set_string("context_name", context.f_context_name);
     description->set_string("description", context.f_description);
     description->set_integer("schema_version", context.f_schema_version);
     description->set_integer("context_id", context.f_context_id);
-    description->set_integer("created_on", context.f_created_on);
-    description->set_integer("last_updated_on", context.f_last_updated_on);
-    description->set_integer("table_count", context.f_table_count);
+
+    // the following cannot be set from clients; the daemon manages these
+    //description->set_integer("created_on", context.f_created_on);
+    //description->set_integer("last_updated_on", context.f_last_updated_on);
+    //description->set_integer("table_count", context.f_table_count);
 
     reference_t start_offset(0);
     virtual_buffer::pointer_t buffer(description->get_virtual_buffer(start_offset));
@@ -923,7 +992,7 @@ void binary_message::create_context_message(msg_context_t const & context)
 }
 
 
-bool binary_message::deserialize_context_message(msg_context_t & context)
+bool binary_message::deserialize_set_context_message(msg_context_t & context)
 {
     std::size_t size(0L);
     void const * data(get_either_pointer(size));
@@ -936,7 +1005,13 @@ bool binary_message::deserialize_context_message(msg_context_t & context)
 
     context.f_context_name = description->get_string("context_name");
     context.f_description = description->get_string("description");
-    context.f_context_id = description->get_integer("context_id");
+    context.f_schema_version = description->get_string("schema_version");
+
+    // the following are ignored because the daemon manages these values
+    //context.f_context_id = description->get_integer("context_id"); -- generated by daemon on a create
+    //context.f_created_on = description->get_integer("created_on"); -- set by daemon on a create
+    //context.f_last_updated_on = description->get_integer("last_updated_on"); -- updated by daemon on each set
+    //context.f_table_count = description->get_integer("table_count"); -- determined by daemon on a get
 
     return true;
 }

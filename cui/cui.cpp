@@ -471,7 +471,7 @@ std::string cui::define_prompt()
 void cui::execute_commands(std::string const & commands)
 {
     // we have several types of commands, the PBQL ones and the CUI ones;
-    // the CUI ones include the HELP and options related commands, which
+    // the CUI ones include the HELP and QUIT related commands, which
     // are not available to scripts; these are handled by the callback
     // (user capture function) which is not setup in the parser if the
     // system is not interactive
@@ -517,47 +517,56 @@ void cui::execute_commands(std::string const & commands)
     //
     if(!f_cmds.empty())
     {
-        // note that some of the work is likely async so the `cmds` probably
-        // needs to be a variable member which we reduce each time a command
-        // was executed...
+        // note that most of the work is asynchronous
+        // here we execute one of the f_cmds and once this is done,
+        // the code handles the next f_cmds
         //
 f_console_connection->output("--- execute pbql system commands from " + filename + " ---");
 
-        if(f_cmds[0]->get_command() == prinbee::pbql::command_t::COMMAND_CONFIG)
-        {
-f_console_connection->output("--- seeing a CONFIG command! ---");
-std::string const path(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_PATH));
-if(!path.empty())
-{
-f_console_connection->output("--- namespace: " + path + " ---");
-}
-std::string const name(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_NAME));
-if(!name.empty())
-{
-if(name[0] == '/')
-{
-f_console_connection->output("--- regex: " + name + " ---");
-}
-else
-{
-f_console_connection->output("--- name: " + name + " ---");
-}
-}
-std::string const expr(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_EXPRESSION));
-if(!expr.empty())
-{
-f_console_connection->output("--- set to (new) value: " + expr + " ---");
-}
-            // TODO: if this looks like a parameter used by the CUI, then we
-            //       set it here, otherwise we probably want to pass this
-            //       command to the prinbee_connection (to the proxy) which
-            //       can then handle the configuration as expected
-            //
-            //       especially, if we are to use fluid-settings, we probably
-            //       want to somehow have a list of parameters one can update
-            //       and not let users update any parameter in fluid-settings
-            //
-        }
+// the following was in part to verify the parsing...
+// I think I will just use the fluid settings for all of those, after all
+// there is no real reason (other than security) to re-implement such in
+// prinbee when it's available in another service
+//
+// it will be implemented in the client directly (no need for us to send
+// messages to a proxy and/or server when the fluid settings is already
+// a service that will replicate the data as required everywhere)
+//
+//        if(f_cmds[0]->get_command() == prinbee::pbql::command_t::COMMAND_CONFIG)
+//        {
+//f_console_connection->output("--- seeing a CONFIG command! ---");
+//std::string const path(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_PATH));
+//if(!path.empty())
+//{
+//f_console_connection->output("--- namespace: " + path + " ---");
+//}
+//std::string const name(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_NAME));
+//if(!name.empty())
+//{
+//if(name[0] == '/')
+//{
+//f_console_connection->output("--- regex: " + name + " ---");
+//}
+//else
+//{
+//f_console_connection->output("--- name: " + name + " ---");
+//}
+//}
+//std::string const expr(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_EXPRESSION));
+//if(!expr.empty())
+//{
+//f_console_connection->output("--- set to (new) value: " + expr + " ---");
+//}
+//            // TODO: if this looks like a parameter used by the CUI, then we
+//            //       set it here, otherwise we probably want to pass this
+//            //       command to the prinbee_connection (to the proxy) which
+//            //       can then handle the configuration as expected
+//            //
+//            //       especially, if we are to use fluid-settings, we probably
+//            //       want to somehow have a list of parameters one can update
+//            //       and not let users update any parameter in fluid-settings
+//            //
+//        }
 
         // ... TODO ...
     }

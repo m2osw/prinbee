@@ -202,13 +202,32 @@ struct msg_error_t
 
 /** \brief The data sent along an ACK message.
  *
- * Most messages expect a reply. If the destination was able to handle
- * the message properly, it replies with an acknowledgment. Note that an
- * acknowledgment does not mean everything worked if the message does
- * work asynchronously after sending the acknowledgment (especially
- * INSERT or UPDATE commands, which are acknowledge quickly but may take
- * a long time as the backend needs to then update indexes that are affected
- * by the commands).
+ * Most messages expect one or more replies. When no data is returned, then
+ * the acknowledgment message is used to let the client know where the
+ * proxy and server are at.
+ *
+ * For example, when an INSERT is used, the data from that message is
+ * first sent to the proxy which acknowledge reception with an ACK. Then
+ * the proxy saves the data in its local journal. If that works, another
+ * ACK is sent. Then the proxy sends the data to the backend server.
+ * When the server receives the data, another ACK is sent. The server
+ * also saves the data in a journal. That is also communicated with an
+ * ACK message. Finally, the server saves the data in an actual Prinbee
+ * table and sends an ACK for that event. That server is then done. If
+ * the table is marked for replication, then that process starts, which
+ * means the data is sent to the servers that keep a copy of that table's
+ * data. Each one of those servers also sends an ACK message.
+ *
+ * On the other hand, some messages need a reply that include data. For
+ * instance, the LCTX message is sent from the client to the server to
+ * get a list of contexts and their identifiers. This requires an LCTX
+ * reply. The message may first be acknowledged by the proxy with an ACK,
+ * though.
+ *
+ * Note that many acknowledgments do not mean everything worked.
+ * The INSERT, SET, and UPDATE commands, for example, initiate asynchronous
+ * work by the proxy and backend servers. Some commands, such as the REINDEX
+ * can take a very long time if you have really large tables.
  *
  * The message includes the name of the message being acknowledged and
  * the original message serial number so the other side can match the
@@ -217,7 +236,8 @@ struct msg_error_t
  * Some messages also make use of the phase parameter defining which
  * phase is being acknowledged. For example, the INSERT, SET, and UPDATE
  * commands have many phases to acknowledge the data being journaled
- * locally, by the local proxy, and the prinbee daemon.
+ * locally, by the local proxy, and the prinbee daemon before being saved
+ * in the final table.
  */
 struct msg_acknowledge_t
 {
@@ -272,12 +292,29 @@ struct msg_register_t
 
 /** \brief Structure used to send and receive a LCTX command.
  *
- * At the moment, there is nothing to send. The reply is a list of
- * context names separated by commas.
+ * When sending the LCTX command, you can include a list of names. In that
+ * case, only the named contexts are returned. If the list is empty, then
+ * all the context names and identifiers are returned.
+ *
+ * Functions such as sorting, filtering, etc. are expected to be handled
+ * by the client as required.
+ *
+ * \todo
+ * I probably need to have two maps instead of a list so we can quickly
+ * retrieve the names / ids.
  */
 struct msg_list_contexts_t
 {
-    advgetopt::string_list_t    f_list = advgetopt::string_list_t();
+    struct named_context_t {
+        typedef std::list<named_context_t>        list_t;
+
+        std::string         f_name = std::string();
+        context_id_t        f_context_id = 0;
+    };
+    named_context_t::list_t f_list = named_context_t::list_t();
+
+    context_id_t            get_context_id(std::string const & name);
+    std::string             get_context_name(context_id_t id);
 };
 
 
@@ -293,10 +330,11 @@ struct msg_list_contexts_t
  * It uses a STRUCTURE to send/receive the data through the binary
  * connection.
  *
- * The IF NOT EXISTS of the CREATE CONTEXT is just in pbql; in that case,
- * the pbql implementation first does a GCTX and if it returns a context,
- * just do not do the SCTX. If not specified and the context exists, then
- * the CLI generates an error. In that case, an ALTER CONTEXT is required.
+ * The IF NOT EXISTS of the CREATE CONTEXT is just a pbql feature; in that
+ * case, the pbql implementation first does a GCTX and if it returns a
+ * context, just do not do the SCTX. If not specified and the context
+ * exists, then the CLI generates an error. In that case, an ALTER CONTEXT
+ * is required.
  *
  * When connecting to a context, you first need to send a GCTX to get the
  * context identifier. You later reuse that identifier to apply most of
@@ -304,7 +342,7 @@ struct msg_list_contexts_t
  */
 struct msg_context_t
 {
-    std::string             f_context_name = std::string();             // name of the context
+    std::string             f_context_name = std::string();             // new name for the context (unless we create the context the first time, other not defined)
     std::string             f_description = std::string();              // description of this context
     schema_version_t        f_schema_version = 0;                       // do not set on a GCTX, increase by 1 on a SCTX
     context_id_t            f_context_id = 0;                           // defined by server when creating a context; unique among all contexts within a cluster
@@ -442,8 +480,8 @@ public:
     bool                        deserialize_register_message(msg_register_t & r);
     void                        create_list_contexts_message(advgetopt::string_list_t const & list);
     bool                        deserialize_list_contexts_message(msg_list_contexts_t & context_list);
-    void                        create_context_message(msg_context_t const & context);
-    bool                        deserialize_context_message(msg_context_t & context);
+    void                        create_set_context_message(msg_context_t const & context);
+    bool                        deserialize_set_context_message(msg_context_t & context);
 
 private:
     struct header_t
