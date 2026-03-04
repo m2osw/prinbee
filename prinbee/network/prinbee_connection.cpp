@@ -152,7 +152,6 @@ prinbee_connection::prinbee_connection(
 
 prinbee_connection::~prinbee_connection()
 {
-    f_communicator->remove_connection(f_ping_pong_timer);
     f_communicator->remove_connection(f_proxy_connection);
 }
 
@@ -296,7 +295,7 @@ snapdev::timespec_ex prinbee_connection::get_last_ping() const
         return snapdev::timespec_ex();
     }
 
-    if(!f_ping_pong_timer_on)
+    if(!f_proxy_connection->is_ping_pong_timer_on())
     {
         return proxy_ping_pong_off();
     }
@@ -491,9 +490,6 @@ void prinbee_connection::start_binary_connection()
         f_communicator->remove_connection(f_proxy_connection);
         f_proxy_connection = nullptr;
 
-        f_communicator->remove_connection(f_ping_pong_timer);
-        f_ping_pong_timer = nullptr;
-
         set_proxy_registered(false);
         return;
     }
@@ -523,14 +519,11 @@ void prinbee_connection::start_binary_connection()
 
     // now that we have a proxy connection, initialize the ping-pong timer
     //
-    if(f_ping_pong_timer == nullptr)
-    {
-        setup_ping_pong_timer();
-    }
+    setup_ping_pong_interval();
 }
 
 
-void prinbee_connection::setup_ping_pong_timer()
+void prinbee_connection::setup_ping_pong_interval()
 {
     if(f_proxy_connection == nullptr)
     {
@@ -555,83 +548,7 @@ void prinbee_connection::setup_ping_pong_timer()
         ping_pong_interval = 60.0;
     }
 
-    // by setting this value to 0.0, the user is turning the functionality OFF
-    //
-    f_ping_pong_timer_on = snapdev::quiet_floating_point_not_equal(ping_pong_interval, 0.0);
-    if(!f_ping_pong_timer_on)
-    {
-        f_communicator->remove_connection(f_ping_pong_timer);
-        f_ping_pong_timer.reset();
-        return;
-    }
-
-    if(f_ping_pong_timer == nullptr)
-    {
-        f_ping_pong_timer = std::make_shared<ed::timer>(0);
-        if(!f_communicator->add_connection(f_ping_pong_timer))
-        {
-            f_ping_pong_timer.reset();
-
-            SNAP_LOG_RECOVERABLE_ERROR
-                << "could not add ping-pong timer to the list of ed::communicator connections."
-                << SNAP_LOG_SEND;
-            return;
-        }
-
-        f_ping_pong_timer->get_callback_manager().add_callback(
-            [this](ed::timer::pointer_t t) {
-                return this->send_ping(t);
-            });
-    }
-
-    // minimum is 1 second and maximum 1 hour
-    //
-    ping_pong_interval = std::clamp(ping_pong_interval, 1.0, 60.0 * 60.0) * 1'000'000.0;
-    f_ping_pong_timer->set_timeout_delay(ping_pong_interval);
-}
-
-
-bool prinbee_connection::send_ping(ed::timer::pointer_t t)
-{
-    snapdev::NOT_USED(t);
-
-    if(f_proxy_connection == nullptr)
-    {
-        return true;
-    }
-
-    if(f_proxy_connection->get_expected_ping() != 0)
-    {
-        std::uint32_t const count(f_proxy_connection->increment_no_pong_answer());
-        if(count >= prinbee::MAX_PING_PONG_FAILURES)
-        {
-            SNAP_LOG_ERROR
-                << "connection never replied from our last "
-                << prinbee::MAX_PING_PONG_FAILURES
-                << " PING signals; reconnecting."
-                << SNAP_LOG_SEND;
-
-            // TODO: actually implement...
-            //
-            throw prinbee::not_yet_implemented("easy in concept, we'll implement that later though...");
-
-            // don't send a PING now
-            //
-            return true;
-        }
-        SNAP_LOG_MAJOR
-            << "connection never replied from our last "
-            << count
-            << " PING signals."
-            << SNAP_LOG_SEND;
-    }
-
-    prinbee::binary_message::pointer_t ping_msg(std::make_shared<prinbee::binary_message>());
-    ping_msg->create_ping_message();
-    f_proxy_connection->set_expected_ping(ping_msg->get_serial_number());
-    f_proxy_connection->send_message(ping_msg);
-
-    return false;
+    f_proxy_connection->set_ping_pong_interval(ping_pong_interval);
 }
 
 
@@ -662,7 +579,7 @@ void prinbee_connection::fluid_settings_changed(
     case fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_NEW_VALUE:
         if(name == "pbql-cui::ping-pong-interval")
         {
-            setup_ping_pong_timer();
+            setup_ping_pong_interval();
         }
         break;
 

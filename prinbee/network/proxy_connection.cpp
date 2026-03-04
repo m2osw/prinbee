@@ -19,9 +19,10 @@
 
 // self
 //
-#include    "proxy_connection.h"
+#include    "prinbee/network/proxy_connection.h"
 
-#include    "prinbee_connection.h"
+#include    "prinbee/network/constants.h"
+#include    "prinbee/network/prinbee_connection.h"
 
 
 // prinbee
@@ -75,12 +76,96 @@ namespace prinbee
 proxy_connection::proxy_connection(prinbee_connection * c, addr::addr const & a)
     : binary_client(a)
     , f_prinbee_connection(c)
+    , f_communicator(ed::communicator::instance())
 {
 }
 
 
 proxy_connection::~proxy_connection()
 {
+    f_communicator->remove_connection(f_ping_pong_timer);
+}
+
+
+void proxy_connection::set_ping_pong_interval(double interval)
+{
+    // by setting this value to 0.0, the user is turning the functionality OFF
+    //
+    f_ping_pong_timer_on = snapdev::quiet_floating_point_not_equal(interval, 0.0);
+    if(!f_ping_pong_timer_on)
+    {
+        f_communicator->remove_connection(f_ping_pong_timer);
+        f_ping_pong_timer.reset();
+        return;
+    }
+
+    if(f_ping_pong_timer == nullptr)
+    {
+        ed::timer::pointer_t ping_pong_timer = std::make_shared<ed::timer>(0);
+        if(!f_communicator->add_connection(ping_pong_timer))
+        {
+            SNAP_LOG_RECOVERABLE_ERROR
+                << "could not add ping-pong timer to the list of ed::communicator connections."
+                << SNAP_LOG_SEND;
+            return;
+        }
+        f_ping_pong_timer = ping_pong_timer;
+
+        f_ping_pong_timer->get_callback_manager().add_callback(
+            [this](ed::timer::pointer_t t) {
+                return this->send_ping(t);
+            });
+    }
+
+    // minimum is 1 second and maximum 1 hour
+    //
+    interval = std::clamp(interval, 1.0, 60.0 * 60.0) * 1'000'000.0;
+    f_ping_pong_timer->set_timeout_delay(interval);
+}
+
+
+bool proxy_connection::send_ping(ed::timer::pointer_t t)
+{
+    snapdev::NOT_USED(t);
+
+    if(get_expected_ping() != 0)
+    {
+        std::uint32_t const count(increment_no_pong_answer());
+        if(count >= prinbee::MAX_PING_PONG_FAILURES)
+        {
+            SNAP_LOG_ERROR
+                << "connection never replied from our last "
+                << prinbee::MAX_PING_PONG_FAILURES
+                << " PING signals; reconnecting."
+                << SNAP_LOG_SEND;
+
+            // TODO: actually implement...
+            //
+            throw prinbee::not_yet_implemented("easy in concept, we'll implement that later though...");
+
+            // don't send a PING now
+            //
+            return true;
+        }
+        SNAP_LOG_MAJOR
+            << "connection never replied from our last "
+            << count
+            << " PING signals."
+            << SNAP_LOG_SEND;
+    }
+
+    prinbee::binary_message::pointer_t ping_msg(std::make_shared<prinbee::binary_message>());
+    ping_msg->create_ping_message();
+    set_expected_ping(ping_msg->get_serial_number());
+    send_message(ping_msg);
+
+    return false;
+}
+
+
+bool proxy_connection::is_ping_pong_timer_on() const
+{
+    return f_ping_pong_timer_on;
 }
 
 
@@ -101,7 +186,8 @@ void proxy_connection::add_callbacks()
     add_message_callback(
           prinbee::g_message_acknowledge
         , std::bind(&proxy_connection::msg_acknowledge, d, d, std::placeholders::_1));
-    // the Prinbee proxy does not send PING messages, clients do
+    // the Prinbee proxy does not send PING messages to clients and this is
+    // a client implementation
     //add_message_callback(
     //      prinbee::g_message_ping
     //    , std::bind(&proxy_connection::msg_ping, f_proxy, shared_from_this(), std::placeholders::_1));
@@ -178,7 +264,7 @@ bool proxy_connection::msg_pong(
             << "PONG found a corresponding PING request."
             << SNAP_LOG_SEND;
 
-        f_proxy_loadavg = pong.f_loadavg_1min;
+        f_proxy_loadavg = pong.f_loadavg_1min; // this is the proxy's loadavg which is likely the same as this client's...
 
         // TODO: do the necessary to get the loadavg from other sources
 

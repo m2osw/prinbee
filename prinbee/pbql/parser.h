@@ -67,6 +67,7 @@ public:
 
     void                set_user_capture(capture_t capture);
     bool                quit() const;
+    bool                parsed() const;
     command::vector_t const &
                         parse();
     std::string         parse_expression(node::pointer_t & n);
@@ -103,6 +104,7 @@ private:
     lexer::pointer_t    f_lexer = lexer::pointer_t();
     command::vector_t   f_commands = command::vector_t();
     capture_t           f_user_capture = capture_t();
+    bool                f_parsed = false;
     bool                f_quit = false;
 };
 

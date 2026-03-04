@@ -38,7 +38,7 @@
 
 // eventdispatcher
 //
-//#include    <eventdispatcher/connection.h>
+//#include    <eventdispatcher/communicator.h>
 //#include    <eventdispatcher/message.h>
 
 
@@ -116,6 +116,7 @@ public:
     bool                        is_proxy_registered() const;
     addr::addr const &          get_address() const;
     bool                        has_address() const;
+    bool                        is_ping_pong_timer_on() const;
 
     bool                        msg_process_reply(
                                       prinbee::binary_message::pointer_t msg
@@ -129,17 +130,14 @@ private:
                                     , addr::addr const & address);
     void                        set_proxy_registered(bool is_registered);
     void                        start_binary_connection();
-    void                        setup_ping_pong_timer();
-    bool                        send_ping(ed::timer::pointer_t t);
+    void                        setup_ping_pong_interval();
 
     ed::communicator::pointer_t f_communicator = ed::communicator::pointer_t();
     std::string                 f_proxy_status = std::string(g_proxy_state_unknown, snapdev::string_literal_length(g_proxy_state_unknown));
     addr::addr                  f_address = addr::addr();
     proxy_connection::pointer_t f_proxy_connection = proxy_connection::pointer_t();
-    ed::timer::pointer_t        f_ping_pong_timer = ed::timer::pointer_t();
     bool                        f_fluid_settings_ready = false;
     bool                        f_registered = false; // becomes true once we get the ACK reply from our REG message
-    bool                        f_ping_pong_timer_on = false;
 
     // the state is mainly maintained by the binary connection which is
     // managed by this prinbee_connection messenger

@@ -22,6 +22,10 @@
 #include    <prinbee/network/binary_client.h>
 
 
+// eventdispatcher
+//
+#include    <eventdispatcher/communicator.h>
+
 
 namespace prinbee
 {
@@ -44,13 +48,14 @@ public:
     proxy_connection &          operator = (proxy_connection const & rhs) = delete;
 
     void                        add_callbacks();
+    void                        set_ping_pong_interval(double interval); // in seconds
+    bool                        is_ping_pong_timer_on() const;
     void                        expect_acknowledgment(prinbee::binary_message::pointer_t msg);
     prinbee::msg_error_t const &
                                 get_last_error_message() const;
 
     prinbee::message_serial_t   get_expected_ping() const;
     void                        set_expected_ping(prinbee::message_serial_t serial_number);
-    bool                        has_expected_ping(prinbee::message_serial_t serial_number);
     std::uint32_t               increment_no_pong_answer();
     std::uint32_t               get_no_pong_answer() const;
     snapdev::timespec_ex const &
@@ -68,9 +73,13 @@ private:
     bool                        msg_pong(
                                       ed::connection::pointer_t peer
                                     , prinbee::binary_message::pointer_t msg);
+    bool                        has_expected_ping(prinbee::message_serial_t serial_number);
+    bool                        send_ping(ed::timer::pointer_t t);
+
     bool                        msg_error(
                                       ed::connection::pointer_t peer
                                     , prinbee::binary_message::pointer_t msg);
+
     bool                        msg_acknowledge(
                                       ed::connection::pointer_t peer
                                     , prinbee::binary_message::pointer_t msg);
@@ -79,13 +88,19 @@ private:
                                     , bool success);
 
     prinbee_connection *        f_prinbee_connection = nullptr;
+    ed::communicator::pointer_t f_communicator = ed::communicator::pointer_t();
     acknowledgment_t            f_expected_acknowledgment = acknowledgment_t();
-    prinbee::message_serial_t   f_ping_serial_number = 0;
-    std::uint32_t               f_no_pong_answer = 0;
     prinbee::msg_error_t        f_last_error_message = prinbee::msg_error_t();
-    snapdev::timespec_ex        f_last_ping = snapdev::timespec_ex();
     double                      f_proxy_loadavg = -2.0; // -1.0 is error and 0.0 or more a valid number from the proxy
     bool                        f_registered = false;
+
+    // support for PING / PONG messages
+    //
+    ed::timer::pointer_t        f_ping_pong_timer = ed::timer::pointer_t();
+    prinbee::message_serial_t   f_ping_serial_number = 0;
+    std::uint32_t               f_no_pong_answer = 0;
+    snapdev::timespec_ex        f_last_ping = snapdev::timespec_ex();
+    bool                        f_ping_pong_timer_on = false;
 };
 
 

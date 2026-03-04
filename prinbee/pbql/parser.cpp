@@ -96,8 +96,20 @@ bool parser::quit() const
 }
 
 
+bool parser::parsed() const
+{
+    return f_parsed;
+}
+
+
 command::vector_t const & parser::parse()
 {
+    if(f_parsed)
+    {
+        throw fatal_error("parse() was already called.");
+    }
+    f_parsed = true;
+
     for(;;)
     {
         node::pointer_t n(f_lexer->get_next_token());

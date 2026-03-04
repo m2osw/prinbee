@@ -480,8 +480,8 @@ public:
     bool                        deserialize_register_message(msg_register_t & r);
     void                        create_list_contexts_message(advgetopt::string_list_t const & list);
     bool                        deserialize_list_contexts_message(msg_list_contexts_t & context_list);
-    void                        create_set_context_message(msg_context_t const & context);
-    bool                        deserialize_set_context_message(msg_context_t & context);
+    void                        create_context_message(msg_context_t const & context);
+    bool                        deserialize_context_message(msg_context_t & context);
 
 private:
     struct header_t

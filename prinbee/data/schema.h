@@ -22,14 +22,16 @@
  * \brief Schema header.
  *
  * The schema class manages one _database_ representation. A _database_
- * is composed of tables, user defined types, columns, cells, and indexes.
+ * is a context composed of tables, user defined types, columns, rows,
+ * cells, and indexes.
  *
- * Many settings are defined at the database, table, and index levels.
+ * Settings are defined at the database (context), table, and index
+ * levels.
  *
  * For example, the table has a replication, compression, and compaction
- * settings.
+ * settings as well as the list of columns with name, types, constraints.
  *
- * An index can include a filter (a WHERE clause in pbql), whether a
+ * An index includes a filter (a WHERE clause in pbql), whether a
  * column is ascending or descending, an expression to use as a column,
  * etc.
  */
