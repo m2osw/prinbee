@@ -344,6 +344,10 @@ void proxy_connection::process_acknowledgment(prinbee::message_serial_t serial_n
         return;
     }
 
+    // we have some client <-> proxy communication that we can take care of
+    // right here
+    //
+
     f_prinbee_connection->msg_process_reply(
           it->second
         , success ? MSG_REPLY_SUCCEEDED : MSG_REPLY_FAILED);
