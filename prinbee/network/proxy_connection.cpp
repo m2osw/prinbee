@@ -199,7 +199,7 @@ void proxy_connection::add_callbacks()
     //
     add_message_callback(
           prinbee::g_message_unknown
-        , std::bind(&prinbee_connection::msg_process_reply, f_prinbee_connection, std::placeholders::_1, msg_reply_t::MSG_REPLY_RECEIVED));
+        , std::bind(&proxy_connection::msg_process_reply, d, std::placeholders::_1, msg_reply_t::MSG_REPLY_RECEIVED));
 }
 
 
@@ -348,9 +348,78 @@ void proxy_connection::process_acknowledgment(prinbee::message_serial_t serial_n
     // right here
     //
 
-    f_prinbee_connection->msg_process_reply(
+    msg_process_reply(
           it->second
         , success ? MSG_REPLY_SUCCEEDED : MSG_REPLY_FAILED);
+}
+
+
+bool proxy_connection::msg_process_reply(
+      prinbee::binary_message::pointer_t msg
+    , msg_reply_t state)
+{
+    // received a reply from the connection, process it
+    //
+    // the 'msg' is either a fresh reply or the message we sent
+    //
+    // the ACK or ERR are _transformed_ using our sent message and setting
+    // the state to MSG_REPLY_SUCCEEDED or MSG_REPLY_FAILED, whereas for
+    // a fresh reply, it is set to MSG_REPLY_RECEIVED
+    //
+    switch(msg->get_name())
+    {
+    case prinbee::g_message_register:
+        if(state == MSG_REPLY_SUCCEEDED)
+        {
+            // we are registered, ready to rock
+            //
+            set_proxy_registered(true);
+
+            // immediately requests the list of contexts
+            //
+            // we need the identifiers for any other requests so we can as
+            // well get those now
+            //
+        }
+        else
+        {
+            // we cannot register, trying again will fail again, what
+            // to do?!
+            //
+            // Note: we already logged the error message
+            //
+            set_proxy_registered(false);
+        }
+        return true;
+
+    }
+
+    SNAP_LOG_ERROR
+        << "prinbee reply \""
+        << prinbee::message_name_to_string(msg->get_name())
+        << "\" not understood."
+        << SNAP_LOG_SEND;
+
+    return true;
+}
+
+
+void proxy_connection::set_proxy_registered(bool is_registered)
+{
+    if(is_registered == f_registered)
+    {
+        return;
+    }
+
+    f_registered = is_registered;
+
+    f_prinbee_connection->process_proxy_status();
+}
+
+
+bool proxy_connection::is_registered() const
+{
+    return f_registered;
 }
 
 

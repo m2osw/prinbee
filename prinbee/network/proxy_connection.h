@@ -35,6 +35,14 @@ namespace prinbee
 class prinbee_connection;
 
 
+enum msg_reply_t
+{
+    MSG_REPLY_RECEIVED,         // when we receive a message (i.e. not ACK nor ERR)
+    MSG_REPLY_FAILED,           // ERR a message we sent
+    MSG_REPLY_SUCCEEDED,        // ACK a message we sent
+};
+
+
 class proxy_connection
     : public prinbee::binary_client
 {
@@ -61,6 +69,7 @@ public:
     snapdev::timespec_ex const &
                                 get_last_ping() const;
     double                      get_proxy_loadavg() const;
+    bool                        is_registered() const;
 
     // binary_client implementation
     //
@@ -76,6 +85,10 @@ private:
     bool                        has_expected_ping(prinbee::message_serial_t serial_number);
     bool                        send_ping(ed::timer::pointer_t t);
 
+    bool                        msg_process_reply(
+                                      prinbee::binary_message::pointer_t msg
+                                    , msg_reply_t state);
+
     bool                        msg_error(
                                       ed::connection::pointer_t peer
                                     , prinbee::binary_message::pointer_t msg);
@@ -86,13 +99,14 @@ private:
     void                        process_acknowledgment(
                                       std::uint32_t serial_number
                                     , bool success);
+    void                        set_proxy_registered(bool is_registered);
 
     prinbee_connection *        f_prinbee_connection = nullptr;
     ed::communicator::pointer_t f_communicator = ed::communicator::pointer_t();
     acknowledgment_t            f_expected_acknowledgment = acknowledgment_t();
     prinbee::msg_error_t        f_last_error_message = prinbee::msg_error_t();
     double                      f_proxy_loadavg = -2.0; // -1.0 is error and 0.0 or more a valid number from the proxy
-    bool                        f_registered = false;
+    bool                        f_registered = false; // becomes true once we get the ACK reply from our REG message
 
     // support for PING / PONG messages
     //

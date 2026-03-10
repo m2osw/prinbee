@@ -200,19 +200,6 @@ void prinbee_connection::set_proxy_status_and_address(
 }
 
 
-void prinbee_connection::set_proxy_registered(bool is_registered)
-{
-    if(is_registered == f_registered)
-    {
-        return;
-    }
-
-    f_registered = is_registered;
-
-    process_proxy_status();
-}
-
-
 std::string prinbee_connection::get_proxy_status() const
 {
     if(f_proxy_connection == nullptr)
@@ -231,7 +218,7 @@ std::string prinbee_connection::get_proxy_status() const
 
     std::stringstream ss;
 
-    if(!f_registered)
+    if(!is_proxy_registered())
     {
         // TODO: last_error.empty() is not sufficient
         //
@@ -354,9 +341,9 @@ SNAP_LOG_INFO
 
 bool prinbee_connection::is_proxy_registered() const
 {
-    return f_registered
-        && f_proxy_connection != nullptr
-        && f_proxy_connection->is_connected();
+    return f_proxy_connection != nullptr
+        && f_proxy_connection->is_connected()
+        && f_proxy_connection->is_registered();
 }
 
 
@@ -369,47 +356,6 @@ addr::addr const & prinbee_connection::get_address() const
 bool prinbee_connection::has_address() const
 {
     return f_address != addr::addr();
-}
-
-
-bool prinbee_connection::msg_process_reply(
-      prinbee::binary_message::pointer_t msg
-    , msg_reply_t state)
-{
-    // received a message reply from f_proxy_connection, process it
-    //
-    // the 'msg' is the message we SENT, the reply was an ACK or ERR
-    // which pointed to that message, nothing more
-    //
-    switch(msg->get_name())
-    {
-    case prinbee::g_message_register:
-        if(state == MSG_REPLY_SUCCEEDED)
-        {
-            // we are registered, ready to rock
-            //
-            set_proxy_registered(true);
-        }
-        else
-        {
-            // we cannot register, trying again will fail again, what
-            // to do?!
-            //
-            // Note: we already logged the error message
-            //
-            set_proxy_registered(false);
-        }
-        return true;
-
-    }
-
-    SNAP_LOG_ERROR
-        << "prinbee reply \""
-        << prinbee::message_name_to_string(msg->get_name())
-        << "\" not understood."
-        << SNAP_LOG_SEND;
-
-    return true;
 }
 
 
@@ -489,8 +435,6 @@ void prinbee_connection::start_binary_connection()
         //
         f_communicator->remove_connection(f_proxy_connection);
         f_proxy_connection = nullptr;
-
-        set_proxy_registered(false);
         return;
     }
 

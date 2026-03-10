@@ -67,14 +67,6 @@ namespace prinbee
 constexpr char const                    g_proxy_state_unknown[] = "unknown";
 
 
-enum msg_reply_t
-{
-    MSG_REPLY_RECEIVED,         // when we receive a message (i.e. not ACK nor ERR)
-    MSG_REPLY_FAILED,           // ERR a message we sent
-    MSG_REPLY_SUCCEEDED,        // ACK a message we sent
-};
-
-
 class prinbee_connection
     : public fluid_settings::fluid_settings_connection
 {
@@ -118,17 +110,12 @@ public:
     bool                        has_address() const;
     bool                        is_ping_pong_timer_on() const;
 
-    bool                        msg_process_reply(
-                                      prinbee::binary_message::pointer_t msg
-                                    , msg_reply_t state);
-
 private:
     void                        msg_prinbee_proxy_current_status(ed::message & msg);
 
     void                        set_proxy_status_and_address(
                                       std::string const & status
                                     , addr::addr const & address);
-    void                        set_proxy_registered(bool is_registered);
     void                        start_binary_connection();
     void                        setup_ping_pong_interval();
 
@@ -137,7 +124,6 @@ private:
     addr::addr                  f_address = addr::addr();
     proxy_connection::pointer_t f_proxy_connection = proxy_connection::pointer_t();
     bool                        f_fluid_settings_ready = false;
-    bool                        f_registered = false; // becomes true once we get the ACK reply from our REG message
 
     // the state is mainly maintained by the binary connection which is
     // managed by this prinbee_connection messenger
