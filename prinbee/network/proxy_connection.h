@@ -48,6 +48,7 @@ class proxy_connection
 {
 public:
     typedef std::shared_ptr<proxy_connection>         pointer_t;
+    typedef std::weak_ptr<proxy_connection>           weak_pointer_t;
 
                                 proxy_connection(prinbee_connection * c, addr::addr const & a);
                                 proxy_connection(proxy_connection const & rhs) = delete;
@@ -70,6 +71,7 @@ public:
                                 get_last_ping() const;
     double                      get_proxy_loadavg() const;
     bool                        is_registered() const;
+    bool                        has_context_list() const;
 
     // binary_client implementation
     //
@@ -79,9 +81,7 @@ private:
     typedef std::map<prinbee::message_serial_t, prinbee::binary_message::pointer_t>
                                 acknowledgment_t;
 
-    bool                        msg_pong(
-                                      ed::connection::pointer_t peer
-                                    , prinbee::binary_message::pointer_t msg);
+    bool                        msg_pong(prinbee::binary_message::pointer_t msg);
     bool                        has_expected_ping(prinbee::message_serial_t serial_number);
     bool                        send_ping(ed::timer::pointer_t t);
 
@@ -89,17 +89,15 @@ private:
                                       prinbee::binary_message::pointer_t msg
                                     , msg_reply_t state);
 
-    bool                        msg_error(
-                                      ed::connection::pointer_t peer
-                                    , prinbee::binary_message::pointer_t msg);
+    bool                        msg_error(prinbee::binary_message::pointer_t msg);
 
-    bool                        msg_acknowledge(
-                                      ed::connection::pointer_t peer
-                                    , prinbee::binary_message::pointer_t msg);
+    bool                        msg_acknowledge(prinbee::binary_message::pointer_t msg);
     void                        process_acknowledgment(
                                       std::uint32_t serial_number
                                     , bool success);
     void                        set_proxy_registered(bool is_registered);
+    void                        get_context_list();
+    void                        save_context_list(binary_message::pointer_t msg);
 
     prinbee_connection *        f_prinbee_connection = nullptr;
     ed::communicator::pointer_t f_communicator = ed::communicator::pointer_t();
@@ -115,6 +113,11 @@ private:
     std::uint32_t               f_no_pong_answer = 0;
     snapdev::timespec_ex        f_last_ping = snapdev::timespec_ex();
     bool                        f_ping_pong_timer_on = false;
+
+    // manage the LCTX message
+    //
+    msg_list_contexts_t         f_context_list = msg_list_contexts_t();
+    bool                        f_context_list_available = false;
 };
 
 

@@ -33,8 +33,6 @@ namespace prinbee_proxy
 
 
 
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Weffc++"
 class listener
     : public prinbee::binary_server
 {
@@ -54,7 +52,6 @@ public:
 private:
     proxy *                     f_proxy = nullptr;
 };
-//#pragma GCC diagnostic pop
 
 
 

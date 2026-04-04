@@ -177,7 +177,7 @@ void messenger::ready(ed::message & msg)
     // the proxy service just never expects any of the necessary messages
     // before the READY message is received
     //
-    f_proxy->start_binary_connection();
+    f_proxy->start_binary_listener();
 }
 
 
@@ -301,7 +301,7 @@ void messenger::fluid_settings_changed(
 
     if(status == fluid_settings::fluid_settings_status_t::FLUID_SETTINGS_STATUS_READY)
     {
-        f_proxy->start_binary_connection();
+        f_proxy->start_binary_listener();
     }
 }
 

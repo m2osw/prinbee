@@ -100,8 +100,8 @@ constexpr prinbee::struct_description_t g_acknowledge_description[] =
 };
 
 
-// sub-structure used to define an array of names (i.e. list of contexts)
-constexpr prinbee::struct_description_t g_name_description[] =
+// sub-structure used to define an array of name / id pairs (i.e. list of contexts)
+constexpr prinbee::struct_description_t g_context_item[] =
 {
     prinbee::define_description(
           prinbee::FieldName("name")
@@ -128,9 +128,9 @@ constexpr prinbee::struct_description_t g_list_contexts_description[] =
         , prinbee::FieldVersion(1, 0)
     ),
     prinbee::define_description(
-          prinbee::FieldName("names")
+          prinbee::FieldName("context_items")
         , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY16) // limit to 64K contexts in one cluster
-        , prinbee::FieldSubDescription(g_name_description)
+        , prinbee::FieldSubDescription(g_context_item)
     ),
     prinbee::end_descriptions()
 };
@@ -913,8 +913,9 @@ void binary_message::create_list_contexts_message(advgetopt::string_list_t const
     //
     for(auto const & n : list)
     {
-        structure::pointer_t name(description->new_array_item("names"));
-        name->set_string("name", n);
+        structure::pointer_t item(description->new_array_item("context_items"));
+        item->set_string("name", n);
+        item->set_uinteger("id", 1);
     }
 
     reference_t start_offset(0);
@@ -937,10 +938,12 @@ bool binary_message::deserialize_list_contexts_message(msg_list_contexts_t & con
     buffer->pwrite(data, size, 0, true);
 
     structure::pointer_t description(std::make_shared<structure>(g_list_contexts_description));
+SNAP_LOG_ERROR << "--- deserialize list of contexts / setup buffer." << SNAP_LOG_SEND;
     description->set_virtual_buffer(buffer, 0);
 
-    structure::vector_t list(description->get_array("names"));
+    structure::vector_t list(description->get_array("context_items"));
     std::size_t const max(list.size());
+SNAP_LOG_ERROR << "--- deserialize list of contexts with " << max << " entries." << SNAP_LOG_SEND;
     for(std::size_t idx(0); idx < max; ++idx)
     {
         context_list.f_list.push_back({list[idx]->get_string("name"), 0});

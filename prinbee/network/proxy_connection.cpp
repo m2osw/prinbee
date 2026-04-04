@@ -78,6 +78,7 @@ proxy_connection::proxy_connection(prinbee_connection * c, addr::addr const & a)
     , f_prinbee_connection(c)
     , f_communicator(ed::communicator::instance())
 {
+    set_name("proxy");
 }
 
 
@@ -102,6 +103,7 @@ void proxy_connection::set_ping_pong_interval(double interval)
     if(f_ping_pong_timer == nullptr)
     {
         ed::timer::pointer_t ping_pong_timer = std::make_shared<ed::timer>(0);
+        ping_pong_timer->set_name("proxy_ping_pong_timer");
         if(!f_communicator->add_connection(ping_pong_timer))
         {
             SNAP_LOG_RECOVERABLE_ERROR
@@ -131,17 +133,17 @@ bool proxy_connection::send_ping(ed::timer::pointer_t t)
     if(get_expected_ping() != 0)
     {
         std::uint32_t const count(increment_no_pong_answer());
-        if(count >= prinbee::MAX_PING_PONG_FAILURES)
+        if(count >= MAX_PING_PONG_FAILURES)
         {
             SNAP_LOG_ERROR
                 << "connection never replied from our last "
-                << prinbee::MAX_PING_PONG_FAILURES
+                << MAX_PING_PONG_FAILURES
                 << " PING signals; reconnecting."
                 << SNAP_LOG_SEND;
 
             // TODO: actually implement...
             //
-            throw prinbee::not_yet_implemented("easy in concept, we'll implement that later though...");
+            throw not_yet_implemented("easy in concept, we'll implement that later though...");
 
             // don't send a PING now
             //
@@ -154,7 +156,7 @@ bool proxy_connection::send_ping(ed::timer::pointer_t t)
             << SNAP_LOG_SEND;
     }
 
-    prinbee::binary_message::pointer_t ping_msg(std::make_shared<prinbee::binary_message>());
+    binary_message::pointer_t ping_msg(std::make_shared<binary_message>());
     ping_msg->create_ping_message();
     set_expected_ping(ping_msg->get_serial_number());
     send_message(ping_msg);
@@ -179,27 +181,55 @@ bool proxy_connection::is_ping_pong_timer_on() const
  */
 void proxy_connection::add_callbacks()
 {
-    pointer_t d(std::dynamic_pointer_cast<proxy_connection>(shared_from_this()));
+    weak_pointer_t wd(std::dynamic_pointer_cast<proxy_connection>(shared_from_this()));
     add_message_callback(
-          prinbee::g_message_error
-        , std::bind(&proxy_connection::msg_error, d, d, std::placeholders::_1));
+          g_message_error
+        , [wd](binary_message::pointer_t msg)
+          {
+              pointer_t d(wd.lock());
+              if(d != nullptr)
+              {
+                  d->msg_error(msg);
+              }
+              return true;
+          });
     add_message_callback(
-          prinbee::g_message_acknowledge
-        , std::bind(&proxy_connection::msg_acknowledge, d, d, std::placeholders::_1));
-    // the Prinbee proxy does not send PING messages to clients and this is
-    // a client implementation
-    //add_message_callback(
-    //      prinbee::g_message_ping
-    //    , std::bind(&proxy_connection::msg_ping, f_proxy, shared_from_this(), std::placeholders::_1));
+          g_message_acknowledge
+        , [wd](binary_message::pointer_t msg)
+          {
+              pointer_t d(wd.lock());
+              if(d != nullptr)
+              {
+                  d->msg_acknowledge(msg);
+              }
+              return true;
+          });
     add_message_callback(
-          prinbee::g_message_pong
-        , std::bind(&proxy_connection::msg_pong, d, d, std::placeholders::_1));
+          g_message_pong
+        , [wd](binary_message::pointer_t msg)
+          {
+              pointer_t d(wd.lock());
+              if(d != nullptr)
+              {
+                  d->msg_pong(msg);
+              }
+              return true;
+          });
 
     // other replies by the proxy
     //
     add_message_callback(
-          prinbee::g_message_unknown
-        , std::bind(&proxy_connection::msg_process_reply, d, std::placeholders::_1, msg_reply_t::MSG_REPLY_RECEIVED));
+          g_message_unknown
+        , [wd](binary_message::pointer_t msg)
+          {
+              pointer_t d(wd.lock());
+              if(d != nullptr)
+              {
+                  d->msg_process_reply(msg, msg_reply_t::MSG_REPLY_RECEIVED);
+              }
+              return true;
+          });
+        //, std::bind(&proxy_connection::msg_process_reply, d, std::placeholders::_1, msg_reply_t::MSG_REPLY_RECEIVED));
 }
 
 
@@ -209,10 +239,10 @@ void proxy_connection::process_connected()
 
     // on connection to a daemon, send a REG, we expect an ACK or ERR as a reply
     //
-    prinbee::binary_message::pointer_t register_msg(std::make_shared<prinbee::binary_message>());
+    binary_message::pointer_t register_msg(std::make_shared<binary_message>());
     register_msg->create_register_message(
           f_prinbee_connection->get_name() + "_client"
-        , prinbee::g_name_prinbee_protocol_version_node);
+        , g_name_prinbee_protocol_version_node);
     send_message(register_msg);
 
     expect_acknowledgment(register_msg);
@@ -232,25 +262,21 @@ void proxy_connection::process_connected()
  *
  * \param[in] msg  The message expecting a reply.
  */
-void proxy_connection::expect_acknowledgment(prinbee::binary_message::pointer_t msg)
+void proxy_connection::expect_acknowledgment(binary_message::pointer_t msg)
 {
     f_expected_acknowledgment[msg->get_serial_number()] = msg;
 }
 
 
-prinbee::msg_error_t const & proxy_connection::get_last_error_message() const
+msg_error_t const & proxy_connection::get_last_error_message() const
 {
     return f_last_error_message;
 }
 
 
-bool proxy_connection::msg_pong(
-      ed::connection::pointer_t peer
-    , prinbee::binary_message::pointer_t msg)
+bool proxy_connection::msg_pong(binary_message::pointer_t msg)
 {
-    snapdev::NOT_USED(peer);
-
-    prinbee::msg_pong_t pong;
+    msg_pong_t pong;
     if(!msg->deserialize_pong_message(pong))
     {
         return true;
@@ -284,16 +310,12 @@ bool proxy_connection::msg_pong(
 }
 
 
-bool proxy_connection::msg_error(
-      ed::connection::pointer_t peer
-    , prinbee::binary_message::pointer_t msg)
+bool proxy_connection::msg_error(binary_message::pointer_t msg)
 {
-    snapdev::NOT_USED(peer);
-
     msg->deserialize_error_message(f_last_error_message);
 
     SNAP_LOG_ERROR
-        << peer->get_name()
+        << get_name()
         << ": "
         << f_last_error_message.f_message_name
         << " ("
@@ -309,13 +331,9 @@ bool proxy_connection::msg_error(
 }
 
 
-bool proxy_connection::msg_acknowledge(
-      ed::connection::pointer_t peer
-    , prinbee::binary_message::pointer_t msg)
+bool proxy_connection::msg_acknowledge(binary_message::pointer_t msg)
 {
-    snapdev::NOT_USED(peer);
-
-    prinbee::msg_acknowledge_t ack;
+    msg_acknowledge_t ack;
     if(!msg->deserialize_acknowledge_message(ack))
     {
         return true;
@@ -329,7 +347,7 @@ bool proxy_connection::msg_acknowledge(
 }
 
 
-void proxy_connection::process_acknowledgment(prinbee::message_serial_t serial_number, bool success)
+void proxy_connection::process_acknowledgment(message_serial_t serial_number, bool success)
 {
     auto it(f_expected_acknowledgment.find(serial_number));
     if(it == f_expected_acknowledgment.end())
@@ -355,9 +373,14 @@ void proxy_connection::process_acknowledgment(prinbee::message_serial_t serial_n
 
 
 bool proxy_connection::msg_process_reply(
-      prinbee::binary_message::pointer_t msg
+      binary_message::pointer_t msg
     , msg_reply_t state)
 {
+SNAP_LOG_ERROR
+<< "--- msg_process_reply() -- "
+<< (state == MSG_REPLY_SUCCEEDED ? "(ACK) -- " : "")
+<< message_name_to_string(msg->get_name())
+<< SNAP_LOG_SEND;
     // received a reply from the connection, process it
     //
     // the 'msg' is either a fresh reply or the message we sent
@@ -368,7 +391,7 @@ bool proxy_connection::msg_process_reply(
     //
     switch(msg->get_name())
     {
-    case prinbee::g_message_register:
+    case g_message_register:
         if(state == MSG_REPLY_SUCCEEDED)
         {
             // we are registered, ready to rock
@@ -380,6 +403,7 @@ bool proxy_connection::msg_process_reply(
             // we need the identifiers for any other requests so we can as
             // well get those now
             //
+            get_context_list();
         }
         else
         {
@@ -392,11 +416,28 @@ bool proxy_connection::msg_process_reply(
         }
         return true;
 
+    case g_message_list_contexts:
+        if(state == MSG_REPLY_RECEIVED)
+        {
+            save_context_list(msg);
+        }
+        else
+        {
+            // in most likelihood the proxy is shutting down or cannot
+            // connect to any backend for a "long time"
+            //
+            //... what to do here? ...
+            SNAP_LOG_ERROR
+                << "could not get list of contexts from proxy."
+                << SNAP_LOG_SEND;
+        }
+        return true;
+
     }
 
     SNAP_LOG_ERROR
         << "prinbee reply \""
-        << prinbee::message_name_to_string(msg->get_name())
+        << message_name_to_string(msg->get_name())
         << "\" not understood."
         << SNAP_LOG_SEND;
 
@@ -423,19 +464,74 @@ bool proxy_connection::is_registered() const
 }
 
 
-prinbee::message_serial_t proxy_connection::get_expected_ping() const
+void proxy_connection::get_context_list()
+{
+    // if we already received the list, no need to resend the message;
+    //
+    // TODO: we may need to have a TTL and try again...
+    //
+    // i.e. once we are connected changes are reported automatically and on a
+    //      reconnection we do not need to get another copy of the same data
+    //
+    if(!f_context_list_available)
+    {
+        binary_message::pointer_t list_context_msg(std::make_shared<binary_message>());
+        list_context_msg->create_list_contexts_message(advgetopt::string_list_t{}); // list ignored in request
+        send_message(list_context_msg);
+    }
+}
+
+
+void proxy_connection::save_context_list(binary_message::pointer_t msg)
+{
+    msg_list_contexts_t context_list;
+    if(!msg->deserialize_list_contexts_message(context_list))
+    {
+        SNAP_LOG_ERROR
+            << "\"list of contexts\" message could not be deserialized."
+            << SNAP_LOG_SEND;
+        return;
+    }
+    f_context_list = context_list;
+
+    // the proxy will automatically give us a new list if/when it changes
+    // so there is a race condition where our list may be out of date for
+    // a little bit
+    //
+    f_context_list_available = true;
+
+#ifdef _DEBUG
+    std::cout << "info:client: got list of " << f_context_list.f_list.size() << " contexts.\r\n";
+    for(auto c : f_context_list.f_list)
+    {
+        std::cout << std::setw(10) << c.f_context_id << ": " << c.f_name << "\r\n";
+    }
+    std::cout << std::flush;
+#endif
+
+    f_prinbee_connection->process_proxy_status();
+}
+
+
+bool proxy_connection::has_context_list() const
+{
+    return f_context_list_available;
+}
+
+
+message_serial_t proxy_connection::get_expected_ping() const
 {
     return f_ping_serial_number;
 }
 
 
-void proxy_connection::set_expected_ping(prinbee::message_serial_t serial_number)
+void proxy_connection::set_expected_ping(message_serial_t serial_number)
 {
     f_ping_serial_number = serial_number;
 }
 
 
-bool proxy_connection::has_expected_ping(prinbee::message_serial_t serial_number)
+bool proxy_connection::has_expected_ping(message_serial_t serial_number)
 {
     if(f_ping_serial_number == serial_number)
     {

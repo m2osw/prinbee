@@ -290,7 +290,7 @@ SNAP_LOG_ERROR << "--- got " << r << " bytes of adjustment for header" << SNAP_L
                 {
                     f_data_size += r;
                 }
-SNAP_LOG_ERROR << "--- got " << r << " bytes of data" << SNAP_LOG_SEND;
+SNAP_LOG_ERROR << "--- got " << r << " bytes of data; read a total of " << f_data_size << SNAP_LOG_SEND;
                 break;
 
             }
@@ -307,6 +307,7 @@ SNAP_LOG_ERROR << "--- got " << r << " bytes of data" << SNAP_LOG_SEND;
                     // the whole header was received
                     //
                     get_binary_message()->set_message_header_data(f_data.data(), binary_message::get_message_header_size());
+SNAP_LOG_ERROR << "--- client's got message " << message_name_to_string(get_binary_message()->get_name()) << SNAP_LOG_SEND;
                     [[fallthrough]];
                 case read_state_t::READ_STATE_HEADER_ADJUST:
 #ifdef _DEBUG
@@ -337,7 +338,7 @@ SNAP_LOG_ERROR << "--- got whole header, no data attached" << SNAP_LOG_SEND;
                         }
                         else
                         {
-SNAP_LOG_ERROR << "--- got whole header, now read attached data" << SNAP_LOG_SEND;
+SNAP_LOG_ERROR << "--- got whole header, now read attached data (" << get_binary_message()->get_data_size() << " bytes)" << SNAP_LOG_SEND;
                             // make sure the buffer is large enough
                             //
                             std::size_t const min_size((get_binary_message()->get_data_size() + PRINBEE_NETWORK_PAGE_SIZE - 1ULL) & -PRINBEE_NETWORK_PAGE_SIZE);
@@ -373,8 +374,8 @@ SNAP_LOG_ERROR << "--- got whole header, now read attached data" << SNAP_LOG_SEN
                         // we got the data now we can process the message
                         //
                         get_binary_message()->set_data_by_pointer(f_data.data(), f_data_size);
-                        f_parent->process_message(get_binary_message());
 SNAP_LOG_ERROR << "--- got whole header & data, process message" << SNAP_LOG_SEND;
+                        f_parent->process_message(get_binary_message());
                         reset_binary_message();
                         ++count_messages;
 

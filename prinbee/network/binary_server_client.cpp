@@ -253,7 +253,6 @@ void binary_server_client::process_read()
                             // we can directly process it
                             //
                             get_binary_message()->set_data_by_pointer(nullptr, 0);
-SNAP_LOG_ERROR << "--- process_message (NO DATA)" << SNAP_LOG_SEND;
                             process_message(get_binary_message());
                             reset_binary_message();
                             ++count_messages;
@@ -301,7 +300,6 @@ SNAP_LOG_ERROR << "--- read data" << SNAP_LOG_SEND;
                         // we got the data now we can process the message
                         //
                         get_binary_message()->set_data_by_pointer(f_data.data(), f_data_size);
-SNAP_LOG_ERROR << "--- process_message (WITH DATA)" << SNAP_LOG_SEND;
                         process_message(get_binary_message());
                         reset_binary_message();
                         ++count_messages;
@@ -411,6 +409,9 @@ void binary_server_client::process_write()
  */
 void binary_server_client::process_message(binary_message::pointer_t msg)
 {
+SNAP_LOG_ERROR << "--- process_message "
+<< message_name_to_string(msg->get_name())
+<< " (DATA: " << msg->get_data_size() << " bytes)" << SNAP_LOG_SEND;
     message_name_t const name(msg->get_name());
     auto it(f_callback_map.find(name));
     if(it == f_callback_map.end())

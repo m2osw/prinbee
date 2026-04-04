@@ -348,6 +348,13 @@ void console_connection::open_close_status_window()
 }
 
 
+/** \brief Update the content of the status window.
+ *
+ * Whenever the connection status or the loadavg change, we want to display
+ * that change. This function does so.
+ *
+ * If the status window is closed, then nothing happens.
+ */
 void console_connection::update_status()
 {
     if(f_win_status == nullptr)

@@ -73,6 +73,14 @@ enum class param_type_t
 };
 
 
+enum class param_mode_t
+{
+    PARAM_MODE_TABLE,
+    PARAM_MODE_PRINT,
+    PARAM_MODE_JSON,
+};
+
+
 constexpr int const         MAX_LIMIT       = 1'000'000;
 constexpr int const         MAX_EXPRESSIONS = 1'000;
 constexpr int const         MAX_TABLES      = 20;
@@ -92,6 +100,7 @@ enum class param_t
     PARAM_TYPE,
     PARAM_USER,
     PARAM_WHERE,
+    PARAM_MODE,
 
     // allow for up to MAX_EXPRESSIONS expressions (for SELECT)
     //

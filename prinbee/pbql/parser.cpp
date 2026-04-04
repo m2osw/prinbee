@@ -328,7 +328,7 @@ command::vector_t const & parser::parse()
 
 void parser::parse_alter_context()
 {
-    throw not_yet_implemented("parser::parse_select()");
+    throw not_yet_implemented("parser::alter_context()");
 }
 
 
@@ -1261,6 +1261,46 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
             else
             {
                 break;
+            }
+        }
+    }
+
+    if(n->get_token() == token_t::TOKEN_IDENTIFIER)
+    {
+        std::string const keyword(n->get_string_upper());
+        if(keyword == "OUTPUT")
+        {
+            // OUTPUT <mode>
+            //
+            n = f_lexer->get_next_token();
+            if(n->get_token() != token_t::TOKEN_IDENTIFIER)
+            {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                    msg << n->get_location().get_location()
+                        << "SELECT ... OUTPUT ... is expected to be followed by a mode ('TABLE', 'PRINT', or 'JSON').";
+                    throw invalid_token(msg.str());
+            }
+            std::string const mode(n->get_string_upper());
+            if(mode == "TABLE")
+            {
+                command->set_int64(param_t::PARAM_MODE, static_cast<std::int64_t>(param_mode_t::PARAM_MODE_TABLE));
+            }
+            else if(mode == "PRINT")
+            {
+                command->set_int64(param_t::PARAM_MODE, static_cast<std::int64_t>(param_mode_t::PARAM_MODE_PRINT));
+            }
+            else if(mode == "JSON")
+            {
+                command->set_int64(param_t::PARAM_MODE, static_cast<std::int64_t>(param_mode_t::PARAM_MODE_JSON));
+            }
+            else
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                msg << n->get_location().get_location()
+                    << "SELECT ... OUTPUT "
+                    << mode
+                    << " is not a known mode (try with 'TABLE', 'PRINT', or 'JSON' instead).";
+                throw invalid_token(msg.str());
             }
         }
     }

@@ -308,10 +308,14 @@ struct msg_list_contexts_t
     struct named_context_t {
         typedef std::list<named_context_t>        list_t;
 
+        bool                operator == (named_context_t const & rhs) const = default;
+
         std::string         f_name = std::string();
         context_id_t        f_context_id = 0;
     };
     named_context_t::list_t f_list = named_context_t::list_t();
+
+    bool                    operator == (msg_list_contexts_t const & rhs) const = default;
 
     context_id_t            get_context_id(std::string const & name);
     std::string             get_context_name(context_id_t id);

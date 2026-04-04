@@ -70,12 +70,13 @@ public:
     //                            find_connection(std::string const & name);
     int                         run();
     void                        timed_out();
-    void                        start_binary_connection();
+    void                        start_binary_listener();
     void                        send_our_status(ed::message * msg);
     void                        stop(bool quitting);
     void                        send_message(
                                       ed::connection::pointer_t peer
                                     , prinbee::binary_message::pointer_t msg);
+    void                        set_context_list(prinbee::binary_message::pointer_t msg);
     void                        send_pings();
 
     void                        msg_prinbee_current_status(ed::message & msg);
@@ -109,6 +110,8 @@ private:
                                       ed::connection::pointer_t peer
                                     , prinbee::binary_message::pointer_t msg
                                     , std::uint32_t phase);
+    void                        save_context_list(prinbee::binary_message::pointer_t msg);
+    void                        send_message_to_all_clients(prinbee::binary_message::pointer_t msg);
 
     advgetopt::getopt                       f_opts;
     snapdev::timespec_ex const              f_start_date;
@@ -127,6 +130,8 @@ private:
     connection_reference::map_t             f_client_connections = connection_reference::map_t();
     versiontheca::decimal::pointer_t        f_protocol_trait = std::make_shared<versiontheca::decimal>();
     versiontheca::versiontheca::pointer_t   f_protocol_version = std::make_shared<versiontheca::versiontheca>(f_protocol_trait, prinbee::g_name_prinbee_protocol_version_node);
+    prinbee::msg_list_contexts_t            f_context_list = prinbee::msg_list_contexts_t();
+    bool                                    f_context_list_available = false;
 
     bool                                    f_fluid_settings_ready = false;
     bool                                    f_ipwall_is_up = false;

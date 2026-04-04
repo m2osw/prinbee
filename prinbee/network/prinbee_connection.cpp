@@ -347,6 +347,13 @@ bool prinbee_connection::is_proxy_registered() const
 }
 
 
+bool prinbee_connection::proxy_has_context_list() const
+{
+    return f_proxy_connection != nullptr
+        && f_proxy_connection->has_context_list();
+}
+
+
 addr::addr const & prinbee_connection::get_address() const
 {
     return f_address;

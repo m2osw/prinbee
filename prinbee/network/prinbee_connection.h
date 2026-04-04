@@ -106,6 +106,7 @@ public:
     snapdev::timespec_ex        get_last_ping() const;
     bool                        is_proxy_ready() const;
     bool                        is_proxy_registered() const;
+    bool                        proxy_has_context_list() const;
     addr::addr const &          get_address() const;
     bool                        has_address() const;
     bool                        is_ping_pong_timer_on() const;

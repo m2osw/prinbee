@@ -79,7 +79,9 @@ private:
     bool                            init_file();
     bool                            parse_clear();
     bool                            parse_help();
+    bool                            parse_license();
     bool                            parse_status();
+    bool                            parse_versions();
 
     advgetopt::getopt               f_opts;
     messenger::pointer_t            f_messenger = messenger::pointer_t();

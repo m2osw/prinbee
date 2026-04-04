@@ -98,7 +98,7 @@ void listener::process_new_connection(prinbee::binary_server_client::pointer_t c
     client->add_message_callback(
           prinbee::g_message_ping
         , std::bind(&proxy::msg_ping, f_proxy, client, std::placeholders::_1));
-    //client->add_message_callback( -- we reply with a PING, we don't get PONG from clients
+    //client->add_message_callback( -- we reply with a PONG, we only get PINGs from clients
     //      prinbee::g_message_pong
     //    , std::bind(&proxy::msg_pong, f_proxy, client, std::placeholders::_1));
     client->add_message_callback(

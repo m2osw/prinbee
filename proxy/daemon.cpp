@@ -89,20 +89,40 @@ daemon::~daemon()
  */
 void daemon::add_callbacks()
 {
-    pointer_t d(std::dynamic_pointer_cast<daemon>(shared_from_this()));
+    weak_pointer_t wd(std::dynamic_pointer_cast<daemon>(shared_from_this()));
     add_message_callback(
           prinbee::g_message_error
-        , std::bind(&daemon::msg_error, d, d, std::placeholders::_1));
+        , [wd](prinbee::binary_message::pointer_t msg)
+          {
+              pointer_t d(wd.lock());
+              if(d != nullptr)
+              {
+                  d->msg_error(msg);
+              }
+              return true;
+          });
     add_message_callback(
           prinbee::g_message_acknowledge
-        , std::bind(&daemon::msg_acknowledge, d, d, std::placeholders::_1));
-    // prinbee daemons do not send proxies PING messages, proxies do
-    //add_message_callback(
-    //      prinbee::g_message_ping
-    //    , std::bind(&proxy::msg_ping, f_proxy, shared_from_this(), std::placeholders::_1));
+        , [wd](prinbee::binary_message::pointer_t msg)
+          {
+              pointer_t d(wd.lock());
+              if(d != nullptr)
+              {
+                  d->msg_acknowledge(msg);
+              }
+              return true;
+          });
     add_message_callback(
           prinbee::g_message_pong
-        , std::bind(&daemon::msg_pong, d, d, std::placeholders::_1));
+        , [wd](prinbee::binary_message::pointer_t msg)
+          {
+              pointer_t d(wd.lock());
+              if(d != nullptr)
+              {
+                  d->msg_pong(msg);
+              }
+              return true;
+          });
 
 // TODO: add list of messages we know we do not accept coming in such as REG and PING
 
@@ -110,12 +130,15 @@ void daemon::add_callbacks()
     //
     add_message_callback(
           prinbee::g_message_unknown
-        , std::bind(
-              &proxy::msg_process_reply
-            , f_proxy
-            , d
-            , std::placeholders::_1
-            , prinbee::msg_reply_t::MSG_REPLY_RECEIVED));
+        , [this, wd](prinbee::binary_message::pointer_t msg)
+          {
+              pointer_t d(wd.lock());
+              if(d != nullptr)
+              {
+                  f_proxy->msg_process_reply(d, msg, prinbee::msg_reply_t::MSG_REPLY_RECEIVED);
+              }
+              return true;
+          });
 }
 
 
@@ -154,12 +177,19 @@ void daemon::expect_acknowledgment(prinbee::binary_message::pointer_t msg)
 }
 
 
-bool daemon::msg_pong(
-      ed::connection::pointer_t peer
-    , prinbee::binary_message::pointer_t msg)
+void daemon::get_context_list()
 {
-    snapdev::NOT_USED(peer);
+    // TODO: have a TTL to try again if it fails; and we can also try with
+    //       the next daemon
+    //
+    prinbee::binary_message::pointer_t list_context_msg(std::make_shared<prinbee::binary_message>());
+    list_context_msg->create_list_contexts_message(advgetopt::string_list_t{}); // list ignored in request
+    send_message(list_context_msg);
+}
 
+
+bool daemon::msg_pong(prinbee::binary_message::pointer_t msg)
+{
     prinbee::msg_pong_t pong;
     if(!msg->deserialize_pong_message(pong))
     {
@@ -190,17 +220,13 @@ bool daemon::msg_pong(
 }
 
 
-bool daemon::msg_error(
-      ed::connection::pointer_t peer
-    , prinbee::binary_message::pointer_t msg)
+bool daemon::msg_error(prinbee::binary_message::pointer_t msg)
 {
-    snapdev::NOT_USED(peer);
-
     prinbee::msg_error_t err;
     msg->deserialize_error_message(err);
 
     SNAP_LOG_ERROR
-        << peer->get_name()
+        << get_name()
         << ": "
         << err.f_message_name
         << " ("
@@ -216,12 +242,8 @@ bool daemon::msg_error(
 }
 
 
-bool daemon::msg_acknowledge(
-      ed::connection::pointer_t peer
-    , prinbee::binary_message::pointer_t msg)
+bool daemon::msg_acknowledge(prinbee::binary_message::pointer_t msg)
 {
-    snapdev::NOT_USED(peer);
-
 SNAP_LOG_ERROR << "--- got acknowledgment..." << SNAP_LOG_SEND;
     prinbee::msg_acknowledge_t ack;
     if(!msg->deserialize_acknowledge_message(ack))

@@ -41,6 +41,7 @@ class daemon
 {
 public:
     typedef std::shared_ptr<daemon>             pointer_t;
+    typedef std::weak_ptr<daemon>               weak_pointer_t;
     typedef std::map<std::string, pointer_t>    map_t;
 
                                 daemon(proxy * p, addr::addr const & a);
@@ -51,6 +52,7 @@ public:
 
     void                        add_callbacks();
     void                        expect_acknowledgment(prinbee::binary_message::pointer_t msg);
+    void                        get_context_list();
 
     prinbee::message_serial_t   get_expected_ping() const;
     void                        set_expected_ping(prinbee::message_serial_t serial_number);
@@ -65,15 +67,9 @@ private:
     typedef std::map<prinbee::message_serial_t, prinbee::binary_message::pointer_t>
                                 acknowledgment_t;
 
-    bool                        msg_pong(
-                                      ed::connection::pointer_t peer
-                                    , prinbee::binary_message::pointer_t msg);
-    bool                        msg_error(
-                                      ed::connection::pointer_t peer
-                                    , prinbee::binary_message::pointer_t msg);
-    bool                        msg_acknowledge(
-                                      ed::connection::pointer_t peer
-                                    , prinbee::binary_message::pointer_t msg);
+    bool                        msg_pong(prinbee::binary_message::pointer_t msg);
+    bool                        msg_error(prinbee::binary_message::pointer_t msg);
+    bool                        msg_acknowledge(prinbee::binary_message::pointer_t msg);
     void                        process_acknowledgment(
                                       std::uint32_t serial_number
                                     , bool success);

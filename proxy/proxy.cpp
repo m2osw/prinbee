@@ -380,7 +380,7 @@ void proxy::set_ipwall_status(bool status)
     && !f_ipwall_is_up)
     {
         f_ipwall_is_up = true;
-        start_binary_connection();
+        start_binary_listener();
     }
 }
 
@@ -516,7 +516,7 @@ void proxy::set_clock_status(bool status)
     && !f_stable_clock)
     {
         f_stable_clock = true;
-        start_binary_connection();
+        start_binary_listener();
     }
 }
 
@@ -642,7 +642,7 @@ void proxy::timed_out()
  * usable to listen on--i.e. documentation IPv6 address) then this
  * exception is raised.
  */
-void proxy::start_binary_connection()
+void proxy::start_binary_listener()
 {
     // already connected?
     //
@@ -893,7 +893,6 @@ bool proxy::msg_process_reply(
     , prinbee::binary_message::pointer_t msg
     , prinbee::msg_reply_t state)
 {
-    snapdev::NOT_USED(peer, msg, state);
 SNAP_LOG_ERROR << "--- still many bugs everywhere, but we're here now..." << SNAP_LOG_SEND;
 
     switch(msg->get_name())
@@ -903,10 +902,16 @@ SNAP_LOG_ERROR << "--- still many bugs everywhere, but we're here now..." << SNA
         //
         if(state == prinbee::MSG_REPLY_SUCCEEDED)
         {
-            // we're properly connected to the daemon
+            // we're connected at least one daemon
             //
-            f_daemon_ready = true;
-            start_binary_connection();
+            if(!f_daemon_ready)
+            {
+                f_daemon_ready = true;
+                start_binary_listener();
+
+                daemon::pointer_t d(std::dynamic_pointer_cast<daemon>(peer));
+                d->get_context_list();
+            }
         }
         else
         {
@@ -917,6 +922,10 @@ SNAP_LOG_ERROR << "--- still many bugs everywhere, but we're here now..." << SNA
                 << "connection to daemon refused."
                 << SNAP_LOG_SEND;
         }
+        break;
+
+    case prinbee::g_message_list_contexts:
+        save_context_list(msg);
         break;
 
     default:
@@ -955,6 +964,64 @@ void proxy::send_message(
     }
 
     throw prinbee::logic_error("unknown peer type, cannot send message to it.");
+}
+
+
+void proxy::save_context_list(prinbee::binary_message::pointer_t msg)
+{
+SNAP_LOG_ERROR << "--- prepare to deserialize the list contexts message..." << SNAP_LOG_SEND;
+    prinbee::msg_list_contexts_t context_list;
+    if(!msg->deserialize_list_contexts_message(context_list))
+    {
+        SNAP_LOG_ERROR
+            << "\"list of contexts\" message could not be deserialized."
+            << SNAP_LOG_SEND;
+        return;
+    }
+SNAP_LOG_ERROR << "--- check the list, if new or it change forward it to all clients..." << SNAP_LOG_SEND;
+    if(f_context_list_available
+    && f_context_list == context_list)
+    {
+        SNAP_LOG_ERROR
+            << "\"list of contexts\" has not changed."
+            << SNAP_LOG_SEND;
+        return;
+    }
+    f_context_list = context_list;
+
+    // the daemons automatically give the proxies a new list when it changes
+    // so there is a race condition where our list may be out of date for
+    // a little bit
+    //
+    f_context_list_available = true;
+
+#ifdef _DEBUG
+    std::cout << "info:proxy: got list of " << f_context_list.f_list.size() << " contexts.\n";
+    for(auto c : f_context_list.f_list)
+    {
+        std::cout << std::setw(10) << c.f_context_id << ": " << c.f_name << "\n";
+    }
+    std::cout << std::flush;
+#endif
+
+    // forward the message to all the currently connected clients
+    //
+    send_message_to_all_clients(msg);
+}
+
+
+void proxy::send_message_to_all_clients(prinbee::binary_message::pointer_t msg)
+{
+std::cout << "info:proxy: forward message to " << f_client_connections.size() << " clients.\n";
+    for(auto const & it : f_client_connections)
+    {
+        prinbee::binary_server_client::pointer_t p(std::dynamic_pointer_cast<prinbee::binary_server_client>(it.second->get_connection()));
+        if(p == nullptr)
+        {
+            continue;
+        }
+        p->send_message(msg);
+    }
 }
 
 
@@ -998,7 +1065,7 @@ SNAP_LOG_VERBOSE << ">>> send PING message #" << ping_msg->get_serial_number() <
  *
  * Whenever a client connects to a proxy, it immediately sends a REG message.
  * This function checks the version of the client to make sure the proxy can
- * properly communicate with it (i.e. has backward compatibility is necessary).
+ * properly communicate with it (i.e. as backward compatibility is necessary).
  *
  * \param[in] peer  The very connection that just received the REG message.
  * \param[in,out] msg  The REG message.
@@ -1081,6 +1148,11 @@ bool proxy::msg_forward(
     , prinbee::binary_message::pointer_t msg)
 {
     snapdev::NOT_USED(peer);
+SNAP_LOG_ERROR << "--- msg_forward "
+<< prinbee::message_name_to_string(msg->get_name())
+<< " (DATA: " << msg->get_data_size() << " bytes) forward to first of "
+<< f_daemon_connections.size() << " daemon connections."
+<< SNAP_LOG_SEND;
 
     // TODO: add to journal & make sure we add "expected replies" so when
     //       the server replies, we know what to do with that

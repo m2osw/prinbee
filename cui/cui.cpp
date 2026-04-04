@@ -72,8 +72,8 @@
 // advgetopt
 //
 #include    <advgetopt/advgetopt.h>
-//#include    <advgetopt/conf_file.h>
 #include    <advgetopt/exception.h>
+#include    <advgetopt/licenses.h>
 #include    <advgetopt/validator_duration.h>
 
 
@@ -454,7 +454,7 @@ void cui::stop(bool quitting)
     }
 
 // in case we get stuck, this tells us what's left behind
-//f_communicator->log_connections(snaplogger::severity_t::SEVERITY_DEBUG);
+f_communicator->log_connections(snaplogger::severity_t::SEVERITY_DEBUG);
 }
 
 
@@ -600,10 +600,25 @@ bool cui::user_commands(std::string const & command)
         }
         break;
 
+    case 'L':
+        if(command == "LICENSE"
+        || command == "LICENCE")
+        {
+            return parse_license();
+        }
+        break;
+
     case 'S':
         if(command == "STATUS")
         {
             return parse_status();
+        }
+        break;
+
+    case 'V':
+        if(command == "VERSIONS")
+        {
+            return parse_versions();
         }
         break;
 
@@ -704,12 +719,21 @@ std::string cui::get_prinbee_status() const
         return "unknown";
     }
 
+    // did we get the LCTXT message back?
+    //
+    // until then, we are not yet considered connected
+    //
+    if(!f_messenger->proxy_has_context_list())
+    {
+        return "connecting";
+    }
+
     // we do not yet transmit the status of each backend daemon to
     // the client; the proxy needs to do that and at the moment I
     // am not too sure what I want to send other than the loadavg
     //
     std::stringstream ss;
-    ss << "TODO";
+    ss << "connected (TODO: add details)";
 
     return ss.str();
 }
@@ -857,6 +881,33 @@ bool cui::parse_help()
 }
 
 
+bool cui::parse_license()
+{
+    prinbee::pbql::node::pointer_t n(f_lexer->get_next_token());
+
+    if(n->get_token() == prinbee::pbql::token_t::TOKEN_IDENTIFIER)
+    {
+        std::string keyword(n->get_string_upper());
+        if(keyword != "FULL")
+        {
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+            msg << n->get_location().get_location()
+                << "expected keyword FULL after the LICENSE command.";
+            throw prinbee::invalid_token(msg.str());
+        }
+        f_parser->expect_semi_colon("LICENSE FULL");
+        f_console_connection->output(advgetopt::g_license_gpl_v3);
+    }
+    else
+    {
+        f_parser->expect_semi_colon("LICENSE", n);
+        f_console_connection->output(g_command_line_options_environment.f_license);
+    }
+
+    return true;
+}
+
+
 bool cui::parse_status()
 {
     prinbee::pbql::node::pointer_t n(f_lexer->get_next_token());
@@ -899,6 +950,56 @@ bool cui::parse_status()
     }
 
     return false;
+}
+
+
+bool cui::parse_versions()
+{
+    prinbee::pbql::node::pointer_t n(f_lexer->get_next_token());
+
+    enum class select_t
+    {
+        SELECT_COMMUNICATOR,
+    };
+
+    std::set<select_t> selector;
+
+    while(n->get_token() == prinbee::pbql::token_t::TOKEN_IDENTIFIER)
+    {
+        std::string keyword(n->get_string_upper());
+        bool found(false);
+        switch(keyword[0])
+        {
+        case 'C':
+            if(keyword == "COMMUNICATOR")
+            {
+                found = true;
+                selector.insert(select_t::SELECT_COMMUNICATOR);
+            }
+            break;
+
+        }
+        if(!found)
+        {
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+            msg << n->get_location().get_location()
+                << "expected a system name after VERSION.";
+            throw prinbee::invalid_token(msg.str());
+        }
+        n = f_lexer->get_next_token();
+        if(n->get_token() == prinbee::pbql::token_t::TOKEN_COMMA)
+        {
+            n = f_lexer->get_next_token();
+        }
+    }
+
+    f_parser->expect_semi_colon("VERSION", n);
+
+    // it worked, show the versions now
+    //
+    f_console_connection->output("Communicator: v<TOOD>");
+
+    return true;
 }
 
 
