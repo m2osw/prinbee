@@ -603,6 +603,7 @@ void prinbeed::finish_initialization()
     if(!advgetopt::validator_duration::convert_string(
                   f_opts.get_string("ping_pong_interval")
                 , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                , 1.0
                 , ping_pong_interval))
     {
         SNAP_LOG_CONFIGURATION_WARNING
