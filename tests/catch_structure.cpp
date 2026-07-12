@@ -660,6 +660,41 @@ constexpr prinbee::struct_description_t g_description11[] =
 };
 
 
+constexpr prinbee::struct_description_t g_description12_column[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("name")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_P8STRING)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("id")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_UINT32)
+    ),
+    prinbee::end_descriptions()
+};
+
+
+constexpr prinbee::struct_description_t g_description12[] =
+{
+    prinbee::define_description(
+          prinbee::FieldName("_magic")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_MAGIC)
+        , prinbee::FieldDefaultValue(prinbee::to_string(prinbee::dbtype_t::BLOCK_TYPE_SCHEMA_LIST))
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("_structure_version")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_STRUCTURE_VERSION)
+        , prinbee::FieldVersion(5, 29)
+    ),
+    prinbee::define_description(
+          prinbee::FieldName("columns")
+        , prinbee::FieldType(prinbee::struct_type_t::STRUCT_TYPE_ARRAY16)
+        , prinbee::FieldSubDescription(g_description12_column)
+    ),
+    prinbee::end_descriptions()
+};
+
+
 
 
 
@@ -3440,7 +3475,7 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
                   description->set_uinteger("_magic", SNAP_CATCH2_NAMESPACE::rand32())
                 , prinbee::type_mismatch
                 , Catch::Matchers::ExceptionMessage(
-                    "prinbee_exception: this field type is \"MAGIC\""
+                    "prinbee_exception: type of field \"_magic\" is \"MAGIC\""
                     " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
 
         CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
@@ -3457,6 +3492,9 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
         description->set_string("comment", comment_field);
         CATCH_REQUIRE(description->get_current_size() == 4UL + 4UL + 32UL + 1UL + 4UL + comment_field.length());
         CATCH_REQUIRE(description->get_string("comment") == comment_field);
+
+        prinbee::structure::vector_t empty_array(description->get_array("columns"));
+        CATCH_REQUIRE(empty_array.empty());
 
         // now create column definitions, one at a time and add them to
         // the array
@@ -3728,7 +3766,7 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
                   description->set_uinteger("_magic", SNAP_CATCH2_NAMESPACE::rand32())
                 , prinbee::type_mismatch
                 , Catch::Matchers::ExceptionMessage(
-                    "prinbee_exception: this field type is \"MAGIC\""
+                    "prinbee_exception: type of field \"_magic\" is \"MAGIC\""
                     " but we expected one of \"BITS8, BITS16, BITS32, BITS64, OID, REFERENCE, UINT8, UINT16, UINT32, UINT64, VERSION\"."));
 
         CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
@@ -4965,6 +5003,82 @@ CATCH_TEST_CASE("structure_array", "[structure][array][valid]")
         }
 
         CATCH_REQUIRE(description->get_array("columns").empty());
+    }
+    CATCH_END_SECTION()
+}
+
+
+
+CATCH_TEST_CASE("structure_empty_array", "[structure][array][valid][empty]")
+{
+    CATCH_START_SECTION("structure_empty_array: create buffer with data but keep ARRAY8 empty")
+    {
+        // create a structure without adding any items to the array
+        //
+        prinbee::structure::pointer_t generate_description(std::make_shared<prinbee::structure>(g_description12));
+        generate_description->init_buffer();
+
+        //CATCH_REQUIRE(generate_description->get_string("name") == "users");
+        //std::string const name("empty_array");
+        //generate_description->set_string("name", name);
+        //CATCH_REQUIRE(generate_description->get_string("name") == name);
+
+        // write the data to a buffer
+        //
+        prinbee::reference_t start_offset(0);
+        prinbee::virtual_buffer::pointer_t b(generate_description->get_virtual_buffer(start_offset));
+        CATCH_REQUIRE(b != nullptr);
+        CATCH_REQUIRE(b->size() == generate_description->get_current_size());
+
+        prinbee::buffer_t buffer(b->size());
+        CATCH_REQUIRE(b->pread(buffer.data(), buffer.size(), 0) == static_cast<int>(buffer.size()));
+SNAP_LOG_ERROR << "here the buffer has a size of " << b->size() << " bytes." << SNAP_LOG_SEND;
+
+        // create a new buffer from that raw data
+        // (structure -> raw binary buffer -> structure)
+        //
+        prinbee::virtual_buffer::pointer_t n(std::make_shared<prinbee::virtual_buffer>());
+        n->pwrite(buffer.data(), buffer.size(), 0, true);
+{
+void * data(buffer.data());
+SNAP_LOG_ERROR << "--- deserialize message data (" << buffer.size() << " bytes)" << SNAP_LOG_SEND;
+std::stringstream ss;
+for(std::size_t i(0); i < buffer.size(); ++i)
+{
+    ss << " 0x" << std::hex << static_cast<int>(reinterpret_cast<unsigned char const *>(data)[i]);
+}
+SNAP_LOG_ERROR << "--- message is: " << ss.str() << SNAP_LOG_SEND;
+}
+
+        prinbee::structure::pointer_t description(std::make_shared<prinbee::structure>(g_description12));
+        description->set_virtual_buffer(n, 0);
+
+        //CATCH_REQUIRE(description->get_magic() == prinbee::dbtype_t::BLOCK_TYPE_INDEX_POINTERS);
+        //CATCH_REQUIRE(description->get_version(prinbee::g_system_field_name_structure_version) == prinbee::version_t(1, 2));
+        //CATCH_REQUIRE(description->get_string("name") == name);
+
+        // now verify that we can determine that the array is empty
+        //
+        prinbee::structure::vector_t empty_array(description->get_array("columns"));
+        CATCH_REQUIRE(empty_array.empty());
+
+        prinbee::structure::vector_t empty_array2(description->get_array("columns"));
+        CATCH_REQUIRE(empty_array2.empty());
+
+//{
+//    structure::pointer_t description(std::make_shared<structure>(g_list_contexts_description));
+//SNAP_LOG_ERROR << "--- deserialize list of contexts / setup buffer." << SNAP_LOG_SEND;
+//    description->set_virtual_buffer(buffer, 0);
+//
+//    structure::vector_t list(description->get_array("context_items"));
+//    std::size_t const max(list.size());
+//SNAP_LOG_ERROR << "--- deserialize list of contexts with " << max << " entries." << SNAP_LOG_SEND;
+//    for(std::size_t idx(0); idx < max; ++idx)
+//    {
+//        context_list.f_list.push_back({list[idx]->get_string("name"), 0});
+//    }
+//}
+
     }
     CATCH_END_SECTION()
 }

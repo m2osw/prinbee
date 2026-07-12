@@ -10,9 +10,9 @@
 #  * cluck
 #
 
-# TODO: move those to the BUILD folder
-#
-BUILD_TMPDIR="../../BUILD/Debug/contrib/prinbee/tmp"
+RELEASE=Debug
+RELEASE=Sanitize
+BUILD_TMPDIR="../../BUILD/${RELEASE}/contrib/prinbee/tmp"
 CLUCK_LOG_FILE="${BUILD_TMPDIR}/cluck.log"
 COMMUNICATORD_LOG_FILE="${BUILD_TMPDIR}/communicatord.log"
 CUI_LOG_FILE="${BUILD_TMPDIR}/cui.log"
@@ -88,83 +88,86 @@ rm -f "${CLUCK_LOG_FILE}"\
 #
 echo "info: start communicator daemon"
 PATH="`pwd`/tests:${PATH}" \
-ADVGETOPT_OPTIONS_FILES_DIRECTORY="../../BUILD/Debug/dist/share/communicator/options" \
-../../BUILD/Debug/contrib/communicator/daemon/communicatord \
+ADVGETOPT_OPTIONS_FILES_DIRECTORY="../../BUILD/${RELEASE}/dist/share/communicator/options" \
+../../BUILD/${RELEASE}/contrib/communicator/daemon/communicatord \
 	--log-file "${COMMUNICATORD_LOG_FILE}" \
 	--trace \
 	--except-stack-collect complete \
 	--debug-all-messages \
 	--my-address 127.0.0.1 \
-	--services "../../BUILD/Debug/dist/share/communicator/services" \
-	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
-	--communicator-plugin-paths "`pwd`/../../BUILD/Debug/dist/lib/communicator/plugins" \
-	--logger-plugin-paths "`pwd`/../../BUILD/Debug/dist/lib/snaplogger/plugins" \
-	--timedate-wait-command "../../BUILD/Debug/dist/bin/timedate-wait" \
+	--services "../../BUILD/${RELEASE}/dist/share/communicator/services" \
+	--path-to-message-definitions "../../BUILD/${RELEASE}/dist/share/eventdispatcher/messages" \
+	--communicator-plugin-paths "`pwd`/../../BUILD/${RELEASE}/dist/lib/communicator/plugins" \
+	--logger-plugin-paths "`pwd`/../../BUILD/${RELEASE}/dist/lib/snaplogger/plugins" \
+	--timedate-wait-command "../../BUILD/${RELEASE}/dist/bin/timedate-wait" \
 	--unix-listen "${COMMUNICATORD_SOCK}" &
 
 # Start the fluid-settings daemon
 #
 echo "info: start fluid-settings"
-../../BUILD/Debug/contrib/fluid-settings/daemon/fluid-settings \
+../../BUILD/${RELEASE}/contrib/fluid-settings/daemon/fluid-settings \
 	--log-file "${FLUID_SETTINGS_LOG_FILE}" \
 	--trace \
 	--except-stack-collect complete \
-	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
-	--definitions "../../BUILD/Debug/dist/share/fluid-settings/definitions" \
+	--path-to-message-definitions "../../BUILD/${RELEASE}/dist/share/eventdispatcher/messages" \
+	--definitions "../../BUILD/${RELEASE}/dist/share/fluid-settings/definitions" \
 	--settings "${FLUID_SETTINGS}" \
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
 
 # Start the cluck daemon
 #
 echo "info: start cluck"
-../../BUILD/Debug/contrib/cluck/daemon/cluckd \
+../../BUILD/${RELEASE}/contrib/cluck/daemon/cluckd \
 	--log-file "${CLUCK_LOG_FILE}" \
 	--trace \
 	--except-stack-collect complete \
-	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
+	--path-to-message-definitions "../../BUILD/${RELEASE}/dist/share/eventdispatcher/messages" \
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
 
 # Start the proxy daemon
 #
 echo "info: start prinbee proxy"
-../../BUILD/Debug/contrib/prinbee/proxy/prinbee-proxy \
+../../BUILD/${RELEASE}/contrib/prinbee/proxy/prinbee-proxy \
 	--log-file "${PROXY_LOG_FILE}" \
 	--trace \
 	--except-stack-collect complete \
 	--owner alexis:alexis \
 	--prinbee-path "`pwd`/${BUILD_TMPDIR}" \
-	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
+	--path-to-message-definitions "../../BUILD/${RELEASE}/dist/share/eventdispatcher/messages" \
 	--cluster-name "test_cluster" \
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
 
 # Start the actual daemon
 #
 echo "info: start prinbee daemon"
-../../BUILD/Debug/contrib/prinbee/daemon/prinbee-daemon \
+../../BUILD/${RELEASE}/contrib/prinbee/daemon/prinbee-daemon \
 	--log-file "${DAEMON_LOG_FILE}" \
 	--trace \
 	--except-stack-collect complete \
 	--owner alexis:alexis \
 	--prinbee-path "`pwd`/${BUILD_TMPDIR}" \
-	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
+	--path-to-message-definitions "../../BUILD/${RELEASE}/dist/share/eventdispatcher/messages" \
 	--cluster-name "test_cluster" \
-	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" &
+	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" 2>info.txt &
+
+echo "----------------------------- STARTED DAEMON -----------------------------"
+exit 0
 
 # Now run the pbql command
 #
 echo "info: start pbql..."
-../../BUILD/Debug/contrib/prinbee/cui/pbql \
+../../BUILD/${RELEASE}/contrib/prinbee/cui/pbql \
 	--log-file "${CUI_LOG_FILE}" \
 	--trace \
 	--except-stack-collect complete \
-	--documentation "../../BUILD/Debug/dist/share/doc/prinbee/cui/" \
-	--path-to-message-definitions "../../BUILD/Debug/dist/share/eventdispatcher/messages" \
+	--documentation "../../BUILD/${RELEASE}/dist/share/doc/prinbee/cui/" \
+	--path-to-message-definitions "../../BUILD/${RELEASE}/dist/share/eventdispatcher/messages" \
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}"
 
 # Stop everything except the communicator daemon
 #
 echo "info: ed-signal to broadcast STOP to all clients..."
-../../BUILD/Debug/contrib/eventdispatcher/tools/ed-signal \
+../../BUILD/${RELEASE}/contrib/eventdispatcher/tools/ed-signal \
 	--console \
 	--trace \
 	--except-stack-collect complete \
@@ -173,7 +176,7 @@ echo "info: ed-signal to broadcast STOP to all clients..."
 # Ask the communicator daemon to shutdown
 #
 sleep 1
-../../BUILD/Debug/contrib/eventdispatcher/tools/ed-signal \
+../../BUILD/${RELEASE}/contrib/eventdispatcher/tools/ed-signal \
 	--console \
 	--trace \
 	communicatord/STOP
@@ -182,7 +185,7 @@ sleep 1
 if pgrep -u "${USER}" communicatord >/dev/null
 then
 	echo "info: ed-stop to send Ctrl-C to the communicatord..."
-	../../BUILD/Debug/contrib/eventdispatcher/tools/ed-stop \
+	../../BUILD/${RELEASE}/contrib/eventdispatcher/tools/ed-stop \
 		--process-name \
 		--service communicatord
 fi

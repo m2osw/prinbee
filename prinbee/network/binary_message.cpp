@@ -382,7 +382,7 @@ std::size_t binary_message::get_message_header_size()
 }
 
 
-void binary_message::set_message_header_data(void const * data, std::size_t size)
+void binary_message::set_message_header_data(void const * const data, std::size_t const size)
 {
 #ifdef _DEBUG
     if(sizeof(header_t) != size)
@@ -915,7 +915,7 @@ void binary_message::create_list_contexts_message(advgetopt::string_list_t const
     {
         structure::pointer_t item(description->new_array_item("context_items"));
         item->set_string("name", n);
-        item->set_uinteger("id", 1);
+        item->set_uinteger("id", 0);  // the identifier is ignored in this case
     }
 
     reference_t start_offset(0);
@@ -933,6 +933,15 @@ bool binary_message::deserialize_list_contexts_message(msg_list_contexts_t & con
 {
     std::size_t size(0L);
     void const * data(get_either_pointer(size));
+{
+SNAP_LOG_ERROR << "--- deserialize message data (" << message_name_to_string(get_name()) << ": " << size << " bytes)" << SNAP_LOG_SEND;
+std::stringstream ss;
+for(std::size_t i(0); i < size; ++i)
+{
+    ss << " 0x" << std::hex << static_cast<int>(reinterpret_cast<unsigned char const *>(data)[i]);
+}
+SNAP_LOG_ERROR << "--- message is: " << ss.str() << SNAP_LOG_SEND;
+}
 
     virtual_buffer::pointer_t buffer(std::make_shared<virtual_buffer>());
     buffer->pwrite(data, size, 0, true);

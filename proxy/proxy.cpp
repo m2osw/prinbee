@@ -903,7 +903,7 @@ SNAP_LOG_ERROR << "--- still many bugs everywhere, but we're here now..." << SNA
         //
         if(state == prinbee::MSG_REPLY_SUCCEEDED)
         {
-            // we're connected at least one daemon
+            // we're connected to at least one daemon
             //
             if(!f_daemon_ready)
             {
@@ -979,7 +979,7 @@ SNAP_LOG_ERROR << "--- prepare to deserialize the list contexts message..." << S
             << SNAP_LOG_SEND;
         return;
     }
-SNAP_LOG_ERROR << "--- check the list, if new or it change forward it to all clients..." << SNAP_LOG_SEND;
+SNAP_LOG_ERROR << "--- check the list, if new or it changed forward it to all clients..." << SNAP_LOG_SEND;
     if(f_context_list_available
     && f_context_list == context_list)
     {

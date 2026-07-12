@@ -636,8 +636,8 @@ void prinbeed::finish_initialization()
         }
     }
     cppthread::fifo<payload_t::pointer_t>::pointer_t fifo(std::make_shared<cppthread::fifo<payload_t::pointer_t>>());
-    f_worker_pool = std::make_shared<worker_pool>(this, 1, fifo);
-    //f_worker_pool = std::make_shared<worker_pool>(this, workers_count, fifo);
+    //f_worker_pool = std::make_shared<worker_pool>(this, 1, fifo);
+    f_worker_pool = std::make_shared<worker_pool>(this, workers_count, fifo);
 
     if(f_opts.is_defined("owner"))
     {

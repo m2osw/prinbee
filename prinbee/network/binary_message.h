@@ -455,7 +455,7 @@ public:
     bool                        get_acknowledged_success() const;
 
     static std::size_t          get_message_header_size();
-    void                        set_message_header_data(void const * data, std::size_t size);
+    void                        set_message_header_data(void const * const data, std::size_t const size);
     void                        add_message_header_byte(std::uint8_t data);
     bool                        is_message_header_valid() const;
     std::size_t                 get_data_size() const;
