@@ -151,7 +151,9 @@ echo "info: start prinbee daemon"
 	--communicator-listen "cd://`pwd`/${COMMUNICATORD_SOCK}" 2>info.txt &
 
 echo "----------------------------- STARTED DAEMON -----------------------------"
-exit 0
+
+#echo "exit now... while debugging deadlock"
+#exit 0
 
 # Now run the pbql command
 #
