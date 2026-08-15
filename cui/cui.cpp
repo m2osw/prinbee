@@ -569,8 +569,10 @@ f_console_connection->output("--- execute pbql system commands from " + filename
 //        }
 
         // ... TODO ...
+        f_messenger->execute_commands(f_cmds);
     }
-    else if(f_quit)
+
+    if(f_quit)
     {
         // special case where there was just a QUIT; command, then the
         // list of commands is empty and the f_quit flag is true
@@ -719,7 +721,7 @@ std::string cui::get_prinbee_status() const
         return "unknown";
     }
 
-    // did we get the LCTXT message back?
+    // did we get the LCTX message back?
     //
     // until then, we are not yet considered connected
     //

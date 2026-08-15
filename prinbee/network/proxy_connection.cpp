@@ -403,7 +403,7 @@ SNAP_LOG_ERROR
             // we need the identifiers for any other requests so we can as
             // well get those now
             //
-            get_context_list();
+            get_list_of_contexts();
         }
         else
         {
@@ -464,7 +464,17 @@ bool proxy_connection::is_registered() const
 }
 
 
-void proxy_connection::get_context_list()
+/** \brief Finish up initialization by asking about the contexts.
+ *
+ * This function finishes up the initialization by sending a message
+ * to the connected server to get the list of contexts.
+ *
+ * \note
+ * The get_context_list() is probably the function you're interested in
+ * since that's the one returning the list to you once available. See
+ * also the has_context_list() function.
+ */
+void proxy_connection::get_list_of_contexts()
 {
     // if we already received the list, no need to resend the message;
     //
@@ -516,6 +526,39 @@ void proxy_connection::save_context_list(binary_message::pointer_t msg)
 bool proxy_connection::has_context_list() const
 {
     return f_context_list_available;
+}
+
+
+msg_list_contexts_t & proxy_connection::get_context_list()
+{
+    if(!f_context_list_available)
+    {
+        throw unavailable("the list of contexts is still unavailable.");
+    }
+
+    return f_context_list;
+}
+
+
+context_id_t proxy_connection::get_context_id(std::string const & name)
+{
+    if(!f_context_list_available)
+    {
+        throw unavailable("the list of contexts is still unavailable.");
+    }
+
+    return f_context_list.get_context_id(name);
+}
+
+
+std::string proxy_connection::get_context_name(context_id_t id)
+{
+    if(!f_context_list_available)
+    {
+        throw unavailable("the list of contexts is still unavailable.");
+    }
+
+    return f_context_list.get_context_name(id);
 }
 
 

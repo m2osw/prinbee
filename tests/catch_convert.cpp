@@ -3070,7 +3070,7 @@ CATCH_TEST_CASE("convert_errors", "[convert] [invalid]")
         prinbee::buffer_t const buffer(prinbee::string_to_typed_buffer(prinbee::struct_type_t::STRUCT_TYPE_BITS8, "100"));
         CATCH_REQUIRE_THROWS_MATCHES(
                   prinbee::typed_buffer_to_string(prinbee::struct_type_t::STRUCT_TYPE_BITS8, buffer, 37)
-                , prinbee::conversion_unavailable
+                , prinbee::unavailable
                 , Catch::Matchers::ExceptionMessage("prinbee_exception: base 37 not supported."));
     }
     CATCH_END_SECTION()

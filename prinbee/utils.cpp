@@ -33,6 +33,7 @@
 
 // snapdev
 //
+#include    <snapdev/compare_switch_string.h>
 #include    <snapdev/pathinfo.h>
 
 
@@ -128,6 +129,55 @@ char const * get_prinbee_group()
 char const * get_prinbee_user()
 {
     return g_prinbee_name;
+}
+
+
+bool is_forbidden_name(char const * name)
+{
+    if(name == nullptr)
+    {
+        return true;
+    }
+
+    switch(name[0])
+    {
+    case 'C':
+    case 'c':
+        if(snapdev::compare_upper_switch_string<"CURRENT">(name))
+        {
+            return true;
+        }
+        break;
+
+    case 'O':
+    case 'o':
+        if(snapdev::compare_upper_switch_string<"ORDER">(name))
+        {
+            return true;
+        }
+        if(snapdev::compare_upper_switch_string<"OUTPUT">(name))
+        {
+            return true;
+        }
+        break;
+
+    case 'W':
+    case 'w':
+        if(snapdev::compare_upper_switch_string<"WHERE">(name))
+        {
+            return true;
+        }
+        break;
+
+    }
+
+    return false;
+}
+
+
+bool is_forbidden_name(std::string const & name)
+{
+    return is_forbidden_name(name.c_str());
 }
 
 

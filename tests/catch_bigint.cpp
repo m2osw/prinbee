@@ -1875,7 +1875,7 @@ CATCH_TEST_CASE("bigint_invalid", "[bigint] [invalid]")
                 while(a == 0);
                 CATCH_REQUIRE_THROWS_MATCHES(
                           a.to_string(i)
-                        , prinbee::conversion_unavailable
+                        , prinbee::unavailable
                         , Catch::Matchers::ExceptionMessage(
                               "prinbee_exception: base "
                             + std::to_string(i)

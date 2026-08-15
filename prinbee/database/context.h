@@ -44,7 +44,7 @@ class context_impl;
 }
 
 
-constexpr std::size_t const                 MAX_CONTEXT_NAME_SEGMENTS = 4;
+constexpr std::size_t const                 MAX_CONTEXT_NAME_SEGMENTS = 4;  // this includes the path (up to 3 segments) + the context name
 constexpr std::size_t const                 MAX_CONTEXT_NAME_SEGMENT_LENGTH = 100;
 
 char const *                                get_context_filename();

@@ -11,7 +11,7 @@
 #
 
 RELEASE=Debug
-RELEASE=Sanitize
+#RELEASE=Sanitize
 BUILD_TMPDIR="../../BUILD/${RELEASE}/contrib/prinbee/tmp"
 CLUCK_LOG_FILE="${BUILD_TMPDIR}/cluck.log"
 COMMUNICATORD_LOG_FILE="${BUILD_TMPDIR}/communicatord.log"
@@ -20,8 +20,13 @@ DAEMON_LOG_FILE="${BUILD_TMPDIR}/daemon.log"
 FLUID_SETTINGS_LOG_FILE="${BUILD_TMPDIR}/fluid-settings.log"
 FLUID_SETTINGS="${BUILD_TMPDIR}/fluid-settings.conf"
 PROXY_LOG_FILE="${BUILD_TMPDIR}/proxy.log"
-
 COMMUNICATORD_SOCK="${BUILD_TMPDIR}/communicatord.sock"
+
+
+# if we run the sanitized version, we're going to get a ton of snaplogger issues
+#
+export LSAN_OPTIONS=suppressions=../../BUILD/${RELEASE}/dist/share/snaplogger/suppress-leaks.txt
+
 
 if ! test -f tests/run_pbql_cui.sh
 then
@@ -79,7 +84,15 @@ rm -f "${CLUCK_LOG_FILE}"\
 
 # Recompile so we run the latest
 #
-./mk -i
+if test "${RELEASE}" = "Sanitize"
+then
+	./mk -s -i
+elif test "${RELEASE}" = "Release"
+then
+	./mk -r -i
+else
+	./mk -i
+fi
 
 # Start the communicator daemon
 #

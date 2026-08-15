@@ -33,13 +33,8 @@
 //
 #include    <prinbee/state.h>
 #include    <prinbee/network/binary_client.h>
+#include    <prinbee/pbql/command.h>
 
-
-
-// eventdispatcher
-//
-//#include    <eventdispatcher/communicator.h>
-//#include    <eventdispatcher/message.h>
 
 
 // snapdev
@@ -107,9 +102,12 @@ public:
     bool                        is_proxy_ready() const;
     bool                        is_proxy_registered() const;
     bool                        proxy_has_context_list() const;
+    msg_list_contexts_t &       proxy_get_context_list() const;
     addr::addr const &          get_address() const;
     bool                        has_address() const;
     bool                        is_ping_pong_timer_on() const;
+
+    void                        execute_commands(pbql::command::vector_t cmds);
 
 private:
     void                        msg_prinbee_proxy_current_status(ed::message & msg);

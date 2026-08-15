@@ -75,6 +75,8 @@ void                set_prinbee_path(std::string const & path);
 std::string const & get_prinbee_path();
 char const *        get_prinbee_group();
 char const *        get_prinbee_user();
+bool                is_forbidden_name(char const * name);
+bool                is_forbidden_name(std::string const & name);
 
 
 /** \brief Validate a field, table, or column name.
@@ -85,7 +87,7 @@ char const *        get_prinbee_user();
  * function instead. It allows for the `'='` sign and flag name and size
  * definitions.
  *
- * Similary, if the field is a CHAR field, make sure to use the
+ * Similarly, if the field is a CHAR field, make sure to use the
  * validate_char_field_name() function, which checks for the `'='` sign
  * and a size.
  *
@@ -388,7 +390,7 @@ constexpr bool validate_bit_field_name(
 /** \brief Make sure the node name does not include a known suffix.
  *
  * This function verifies that the specified string (node name) does
- * not end with of of the currently known suffixes.
+ * not end with one of the currently known suffixes.
  *
  * We prevent the names from ending with "_proxy" and "_client"
  * because we do add that to the name when registering a proxy

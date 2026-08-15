@@ -216,7 +216,7 @@ context_id_t msg_list_contexts_t::get_context_id(std::string const & name)
         }));
     if(it == f_list.end())
     {
-        return 0;
+        return CONTEXT_ID_NONE;
     }
 
     return it->f_context_id;
@@ -442,7 +442,7 @@ SNAP_LOG_ERROR << "--- crc16 is wrong? ---" << SNAP_LOG_SEND;
 
     // everything looks good
     //
-SNAP_LOG_ERROR << "--- perfect ---" << SNAP_LOG_SEND;
+//SNAP_LOG_ERROR << "--- perfect ---" << SNAP_LOG_SEND;
     return true;
 }
 
@@ -985,8 +985,8 @@ void binary_message::create_context_message(msg_context_t const & context)
     //
     description->set_string("context_name", context.f_context_name);
     description->set_string("description", context.f_description);
-    description->set_integer("schema_version", context.f_schema_version);
-    description->set_integer("context_id", context.f_context_id);
+    description->set_uinteger("schema_version", context.f_schema_version);
+    description->set_uinteger("context_id", context.f_context_id);
 
     // the following cannot be set from clients; the daemon manages these
     //description->set_integer("created_on", context.f_created_on);

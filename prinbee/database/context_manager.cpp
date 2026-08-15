@@ -170,11 +170,17 @@ context_manager::pointer_t context_manager::get_instance()
 void context_manager::load_contexts()
 {
     std::string const root_path(get_contexts_root_path());
+    std::string const filename(get_context_filename());
 
+    // the pattern is "/<root-path>/*/context.pb" because a context must be
+    // inside a sub-folder from the root path:
+    //
+    //     /<root-path>/<context-name>/context.pb"
+    //
     snapdev::glob_to_list<std::list<std::string>> list;
     if(!list.read_path<
               snapdev::glob_to_list_flag_t::GLOB_FLAG_RECURSIVE
-            , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(snapdev::pathinfo::canonicalize(root_path, get_context_filename())))
+            , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(snapdev::pathinfo::canonicalize(root_path, "*", filename)))
     {
         snaplogger::message msg(snaplogger::severity_t::SEVERITY_FATAL);
         msg << "could not read directory \""
@@ -193,9 +199,14 @@ void context_manager::load_contexts()
     }
     else
     {
+        std::size_t const start(root_path.length() + 1);
+        std::size_t const length_adjust(root_path.length() + filename.length() + 2);
         for(auto const & name : list)
         {
-            create_context(name);
+            // as is `name` includes the root path and the filename
+            //
+            std::string const n(name.substr(start, name.length() - length_adjust));
+            create_context(n);
         }
     }
 }

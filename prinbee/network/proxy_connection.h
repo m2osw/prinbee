@@ -72,6 +72,9 @@ public:
     double                      get_proxy_loadavg() const;
     bool                        is_registered() const;
     bool                        has_context_list() const;
+    msg_list_contexts_t &       get_context_list();
+    context_id_t                get_context_id(std::string const & name);
+    std::string                 get_context_name(context_id_t id);
 
     // binary_client implementation
     //
@@ -96,7 +99,7 @@ private:
                                       std::uint32_t serial_number
                                     , bool success);
     void                        set_proxy_registered(bool is_registered);
-    void                        get_context_list();
+    void                        get_list_of_contexts();
     void                        save_context_list(binary_message::pointer_t msg);
 
     prinbee_connection *        f_prinbee_connection = nullptr;

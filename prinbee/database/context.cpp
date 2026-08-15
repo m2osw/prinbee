@@ -966,7 +966,7 @@ void context_setup::set_name(std::string const & name)
             + name
             + "\" is not valid (limit is "
             + std::to_string(MAX_CONTEXT_NAME_SEGMENTS)
-            + ").");
+            + " segments).");
     }
 
     // the following ensures that each segment in the context name is
@@ -980,9 +980,16 @@ void context_setup::set_name(std::string const & name)
         if(!validate_name(s.c_str(), MAX_CONTEXT_NAME_SEGMENT_LENGTH))
         {
             throw invalid_name(
-                    "context name segment \""
-                  + s
-                  + "\" is not considered valid.");
+                  "context name segment \""
+                + s
+                + "\" is not considered valid.");
+        }
+        if(is_forbidden_name(s))
+        {
+            throw invalid_name(
+                  "context name segment \""
+                + s
+                +"\" is not allowed (matches an existing or future pbql keyword).");
         }
     }
 

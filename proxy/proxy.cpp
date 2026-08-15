@@ -1021,6 +1021,7 @@ std::cout << "info:proxy: forward message to " << f_client_connections.size() <<
         {
             continue;
         }
+std::cout << "info:proxy: actually do the forwarding...\n";
         p->send_message(msg);
     }
 }

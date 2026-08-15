@@ -114,7 +114,7 @@ ssize_t binary_server_client::write(void const * buf, std::size_t count)
         errno = EBADF;
         return -1;
     }
-SNAP_LOG_WARNING << "binary server client write() called: " << buf << " + " << count << SNAP_LOG_SEND;
+//SNAP_LOG_WARNING << "binary server client write() called: " << buf << " + " << count << SNAP_LOG_SEND;
 
     if(buf != nullptr && count > 0)
     {
@@ -135,7 +135,7 @@ SNAP_LOG_WARNING << "binary server client write() called: " << buf << " + " << c
                 {
                     // no buffer needed!
                     //
-SNAP_LOG_WARNING << "binary server client write() -- instant write worked!" << SNAP_LOG_SEND;
+//SNAP_LOG_WARNING << "binary server client write() -- instant write worked!" << SNAP_LOG_SEND;
                     return count;
                 }
 
@@ -147,7 +147,7 @@ SNAP_LOG_WARNING << "binary server client write() -- instant write worked!" << S
             //       but we're going to cache the data, etc. which is a waste
         }
 
-SNAP_LOG_WARNING << "binary server client write() -- caching data for later" << SNAP_LOG_SEND;
+//SNAP_LOG_WARNING << "binary server client write() -- caching data for later" << SNAP_LOG_SEND;
         f_output.insert(f_output.end(), d, d + l);
         return count;
     }
@@ -409,9 +409,12 @@ void binary_server_client::process_write()
  */
 void binary_server_client::process_message(binary_message::pointer_t msg)
 {
+if(msg->get_name() != g_message_ping)
+{
 SNAP_LOG_ERROR << "--- process_message "
 << message_name_to_string(msg->get_name())
 << " (DATA: " << msg->get_data_size() << " bytes)" << SNAP_LOG_SEND;
+}
     message_name_t const name(msg->get_name());
     auto it(f_callback_map.find(name));
     if(it == f_callback_map.end())
@@ -481,9 +484,9 @@ void binary_server_client::process_invalid()
 
 void binary_server_client::send_message(binary_message::pointer_t msg)
 {
-SNAP_LOG_WARNING << "binary server client: send message header..." << SNAP_LOG_SEND;
+//SNAP_LOG_WARNING << "binary server client: send message header..." << SNAP_LOG_SEND;
     write(msg->get_header(), binary_message::get_message_header_size());
-SNAP_LOG_WARNING << "binary server client: send message data " << std::boolalpha << msg->has_data() << "..." << SNAP_LOG_SEND;
+//SNAP_LOG_WARNING << "binary server client: send message data " << std::boolalpha << msg->has_data() << "..." << SNAP_LOG_SEND;
     if(msg->has_data())
     {
         if(msg->has_pointer())

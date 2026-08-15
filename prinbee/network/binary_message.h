@@ -64,6 +64,8 @@ typedef std::uint32_t           data_version_t;         // used to make sure sch
 typedef std::uint32_t           message_serial_t;
 
 
+constexpr context_id_t const    CONTEXT_ID_NONE = 0;    // TODO: this should probably be defined in prinbee/database/context.h
+
 constexpr message_version_t     g_binary_message_version = 1;
 
 
@@ -311,7 +313,7 @@ struct msg_list_contexts_t
         bool                operator == (named_context_t const & rhs) const = default;
 
         std::string         f_name = std::string();
-        context_id_t        f_context_id = 0;
+        context_id_t        f_context_id = CONTEXT_ID_NONE;
     };
     named_context_t::list_t f_list = named_context_t::list_t();
 
@@ -349,7 +351,7 @@ struct msg_context_t
     std::string             f_context_name = std::string();             // new name for the context (unless we create the context the first time, other not defined)
     std::string             f_description = std::string();              // description of this context
     schema_version_t        f_schema_version = 0;                       // do not set on a GCTX, increase by 1 on a SCTX
-    context_id_t            f_context_id = 0;                           // defined by server when creating a context; unique among all contexts within a cluster
+    context_id_t            f_context_id = CONTEXT_ID_NONE;             // defined by server when creating a context; unique among all contexts within a cluster
     snapdev::timespec_ex    f_created_on = snapdev::timespec_ex();      // set when creating a context
     snapdev::timespec_ex    f_last_updated_on = snapdev::timespec_ex(); // set when updating a context (ALTER CONTEXT ... -> SCTX)
     std::uint32_t           f_table_count = 0;                          // the number of tables in this context
@@ -399,14 +401,14 @@ struct msg_synchronization_t
 
 struct msg_complex_types_t
 {
-    context_id_t    f_context_id = 0;               // the context ID
+    context_id_t    f_context_id = CONTEXT_ID_NONE; // the context ID
     buffer_t        f_complex_types = buffer_t();   // the complex types (used defined records)
 };
 
 
 struct msg_table_t
 {
-    context_id_t    f_context_id = 0;               // the context ID
+    context_id_t    f_context_id = CONTEXT_ID_NONE; // the context ID
     buffer_t        f_schemata = buffer_t();        // the table schemata
 };
 

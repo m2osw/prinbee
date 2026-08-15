@@ -59,6 +59,10 @@ enum class command_t
     COMMAND_CREATE_CONTEXT,
     COMMAND_ROLLBACK,
     COMMAND_SELECT,
+    COMMAND_SHOW_CONTEXT,
+    COMMAND_SHOW_CONTEXTS,
+    COMMAND_SHOW_INDEX,
+    COMMAND_SHOW_INDEXES,
 };
 
 
@@ -82,8 +86,10 @@ enum class param_mode_t
 
 
 constexpr int const         MAX_LIMIT       = 1'000'000;
+constexpr int const         MAX_NAMES       = 6;
 constexpr int const         MAX_EXPRESSIONS = 1'000;
 constexpr int const         MAX_TABLES      = 20;
+constexpr int const         MAX_FULL_NAME   = 20;
 
 enum class param_t
 {
@@ -95,6 +101,7 @@ enum class param_t
     PARAM_IF_EXISTS,
     PARAM_LIMIT,
     PARAM_NAME,
+    PARAM_NAME_end = PARAM_NAME + MAX_NAMES - 1,
     PARAM_ORDER_BY,
     PARAM_PATH,
     PARAM_TYPE,
@@ -112,6 +119,8 @@ enum class param_t
     PARAM_TABLE_end = PARAM_TABLE + MAX_TABLES - 1,
     PARAM_TABLE_NAME,
     PARAM_TABLE_NAME_end = PARAM_TABLE_NAME + MAX_TABLES - 1,
+    PARAM_FULL_NAME,
+    PARAM_FULL_NAME_end = PARAM_FULL_NAME + MAX_FULL_NAME - 1,
 };
 
 

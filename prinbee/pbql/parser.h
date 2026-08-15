@@ -60,7 +60,7 @@ class parser
 {
 public:
     typedef std::shared_ptr<parser>     pointer_t;
-    typedef std::function<bool(std::string const & command)>
+    typedef std::function<bool(std::string const & cmd)>
                                         capture_t;
 
                         parser(lexer::pointer_t l);
@@ -73,8 +73,13 @@ public:
     std::string         parse_expression(node::pointer_t & n);
 
     void                expect_semi_colon(
-                              std::string const & command
+                              std::string const & cmd
                             , node::pointer_t n = node::pointer_t());
+    node::pointer_t     get_full_name(
+                              command::pointer_t cmd
+                            , param_t start
+                            , param_t end
+                            , node::pointer_t n);
 
 private:
     void                parse_config();
@@ -94,12 +99,16 @@ private:
 
     void                parse_set();
 
+    void                parse_show();
+
     node::pointer_t     keyword_string(
                               std::string commands
                             , advgetopt::string_list_t const & keywords
                             , bool & optional_found
                             , token_t next_token_type = token_t::TOKEN_UNKNOWN);
-    void                parse_transaction_command(std::string const & cmd_name, command_t cmd);
+    void                parse_transaction_command(
+                              std::string const & cmd_name
+                            , command_t cmd_type);
 
     lexer::pointer_t    f_lexer = lexer::pointer_t();
     command::vector_t   f_commands = command::vector_t();

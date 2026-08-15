@@ -71,7 +71,7 @@
 //#include    <snapdev/floating_point_to_string.h>
 #include    <snapdev/math.h>
 //#include    <snapdev/not_reached.h>
-//#include    <snapdev/not_used.h>
+#include    <snapdev/pathinfo.h>
 //#include    <snapdev/string_replace_many.h>
 //#include    <snapdev/safe_variable.h>
 //#include    <snapdev/to_lower.h>
@@ -354,6 +354,17 @@ bool prinbee_connection::proxy_has_context_list() const
 }
 
 
+msg_list_contexts_t & prinbee_connection::proxy_get_context_list() const
+{
+    if(f_proxy_connection == nullptr)
+    {
+        throw unavailable("the proxy connection is not currently available.");
+    }
+
+    return f_proxy_connection->get_context_list();
+}
+
+
 addr::addr const & prinbee_connection::get_address() const
 {
     return f_address;
@@ -542,6 +553,65 @@ void prinbee_connection::fluid_settings_changed(
     }
 }
 
+
+/** \brief Helper function to execute a list of commands
+ *
+ * The parse creates a list of commands. This function can be used to then
+ * execute the commands by sending them to the server.
+ *
+ * \param[in] cmds  The list of commands to execute.
+ */
+void prinbee_connection::execute_commands(pbql::command::vector_t cmds)
+{
+    if(f_proxy_connection == nullptr)
+    {
+        throw unavailable("the proxy connection is not currently available.");
+    }
+
+    for(auto c : cmds)
+    {
+        binary_message::pointer_t msg(std::make_shared<binary_message>());
+        switch(c->get_command())
+        {
+        case pbql::command_t::COMMAND_CREATE_CONTEXT:
+            {
+                // only when we create the context we may have a path in the
+                // name
+                //
+                msg_context_t context_setup;
+                context_setup.f_context_name = snapdev::pathinfo::canonicalize(
+                      c->get_string(pbql::param_t::PARAM_PATH)
+                    , c->get_string(pbql::param_t::PARAM_NAME));
+                if(!c->get_bool(pbql::param_t::PARAM_IF_EXISTS))
+                {
+                    // Note: we have a known race condition here; we can still
+                    //       end up with two separate clients sending the
+                    //       CREATE CONTEXT at about the same time; assuming
+                    //       they both attempt to create the same context
+                    //       the results would be idempotent but one of them
+                    //       will fail (i.e. the version won't match for a
+                    //       valid update)
+                    //
+                    if(f_proxy_connection->get_context_id(context_setup.f_context_name) != CONTEXT_ID_NONE)
+                    {
+                        break;
+                    }
+                }
+                context_setup.f_description = c->get_string(pbql::param_t::PARAM_DESCRIPTION);
+                msg->create_context_message(context_setup);
+                f_proxy_connection->send_message(msg);
+            }
+            break;
+
+        default:
+            throw not_yet_implemented(
+                  "command not implemented ("
+                + std::to_string(static_cast<int>(c->get_command()))
+                + ")."); // LCOV_EXCL_LINE
+
+        }
+    }
+}
 
 
     // TODO: the state of the cluster needs to be transmitted using the

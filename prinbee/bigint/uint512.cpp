@@ -856,7 +856,7 @@ std::string uint512_t::to_string(int base, bool introducer, bool uppercase) cons
     default: // any other base from 2 to 36
         if(base < 2 || base > 36)
         {
-            throw conversion_unavailable(
+            throw unavailable(
                   "base "
                 + std::to_string(base)
                 + " not supported.");

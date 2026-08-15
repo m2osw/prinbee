@@ -50,7 +50,6 @@ DECLARE_MAIN_EXCEPTION(prinbee_exception);
 // uncomment as we use these
 DECLARE_EXCEPTION(prinbee_exception, block_not_found);
 DECLARE_EXCEPTION(prinbee_exception, column_not_found);
-DECLARE_EXCEPTION(prinbee_exception, conversion_unavailable);
 DECLARE_EXCEPTION(prinbee_exception, corrupted_data);
 DECLARE_EXCEPTION(prinbee_exception, defined_twice);
 DECLARE_EXCEPTION(prinbee_exception, exclusive_fields);
@@ -83,6 +82,7 @@ DECLARE_EXCEPTION(prinbee_exception, schema_not_found);
 DECLARE_EXCEPTION(prinbee_exception, string_not_terminated);
 DECLARE_EXCEPTION(prinbee_exception, type_mismatch);
 DECLARE_EXCEPTION(prinbee_exception, type_not_found);
+DECLARE_EXCEPTION(prinbee_exception, unavailable);
 DECLARE_EXCEPTION(prinbee_exception, unexpected_eof);
 DECLARE_EXCEPTION(prinbee_exception, unexpected_token);
 DECLARE_EXCEPTION(prinbee_exception, unknown_parameter);
