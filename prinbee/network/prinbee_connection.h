@@ -96,6 +96,7 @@ public:
     //
     virtual void                finish_initialization();
     virtual void                process_proxy_status();
+    virtual void                output(std::string const & msg);
 
     std::string                 get_proxy_status() const;
     snapdev::timespec_ex        get_last_ping() const;
@@ -117,6 +118,8 @@ private:
                                     , addr::addr const & address);
     void                        start_binary_connection();
     void                        setup_ping_pong_interval();
+    void                        create_context(pbql::command & c);
+    void                        show_contexts(pbql::command & c);
 
     ed::communicator::pointer_t f_communicator = ed::communicator::pointer_t();
     std::string                 f_proxy_status = std::string(g_proxy_state_unknown, snapdev::string_literal_length(g_proxy_state_unknown));

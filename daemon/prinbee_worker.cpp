@@ -188,23 +188,33 @@ prinbee_worker::~prinbee_worker()
  */
 bool prinbee_worker::do_work()
 {
-    switch(f_payload->f_message->get_name())
+    try
     {
-    case prinbee::g_message_register:
-        return f_prinbeed->register_client(f_payload);
+        switch(f_payload->f_message->get_name())
+        {
+        case prinbee::g_message_register:
+            return f_prinbeed->register_client(f_payload);
 
-    case prinbee::g_message_acknowledge:
-        return f_prinbeed->acknowledge(f_payload);
+        case prinbee::g_message_acknowledge:
+            return f_prinbeed->acknowledge(f_payload);
 
-    case prinbee::g_message_list_contexts:
-        return f_prinbeed->list_contexts(f_payload);
+        case prinbee::g_message_list_contexts:
+            return f_prinbeed->list_contexts(f_payload);
 
-    case prinbee::g_message_get_context:
-        return f_prinbeed->get_context(f_payload);
+        case prinbee::g_message_get_context:
+            return f_prinbeed->get_context(f_payload);
 
-    case prinbee::g_message_set_context:
-        return f_prinbeed->set_context(f_payload);
+        case prinbee::g_message_set_context:
+            return f_prinbeed->set_context(f_payload);
 
+        }
+    }
+    catch(libexcept::exception_t const & e)
+    {
+        SNAP_LOG_ERROR
+            << "prinbee_daemon_worker: an exception occurred: "
+            << e.what()
+            << SNAP_LOG_SEND;
     }
 
     return false;

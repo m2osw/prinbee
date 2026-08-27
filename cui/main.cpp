@@ -62,7 +62,7 @@ int main(int argc, char * argv[])
 {
     ed::signal_handler::create_instance();
     libexcept::verify_inherited_files();
-    libexcept::collect_stack_trace();
+    libexcept::set_extended_stack(true);
     libexcept::init_report_signal();
 
     std::string errmsg;

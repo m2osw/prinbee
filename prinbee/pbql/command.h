@@ -100,14 +100,21 @@ enum class param_t
     PARAM_GROUP,
     PARAM_IF_EXISTS,
     PARAM_LIMIT,
-    PARAM_NAME,
-    PARAM_NAME_end = PARAM_NAME + MAX_NAMES - 1,
+    PARAM_MODE,
     PARAM_ORDER_BY,
     PARAM_PATH,
     PARAM_TYPE,
     PARAM_USER,
     PARAM_WHERE,
-    PARAM_MODE,
+
+    PARAM_NAME,
+    PARAM_NAME_end = PARAM_NAME + MAX_NAMES - 1,
+    PARAM_TABLE,
+    PARAM_TABLE_end = PARAM_TABLE + MAX_TABLES - 1,
+    PARAM_TABLE_NAME,
+    PARAM_TABLE_NAME_end = PARAM_TABLE_NAME + MAX_TABLES - 1,
+    PARAM_FULL_NAME,
+    PARAM_FULL_NAME_end = PARAM_FULL_NAME + MAX_FULL_NAME - 1,
 
     // allow for up to MAX_EXPRESSIONS expressions (for SELECT)
     //
@@ -115,12 +122,6 @@ enum class param_t
     PARAM_EXPRESSION_end = PARAM_EXPRESSION + MAX_EXPRESSIONS - 1,
     PARAM_COLUMN_NAME,
     PARAM_COLUMN_NAME_end = PARAM_COLUMN_NAME + MAX_EXPRESSIONS - 1, // this is for the `<name>` part in `<expr> AS <name>` so same number of names than expression
-    PARAM_TABLE,
-    PARAM_TABLE_end = PARAM_TABLE + MAX_TABLES - 1,
-    PARAM_TABLE_NAME,
-    PARAM_TABLE_NAME_end = PARAM_TABLE_NAME + MAX_TABLES - 1,
-    PARAM_FULL_NAME,
-    PARAM_FULL_NAME_end = PARAM_FULL_NAME + MAX_FULL_NAME - 1,
 };
 
 

@@ -71,7 +71,7 @@
 //
 //#include    <snapdev/gethostname.h>
 //#include    <snapdev/stringize.h>
-//#include    <snapdev/tokenize_string.h>
+#include    <snapdev/string_replace_many.h>
 //#include    <snapdev/to_lower.h>
 
 
@@ -210,7 +210,13 @@ bool prinbeed::set_context(payload_t::pointer_t payload)
         {
             payload->f_stage = 1;
             std::string lock_name("context::");
-            lock_name += c.f_context_name;
+
+            // a valid context name is a/b/c/name
+            // the name of a lock cannot include '/'
+            // replace all the '/' with '.' since the name of a context
+            // cannot include periods, there won't be any overlap
+            //
+            lock_name += snapdev::string_replace_many(c.f_context_name, {{"/", "."}});
             obtain_cluster_lock(payload, lock_name);
         }
         break;

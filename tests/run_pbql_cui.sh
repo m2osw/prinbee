@@ -21,6 +21,7 @@ FLUID_SETTINGS_LOG_FILE="${BUILD_TMPDIR}/fluid-settings.log"
 FLUID_SETTINGS="${BUILD_TMPDIR}/fluid-settings.conf"
 PROXY_LOG_FILE="${BUILD_TMPDIR}/proxy.log"
 COMMUNICATORD_SOCK="${BUILD_TMPDIR}/communicatord.sock"
+KILL_ALL_DAEMONS=false
 
 
 # if we run the sanitized version, we're going to get a ton of snaplogger issues
@@ -41,10 +42,17 @@ check_daemon() {
 	if pgrep -u "${USER}" "${NAME}" > /dev/null
 	then
 		echo "error: the \"${NAME}\" daemon is still running."
-		echo
-		echo "Do you want to kill it? (y/[N]) \c"
-		read answer
-		if test "${answer}" = "y" -o "${answer}" = "Y"
+		if test "${KILL_ALL_DAEMONS}" = "false"
+		then
+			echo
+			echo "Do you want to kill it? ([a]ll/[y]es/[N]o) \c"
+			read answer
+			if "${answer}" = "a" -o "${answer}" = "A"
+			then
+				KILL_ALL_DAEMONS=true
+			fi
+		fi
+		if test "${answer}" = "y" -o "${answer}" = "Y" -o "${KILL_ALL_DAEMONS}" = "true"
 		then
 			echo "info: killing daemon ${NAME}."
 			if pkill -u "${USER}" "${NAME}"
@@ -75,7 +83,7 @@ mkdir -p ${BUILD_TMPDIR}/contexts
 # Remove the previous log files (that way we have one session in the entire
 # file which makes it easier to follow)
 #
-rm -f "${CLUCK_LOG_FILE}"\
+rm -f "${CLUCK_LOG_FILE}" \
 	"${COMMUNICATORD_LOG_FILE}" \
 	"${CUI_LOG_FILE}" \
 	"${DAEMON_LOG_FILE}" \

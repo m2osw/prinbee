@@ -1,6 +1,6 @@
 // Copyright (c) 2011-2025  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/communicatord
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
 // This program is free software: you can redistribute it and/or modify
@@ -22,13 +22,6 @@
 #include    "console_connection.h"
 
 #include    "cui.h"
-
-
-// communicatord
-//
-//#include    <communicatord/communicator.h>
-//#include    <communicatord/names.h>
-//#include    <communicatord/version.h>
 
 
 // eventdispatcher

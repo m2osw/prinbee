@@ -510,14 +510,14 @@ void proxy_connection::save_context_list(binary_message::pointer_t msg)
     //
     f_context_list_available = true;
 
-#ifdef _DEBUG
-    std::cout << "info:client: got list of " << f_context_list.f_list.size() << " contexts.\r\n";
-    for(auto c : f_context_list.f_list)
-    {
-        std::cout << std::setw(10) << c.f_context_id << ": " << c.f_name << "\r\n";
-    }
-    std::cout << std::flush;
-#endif
+//#ifdef _DEBUG
+//    std::cout << "info:client: got list of " << f_context_list.f_list.size() << " contexts.\r\n";
+//    for(auto c : f_context_list.f_list)
+//    {
+//        std::cout << std::setw(10) << c.f_context_id << ": " << c.f_name << "\r\n";
+//    }
+//    std::cout << std::flush;
+//#endif
 
     f_prinbee_connection->process_proxy_status();
 }

@@ -59,7 +59,7 @@ namespace prinbee_daemon
  * \note
  * The FIFO (\p fifo) is used to send payloads from one worker to the next.
  * If a function returns true, it means it updated the payload which is then
- * sent to the next available worker, So in most cases, our worker functions
+ * sent to the next available worker. So in most cases, our worker functions
  * return false since they process the message at once.
  *
  * \param[in] p  The prinbee object we are listening for (i.e. "daemon").

@@ -996,14 +996,14 @@ SNAP_LOG_ERROR << "--- check the list, if new or it changed forward it to all cl
     //
     f_context_list_available = true;
 
-#ifdef _DEBUG
-    std::cout << "info:proxy: got list of " << f_context_list.f_list.size() << " contexts.\n";
-    for(auto c : f_context_list.f_list)
-    {
-        std::cout << std::setw(10) << c.f_context_id << ": " << c.f_name << "\n";
-    }
-    std::cout << std::flush;
-#endif
+//#ifdef _DEBUG
+//    std::cout << "info:proxy: got list of " << f_context_list.f_list.size() << " contexts.\n";
+//    for(auto c : f_context_list.f_list)
+//    {
+//        std::cout << std::setw(10) << c.f_context_id << ": " << c.f_name << "\n";
+//    }
+//    std::cout << std::flush;
+//#endif
 
     // forward the message to all the currently connected clients
     //
@@ -1013,7 +1013,7 @@ SNAP_LOG_ERROR << "--- check the list, if new or it changed forward it to all cl
 
 void proxy::send_message_to_all_clients(prinbee::binary_message::pointer_t msg)
 {
-std::cout << "info:proxy: forward message to " << f_client_connections.size() << " clients.\n";
+//std::cout << "info:proxy: forward message to " << f_client_connections.size() << " clients.\n";
     for(auto const & it : f_client_connections)
     {
         prinbee::binary_server_client::pointer_t p(std::dynamic_pointer_cast<prinbee::binary_server_client>(it.second->get_connection()));
@@ -1021,7 +1021,7 @@ std::cout << "info:proxy: forward message to " << f_client_connections.size() <<
         {
             continue;
         }
-std::cout << "info:proxy: actually do the forwarding...\n";
+//std::cout << "info:proxy: actually do the forwarding...\n";
         p->send_message(msg);
     }
 }

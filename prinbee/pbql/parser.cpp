@@ -136,35 +136,44 @@ command::vector_t const & parser::parse()
                         if(n->get_token() == token_t::TOKEN_IDENTIFIER)
                         {
                             cmd = n->get_string_upper();
-                            if(snapdev::compare_switch_string<"CONTEXT">(cmd))
+                            switch(cmd[0])
                             {
-                                parse_alter_context();
-                                continue;
+                            case 'C':
+                                if(snapdev::compare_switch_string<"CONTEXT">(cmd))
+                                {
+                                    parse_alter_context();
+                                    continue;
+                                }
+                                break;
+
+                            case 'I':
+                                if(snapdev::compare_switch_string<"INDEX">(cmd))
+                                {
+                                    parse_alter_index();
+                                    continue;
+                                }
+                                break;
+
+                            case 'T':
+                                if(snapdev::compare_switch_string<"TABLE">(cmd))
+                                {
+                                    parse_alter_table();
+                                    continue;
+                                }
+                                else if(snapdev::compare_switch_string<"TYPE">(cmd))
+                                {
+                                    parse_alter_type();
+                                    continue;
+                                }
+                                break;
+
                             }
-                            else if(snapdev::compare_switch_string<"INDEX">(cmd))
-                            {
-                                parse_alter_index();
-                                continue;
-                            }
-                            else if(snapdev::compare_switch_string<"TABLE">(cmd))
-                            {
-                                parse_alter_table();
-                                continue;
-                            }
-                            else if(snapdev::compare_switch_string<"TYPE">(cmd))
-                            {
-                                parse_alter_type();
-                                continue;
-                            }
-                            else
-                            {
-                                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
-                                msg << n->get_location().get_location()
-                                    << "ALTER is expected to be followed by CONTEXT, INDEX, TABLE, or TYPE, not \""
-                                    << cmd
-                                    << "\".";
-                                throw invalid_token(msg.str());
-                            }
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                            msg << n->get_location().get_location()
+                                << "ALTER is expected to be followed by CONTEXT, INDEX, TABLE, or TYPE, not \""
+                                << cmd
+                                << "\".";
+                            throw invalid_token(msg.str());
                         }
                         else
                         {
@@ -209,35 +218,44 @@ command::vector_t const & parser::parse()
                         if(n->get_token() == token_t::TOKEN_IDENTIFIER)
                         {
                             cmd = n->get_string_upper();
-                            if(snapdev::compare_switch_string<"CONTEXT">(cmd))
+                            switch(cmd[0])
                             {
-                                parse_create_context();
-                                continue;
+                            case 'C':
+                                if(snapdev::compare_switch_string<"CONTEXT">(cmd))
+                                {
+                                    parse_create_context();
+                                    continue;
+                                }
+                                break;
+
+                            case 'I':
+                                if(snapdev::compare_switch_string<"INDEX">(cmd))
+                                {
+                                    parse_create_index();
+                                    continue;
+                                }
+                                break;
+
+                            case 'T':
+                                if(snapdev::compare_switch_string<"TABLE">(cmd))
+                                {
+                                    parse_create_table();
+                                    continue;
+                                }
+                                else if(snapdev::compare_switch_string<"TYPE">(cmd))
+                                {
+                                    parse_create_type();
+                                    continue;
+                                }
+                                break;
+
                             }
-                            else if(snapdev::compare_switch_string<"INDEX">(cmd))
-                            {
-                                parse_create_index();
-                                continue;
-                            }
-                            else if(snapdev::compare_switch_string<"TABLE">(cmd))
-                            {
-                                parse_create_table();
-                                continue;
-                            }
-                            else if(snapdev::compare_switch_string<"TYPE">(cmd))
-                            {
-                                parse_create_type();
-                                continue;
-                            }
-                            else
-                            {
-                                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
-                                msg << n->get_location().get_location()
-                                    << "CREATE is expected to be followed by: CONTEXT, INDEX, TABLE, TYPE, not \""
-                                    << cmd
-                                    << "\".";
-                                throw invalid_token(msg.str());
-                            }
+                            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                            msg << n->get_location().get_location()
+                                << "CREATE is expected to be followed by: CONTEXT, INDEX, TABLE, TYPE, not \""
+                                << cmd
+                                << "\".";
+                            throw invalid_token(msg.str());
                         }
                         else
                         {
@@ -322,7 +340,9 @@ command::vector_t const & parser::parse()
             {
                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_CRITICAL);
                 msg << n->get_location().get_location()
-                    << "expected the beginning of the line to start with an identifier representing a PBQL keyword.";
+                    << "expected the beginning of the line to start with an identifier representing a PBQL keyword, not "
+                    << to_string(n->get_token())
+                    << ".";
                 throw invalid_token(msg.str());
             }
 
@@ -348,7 +368,7 @@ void parser::parse_alter_index()
         throw invalid_token(msg.str());
     }
     std::string cmd(n->get_string_upper());
-    if(snapdev::compare_switch_string<"IF">(cmd))
+    if(snapdev::compare_full_string<"IF">(cmd))
     {
         bool optional_found(false);
         n = parser::keyword_string(
@@ -405,7 +425,7 @@ void parser::parse_alter_index()
             }
             cmd = n->get_string_upper();
             bool negate(false);
-            if(snapdev::compare_switch_string<"NOT">(cmd))
+            if(snapdev::compare_full_string<"NOT">(cmd))
             {
                 negate = true;
                 n = f_lexer->get_next_token();
@@ -418,14 +438,14 @@ void parser::parse_alter_index()
                 }
                 cmd = n->get_string_upper();
             }
-            if(snapdev::compare_switch_string<"SECURE">(cmd))
+            if(snapdev::compare_full_string<"SECURE">(cmd))
             {
                 // TODO: set secure or NOT secure
 
                 expect_semi_colon("ALTER INDEX ...;");
                 return;
             }
-            if(snapdev::compare_switch_string<"SPARSE">(cmd))
+            if(snapdev::compare_full_string<"SPARSE">(cmd))
             {
                 // TODO: set sparse or NOT sparse
 
@@ -441,7 +461,7 @@ void parser::parse_alter_index()
                     << " action.";
                 throw invalid_token(msg.str());
             }
-            if(snapdev::compare_switch_string<"MODEL">(cmd))
+            if(snapdev::compare_full_string<"MODEL">(cmd))
             {
                 n = f_lexer->get_next_token();
                 if(n->get_token() == token_t::TOKEN_EQUAL)
@@ -465,7 +485,7 @@ void parser::parse_alter_index()
                 expect_semi_colon("ALTER INDEX ...;");
                 return;
             }
-            if(snapdev::compare_switch_string<"COMMENT">(cmd))
+            if(snapdev::compare_full_string<"COMMENT">(cmd))
             {
                 n = f_lexer->get_next_token();
                 if(n->get_token() == token_t::TOKEN_EQUAL)
@@ -499,7 +519,7 @@ void parser::parse_alter_index()
         if(n->get_token() == token_t::TOKEN_IDENTIFIER)
         {
             cmd = n->get_string_upper();
-            if(snapdev::compare_switch_string<"COLUMN">(cmd))
+            if(snapdev::compare_full_string<"COLUMN">(cmd))
             {
                 n = f_lexer->get_next_token();
                 if(n->get_token() == token_t::TOKEN_IDENTIFIER)
@@ -525,7 +545,7 @@ void parser::parse_alter_index()
                 }
                 throw invalid_token(msg.str());
             }
-            else if(snapdev::compare_switch_string<"EXPRESSION">(cmd))
+            else if(snapdev::compare_full_string<"EXPRESSION">(cmd))
             {
                 // TODO: implement ADD|DROP COLUMN <name>
                 return;
@@ -584,8 +604,8 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
     if(n->get_token() == token_t::TOKEN_IDENTIFIER)
     {
         std::string keyword(n->get_string_upper());
-        if(snapdev::compare_switch_string<"WORK">(keyword)
-        || snapdev::compare_switch_string<"TRANSACTION">(keyword))
+        if(snapdev::compare_full_string<"WORK">(keyword)
+        || snapdev::compare_full_string<"TRANSACTION">(keyword))
         {
             n = f_lexer->get_next_token();
         }
@@ -594,7 +614,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
     {
         bool schema_data_required(false);
         std::string keyword(n->get_string_upper());
-        if(snapdev::compare_switch_string<"ON">(keyword))
+        if(snapdev::compare_full_string<"ON">(keyword))
         {
             schema_data_required = true;
 
@@ -608,12 +628,12 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
             }
             keyword = n->get_string_upper();
         }
-        if(snapdev::compare_switch_string<"SCHEMA">(keyword))
+        if(snapdev::compare_full_string<"SCHEMA">(keyword))
         {
             transaction_type = transaction_t::TRANSACTION_SCHEMA;
             n = f_lexer->get_next_token();
         }
-        else if(snapdev::compare_switch_string<"DATA">(keyword))
+        else if(snapdev::compare_full_string<"DATA">(keyword))
         {
             transaction_type = transaction_t::TRANSACTION_DATA;
             n = f_lexer->get_next_token();
@@ -631,7 +651,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
     if(cmd_type != command_t::COMMAND_BEGIN
     && n->get_token() == token_t::TOKEN_IDENTIFIER)
     {
-        if(snapdev::compare_switch_string<"IF">(n->get_string_upper()))
+        if(snapdev::compare_full_string<"IF">(n->get_string_upper()))
         {
             snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
             msg << n->get_location().get_location()
@@ -642,7 +662,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
         expr = parse_expression(n);
         if(n->get_token() == token_t::TOKEN_IDENTIFIER)
         {
-            if(snapdev::compare_switch_string<"OTHERWISE">(n->get_string_upper()))
+            if(snapdev::compare_full_string<"OTHERWISE">(n->get_string_upper()))
             {
                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
@@ -763,7 +783,7 @@ void parser::parse_create_context()
     command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_CREATE_CONTEXT));
 
     std::string keyword(n->get_string_upper());
-    bool const if_not_exists(snapdev::compare_switch_string<"IF">(keyword));
+    bool const if_not_exists(snapdev::compare_full_string<"IF">(keyword));
     if(if_not_exists)
     {
         bool optional_found(false);
@@ -790,57 +810,57 @@ void parser::parse_create_context()
     //}
     //cmd->set_string(param_t::PARAM_NAME, context_name);
 
-    std::string context_path;
+    //std::string context_path; -- part of the PARAM_NAME now, period separated
     //std::string owner;
     //std::string group;
     std::string description;
     for(;;)
     {
-        n = f_lexer->get_next_token();
         if(n->get_token() != token_t::TOKEN_IDENTIFIER)
         {
             break;
         }
 
         keyword = n->get_string_upper();
-        if(snapdev::compare_switch_string<"USING">(keyword))
-        {
-            if(!context_path.empty())
-            {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
-                msg << n->get_location().get_location()
-                    << "USING keyword found twice after CREATE CONTEXT.";
-                throw invalid_token(msg.str());
-            }
-            n = f_lexer->get_next_token();
-            if(n->get_token() != token_t::TOKEN_STRING)
-            {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
-                msg << n->get_location().get_location()
-                    << "expected a path after the USING keyword of CREATE CONTEXT.";
-                throw invalid_token(msg.str());
-            }
-            context_path = n->get_string_lower();
-            if(context_path.empty())
-            {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
-                msg << n->get_location().get_location()
-                    << "expected a non-empty path after the USING keyword of CREATE CONTEXT.";
-                throw invalid_token(msg.str());
-            }
-            std::vector<std::string> segments;
-            snapdev::tokenize_string(segments, context_path, "/", true);
-            if(segments.size() >= MAX_CONTEXT_NAME_SEGMENTS) // here we use >= because the USING path does not include the context name
-            {
-                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
-                msg << n->get_location().get_location()
-                    << "expected a maximum number of "
-                    << MAX_CONTEXT_NAME_SEGMENTS - 1
-                    << " segments in the context path defined by the USING keyword of CREATE CONTEXT.";
-                throw invalid_token(msg.str());
-            }
-        }
-        else if(snapdev::compare_switch_string<"WITH">(keyword))
+        //if(snapdev::compare_full_string<"USING">(keyword))
+        //{
+        //    if(!context_path.empty())
+        //    {
+        //        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+        //        msg << n->get_location().get_location()
+        //            << "USING keyword found twice after CREATE CONTEXT.";
+        //        throw invalid_token(msg.str());
+        //    }
+        //    n = f_lexer->get_next_token();
+        //    if(n->get_token() != token_t::TOKEN_STRING)
+        //    {
+        //        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+        //        msg << n->get_location().get_location()
+        //            << "expected a path after the USING keyword of CREATE CONTEXT.";
+        //        throw invalid_token(msg.str());
+        //    }
+        //    context_path = n->get_string_lower();
+        //    if(context_path.empty())
+        //    {
+        //        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+        //        msg << n->get_location().get_location()
+        //            << "expected a non-empty path after the USING keyword of CREATE CONTEXT.";
+        //        throw invalid_token(msg.str());
+        //    }
+        //    std::vector<std::string> segments;
+        //    snapdev::tokenize_string(segments, context_path, "/", true);
+        //    if(segments.size() >= MAX_CONTEXT_NAME_SEGMENTS) // here we use >= because the USING path does not include the context name
+        //    {
+        //        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+        //        msg << n->get_location().get_location()
+        //            << "expected a maximum number of "
+        //            << MAX_CONTEXT_NAME_SEGMENTS - 1
+        //            << " segments in the context path defined by the USING keyword of CREATE CONTEXT.";
+        //        throw invalid_token(msg.str());
+        //    }
+        //}
+        //else
+        if(snapdev::compare_full_string<"WITH">(keyword))
         {
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_OPEN_PARENTHESIS)
@@ -944,7 +964,7 @@ void parser::parse_create_context()
                 //    }
                 //}
                 //else
-                if(snapdev::compare_switch_string<"COMMENT">(keyword))
+                if(snapdev::compare_full_string<"COMMENT">(keyword))
                 {
                     if(!description.empty())
                     {
@@ -967,6 +987,15 @@ void parser::parse_create_context()
 
                     n = f_lexer->get_next_token();
                 }
+                else
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                    msg << n->get_location().get_location()
+                        << "expected a feature name (i.e. WITH), not "
+                        << keyword
+                        << ".";
+                    throw invalid_token(msg.str());
+                }
 
                 if(n->get_token() == token_t::TOKEN_CLOSE_PARENTHESIS)
                 {
@@ -982,6 +1011,17 @@ void parser::parse_create_context()
                 }
             }
         }
+        else
+        {
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+            msg << n->get_location().get_location()
+                << "expected a known keyword (i.e. WITH) found \""
+                << keyword
+                << "\" instead.";
+            throw invalid_token(msg.str());
+        }
+
+        n = f_lexer->get_next_token();
     }
 
     expect_semi_colon("CREATE CONTEXT", n);
@@ -993,7 +1033,7 @@ void parser::parse_create_context()
     //    context_path = context_name;    // path defaults to name if not defined by user
     //}
 
-    cmd->set_string(param_t::PARAM_PATH, context_path);
+    //cmd->set_string(param_t::PARAM_PATH, context_path);
     //cmd->set_string(param_t::PARAM_USER, owner);
     //cmd->set_string(param_t::PARAM_GROUP, group);
     cmd->set_string(param_t::PARAM_DESCRIPTION, description);
@@ -1031,7 +1071,7 @@ void parser::parse_select()
         // SELECT DEFAULT VALUES ...
         //
         if(n->get_token() == token_t::TOKEN_IDENTIFIER
-        && snapdev::compare_switch_string<"DEFAULT">(n->get_string_upper()))
+        && snapdev::compare_full_string<"DEFAULT">(n->get_string_upper()))
         {
             if(cmd->is_defined_as(param_t::PARAM_EXPRESSION) == param_type_t::PARAM_TYPE_STRING)
             {
@@ -1043,7 +1083,7 @@ void parser::parse_select()
 
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_IDENTIFIER
-            && snapdev::compare_switch_string<"VALUES">(n->get_string_upper()))
+            && snapdev::compare_full_string<"VALUES">(n->get_string_upper()))
             {
                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
@@ -1073,7 +1113,7 @@ void parser::parse_select()
         // SELECT <expr> AS <name>
         //
         if(n->get_token() == token_t::TOKEN_IDENTIFIER
-        && snapdev::compare_switch_string<"AS">(n->get_string_upper()))
+        && snapdev::compare_full_string<"AS">(n->get_string_upper()))
         {
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_IDENTIFIER)
@@ -1106,7 +1146,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
     // FROM and following are all optional here
     //
     if(n->get_token() == token_t::TOKEN_IDENTIFIER
-    && snapdev::compare_switch_string<"FROM">(n->get_string_upper()))
+    && snapdev::compare_full_string<"FROM">(n->get_string_upper()))
     {
         n = f_lexer->get_next_token();
         count = 0;
@@ -1137,7 +1177,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
             //
             n = f_lexer->get_next_token();
             if(n->get_token() == token_t::TOKEN_IDENTIFIER
-            && snapdev::compare_switch_string<"AS">(n->get_string_upper()))
+            && snapdev::compare_full_string<"AS">(n->get_string_upper()))
             {
                 n = f_lexer->get_next_token();
                 if(n->get_token() != token_t::TOKEN_IDENTIFIER)
@@ -1164,7 +1204,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
         while(n->get_token() == token_t::TOKEN_IDENTIFIER)
         {
             std::string const keyword(n->get_string_upper());
-            if(snapdev::compare_switch_string<"WHERE">(keyword))
+            if(snapdev::compare_full_string<"WHERE">(keyword))
             {
                 // WHERE <expr>
                 //
@@ -1179,7 +1219,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 where = parse_expression(n);
                 cmd->set_string(param_t::PARAM_WHERE, where);
             }
-            else if(snapdev::compare_switch_string<"ORDER">(keyword))
+            else if(snapdev::compare_full_string<"ORDER">(keyword))
             {
                 // ORDER BY PRIMARY KEY
                 //   or
@@ -1194,7 +1234,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 }
                 n = f_lexer->get_next_token();
                 if(n->get_token() != token_t::TOKEN_IDENTIFIER
-                || !snapdev::compare_switch_string<"BY">(n->get_string_upper()))
+                || !snapdev::compare_full_string<"BY">(n->get_string_upper()))
                 {
                     snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
@@ -1210,11 +1250,11 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                         << "SELECT ... ORDER BY ... is expected to be the name of an index or 'PRIMARY KEY'.";
                     throw invalid_token(msg.str());
                 }
-                if(snapdev::compare_switch_string<"PRIMARY">(n->get_string_upper()))
+                if(snapdev::compare_full_string<"PRIMARY">(n->get_string_upper()))
                 {
                     n = f_lexer->get_next_token();
                     if(n->get_token() != token_t::TOKEN_IDENTIFIER
-                    || !snapdev::compare_switch_string<"KEY">(n->get_string_upper()))
+                    || !snapdev::compare_full_string<"KEY">(n->get_string_upper()))
                     {
                         snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                         msg << n->get_location().get_location()
@@ -1232,7 +1272,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 }
                 cmd->set_string(param_t::PARAM_ORDER_BY, order_by);
             }
-            else if(snapdev::compare_switch_string<"LIMIT">(keyword))
+            else if(snapdev::compare_full_string<"LIMIT">(keyword))
             {
                 // LIMIT <integer>
                 //
@@ -1275,7 +1315,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
     if(n->get_token() == token_t::TOKEN_IDENTIFIER)
     {
         std::string const keyword(n->get_string_upper());
-        if(snapdev::compare_switch_string<"OUTPUT">(keyword))
+        if(snapdev::compare_full_string<"OUTPUT">(keyword))
         {
             // OUTPUT <mode>
             //
@@ -1288,15 +1328,15 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                     throw invalid_token(msg.str());
             }
             std::string const mode(n->get_string_upper());
-            if(snapdev::compare_switch_string<"TABLE">(mode))
+            if(snapdev::compare_full_string<"TABLE">(mode))
             {
                 cmd->set_int64(param_t::PARAM_MODE, static_cast<std::int64_t>(param_mode_t::PARAM_MODE_TABLE));
             }
-            else if(snapdev::compare_switch_string<"PRINT">(mode))
+            else if(snapdev::compare_full_string<"PRINT">(mode))
             {
                 cmd->set_int64(param_t::PARAM_MODE, static_cast<std::int64_t>(param_mode_t::PARAM_MODE_PRINT));
             }
-            else if(snapdev::compare_switch_string<"JSON">(mode))
+            else if(snapdev::compare_full_string<"JSON">(mode))
             {
                 cmd->set_int64(param_t::PARAM_MODE, static_cast<std::int64_t>(param_mode_t::PARAM_MODE_JSON));
             }
@@ -1376,7 +1416,7 @@ void parser::parse_config()
 
                 // the name above was the "path" (left handside of the scope operator)
                 //
-                cmd->set_string(param_t::PARAM_PATH, name);
+                cmd->set_string(param_t::PARAM_PATH, name); // TODO: we have multiple entries for the name now, we may want to use name + 0 and name + 1 instead
 
                 // the right handside is the actual name
                 //
@@ -1435,46 +1475,53 @@ void parser::parse_show()
     }
 
     std::string const what(n->get_string_upper());
-    if(snapdev::compare_switch_string<"CONTEXT">(what))
+    switch(what[0])
     {
-        command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_CONTEXT));
-        n = get_full_name(cmd, param_t::PARAM_NAME, param_t::PARAM_NAME_end, nullptr);
-        expect_semi_colon("SHOW CONTEXT", n);
-        f_commands.push_back(cmd);
-        return;
+    case 'C':
+        if(snapdev::compare_switch_string<"CONTEXT">(what))
+        {
+            command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_CONTEXT));
+            n = get_full_name(cmd, param_t::PARAM_NAME, param_t::PARAM_NAME_end, nullptr);
+            expect_semi_colon("SHOW CONTEXT", n);
+            f_commands.push_back(cmd);
+            return;
+        }
+        else if(snapdev::compare_switch_string<"CONTEXTS">(what))
+        {
+            command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_CONTEXTS));
+            expect_semi_colon("SHOW CONTEXTS");
+            f_commands.push_back(cmd);
+            return;
+        }
+        break;
+
+    case 'I':
+        if(snapdev::compare_switch_string<"INDEX">(what))
+        {
+            command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_INDEX));
+            expect_semi_colon("SHOW INDEX", n);
+            f_commands.push_back(cmd);
+            return;
+        }
+        else if(snapdev::compare_switch_string<"INDEXES">(what))
+        {
+            command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_INDEXES));
+            expect_semi_colon("SHOW INDEXES");
+            f_commands.push_back(cmd);
+            return;
+        }
+        break;
+
     }
-    else if(snapdev::compare_switch_string<"CONTEXTS">(what))
-    {
-        command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_CONTEXTS));
-        expect_semi_colon("SHOW CONTEXTS", n);
-        f_commands.push_back(cmd);
-        return;
-    }
-    else if(snapdev::compare_switch_string<"INDEX">(what))
-    {
-        command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_INDEX));
-        expect_semi_colon("SHOW INDEX", n);
-        f_commands.push_back(cmd);
-        return;
-    }
-    else if(snapdev::compare_switch_string<"INDEXES">(what))
-    {
-        command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_INDEXES));
-        expect_semi_colon("SHOW INDEXES", n);
-        f_commands.push_back(cmd);
-        return;
-    }
-    else
-    {
-        // in case you misspell something
-        //
-        snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
-        msg << n->get_location().get_location()
-            << "expected a known name after SHOW, not '"
-            << what
-            << "'.";
-        throw prinbee::invalid_token(msg.str());
-    }
+
+    // in case you misspell something
+    //
+    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+    msg << n->get_location().get_location()
+        << "expected a known name after SHOW, not '"
+        << what
+        << "'.";
+    throw prinbee::invalid_token(msg.str());
 }
 
 
@@ -1501,8 +1548,23 @@ node::pointer_t parser::get_full_name(
     {
         n = f_lexer->get_next_token();
     }
+    bool found(false);
     for(; start <= end; ++start)
     {
+        if(n->get_token() != token_t::TOKEN_IDENTIFIER)
+        {
+            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+            msg << n->get_location().get_location()
+                << "'"
+                << cmd
+                << "' expects identifiers separated by periods; not "
+                << to_string(n->get_token())
+                << (n->get_token() == token_t::TOKEN_IDENTIFIER ? " " + n->get_string() : "")
+                << ".";
+            throw invalid_token(msg.str());
+        }
+        found = true;
+SNAP_LOG_WARNING << "--- got a context name [" << n->get_string_lower() << "]" << SNAP_LOG_SEND;
         cmd->set_string(start, n->get_string_lower());
         n = f_lexer->get_next_token();
         if(n->get_token() != token_t::TOKEN_PERIOD)
@@ -1510,18 +1572,6 @@ node::pointer_t parser::get_full_name(
             break;
         }
         n = f_lexer->get_next_token();
-        if(n->get_token() != token_t::TOKEN_IDENTIFIER)
-        {
-            snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
-            msg << n->get_location().get_location()
-                << "expected an identifier after the period '"
-                << cmd
-                << "' command; not "
-                << to_string(n->get_token())
-                << (n->get_token() == token_t::TOKEN_IDENTIFIER ? " " + n->get_string() : "")
-                << ".";
-            throw invalid_token(msg.str());
-        }
     }
 
     return n;

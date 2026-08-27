@@ -52,10 +52,10 @@ class cui
 {
 public:
                                     cui(int argc, char **argv);
-    //                            cui(cui const & rhs) = delete;
-    //virtual                     ~cui() override;
+                                    cui(cui const & rhs) = delete;
+                                    ~cui();
 
-    //cui &                       operator = (cui const & rhs) = delete;
+    cui &                           operator = (cui const & rhs) = delete;
 
     int                             run();
     //void                            start_binary_connection();
@@ -72,6 +72,7 @@ public:
     std::string                     get_console_status() const;
     void                            update_status();
     void                            proxy_registered();
+    void                            output(std::string const & msg);
 
 private:
     bool                            init_connections();

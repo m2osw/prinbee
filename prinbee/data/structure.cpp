@@ -42,11 +42,6 @@
 #include    <snaplogger/message.h>
 
 
-// cppthread
-//
-#include    <cppthread/thread.h>
-
-
 // snapdev
 //
 #include    <snapdev/hexadecimal_string.h>
@@ -1111,7 +1106,7 @@ std::size_t structure::get_current_size(std::size_t start_offset) const
             }
 #ifdef _DEBUG
             if(f->offset() != start_offset
-            && cppthread::gettid() == f_verify_offset)
+            && gettid() == f_verify_offset)
             {
                 // LCOV_EXCL_START
                 std::cout << std::flush;
@@ -3649,7 +3644,7 @@ void structure::verify_buffer_size()
     {
         pointer_t s;
         for(s = shared_from_this(); s->parent() != nullptr; s = s->parent());
-        f_verify_offset = cppthread::gettid();
+        f_verify_offset = gettid();
         std::size_t const size(s->get_current_size());
         f_verify_offset = 0;
         if(f_buffer->size() != size)

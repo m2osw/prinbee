@@ -65,6 +65,7 @@ public:
     // prinbee::prinbee_connection implementation
     //
     virtual void                process_proxy_status() override;
+    virtual void                output(std::string const & msg) override;
 
 private:
     void                        msg_clock_stable(ed::message & msg);

@@ -67,13 +67,13 @@
 
 // snapdev
 //
-//#include    <snapdev/escape_special_regex_characters.h>
+#include    <snapdev/enum_class_math.h>
 //#include    <snapdev/floating_point_to_string.h>
 #include    <snapdev/math.h>
 //#include    <snapdev/not_reached.h>
 #include    <snapdev/pathinfo.h>
-//#include    <snapdev/string_replace_many.h>
 //#include    <snapdev/safe_variable.h>
+#include    <snapdev/string_replace_many.h>
 //#include    <snapdev/to_lower.h>
 //#include    <snapdev/to_upper.h>
 //#include    <snapdev/trim_string.h>
@@ -183,6 +183,12 @@ void prinbee_connection::process_proxy_status()
 }
 
 
+void prinbee_connection::output(std::string const & msg)
+{
+    std::cout << msg << std::endl;
+}
+
+
 void prinbee_connection::set_proxy_status_and_address(
       std::string const & status
     , addr::addr const & address)
@@ -204,7 +210,7 @@ std::string prinbee_connection::get_proxy_status() const
 {
     if(f_proxy_connection == nullptr)
     {
-        // the status is defined, the connection received a
+        // if the status is defined, the connection received a
         // PRINBEE_PROXY_CURRENT_STATUS message and that means the
         // proxy service is running but not yet available to
         // receive binary connections
@@ -264,6 +270,12 @@ std::string prinbee_connection::get_proxy_status() const
         if(no_answer > 0)
         {
             ss << " (stale: " << no_answer << ")";
+        }
+        else if(f_proxy_connection->has_context_list())
+        {
+            ss << " ("
+               << f_proxy_connection->get_context_list().f_list.size()
+               << " contexts ready)";
         }
         else
         {
@@ -570,37 +582,14 @@ void prinbee_connection::execute_commands(pbql::command::vector_t cmds)
 
     for(auto c : cmds)
     {
-        binary_message::pointer_t msg(std::make_shared<binary_message>());
         switch(c->get_command())
         {
         case pbql::command_t::COMMAND_CREATE_CONTEXT:
-            {
-                // only when we create the context we may have a path in the
-                // name
-                //
-                msg_context_t context_setup;
-                context_setup.f_context_name = snapdev::pathinfo::canonicalize(
-                      c->get_string(pbql::param_t::PARAM_PATH)
-                    , c->get_string(pbql::param_t::PARAM_NAME));
-                if(!c->get_bool(pbql::param_t::PARAM_IF_EXISTS))
-                {
-                    // Note: we have a known race condition here; we can still
-                    //       end up with two separate clients sending the
-                    //       CREATE CONTEXT at about the same time; assuming
-                    //       they both attempt to create the same context
-                    //       the results would be idempotent but one of them
-                    //       will fail (i.e. the version won't match for a
-                    //       valid update)
-                    //
-                    if(f_proxy_connection->get_context_id(context_setup.f_context_name) != CONTEXT_ID_NONE)
-                    {
-                        break;
-                    }
-                }
-                context_setup.f_description = c->get_string(pbql::param_t::PARAM_DESCRIPTION);
-                msg->create_context_message(context_setup);
-                f_proxy_connection->send_message(msg);
-            }
+            create_context(*c);
+            break;
+
+        case pbql::command_t::COMMAND_SHOW_CONTEXTS:
+            show_contexts(*c);
             break;
 
         default:
@@ -610,6 +599,66 @@ void prinbee_connection::execute_commands(pbql::command::vector_t cmds)
                 + ")."); // LCOV_EXCL_LINE
 
         }
+    }
+}
+
+
+void prinbee_connection::create_context(pbql::command & c)
+{
+    // only when we create the context we may have a path in the
+    // name
+    //
+    msg_context_t context_setup;
+    for(pbql::param_t idx(pbql::param_t::PARAM_NAME); idx <= pbql::param_t::PARAM_NAME_end; ++idx)
+    {
+        std::string const segment(c.get_string(idx));
+        if(segment.empty())
+        {
+            break;
+        }
+        context_setup.f_context_name = snapdev::pathinfo::canonicalize(
+              context_setup.f_context_name
+            , segment);
+    }
+std::cout << "--- context full name is: [" << context_setup.f_context_name << "]\n";
+    if(!c.get_bool(pbql::param_t::PARAM_IF_EXISTS))
+    {
+        // Note: we have a known race condition here; we can still
+        //       end up with two separate clients sending the
+        //       CREATE CONTEXT at about the same time; assuming
+        //       they both attempt to create the same context
+        //       the results would be idempotent but one of them
+        //       will fail (i.e. the version won't match for a
+        //       valid update)
+        //
+        if(f_proxy_connection->get_context_id(context_setup.f_context_name) != CONTEXT_ID_NONE)
+        {
+            return;
+        }
+    }
+    context_setup.f_description = c.get_string(pbql::param_t::PARAM_DESCRIPTION);
+    binary_message::pointer_t msg(std::make_shared<binary_message>());
+    msg->create_context_message(context_setup);
+    f_proxy_connection->send_message(msg);
+}
+
+
+void prinbee_connection::show_contexts(pbql::command & c)
+{
+    snapdev::NOT_USED(c);
+
+    if(!proxy_has_context_list())
+    {
+        output("error: context list not yet available.");
+        return;
+    }
+    msg_list_contexts_t const & list(proxy_get_context_list());
+    for(auto const & l : list.f_list)
+    {
+        // since the pbql language sees context names with '.' instead of '/'
+        // replace those; it will look more sensible in that environment
+        //
+        output(snapdev::string_replace_many(l.f_name, {{"/", "."}}));
     }
 }
 

@@ -1,6 +1,6 @@
 // Copyright (c) 2011-2025  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/project/communicatord
+// https://snapwebsites.org/project/prinbee
 // contact@m2osw.com
 //
 // This program is free software: you can redistribute it and/or modify
@@ -288,6 +288,15 @@ cui::cui(int argc, char * argv[])
 }
 
 
+cui::~cui()
+{
+    // calling stop generally fixes the console if we did not already
+    // receive the QUITTING or STOP message
+    //
+    stop(false);
+}
+
+
 int cui::run()
 {
     f_communicator = ed::communicator::instance();
@@ -419,6 +428,15 @@ void cui::proxy_registered()
 }
 
 
+void cui::output(std::string const & msg)
+{
+    if(f_console_connection != nullptr)
+    {
+        f_console_connection->output(msg);
+    }
+}
+
+
 /** \brief Called whenever we receive the STOP command or equivalent.
  *
  * This function makes sure the prinbee cui exits as quickly as
@@ -507,7 +525,7 @@ void cui::execute_commands(std::string const & commands)
     }
     catch(prinbee::prinbee_exception const & e)
     {
-        f_console_connection->output(e.what());
+        output(e.what());
     }
     f_quit = f_parser->quit();
     f_parser.reset();
@@ -521,7 +539,7 @@ void cui::execute_commands(std::string const & commands)
         // here we execute one of the f_cmds and once this is done,
         // the code handles the next f_cmds
         //
-f_console_connection->output("--- execute pbql system commands from " + filename + " ---");
+output("--- execute pbql system commands from " + filename + " ---");
 
 // the following was in part to verify the parsing...
 // I think I will just use the fluid settings for all of those, after all
@@ -534,28 +552,28 @@ f_console_connection->output("--- execute pbql system commands from " + filename
 //
 //        if(f_cmds[0]->get_command() == prinbee::pbql::command_t::COMMAND_CONFIG)
 //        {
-//f_console_connection->output("--- seeing a CONFIG command! ---");
+//output("--- seeing a CONFIG command! ---");
 //std::string const path(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_PATH));
 //if(!path.empty())
 //{
-//f_console_connection->output("--- namespace: " + path + " ---");
+//output("--- namespace: " + path + " ---");
 //}
 //std::string const name(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_NAME));
 //if(!name.empty())
 //{
 //if(name[0] == '/')
 //{
-//f_console_connection->output("--- regex: " + name + " ---");
+//output("--- regex: " + name + " ---");
 //}
 //else
 //{
-//f_console_connection->output("--- name: " + name + " ---");
+//output("--- name: " + name + " ---");
 //}
 //}
 //std::string const expr(f_cmds[0]->get_string(prinbee::pbql::param_t::PARAM_EXPRESSION));
 //if(!expr.empty())
 //{
-//f_console_connection->output("--- set to (new) value: " + expr + " ---");
+//output("--- set to (new) value: " + expr + " ---");
 //}
 //            // TODO: if this looks like a parameter used by the CUI, then we
 //            //       set it here, otherwise we probably want to pass this
@@ -569,7 +587,14 @@ f_console_connection->output("--- execute pbql system commands from " + filename
 //        }
 
         // ... TODO ...
-        f_messenger->execute_commands(f_cmds);
+        if(f_messenger->proxy_has_context_list())
+        {
+            f_messenger->execute_commands(f_cmds);
+        }
+        else
+        {
+            output("error: proxy connection not ready; please try again later.");
+        }
     }
 
     if(f_quit)
@@ -898,12 +923,12 @@ bool cui::parse_license()
             throw prinbee::invalid_token(msg.str());
         }
         f_parser->expect_semi_colon("LICENSE FULL");
-        f_console_connection->output(advgetopt::g_license_gpl_v3);
+        output(advgetopt::g_license_gpl_v3);
     }
     else
     {
         f_parser->expect_semi_colon("LICENSE", n);
-        f_console_connection->output(g_command_line_options_environment.f_license);
+        output(g_command_line_options_environment.f_license);
     }
 
     return true;
@@ -999,7 +1024,7 @@ bool cui::parse_versions()
 
     // it worked, show the versions now
     //
-    f_console_connection->output("Communicator: v<TOOD>");
+    output("Communicator: v<TOOD>");
 
     return true;
 }

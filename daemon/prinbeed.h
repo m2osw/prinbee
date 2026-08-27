@@ -113,7 +113,7 @@ private:
                                     , cluck::timeout_t timeout = cluck::timeout_t{ 60, 0 }); // 1 min. by default
     void                        release_cluster_lock(payload_t::pointer_t payload);
     bool                        process_obtained_lock(cluck::cluck * c, payload_t::pointer_t payload);
-    bool                        process_failed_lock(cluck::cluck * c , payload_t::pointer_t payload);
+    bool                        process_failed_lock(cluck::cluck * c, payload_t::pointer_t payload);
     void                        expect_acknowledgment(
                                       payload_t::pointer_t payload
                                     , prinbee::binary_message::pointer_t msg);
