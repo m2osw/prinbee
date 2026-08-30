@@ -19,39 +19,39 @@
 
 project(plugin_database)
 
-find_package( Qt5Core REQUIRED )
-find_package( Qt5Xml  REQUIRED )
+#find_package( Qt5Core REQUIRED )
+#find_package( Qt5Xml  REQUIRED )
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-include_directories(
-    SYSTEM
-        ${Qt5Core_INCLUDE_DIRS}
-        ${Qt5Network_INCLUDE_DIRS}
-        ${Qt5Script_INCLUDE_DIRS}
-        ${Qt5Sql_INCLUDE_DIRS}
-        ${Qt5Widgets_INCLUDE_DIRS}
-        ${Qt5Xml_INCLUDE_DIRS}
-        ${Qt5XmlPatterns_INCLUDE_DIRS}
-)
+#include_directories(
+#    SYSTEM
+#        ${Qt5Core_INCLUDE_DIRS}
+#        ${Qt5Network_INCLUDE_DIRS}
+#        ${Qt5Script_INCLUDE_DIRS}
+#        ${Qt5Sql_INCLUDE_DIRS}
+#        ${Qt5Widgets_INCLUDE_DIRS}
+#        ${Qt5Xml_INCLUDE_DIRS}
+#        ${Qt5XmlPatterns_INCLUDE_DIRS}
+#)
 
-qt5_add_resources(SNAP_MANAGER_RESOURCES_RCC
-    database.qrc
-)
+#qt5_add_resources(SNAP_MANAGER_RESOURCES_RCC
+#    database.qrc
+#)
 
 add_library(database SHARED
     database.cpp
-    ${SNAP_MANAGER_MOC_CXX}
-    ${SNAP_MANAGER_RESOURCES_RCC}
+    #${SNAP_MANAGER_MOC_CXX}
+    #${SNAP_MANAGER_RESOURCES_RCC}
 )
 
 #message("AS2JS_LIBRARIES = " ${AS2JS_LIBRARIES})
 
-target_link_libraries(database
-    ${QT_LIBRARIES}
-)
+#target_link_libraries(database
+#    ${QT_LIBRARIES}
+#)
 
 install(
     TARGETS
