@@ -37,7 +37,7 @@
 
 
 
-CATCH_TEST_CASE("virtual_buffer", "[virtual-buffer]")
+CATCH_TEST_CASE("virtual_buffer", "[virtual_buffer]")
 {
     CATCH_START_SECTION("virtual_buffer: simple write + read")
     {

@@ -21,6 +21,13 @@ region (i.e. `fr_FR`, `fr_BE`, etc.) If all of those fail, try again with
 the same mechanism using the default language of the website. If that also
 fails, return the first entry that exist in the database.
 
+# Support a LIMIT \<time>
+
+It would be cool to have the ability to say, take up to 3 seconds to load
+the data and then return. On a SELECT statement. Because LIMIT 100 could
+return in 100ms, and LIMIT 1000 could take 10s. Maybe we want a better time
+control rather than a count only limit.
+
 # Support Multiple Clusters
 
 Within one Snap! C++ cluster, we cannot run more than one prinbee cluster.
