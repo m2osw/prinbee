@@ -128,7 +128,7 @@ command::vector_t const & parser::parse()
                 switch(cmd[0])
                 {
                 case 'A':
-                    if(snapdev::compare_switch_string<"ALTER">(cmd))
+                    if(snapdev::compare_exact_switch_string<"ALTER">(cmd))
                     {
                         // read one more identifier to know what is going to be altered
                         //
@@ -139,7 +139,7 @@ command::vector_t const & parser::parse()
                             switch(cmd[0])
                             {
                             case 'C':
-                                if(snapdev::compare_switch_string<"CONTEXT">(cmd))
+                                if(snapdev::compare_exact_switch_string<"CONTEXT">(cmd))
                                 {
                                     parse_alter_context();
                                     continue;
@@ -147,7 +147,7 @@ command::vector_t const & parser::parse()
                                 break;
 
                             case 'I':
-                                if(snapdev::compare_switch_string<"INDEX">(cmd))
+                                if(snapdev::compare_exact_switch_string<"INDEX">(cmd))
                                 {
                                     parse_alter_index();
                                     continue;
@@ -155,12 +155,12 @@ command::vector_t const & parser::parse()
                                 break;
 
                             case 'T':
-                                if(snapdev::compare_switch_string<"TABLE">(cmd))
+                                if(snapdev::compare_exact_switch_string<"TABLE">(cmd))
                                 {
                                     parse_alter_table();
                                     continue;
                                 }
-                                else if(snapdev::compare_switch_string<"TYPE">(cmd))
+                                else if(snapdev::compare_exact_switch_string<"TYPE">(cmd))
                                 {
                                     parse_alter_type();
                                     continue;
@@ -186,12 +186,12 @@ command::vector_t const & parser::parse()
                     break;
 
                 case 'B':
-                    if(snapdev::compare_switch_string<"BEGIN">(cmd))
+                    if(snapdev::compare_exact_switch_string<"BEGIN">(cmd))
                     {
                         parse_transaction_command(cmd, command_t::COMMAND_BEGIN);
                         continue;
                     }
-                    else if(snapdev::compare_switch_string<"BYE">(cmd))
+                    else if(snapdev::compare_exact_switch_string<"BYE">(cmd))
                     {
                         f_quit = true;
                         expect_semi_colon(cmd);
@@ -200,17 +200,17 @@ command::vector_t const & parser::parse()
                     break;
 
                 case 'C':
-                    if(snapdev::compare_switch_string<"COMMIT">(cmd))
+                    if(snapdev::compare_exact_switch_string<"COMMIT">(cmd))
                     {
                         parse_transaction_command(cmd, command_t::COMMAND_COMMIT);
                         continue;
                     }
-                    else if(snapdev::compare_switch_string<"CONFIG">(cmd))
+                    else if(snapdev::compare_exact_switch_string<"CONFIG">(cmd))
                     {
                         parse_config();
                         continue;
                     }
-                    else if(snapdev::compare_switch_string<"CREATE">(cmd))
+                    else if(snapdev::compare_exact_switch_string<"CREATE">(cmd))
                     {
                         // read one more identifier to know what is going to be created
                         //
@@ -221,7 +221,7 @@ command::vector_t const & parser::parse()
                             switch(cmd[0])
                             {
                             case 'C':
-                                if(snapdev::compare_switch_string<"CONTEXT">(cmd))
+                                if(snapdev::compare_exact_switch_string<"CONTEXT">(cmd))
                                 {
                                     parse_create_context();
                                     continue;
@@ -229,7 +229,7 @@ command::vector_t const & parser::parse()
                                 break;
 
                             case 'I':
-                                if(snapdev::compare_switch_string<"INDEX">(cmd))
+                                if(snapdev::compare_exact_switch_string<"INDEX">(cmd))
                                 {
                                     parse_create_index();
                                     continue;
@@ -237,12 +237,12 @@ command::vector_t const & parser::parse()
                                 break;
 
                             case 'T':
-                                if(snapdev::compare_switch_string<"TABLE">(cmd))
+                                if(snapdev::compare_exact_switch_string<"TABLE">(cmd))
                                 {
                                     parse_create_table();
                                     continue;
                                 }
-                                else if(snapdev::compare_switch_string<"TYPE">(cmd))
+                                else if(snapdev::compare_exact_switch_string<"TYPE">(cmd))
                                 {
                                     parse_create_type();
                                     continue;
@@ -268,7 +268,7 @@ command::vector_t const & parser::parse()
                     break;
 
                 case 'E':
-                    if(snapdev::compare_switch_string<"EXIT">(cmd))
+                    if(snapdev::compare_exact_switch_string<"EXIT">(cmd))
                     {
                         f_quit = true;
                         expect_semi_colon(cmd);
@@ -277,7 +277,7 @@ command::vector_t const & parser::parse()
                     break;
 
                 case 'Q':
-                    if(snapdev::compare_switch_string<"QUIT">(cmd))
+                    if(snapdev::compare_exact_switch_string<"QUIT">(cmd))
                     {
                         f_quit = true;
                         expect_semi_colon(cmd);
@@ -286,7 +286,7 @@ command::vector_t const & parser::parse()
                     break;
 
                 case 'R':
-                    if(snapdev::compare_switch_string<"ROLLBACK">(cmd))
+                    if(snapdev::compare_exact_switch_string<"ROLLBACK">(cmd))
                     {
                         parse_transaction_command(cmd, command_t::COMMAND_ROLLBACK);
                         continue;
@@ -294,17 +294,17 @@ command::vector_t const & parser::parse()
                     break;
 
                 case 'S':
-                    if(snapdev::compare_switch_string<"SELECT">(cmd))
+                    if(snapdev::compare_exact_switch_string<"SELECT">(cmd))
                     {
                         parse_select();
                         continue;
                     }
-                    else if(snapdev::compare_switch_string<"SET">(cmd))
+                    else if(snapdev::compare_exact_switch_string<"SET">(cmd))
                     {
                         parse_set();
                         continue;
                     }
-                    else if(snapdev::compare_switch_string<"SHOW">(cmd))
+                    else if(snapdev::compare_exact_switch_string<"SHOW">(cmd))
                     {
                         parse_show();
                         continue;
@@ -368,7 +368,7 @@ void parser::parse_alter_index()
         throw invalid_token(msg.str());
     }
     std::string cmd(n->get_string_upper());
-    if(snapdev::compare_full_string<"IF">(cmd))
+    if(snapdev::compare_exact_string<"IF">(cmd))
     {
         bool optional_found(false);
         n = parser::keyword_string(
@@ -399,21 +399,21 @@ void parser::parse_alter_index()
     switch(cmd[0])
     {
     case 'A':
-        if(snapdev::compare_switch_string<"ADD">(cmd))
+        if(snapdev::compare_exact_switch_string<"ADD">(cmd))
         {
             add_drop = add_drop_t::ADD_DROP_ADD;
         }
         break;
 
     case 'D':
-        if(snapdev::compare_switch_string<"DROP">(cmd))
+        if(snapdev::compare_exact_switch_string<"DROP">(cmd))
         {
             add_drop = add_drop_t::ADD_DROP_DROP;
         }
         break;
 
     case 'S':
-        if(snapdev::compare_switch_string<"SET">(cmd))
+        if(snapdev::compare_exact_switch_string<"SET">(cmd))
         {
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_IDENTIFIER)
@@ -425,7 +425,7 @@ void parser::parse_alter_index()
             }
             cmd = n->get_string_upper();
             bool negate(false);
-            if(snapdev::compare_full_string<"NOT">(cmd))
+            if(snapdev::compare_exact_string<"NOT">(cmd))
             {
                 negate = true;
                 n = f_lexer->get_next_token();
@@ -438,14 +438,14 @@ void parser::parse_alter_index()
                 }
                 cmd = n->get_string_upper();
             }
-            if(snapdev::compare_full_string<"SECURE">(cmd))
+            if(snapdev::compare_exact_string<"SECURE">(cmd))
             {
                 // TODO: set secure or NOT secure
 
                 expect_semi_colon("ALTER INDEX ...;");
                 return;
             }
-            if(snapdev::compare_full_string<"SPARSE">(cmd))
+            if(snapdev::compare_exact_string<"SPARSE">(cmd))
             {
                 // TODO: set sparse or NOT sparse
 
@@ -461,7 +461,7 @@ void parser::parse_alter_index()
                     << " action.";
                 throw invalid_token(msg.str());
             }
-            if(snapdev::compare_full_string<"MODEL">(cmd))
+            if(snapdev::compare_exact_string<"MODEL">(cmd))
             {
                 n = f_lexer->get_next_token();
                 if(n->get_token() == token_t::TOKEN_EQUAL)
@@ -485,7 +485,7 @@ void parser::parse_alter_index()
                 expect_semi_colon("ALTER INDEX ...;");
                 return;
             }
-            if(snapdev::compare_full_string<"COMMENT">(cmd))
+            if(snapdev::compare_exact_string<"COMMENT">(cmd))
             {
                 n = f_lexer->get_next_token();
                 if(n->get_token() == token_t::TOKEN_EQUAL)
@@ -519,7 +519,7 @@ void parser::parse_alter_index()
         if(n->get_token() == token_t::TOKEN_IDENTIFIER)
         {
             cmd = n->get_string_upper();
-            if(snapdev::compare_full_string<"COLUMN">(cmd))
+            if(snapdev::compare_exact_string<"COLUMN">(cmd))
             {
                 n = f_lexer->get_next_token();
                 if(n->get_token() == token_t::TOKEN_IDENTIFIER)
@@ -545,7 +545,7 @@ void parser::parse_alter_index()
                 }
                 throw invalid_token(msg.str());
             }
-            else if(snapdev::compare_full_string<"EXPRESSION">(cmd))
+            else if(snapdev::compare_exact_string<"EXPRESSION">(cmd))
             {
                 // TODO: implement ADD|DROP COLUMN <name>
                 return;
@@ -604,8 +604,8 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
     if(n->get_token() == token_t::TOKEN_IDENTIFIER)
     {
         std::string keyword(n->get_string_upper());
-        if(snapdev::compare_full_string<"WORK">(keyword)
-        || snapdev::compare_full_string<"TRANSACTION">(keyword))
+        if(snapdev::compare_exact_string<"WORK">(keyword)
+        || snapdev::compare_exact_string<"TRANSACTION">(keyword))
         {
             n = f_lexer->get_next_token();
         }
@@ -614,7 +614,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
     {
         bool schema_data_required(false);
         std::string keyword(n->get_string_upper());
-        if(snapdev::compare_full_string<"ON">(keyword))
+        if(snapdev::compare_exact_string<"ON">(keyword))
         {
             schema_data_required = true;
 
@@ -628,12 +628,12 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
             }
             keyword = n->get_string_upper();
         }
-        if(snapdev::compare_full_string<"SCHEMA">(keyword))
+        if(snapdev::compare_exact_string<"SCHEMA">(keyword))
         {
             transaction_type = transaction_t::TRANSACTION_SCHEMA;
             n = f_lexer->get_next_token();
         }
-        else if(snapdev::compare_full_string<"DATA">(keyword))
+        else if(snapdev::compare_exact_string<"DATA">(keyword))
         {
             transaction_type = transaction_t::TRANSACTION_DATA;
             n = f_lexer->get_next_token();
@@ -651,7 +651,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
     if(cmd_type != command_t::COMMAND_BEGIN
     && n->get_token() == token_t::TOKEN_IDENTIFIER)
     {
-        if(snapdev::compare_full_string<"IF">(n->get_string_upper()))
+        if(snapdev::compare_exact_string<"IF">(n->get_string_upper()))
         {
             snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
             msg << n->get_location().get_location()
@@ -662,7 +662,7 @@ void parser::parse_transaction_command(std::string const & cmd_name, command_t c
         expr = parse_expression(n);
         if(n->get_token() == token_t::TOKEN_IDENTIFIER)
         {
-            if(snapdev::compare_full_string<"OTHERWISE">(n->get_string_upper()))
+            if(snapdev::compare_exact_string<"OTHERWISE">(n->get_string_upper()))
             {
                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
@@ -783,7 +783,7 @@ void parser::parse_create_context()
     command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_CREATE_CONTEXT));
 
     std::string keyword(n->get_string_upper());
-    bool const if_not_exists(snapdev::compare_full_string<"IF">(keyword));
+    bool const if_not_exists(snapdev::compare_exact_string<"IF">(keyword));
     if(if_not_exists)
     {
         bool optional_found(false);
@@ -822,7 +822,7 @@ void parser::parse_create_context()
         }
 
         keyword = n->get_string_upper();
-        //if(snapdev::compare_full_string<"USING">(keyword))
+        //if(snapdev::compare_exact_string<"USING">(keyword))
         //{
         //    if(!context_path.empty())
         //    {
@@ -860,7 +860,7 @@ void parser::parse_create_context()
         //    }
         //}
         //else
-        if(snapdev::compare_full_string<"WITH">(keyword))
+        if(snapdev::compare_exact_string<"WITH">(keyword))
         {
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_OPEN_PARENTHESIS)
@@ -964,7 +964,7 @@ void parser::parse_create_context()
                 //    }
                 //}
                 //else
-                if(snapdev::compare_full_string<"COMMENT">(keyword))
+                if(snapdev::compare_exact_string<"COMMENT">(keyword))
                 {
                     if(!description.empty())
                     {
@@ -1071,7 +1071,7 @@ void parser::parse_select()
         // SELECT DEFAULT VALUES ...
         //
         if(n->get_token() == token_t::TOKEN_IDENTIFIER
-        && snapdev::compare_full_string<"DEFAULT">(n->get_string_upper()))
+        && snapdev::compare_exact_string<"DEFAULT">(n->get_string_upper()))
         {
             if(cmd->is_defined_as(param_t::PARAM_EXPRESSION) == param_type_t::PARAM_TYPE_STRING)
             {
@@ -1083,7 +1083,7 @@ void parser::parse_select()
 
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_IDENTIFIER
-            && snapdev::compare_full_string<"VALUES">(n->get_string_upper()))
+            && snapdev::compare_exact_string<"VALUES">(n->get_string_upper()))
             {
                 snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                 msg << n->get_location().get_location()
@@ -1113,7 +1113,7 @@ void parser::parse_select()
         // SELECT <expr> AS <name>
         //
         if(n->get_token() == token_t::TOKEN_IDENTIFIER
-        && snapdev::compare_full_string<"AS">(n->get_string_upper()))
+        && snapdev::compare_exact_string<"AS">(n->get_string_upper()))
         {
             n = f_lexer->get_next_token();
             if(n->get_token() != token_t::TOKEN_IDENTIFIER)
@@ -1146,7 +1146,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
     // FROM and following are all optional here
     //
     if(n->get_token() == token_t::TOKEN_IDENTIFIER
-    && snapdev::compare_full_string<"FROM">(n->get_string_upper()))
+    && snapdev::compare_exact_string<"FROM">(n->get_string_upper()))
     {
         n = f_lexer->get_next_token();
         count = 0;
@@ -1177,7 +1177,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
             //
             n = f_lexer->get_next_token();
             if(n->get_token() == token_t::TOKEN_IDENTIFIER
-            && snapdev::compare_full_string<"AS">(n->get_string_upper()))
+            && snapdev::compare_exact_string<"AS">(n->get_string_upper()))
             {
                 n = f_lexer->get_next_token();
                 if(n->get_token() != token_t::TOKEN_IDENTIFIER)
@@ -1204,7 +1204,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
         while(n->get_token() == token_t::TOKEN_IDENTIFIER)
         {
             std::string const keyword(n->get_string_upper());
-            if(snapdev::compare_full_string<"WHERE">(keyword))
+            if(snapdev::compare_exact_string<"WHERE">(keyword))
             {
                 // WHERE <expr>
                 //
@@ -1219,7 +1219,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 where = parse_expression(n);
                 cmd->set_string(param_t::PARAM_WHERE, where);
             }
-            else if(snapdev::compare_full_string<"ORDER">(keyword))
+            else if(snapdev::compare_exact_string<"ORDER">(keyword))
             {
                 // ORDER BY PRIMARY KEY
                 //   or
@@ -1234,7 +1234,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 }
                 n = f_lexer->get_next_token();
                 if(n->get_token() != token_t::TOKEN_IDENTIFIER
-                || !snapdev::compare_full_string<"BY">(n->get_string_upper()))
+                || !snapdev::compare_exact_string<"BY">(n->get_string_upper()))
                 {
                     snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                     msg << n->get_location().get_location()
@@ -1250,11 +1250,11 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                         << "SELECT ... ORDER BY ... is expected to be the name of an index or 'PRIMARY KEY'.";
                     throw invalid_token(msg.str());
                 }
-                if(snapdev::compare_full_string<"PRIMARY">(n->get_string_upper()))
+                if(snapdev::compare_exact_string<"PRIMARY">(n->get_string_upper()))
                 {
                     n = f_lexer->get_next_token();
                     if(n->get_token() != token_t::TOKEN_IDENTIFIER
-                    || !snapdev::compare_full_string<"KEY">(n->get_string_upper()))
+                    || !snapdev::compare_exact_string<"KEY">(n->get_string_upper()))
                     {
                         snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
                         msg << n->get_location().get_location()
@@ -1272,7 +1272,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                 }
                 cmd->set_string(param_t::PARAM_ORDER_BY, order_by);
             }
-            else if(snapdev::compare_full_string<"LIMIT">(keyword))
+            else if(snapdev::compare_exact_string<"LIMIT">(keyword))
             {
                 // LIMIT <integer>
                 //
@@ -1315,7 +1315,7 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
     if(n->get_token() == token_t::TOKEN_IDENTIFIER)
     {
         std::string const keyword(n->get_string_upper());
-        if(snapdev::compare_full_string<"OUTPUT">(keyword))
+        if(snapdev::compare_exact_string<"OUTPUT">(keyword))
         {
             // OUTPUT <mode>
             //
@@ -1328,15 +1328,15 @@ SNAP_LOG_WARNING << "--- done parsing SELECT expressions..." << SNAP_LOG_SEND;
                     throw invalid_token(msg.str());
             }
             std::string const mode(n->get_string_upper());
-            if(snapdev::compare_full_string<"TABLE">(mode))
+            if(snapdev::compare_exact_string<"TABLE">(mode))
             {
                 cmd->set_int64(param_t::PARAM_MODE, static_cast<std::int64_t>(param_mode_t::PARAM_MODE_TABLE));
             }
-            else if(snapdev::compare_full_string<"PRINT">(mode))
+            else if(snapdev::compare_exact_string<"PRINT">(mode))
             {
                 cmd->set_int64(param_t::PARAM_MODE, static_cast<std::int64_t>(param_mode_t::PARAM_MODE_PRINT));
             }
-            else if(snapdev::compare_full_string<"JSON">(mode))
+            else if(snapdev::compare_exact_string<"JSON">(mode))
             {
                 cmd->set_int64(param_t::PARAM_MODE, static_cast<std::int64_t>(param_mode_t::PARAM_MODE_JSON));
             }
@@ -1478,7 +1478,7 @@ void parser::parse_show()
     switch(what[0])
     {
     case 'C':
-        if(snapdev::compare_switch_string<"CONTEXT">(what))
+        if(snapdev::compare_exact_switch_string<"CONTEXT">(what))
         {
             command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_CONTEXT));
             n = get_full_name(cmd, param_t::PARAM_NAME, param_t::PARAM_NAME_end, nullptr);
@@ -1486,7 +1486,7 @@ void parser::parse_show()
             f_commands.push_back(cmd);
             return;
         }
-        else if(snapdev::compare_switch_string<"CONTEXTS">(what))
+        else if(snapdev::compare_exact_switch_string<"CONTEXTS">(what))
         {
             command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_CONTEXTS));
             expect_semi_colon("SHOW CONTEXTS");
@@ -1496,14 +1496,14 @@ void parser::parse_show()
         break;
 
     case 'I':
-        if(snapdev::compare_switch_string<"INDEX">(what))
+        if(snapdev::compare_exact_switch_string<"INDEX">(what))
         {
             command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_INDEX));
             expect_semi_colon("SHOW INDEX", n);
             f_commands.push_back(cmd);
             return;
         }
-        else if(snapdev::compare_switch_string<"INDEXES">(what))
+        else if(snapdev::compare_exact_switch_string<"INDEXES">(what))
         {
             command::pointer_t cmd(std::make_shared<command>(command_t::COMMAND_SHOW_INDEXES));
             expect_semi_colon("SHOW INDEXES");

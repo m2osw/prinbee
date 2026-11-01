@@ -143,7 +143,7 @@ bool is_forbidden_name(char const * name)
     {
     case 'C':
     case 'c':
-        if(snapdev::compare_upper_switch_string<"CURRENT">(name))
+        if(snapdev::compare_upper_exact_switch_string<"CURRENT">(name))
         {
             return true;
         }
@@ -151,11 +151,11 @@ bool is_forbidden_name(char const * name)
 
     case 'O':
     case 'o':
-        if(snapdev::compare_upper_switch_string<"ORDER">(name))
+        if(snapdev::compare_upper_exact_switch_string<"ORDER">(name))
         {
             return true;
         }
-        if(snapdev::compare_upper_switch_string<"OUTPUT">(name))
+        if(snapdev::compare_upper_exact_switch_string<"OUTPUT">(name))
         {
             return true;
         }
@@ -163,7 +163,7 @@ bool is_forbidden_name(char const * name)
 
     case 'W':
     case 'w':
-        if(snapdev::compare_upper_switch_string<"WHERE">(name))
+        if(snapdev::compare_upper_exact_switch_string<"WHERE">(name))
         {
             return true;
         }
